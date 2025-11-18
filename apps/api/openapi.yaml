@@ -1,0 +1,103 @@
+openapi: 3.0.3
+info:
+  title: ROK Suite API
+  version: 0.1.0
+servers:
+  - url: http://localhost:8787
+paths:
+  /translate:
+    post:
+      summary: Translate short game text
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text: { type: string }
+              required: [text]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  translation: { type: string }
+                required: [translation]
+  /extract-roster:
+    post:
+      summary: Extract commanders, troops, gear from an image URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                imageUrl: { type: string, format: uri }
+              required: [imageUrl]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: ../../packages/shared-schema/roster.schema.json
+  /plan:
+    post:
+      summary: Create a plan from a roster
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../../packages/shared-schema/roster.schema.json
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+  /suggest:
+    post:
+      summary: Suggest counters based on rosters and mode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enemyRoster: { $ref: ../../packages/shared-schema/roster.schema.json }
+                yourRoster:  { $ref: ../../packages/shared-schema/roster.schema.json }
+                mode:
+                  type: string
+                  enum: [openfield, rally, canyon]
+              required: [yourRoster, mode]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+  /simulate:
+    post:
+      summary: Run a deterministic simulation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../../packages/shared-schema/sim.config.schema.json
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
