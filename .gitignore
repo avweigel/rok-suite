@@ -1,0 +1,16 @@
+# Node
+node_modules/
+dist/
+.next/
+.env*
+pnpm-lock.yaml
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Data
+*.log
+packages/**/data/**
+!packages/**/data/.keep
