@@ -1,0 +1,11 @@
+{
+  "name": "@rok-suite/shared-schema",
+  "version": "0.0.0",
+  "private": true,
+  "files": ["*.json"],
+  "scripts": {
+    "build": "echo \"schemas build N/A\"",
+    "lint": "echo \"schemas lint TBD\"",
+    "test": "echo \"schemas tests TBD\""
+  }
+}

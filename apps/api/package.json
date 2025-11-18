@@ -1,0 +1,12 @@
+{
+  "name": "@rok-suite/api",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "echo \"api dev server TBD\"",
+    "build": "echo \"api build TBD\"",
+    "lint": "echo \"api lint TBD\"",
+    "typecheck": "echo \"api typecheck TBD\"",
+    "test": "echo \"api tests TBD\""
+  }
+}

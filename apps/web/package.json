@@ -1,0 +1,12 @@
+{
+  "name": "@rok-suite/web",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "echo \"web dev server TBD\"",
+    "build": "echo \"web build TBD\"",
+    "lint": "echo \"web lint TBD\"",
+    "typecheck": "echo \"web typecheck TBD\"",
+    "test": "echo \"web tests TBD\""
+  }
+}

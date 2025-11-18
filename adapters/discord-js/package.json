@@ -1,0 +1,12 @@
+{
+  "name": "@rok-suite/adapter-discord-js",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "echo \"discord-js adapter dev TBD\"",
+    "build": "echo \"discord-js adapter build TBD\"",
+    "lint": "echo \"discord-js adapter lint TBD\"",
+    "typecheck": "echo \"discord-js adapter typecheck TBD\"",
+    "test": "echo \"discord-js adapter tests TBD\""
+  }
+}

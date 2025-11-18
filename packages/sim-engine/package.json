@@ -1,0 +1,13 @@
+{
+  "name": "@rok-suite/sim-engine",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "echo \"sim-engine build TBD\"",
+    "lint": "echo \"sim-engine lint TBD\"",
+    "typecheck": "echo \"sim-engine typecheck TBD\"",
+    "test": "echo \"sim-engine tests TBD\""
+  }
+}
