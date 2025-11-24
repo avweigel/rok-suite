@@ -40,11 +40,13 @@ jobs:
           pnpm export
 
       - name: Upload static directory for deployment
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v3
         with:
           path: apps/web/out
+          name: github-pages
 
       - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v2
+        id: deployment
+        uses: actions/deploy-pages@v4
         with:
-          artifact_name: out
+          artifact_name: github-pages
