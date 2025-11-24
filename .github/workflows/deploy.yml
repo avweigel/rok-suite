@@ -22,7 +22,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'
+          cache: pnpm
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -30,7 +30,6 @@ jobs:
           version: 10
 
       - name: Install dependencies
-        working-directory: apps/web
         run: pnpm install --frozen-lockfile
 
       - name: Build and export site
