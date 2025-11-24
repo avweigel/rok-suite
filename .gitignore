@@ -3,7 +3,6 @@ node_modules/
 dist/
 .next/
 .env*
-pnpm-lock.yaml
 
 # Python
 .venv/
