@@ -1,4 +1,4 @@
-name: Deploy Next.js static site to GitHub Pages (Debug Mode)
+name: Deploy static site to GitHub Pages
 
 on:
   push:
@@ -18,32 +18,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Print working directory and files (root)
-        run: |
-          echo "=== ROOT DIRECTORY ==="
-          pwd
-          ls -R .
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
+      - name: Install pnpm globally
+        run: npm install -g pnpm@latest
 
-      - name: Verify pnpm exists
+      - name: Verify pnpm
         run: |
-          which pnpm
           pnpm --version
-
-      - name: Print working dir and files in apps/web
-        run: |
-          echo "=== apps/web directory ==="
-          ls -R apps/web
+          which pnpm
 
       - name: Install dependencies
         working-directory: apps/web
