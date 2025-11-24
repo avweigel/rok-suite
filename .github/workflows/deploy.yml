@@ -33,7 +33,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: apps/web
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build and export site
         working-directory: apps/web
