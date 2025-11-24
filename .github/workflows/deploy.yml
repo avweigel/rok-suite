@@ -22,17 +22,29 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
 
       - name: Install dependencies
+        working-directory: apps/web
         run: pnpm install --frozen-lockfile
 
       - name: Build and export Next.js site
+        working-directory: apps/web
         run: |
-          pnpm --filter web build
-          pnpm --filter web export
+          pnpm build
+          pnpm export
+
+      - name: Upload static directory for deployment
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: apps/web/out
 
       - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v2
         with:
           artifact_name: out
-          path: apps/web/out
