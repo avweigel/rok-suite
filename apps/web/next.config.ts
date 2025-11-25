@@ -1,4 +1,6 @@
-const nextConfig = {
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
   output: "export",
   basePath: "/rok-suite",
   assetPrefix: "/rok-suite/",
@@ -6,3 +8,5 @@ const nextConfig = {
     unoptimized: true,
   },
 };
+
+export default nextConfig;
