@@ -17,7 +17,7 @@ export default function ArkOfOsirisPage() {
           Map Overview
         </h2>
         <img
-          src="/ark-strategy.png"
+          src="apps/web/public/ark-strategy.png"
           alt="Ark of Osiris strategy map"
           className='w-full h-auto object-contain'
         />

@@ -19,7 +19,7 @@ export default function Home() {
         <section className="mb-10">
           <div className="relative w-full overflow-hidden rounded-xl border border-zinc-800 bg-black/40">
             <img
-              src="/ark-strategy.png"
+              src="apps/web/public/ark-strategy.png"
               alt="Ark of Osiris strategy map"
               className="w-full h-auto object-contain"
             />
