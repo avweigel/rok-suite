@@ -1,63 +1,46 @@
-'use client';
-
-import Image from 'next/image';
-
-const TEAM_SIZE_FULL = 10;
-const TEAM_SIZE_TRAINING = { team1: 3, team2: 4, team3: 3 };
-
 export default function ArkOfOsirisPage() {
   return (
-    <main style={{ padding: "2rem", background: "#111", color: "#eee", minHeight: "100vh" }}>
-      <h1 style={{ fontSize: "2rem", marginBottom: "1rem" }}>
-        Ark of Osiris Strategy
-      </h1>
+    <div className="min-h-screen bg-zinc-950 text-zinc-50 flex items-center justify-center">
+      <main className="w-full max-w-5xl px-4 py-12 sm:px-8 sm:py-16">
+        <header className="mb-10">
+          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-2">
+            Ark of Osiris – Detailed Plan
+          </h1>
+          <p className="text-zinc-400 max-w-xl">
+            Same map, with more space for notes and assignments. Use this page
+            when walking through the plan in voice.
+          </p>
+        </header>
 
-      <section style={{ marginBottom: "2rem" }}>
-        <h2 style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>
-          Map Overview
-        </h2>
-        <img
-          src="apps/web/public/ark-strategy.png"
-          alt="Ark of Osiris strategy map"
-          className='w-full h-auto object-contain'
-        />
-      </section>
+        <section className="mb-10">
+          <h2 className="text-2xl font-semibold mb-4">Map Overview</h2>
+          <div className="overflow-hidden rounded-xl border border-zinc-800 bg-black/40">
+            <img
+              src="ark-strategy.png"
+              alt="Ark of Osiris strategy map"
+              className="block w-full h-auto"
+            />
+          </div>
+        </section>
 
-
-      <section style={{
-        display: "grid", gap: "1rem",
-        gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))"
-      }}>
-        <div style={{ background: "#222", padding: "1rem", borderRadius: "12px" }}>
-          <h3 style={{ color: "#63b3ed" }}>Team 1 – Cavalry</h3>
-          <p>Full event: {TEAM_SIZE_FULL} players<br />Training: {TEAM_SIZE_TRAINING.team1} players</p>
-          <ul>
-            <li>Fast cavalry</li>
-            <li>Capture out-buildings</li>
-            <li>Move to second Obelisk</li>
-          </ul>
-        </div>
-
-        <div style={{ background: "#222", padding: "1rem", borderRadius: "12px" }}>
-          <h3 style={{ color: "#f56565" }}>Team 2 – Mid / Ark</h3>
-          <p>Full event: {TEAM_SIZE_FULL} players<br />Training: {TEAM_SIZE_TRAINING.team2} players</p>
-          <ul>
-            <li>Main mid group</li>
-            <li>Control center buildings</li>
-            <li>Fight for Ark</li>
-          </ul>
-        </div>
-
-        <div style={{ background: "#222", padding: "1rem", borderRadius: "12px" }}>
-          <h3 style={{ color: "#48bb78" }}>Team 3 – Defense</h3>
-          <p>Full event: {TEAM_SIZE_FULL} players<br />Training: {TEAM_SIZE_TRAINING.team3} players</p>
-          <ul>
-            <li>Infantry / tank marches</li>
-            <li>Garrison captured buildings</li>
-            <li>Support second Obelisk</li>
-          </ul>
-        </div>
-      </section>
-    </main>
+        <section className="space-y-4 text-sm text-zinc-300">
+          <p>
+            <span className="font-semibold text-sky-300">Team 1 – Cavalry:</span>{" "}
+            hit out-buildings first, then rotate to the second Obelisk once
+            structures are secure.
+          </p>
+          <p>
+            <span className="font-semibold text-rose-300">Team 2 – Mid / Ark:</span>{" "}
+            move straight to mid, secure center buildings, and focus on Ark
+            capture and escort.
+          </p>
+          <p>
+            <span className="font-semibold text-emerald-300">Team 3 – Defense:</span>{" "}
+            follow Team 1 to garrison captured buildings, then flex between
+            Obelisks and key structures as needed.
+          </p>
+        </section>
+      </main>
+    </div>
   );
 }
