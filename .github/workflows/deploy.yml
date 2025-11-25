@@ -1,4 +1,4 @@
-name: Deploy static site to GitHub Pages
+name: Deploy Next.js static site to GitHub Pages
 
 on:
   push:
@@ -28,14 +28,15 @@ jobs:
 
       - name: Verify pnpm
         run: |
-          pnpm --version
           which pnpm
+          pnpm --version
 
-      - name: Install dependencies
-        working-directory: apps/web
-        run: pnpm install --no-frozen-lockfile
+      - name: Install dependencies (workspace root)
+        working-directory: .
+        run: |
+          pnpm install --no-frozen-lockfile
 
-      - name: Build and export site
+      - name: Build site
         working-directory: apps/web
         run: pnpm build
 
