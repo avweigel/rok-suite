@@ -18,13 +18,10 @@ export default function Home() {
         {/* Map image */}
         <section className="mb-10">
           <div className="relative w-full overflow-hidden rounded-xl border border-zinc-800 bg-black/40">
-            <Image
+            <img
               src="/ark-strategy.png"
               alt="Ark of Osiris strategy map"
-              width={1358}
-              height={768}
               className="w-full h-auto object-contain"
-              priority
             />
           </div>
           <p className="mt-3 text-sm text-zinc-500">

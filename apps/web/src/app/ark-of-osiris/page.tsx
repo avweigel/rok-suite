@@ -16,14 +16,13 @@ export default function ArkOfOsirisPage() {
         <h2 style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>
           Map Overview
         </h2>
-        <Image
+        <img
           src="/ark-strategy.png"
           alt="Ark of Osiris strategy map"
-          width={1200}
-          height={700}
-          style={{ borderRadius: "12px", border: "1px solid #444" }}
+          className='w-full h-auto object-contain'
         />
       </section>
+
 
       <section style={{
         display: "grid", gap: "1rem",
