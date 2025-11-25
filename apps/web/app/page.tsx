@@ -30,7 +30,7 @@ export default function AooStrategyPage() {
   const [strategyId, setStrategyId] = useState<string | null>(null);
 
   // Password
-  const EDITOR_PASSWORD = 'carn-dum';
+  const EDITOR_PASSWORD = 'test123';
 
   // Load from Supabase on mount
   useEffect(() => {
