@@ -16,7 +16,7 @@ export default function ArkOfOsirisPage() {
           <h2 className="text-2xl font-semibold mb-4">Map Overview</h2>
           <div className="overflow-hidden rounded-xl border border-zinc-800 bg-black/40">
             <img
-              src="/apps/web/public/ark-strategy.png"
+              src="ark-strategy.png"
               alt="Ark of Osiris strategy map"
               className="block w-full h-auto"
             />

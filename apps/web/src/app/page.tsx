@@ -19,7 +19,7 @@ export default function Home() {
           <p className="text-zinc-400 mb-4">Ark of Osiris strategy map</p>
           <div className="overflow-hidden rounded-xl border border-zinc-800 bg-black/40">
             <img
-              src="/apps/web/public/ark-strategy.png"
+              src="/ark-strategy.png"
               alt="Ark of Osiris strategy map"
               className="block w-full h-auto"
             />
