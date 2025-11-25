@@ -37,9 +37,7 @@ jobs:
 
       - name: Build and export site
         working-directory: apps/web
-        run: |
-          pnpm build
-          pnpm export
+        run: pnpm build
 
       - name: Upload static files for deployment
         uses: actions/upload-pages-artifact@v3
