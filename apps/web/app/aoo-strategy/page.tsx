@@ -28,7 +28,7 @@ export default function AooStrategyPage() {
     const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
 
     // Simple password - you can change this
-    const EDITOR_PASSWORD = 'aoo2024';
+    const EDITOR_PASSWORD = 'carn-dum';
 
     // Load from shared storage on mount
     useEffect(() => {
