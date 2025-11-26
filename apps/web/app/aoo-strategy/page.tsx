@@ -2,7 +2,17 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import AOOInteractiveMap from '@/components/AOOInteractiveMap';
+import dynamic from 'next/dynamic';
+
+// Dynamic import to avoid SSR issues with the map
+const AOOInteractiveMap = dynamic(() => import('@/components/AOOInteractiveMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center min-h-[400px]">
+      <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  ),
+});
 
 interface Player {
     id: number;
@@ -280,15 +290,17 @@ export default function AooStrategyPage() {
                     <div className="flex gap-1 mt-4">
                         <button
                             onClick={() => setActiveTab('map')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'map' ? theme.tabActive : theme.tabInactive
-                                }`}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                activeTab === 'map' ? theme.tabActive : theme.tabInactive
+                            }`}
                         >
                             🗺️ Strategy Map
                         </button>
                         <button
                             onClick={() => setActiveTab('roster')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'roster' ? theme.tabActive : theme.tabInactive
-                                }`}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                activeTab === 'roster' ? theme.tabActive : theme.tabInactive
+                            }`}
                         >
                             👥 Team Roster
                         </button>
@@ -314,27 +326,10 @@ export default function AooStrategyPage() {
 
             {/* Tab Content */}
             {activeTab === 'map' ? (
-                /* Interactive Map Tab */
                 <AOOInteractiveMap />
             ) : (
                 /* Roster Tab */
                 <div className="max-w-7xl mx-auto p-4 md:p-6">
-                    {/* Legacy Map Upload (optional - can remove if not needed) */}
-                    <section className={`${theme.card} border rounded-xl p-4 mb-6`}>
-                        <div className="flex items-center justify-between mb-3">
-                            <h2 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted}`}>Custom Map Image</h2>
-                            {isEditor && (
-                                <label className={`px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer ${theme.buttonPrimary}`}>
-                                    Upload<input type="file" accept="image/*" onChange={handleMapUpload} className="hidden" />
-                                </label>
-                            )}
-                        </div>
-                        <div className={`rounded-lg overflow-hidden ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'} min-h-[120px] flex items-center justify-center`}>
-                            {mapImage ? <img src={mapImage} alt="Strategy Map" className="max-w-full h-auto" /> : <span className={theme.textMuted}>No custom map uploaded</span>}
-                        </div>
-                    </section>
-
-                    {/* Add Player Section */}
                     {isEditor && (
                         <section className={`${theme.card} border rounded-xl p-4 mb-6`}>
                             <h2 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>Add Player</h2>
@@ -389,7 +384,6 @@ export default function AooStrategyPage() {
                         </section>
                     )}
 
-                    {/* Team Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         {[1, 2, 3].map((teamNum) => {
                             const teamInfo = teams[teamNum - 1];
@@ -449,7 +443,6 @@ export default function AooStrategyPage() {
                         })}
                     </div>
 
-                    {/* Strategy Notes */}
                     <section className={`${theme.card} border rounded-xl p-4`}>
                         <h2 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>Strategy Notes</h2>
                         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={() => isEditor && saveData({ notes })}
@@ -457,7 +450,6 @@ export default function AooStrategyPage() {
                             className={`w-full min-h-[120px] px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 resize-y`} />
                     </section>
 
-                    {/* Footer */}
                     <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
                         <p className={`text-xs ${theme.textMuted}`}>Angmar Alliance • Rise of Kingdoms</p>
                     </footer>
