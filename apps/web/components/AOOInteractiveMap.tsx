@@ -30,22 +30,22 @@ interface MapLocation {
   respawnTime?: string;
 }
 
-type LocationType =
-  | 'obelisk'
-  | 'outpost'
-  | 'shrine_war'
-  | 'shrine_life'
-  | 'desert_altar'
-  | 'sky_altar'
+type LocationType = 
+  | 'obelisk' 
+  | 'outpost' 
+  | 'shrine_war' 
+  | 'shrine_life' 
+  | 'desert_altar' 
+  | 'sky_altar' 
   | 'base'
   | 'central_shrine'
   | 'ark';
 
-// Team colors
+// Team colors - colorblind-friendly palette
 const teamColors: Record<SubTeam, { primary: string; name: string }> = {
-  1: { primary: '#3B82F6', name: 'Team 1' },
-  2: { primary: '#10B981', name: 'Team 2' },
-  3: { primary: '#F59E0B', name: 'Team 3' },
+  1: { primary: '#2563EB', name: 'Team 1' },  // Blue
+  2: { primary: '#D97706', name: 'Team 2' },  // Orange
+  3: { primary: '#7C3AED', name: 'Team 3' },  // Purple
 };
 
 // Location configuration
@@ -176,19 +176,21 @@ export default function AOOInteractiveMap() {
         <div className="max-w-[1800px] mx-auto flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-4 flex-wrap">
             <h1 className={`text-xl font-bold ${theme.text}`}>AOO Strategy Map</h1>
-
+            
             <div className={`flex rounded-lg ${theme.bgTertiary} p-1`}>
               <button
                 onClick={() => setFaction('iset')}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${faction === 'iset' ? 'bg-blue-500 text-white shadow-lg' : `${theme.textSecondary} ${theme.bgHover}`
-                  }`}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  faction === 'iset' ? 'bg-blue-500 text-white shadow-lg' : `${theme.textSecondary} ${theme.bgHover}`
+                }`}
               >
                 Iset
               </button>
               <button
                 onClick={() => setFaction('seth')}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${faction === 'seth' ? 'bg-red-500 text-white shadow-lg' : `${theme.textSecondary} ${theme.bgHover}`
-                  }`}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  faction === 'seth' ? 'bg-red-500 text-white shadow-lg' : `${theme.textSecondary} ${theme.bgHover}`
+                }`}
               >
                 Seth
               </button>
@@ -217,7 +219,7 @@ export default function AOOInteractiveMap() {
 
       <div className="max-w-[1800px] mx-auto p-4">
         <div className="flex flex-col lg:flex-row gap-4">
-
+          
           {/* Left Panel */}
           <div className="lg:w-64 space-y-4">
             {/* Team Selector */}
@@ -228,22 +230,24 @@ export default function AOOInteractiveMap() {
               <div className="space-y-2">
                 <button
                   onClick={() => setSelectedTeam('all')}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${selectedTeam === 'all' ? `${theme.accentBg} text-white` : `${theme.bgTertiary} ${theme.text} ${theme.bgHover}`
-                    }`}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
+                    selectedTeam === 'all' ? `${theme.accentBg} text-white` : `${theme.bgTertiary} ${theme.text} ${theme.bgHover}`
+                  }`}
                 >
                   <Users size={18} />
                   <span className="font-medium">All Teams</span>
                 </button>
-
+                
                 {([1, 2, 3] as SubTeam[]).map((team) => (
                   <button
                     key={team}
                     onClick={() => setSelectedTeam(team)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${selectedTeam === team ? 'text-white shadow-lg' : `${theme.bgTertiary} ${theme.text} ${theme.bgHover}`
-                      }`}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
+                      selectedTeam === team ? 'text-white shadow-lg' : `${theme.bgTertiary} ${theme.text} ${theme.bgHover}`
+                    }`}
                     style={selectedTeam === team ? { backgroundColor: teamColors[team].primary } : {}}
                   >
-                    <div
+                    <div 
                       className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
                       style={{ backgroundColor: selectedTeam === team ? 'rgba(255,255,255,0.25)' : teamColors[team].primary }}
                     >
@@ -265,8 +269,9 @@ export default function AOOInteractiveMap() {
                   <button
                     key={phase}
                     onClick={() => setSelectedPhase(phase)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium capitalize transition-all ${selectedPhase === phase ? `${theme.accentBg} text-white` : `${theme.bgTertiary} ${theme.text} ${theme.bgHover}`
-                      }`}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium capitalize transition-all ${
+                      selectedPhase === phase ? `${theme.accentBg} text-white` : `${theme.bgTertiary} ${theme.text} ${theme.bgHover}`
+                    }`}
                   >
                     {phase === 'all' ? 'All' : phase}
                   </button>
@@ -294,7 +299,7 @@ export default function AOOInteractiveMap() {
           <div className="flex-1">
             <div className={`${theme.bgSecondary} rounded-xl overflow-hidden border ${theme.border}`}>
               <div className="relative" style={{ paddingBottom: '70%' }}>
-                <div
+                <div 
                   className="absolute inset-0"
                   style={{ backgroundColor: isDark ? '#3D3428' : '#C4A77D' }}
                 >
@@ -355,15 +360,15 @@ export default function AOOInteractiveMap() {
                       onMouseLeave={() => setHoveredLocation(null)}
                     >
                       {isHighlighted && (
-                        <div
-                          className="absolute rounded-full animate-ping"
+                        <div 
+                          className="absolute rounded-full"
                           style={{
-                            width: size + 16,
-                            height: size + 16,
-                            left: -8,
-                            top: -8,
-                            backgroundColor: teamsHere.length > 0 ? teamColors[teamsHere[0]].primary : (faction === 'iset' ? '#3B82F6' : '#EF4444'),
-                            opacity: 0.3,
+                            width: size + 12,
+                            height: size + 12,
+                            left: -6,
+                            top: -6,
+                            backgroundColor: teamsHere.length > 0 ? teamColors[teamsHere[0]].primary : (faction === 'iset' ? '#2563EB' : '#EF4444'),
+                            opacity: 0.25,
                           }}
                         />
                       )}
@@ -374,9 +379,9 @@ export default function AOOInteractiveMap() {
                           width: size,
                           height: size,
                           backgroundColor: isDark ? config.darkColor : config.color,
-                          boxShadow: isSelected
-                            ? `0 0 0 3px ${faction === 'iset' ? '#3B82F6' : '#EF4444'}`
-                            : isHighlighted && teamsHere.length > 0
+                          boxShadow: isSelected 
+                            ? `0 0 0 3px ${faction === 'iset' ? '#3B82F6' : '#EF4444'}` 
+                            : isHighlighted && teamsHere.length > 0 
                               ? `0 0 0 2px ${teamColors[teamsHere[0]].primary}`
                               : undefined,
                         }}
@@ -401,7 +406,7 @@ export default function AOOInteractiveMap() {
                       {isHovered && !isSelected && (
                         <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 rounded-lg text-xs whitespace-nowrap z-50 shadow-xl border ${theme.bgSecondary} ${theme.text} ${theme.border}`}>
                           {location.name}
-                          <div
+                          <div 
                             className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent"
                             style={{ borderTopColor: isDark ? '#18181B' : '#FFFFFF' }}
                           />
@@ -421,7 +426,7 @@ export default function AOOInteractiveMap() {
                 <h3 className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted} mb-3`}>
                   {selectedTeam === 'all' ? 'All Team Objectives' : `${teamColors[selectedTeam as SubTeam].name} Objectives`}
                 </h3>
-
+                
                 {activeStrategies.length > 0 ? (
                   <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
                     {activeStrategies.map((strategy, idx) => (
@@ -436,7 +441,7 @@ export default function AOOInteractiveMap() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span
+                              <span 
                                 className="text-xs font-medium px-1.5 py-0.5 rounded"
                                 style={{ backgroundColor: `${teamColors[strategy.team].primary}20`, color: teamColors[strategy.team].primary }}
                               >
@@ -481,9 +486,9 @@ export default function AOOInteractiveMap() {
                     </div>
                     <button onClick={() => setSelectedLocation(null)} className={`${theme.textMuted} hover:${theme.text} text-xl leading-none`}>×</button>
                   </div>
-
+                  
                   <p className={`text-sm ${theme.textSecondary} mb-3`}>{selectedLocation.description}</p>
-
+                  
                   <div className="grid grid-cols-2 gap-2">
                     <div className={`${theme.bgTertiary} rounded-lg p-2`}>
                       <p className={`text-xs ${theme.textMuted}`}>Value</p>
