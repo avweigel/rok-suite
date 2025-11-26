@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import AOOInteractiveMap from '@/components/AOOInteractiveMap';
 
 interface Player {
     id: number;
@@ -45,6 +46,7 @@ const ALLIANCE_ROSTER = [
 ].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 
 export default function AooStrategyPage() {
+    const [activeTab, setActiveTab] = useState<'map' | 'roster'>('map');
     const [players, setPlayers] = useState<Player[]>([]);
     const [teams, setTeams] = useState<TeamInfo[]>(DEFAULT_TEAMS);
     const [mapImage, setMapImage] = useState<string | null>(null);
@@ -235,6 +237,8 @@ export default function AooStrategyPage() {
         tagActive: 'bg-emerald-600 text-white',
         dropdown: darkMode ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-gray-300',
         dropdownHover: darkMode ? 'hover:bg-zinc-700' : 'hover:bg-gray-100',
+        tabActive: darkMode ? 'bg-zinc-800 text-white' : 'bg-white text-gray-900 shadow',
+        tabInactive: darkMode ? 'text-zinc-400 hover:text-zinc-200' : 'text-gray-500 hover:text-gray-700',
     };
 
     if (isLoading) {
@@ -250,179 +254,215 @@ export default function AooStrategyPage() {
 
     return (
         <div className={`min-h-screen ${theme.bg} ${theme.text} transition-colors duration-200`}>
-            <div className="max-w-7xl mx-auto p-4 md:p-6">
-                <header className={`flex items-center justify-between mb-6 pb-4 border-b ${theme.border}`}>
-                    <div>
-                        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Ark of Osiris</h1>
-                        <p className={`text-sm ${theme.textMuted}`}>30v30 Strategy Planner</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <button onClick={toggleTheme} className={`p-2 rounded-lg ${theme.button}`}>
-                            {darkMode ? '☀️' : '🌙'}
-                        </button>
-                        {!isEditor ? (
-                            <button onClick={() => setShowPasswordPrompt(true)} className={`px-4 py-2 rounded-lg text-sm font-medium ${theme.button}`}>
-                                Edit Mode
-                            </button>
-                        ) : (
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${theme.tagActive}`}>Editing</span>
-                        )}
-                    </div>
-                </header>
-
-                {showPasswordPrompt && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-                        <div className={`${theme.card} border rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl`}>
-                            <h2 className="text-lg font-semibold mb-4">Enter Password</h2>
-                            <input type="password" value={editorPassword} onChange={(e) => setEditorPassword(e.target.value)}
-                                onKeyPress={(e) => e.key === 'Enter' && handlePasswordSubmit()} placeholder="Password"
-                                className={`w-full px-3 py-2 rounded-lg border ${theme.input} mb-4 focus:outline-none focus:ring-2 focus:ring-emerald-500`} autoFocus />
-                            <div className="flex gap-2">
-                                <button onClick={handlePasswordSubmit} className={`flex-1 py-2 rounded-lg font-medium ${theme.buttonPrimary}`}>Submit</button>
-                                <button onClick={() => setShowPasswordPrompt(false)} className={`flex-1 py-2 rounded-lg font-medium ${theme.button}`}>Cancel</button>
-                            </div>
+            {/* Header */}
+            <header className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'} border-b sticky top-0 z-40`}>
+                <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Ark of Osiris</h1>
+                            <p className={`text-sm ${theme.textMuted}`}>30v30 Strategy Planner</p>
                         </div>
-                    </div>
-                )}
-
-                <section className={`${theme.card} border rounded-xl p-4 mb-6`}>
-                    <div className="flex items-center justify-between mb-3">
-                        <h2 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted}`}>Battle Map</h2>
-                        {isEditor && (
-                            <label className={`px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer ${theme.buttonPrimary}`}>
-                                Upload<input type="file" accept="image/*" onChange={handleMapUpload} className="hidden" />
-                            </label>
-                        )}
-                    </div>
-                    <div className={`rounded-lg overflow-hidden ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'} min-h-[200px] flex items-center justify-center`}>
-                        {mapImage ? <img src={mapImage} alt="Strategy Map" className="max-w-full h-auto" /> : <span className={theme.textMuted}>No map uploaded</span>}
-                    </div>
-                </section>
-
-                {isEditor && (
-                    <section className={`${theme.card} border rounded-xl p-4 mb-6`}>
-                        <h2 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>Add Player</h2>
-                        <div className="flex flex-wrap gap-3 items-end">
-                            <div className="flex-1 min-w-[200px] relative" ref={dropdownRef}>
-                                <div className="flex gap-2 mb-2">
-                                    <button onClick={() => setUseCustomName(false)} className={`text-xs px-2 py-1 rounded ${!useCustomName ? theme.tagActive : theme.tag}`}>
-                                        From Roster
-                                    </button>
-                                    <button onClick={() => setUseCustomName(true)} className={`text-xs px-2 py-1 rounded ${useCustomName ? theme.tagActive : theme.tag}`}>
-                                        Custom Name
-                                    </button>
-                                </div>
-                                <input type="text" value={playerSearch} onChange={(e) => { setPlayerSearch(e.target.value); setShowDropdown(true); }}
-                                    onFocus={() => !useCustomName && setShowDropdown(true)}
-                                    placeholder={useCustomName ? "Enter custom name" : "Search roster..."}
-                                    className={`w-full px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500`} />
-                                {showDropdown && !useCustomName && filteredRoster.length > 0 && (
-                                    <div className={`absolute z-10 w-full mt-1 ${theme.dropdown} border rounded-lg shadow-lg max-h-48 overflow-y-auto`}>
-                                        {filteredRoster.slice(0, 10).map(name => (
-                                            <button key={name} onClick={() => addPlayer(name)}
-                                                className={`w-full text-left px-3 py-2 text-sm ${theme.dropdownHover} ${theme.text}`}>
-                                                {name}
-                                            </button>
-                                        ))}
-                                        {filteredRoster.length > 10 && (
-                                            <div className={`px-3 py-2 text-xs ${theme.textMuted}`}>+{filteredRoster.length - 10} more...</div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                            <div className="w-40">
-                                <select value={newPlayerTeam} onChange={(e) => setNewPlayerTeam(Number(e.target.value))}
-                                    className={`w-full px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500`}>
-                                    <option value={1}>Team 1 ({getTeamPlayers(1).length}/10)</option>
-                                    <option value={2}>Team 2 ({getTeamPlayers(2).length}/10)</option>
-                                    <option value={3}>Team 3 ({getTeamPlayers(3).length}/10)</option>
-                                </select>
-                            </div>
-                            {useCustomName && (
-                                <button onClick={() => addPlayer(playerSearch)} className={`px-6 py-2 rounded-lg font-medium ${theme.buttonPrimary}`}>Add</button>
+                        <div className="flex items-center gap-3">
+                            <button onClick={toggleTheme} className={`p-2 rounded-lg ${theme.button}`}>
+                                {darkMode ? '☀️' : '🌙'}
+                            </button>
+                            {!isEditor ? (
+                                <button onClick={() => setShowPasswordPrompt(true)} className={`px-4 py-2 rounded-lg text-sm font-medium ${theme.button}`}>
+                                    Edit Mode
+                                </button>
+                            ) : (
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${theme.tagActive}`}>Editing</span>
                             )}
                         </div>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                            {AVAILABLE_TAGS.map(tag => (
-                                <button key={tag} onClick={() => setNewPlayerTags(newPlayerTags.includes(tag) ? newPlayerTags.filter(t => t !== tag) : [...newPlayerTags, tag])}
-                                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${newPlayerTags.includes(tag) ? theme.tagActive : theme.tag}`}>
-                                    {tag}
-                                </button>
-                            ))}
+                    </div>
+
+                    {/* Tabs */}
+                    <div className="flex gap-1 mt-4">
+                        <button
+                            onClick={() => setActiveTab('map')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'map' ? theme.tabActive : theme.tabInactive
+                                }`}
+                        >
+                            🗺️ Strategy Map
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('roster')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'roster' ? theme.tabActive : theme.tabInactive
+                                }`}
+                        >
+                            👥 Team Roster
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            {/* Password Prompt Modal */}
+            {showPasswordPrompt && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div className={`${theme.card} border rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl`}>
+                        <h2 className="text-lg font-semibold mb-4">Enter Password</h2>
+                        <input type="password" value={editorPassword} onChange={(e) => setEditorPassword(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handlePasswordSubmit()} placeholder="Password"
+                            className={`w-full px-3 py-2 rounded-lg border ${theme.input} mb-4 focus:outline-none focus:ring-2 focus:ring-emerald-500`} autoFocus />
+                        <div className="flex gap-2">
+                            <button onClick={handlePasswordSubmit} className={`flex-1 py-2 rounded-lg font-medium ${theme.buttonPrimary}`}>Submit</button>
+                            <button onClick={() => setShowPasswordPrompt(false)} className={`flex-1 py-2 rounded-lg font-medium ${theme.button}`}>Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Tab Content */}
+            {activeTab === 'map' ? (
+                /* Interactive Map Tab */
+                <AOOInteractiveMap />
+            ) : (
+                /* Roster Tab */
+                <div className="max-w-7xl mx-auto p-4 md:p-6">
+                    {/* Legacy Map Upload (optional - can remove if not needed) */}
+                    <section className={`${theme.card} border rounded-xl p-4 mb-6`}>
+                        <div className="flex items-center justify-between mb-3">
+                            <h2 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted}`}>Custom Map Image</h2>
+                            {isEditor && (
+                                <label className={`px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer ${theme.buttonPrimary}`}>
+                                    Upload<input type="file" accept="image/*" onChange={handleMapUpload} className="hidden" />
+                                </label>
+                            )}
+                        </div>
+                        <div className={`rounded-lg overflow-hidden ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'} min-h-[120px] flex items-center justify-center`}>
+                            {mapImage ? <img src={mapImage} alt="Strategy Map" className="max-w-full h-auto" /> : <span className={theme.textMuted}>No custom map uploaded</span>}
                         </div>
                     </section>
-                )}
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    {[1, 2, 3].map((teamNum) => {
-                        const teamInfo = teams[teamNum - 1];
-                        const teamPlayers = getTeamPlayers(teamNum);
-                        return (
-                            <section key={teamNum} className={`${theme.card} border rounded-xl p-4`}>
-                                <div className={`mb-4 pb-3 border-b ${theme.border}`}>
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="font-semibold">{teamInfo.name}</h3>
-                                        <span className={`text-xs ${theme.textMuted}`}>{teamPlayers.length}/10</span>
+                    {/* Add Player Section */}
+                    {isEditor && (
+                        <section className={`${theme.card} border rounded-xl p-4 mb-6`}>
+                            <h2 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>Add Player</h2>
+                            <div className="flex flex-wrap gap-3 items-end">
+                                <div className="flex-1 min-w-[200px] relative" ref={dropdownRef}>
+                                    <div className="flex gap-2 mb-2">
+                                        <button onClick={() => setUseCustomName(false)} className={`text-xs px-2 py-1 rounded ${!useCustomName ? theme.tagActive : theme.tag}`}>
+                                            From Roster
+                                        </button>
+                                        <button onClick={() => setUseCustomName(true)} className={`text-xs px-2 py-1 rounded ${useCustomName ? theme.tagActive : theme.tag}`}>
+                                            Custom Name
+                                        </button>
                                     </div>
-                                    {isEditor ? (
-                                        <input type="text" value={teamInfo.description} onChange={(e) => updateTeamDescription(teamNum - 1, e.target.value)}
-                                            placeholder="Role description" className={`mt-2 w-full px-2 py-1 rounded text-sm border ${theme.input} focus:outline-none focus:ring-1 focus:ring-emerald-500`} />
-                                    ) : (
-                                        <p className={`text-sm ${theme.textAccent} mt-1`}>{teamInfo.description || '—'}</p>
+                                    <input type="text" value={playerSearch} onChange={(e) => { setPlayerSearch(e.target.value); setShowDropdown(true); }}
+                                        onFocus={() => !useCustomName && setShowDropdown(true)}
+                                        placeholder={useCustomName ? "Enter custom name" : "Search roster..."}
+                                        className={`w-full px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500`} />
+                                    {showDropdown && !useCustomName && filteredRoster.length > 0 && (
+                                        <div className={`absolute z-10 w-full mt-1 ${theme.dropdown} border rounded-lg shadow-lg max-h-48 overflow-y-auto`}>
+                                            {filteredRoster.slice(0, 10).map(name => (
+                                                <button key={name} onClick={() => addPlayer(name)}
+                                                    className={`w-full text-left px-3 py-2 text-sm ${theme.dropdownHover} ${theme.text}`}>
+                                                    {name}
+                                                </button>
+                                            ))}
+                                            {filteredRoster.length > 10 && (
+                                                <div className={`px-3 py-2 text-xs ${theme.textMuted}`}>+{filteredRoster.length - 10} more...</div>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
-                                <div className="space-y-2">
-                                    {teamPlayers.length === 0 ? (
-                                        <p className={`text-sm ${theme.textMuted} text-center py-6`}>No players</p>
-                                    ) : (
-                                        teamPlayers.map((player) => (
-                                            <div key={player.id} className={`rounded-lg p-3 ${darkMode ? 'bg-zinc-800/50' : 'bg-gray-50'}`}>
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <span className="font-medium text-sm">{player.name}</span>
-                                                    {isEditor && (
-                                                        <div className="flex items-center gap-2">
-                                                            <select value={player.team} onChange={(e) => movePlayer(player.id, Number(e.target.value))}
-                                                                className={`text-xs px-2 py-1 rounded border ${theme.input}`}>
-                                                                <option value={1}>T1</option><option value={2}>T2</option><option value={3}>T3</option>
-                                                            </select>
-                                                            <button onClick={() => removePlayer(player.id)} className="text-red-500 hover:text-red-400 text-sm">✕</button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="flex flex-wrap gap-1">
-                                                    {isEditor ? (
-                                                        AVAILABLE_TAGS.map(tag => (
-                                                            <button key={tag} onClick={() => togglePlayerTag(player.id, tag)}
-                                                                className={`px-2 py-0.5 rounded text-xs transition-colors ${player.tags.includes(tag) ? theme.tagActive : theme.tag}`}>
-                                                                {tag}
-                                                            </button>
-                                                        ))
-                                                    ) : (
-                                                        player.tags.length > 0 ? player.tags.map(tag => (
-                                                            <span key={tag} className={`px-2 py-0.5 rounded text-xs ${theme.tagActive}`}>{tag}</span>
-                                                        )) : <span className={`text-xs ${theme.textMuted}`}>No tags</span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))
-                                    )}
+                                <div className="w-40">
+                                    <select value={newPlayerTeam} onChange={(e) => setNewPlayerTeam(Number(e.target.value))}
+                                        className={`w-full px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500`}>
+                                        <option value={1}>Team 1 ({getTeamPlayers(1).length}/10)</option>
+                                        <option value={2}>Team 2 ({getTeamPlayers(2).length}/10)</option>
+                                        <option value={3}>Team 3 ({getTeamPlayers(3).length}/10)</option>
+                                    </select>
                                 </div>
-                            </section>
-                        );
-                    })}
+                                {useCustomName && (
+                                    <button onClick={() => addPlayer(playerSearch)} className={`px-6 py-2 rounded-lg font-medium ${theme.buttonPrimary}`}>Add</button>
+                                )}
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {AVAILABLE_TAGS.map(tag => (
+                                    <button key={tag} onClick={() => setNewPlayerTags(newPlayerTags.includes(tag) ? newPlayerTags.filter(t => t !== tag) : [...newPlayerTags, tag])}
+                                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${newPlayerTags.includes(tag) ? theme.tagActive : theme.tag}`}>
+                                        {tag}
+                                    </button>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+
+                    {/* Team Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        {[1, 2, 3].map((teamNum) => {
+                            const teamInfo = teams[teamNum - 1];
+                            const teamPlayers = getTeamPlayers(teamNum);
+                            return (
+                                <section key={teamNum} className={`${theme.card} border rounded-xl p-4`}>
+                                    <div className={`mb-4 pb-3 border-b ${theme.border}`}>
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="font-semibold">{teamInfo.name}</h3>
+                                            <span className={`text-xs ${theme.textMuted}`}>{teamPlayers.length}/10</span>
+                                        </div>
+                                        {isEditor ? (
+                                            <input type="text" value={teamInfo.description} onChange={(e) => updateTeamDescription(teamNum - 1, e.target.value)}
+                                                placeholder="Role description" className={`mt-2 w-full px-2 py-1 rounded text-sm border ${theme.input} focus:outline-none focus:ring-1 focus:ring-emerald-500`} />
+                                        ) : (
+                                            <p className={`text-sm ${theme.textAccent} mt-1`}>{teamInfo.description || '—'}</p>
+                                        )}
+                                    </div>
+                                    <div className="space-y-2">
+                                        {teamPlayers.length === 0 ? (
+                                            <p className={`text-sm ${theme.textMuted} text-center py-6`}>No players</p>
+                                        ) : (
+                                            teamPlayers.map((player) => (
+                                                <div key={player.id} className={`rounded-lg p-3 ${darkMode ? 'bg-zinc-800/50' : 'bg-gray-50'}`}>
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <span className="font-medium text-sm">{player.name}</span>
+                                                        {isEditor && (
+                                                            <div className="flex items-center gap-2">
+                                                                <select value={player.team} onChange={(e) => movePlayer(player.id, Number(e.target.value))}
+                                                                    className={`text-xs px-2 py-1 rounded border ${theme.input}`}>
+                                                                    <option value={1}>T1</option><option value={2}>T2</option><option value={3}>T3</option>
+                                                                </select>
+                                                                <button onClick={() => removePlayer(player.id)} className="text-red-500 hover:text-red-400 text-sm">✕</button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {isEditor ? (
+                                                            AVAILABLE_TAGS.map(tag => (
+                                                                <button key={tag} onClick={() => togglePlayerTag(player.id, tag)}
+                                                                    className={`px-2 py-0.5 rounded text-xs transition-colors ${player.tags.includes(tag) ? theme.tagActive : theme.tag}`}>
+                                                                    {tag}
+                                                                </button>
+                                                            ))
+                                                        ) : (
+                                                            player.tags.length > 0 ? player.tags.map(tag => (
+                                                                <span key={tag} className={`px-2 py-0.5 rounded text-xs ${theme.tagActive}`}>{tag}</span>
+                                                            )) : <span className={`text-xs ${theme.textMuted}`}>No tags</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </section>
+                            );
+                        })}
+                    </div>
+
+                    {/* Strategy Notes */}
+                    <section className={`${theme.card} border rounded-xl p-4`}>
+                        <h2 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>Strategy Notes</h2>
+                        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={() => isEditor && saveData({ notes })}
+                            placeholder={isEditor ? 'Add notes...' : 'No notes'} disabled={!isEditor}
+                            className={`w-full min-h-[120px] px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 resize-y`} />
+                    </section>
+
+                    {/* Footer */}
+                    <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
+                        <p className={`text-xs ${theme.textMuted}`}>Angmar Alliance • Rise of Kingdoms</p>
+                    </footer>
                 </div>
-
-                <section className={`${theme.card} border rounded-xl p-4`}>
-                    <h2 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>Strategy Notes</h2>
-                    <textarea value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={() => isEditor && saveData({ notes })}
-                        placeholder={isEditor ? 'Add notes...' : 'No notes'} disabled={!isEditor}
-                        className={`w-full min-h-[120px] px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 resize-y`} />
-                </section>
-
-                <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
-                    <p className={`text-xs ${theme.textMuted}`}>Angmar Alliance • Rise of Kingdoms</p>
-                </footer>
-            </div>
+            )}
         </div>
     );
 }
