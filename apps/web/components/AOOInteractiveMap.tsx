@@ -369,13 +369,16 @@ export default function AOOInteractiveMap() {
                       )}
 
                       <div
-                        className={`rounded-full flex items-center justify-center shadow-lg transition-all ${isHighlighted ? 'ring-2' : ''}`}
+                        className={`rounded-full flex items-center justify-center shadow-lg transition-all`}
                         style={{
                           width: size,
                           height: size,
                           backgroundColor: isDark ? config.darkColor : config.color,
-                          ringColor: isHighlighted && teamsHere.length > 0 ? teamColors[teamsHere[0]].primary : 'transparent',
-                          boxShadow: isSelected ? `0 0 0 3px ${faction === 'iset' ? '#3B82F6' : '#EF4444'}` : undefined,
+                          boxShadow: isSelected
+                            ? `0 0 0 3px ${faction === 'iset' ? '#3B82F6' : '#EF4444'}`
+                            : isHighlighted && teamsHere.length > 0
+                              ? `0 0 0 2px ${teamColors[teamsHere[0]].primary}`
+                              : undefined,
                         }}
                       >
                         <span style={{ fontSize: size * 0.5 }}>{config.icon}</span>
