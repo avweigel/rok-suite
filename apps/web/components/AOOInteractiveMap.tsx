@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { Moon, Sun, Users, Target, MapPin, Eye, EyeOff, Flag, Swords, Shield, Zap } from 'lucide-react';
+import React, { useState } from 'react';
+import { Moon, Sun, Users, Target, Eye, EyeOff, Flag, Swords, Shield, Zap } from 'lucide-react';
 
 // Types
-type Faction = 'iset' | 'seth';
 type SubTeam = 1 | 2 | 3;
 type Phase = 'opening' | 'mid' | 'late' | 'all';
 
@@ -14,7 +13,6 @@ interface TeamStrategy {
   objective: string;
   description: string;
   locations: string[];
-  priority: 'primary' | 'secondary' | 'support';
   icon: 'swords' | 'shield' | 'flag' | 'zap';
 }
 
@@ -27,28 +25,27 @@ interface MapLocation {
   description: string;
   strategicValue: 'low' | 'medium' | 'high' | 'critical';
   points?: number;
-  respawnTime?: string;
 }
 
-type LocationType = 
-  | 'obelisk' 
-  | 'outpost' 
-  | 'shrine_war' 
-  | 'shrine_life' 
-  | 'desert_altar' 
-  | 'sky_altar' 
+type LocationType =
+  | 'obelisk'
+  | 'outpost'
+  | 'shrine_war'
+  | 'shrine_life'
+  | 'desert_altar'
+  | 'sky_altar'
   | 'base'
   | 'central_shrine'
   | 'ark';
 
-// Team colors - colorblind-friendly palette
+// Team colors - colorblind-friendly palette (Blue, Orange, Purple)
 const teamColors: Record<SubTeam, { primary: string; name: string }> = {
-  1: { primary: '#2563EB', name: 'Team 1' },  // Blue
-  2: { primary: '#D97706', name: 'Team 2' },  // Orange
-  3: { primary: '#7C3AED', name: 'Team 3' },  // Purple
+  1: { primary: '#2563EB', name: 'Team 1' },
+  2: { primary: '#D97706', name: 'Team 2' },
+  3: { primary: '#7C3AED', name: 'Team 3' },
 };
 
-// Location configuration
+// Location styling
 const locationConfig: Record<LocationType, { color: string; darkColor: string; icon: string; label: string }> = {
   obelisk: { color: '#6B7280', darkColor: '#9CA3AF', icon: '🗿', label: 'Obelisk' },
   outpost: { color: '#8B5CF6', darkColor: '#A78BFA', icon: '🏛️', label: 'Outpost' },
@@ -67,12 +64,12 @@ const mapLocations: MapLocation[] = [
   { id: 'obelisk-w', name: 'Western Obelisk', type: 'obelisk', x: 10, y: 43, description: 'Western flank control.', strategicValue: 'medium', points: 100 },
   { id: 'obelisk-e', name: 'Eastern Obelisk', type: 'obelisk', x: 87, y: 43, description: 'Eastern flank control.', strategicValue: 'medium', points: 100 },
   { id: 'obelisk-s', name: 'Southern Obelisk', type: 'obelisk', x: 41, y: 77, description: 'Southern map control.', strategicValue: 'medium', points: 100 },
-  { id: 'outpost-nw', name: 'Northwest Outpost', type: 'outpost', x: 17, y: 26, description: 'Forward spawn point.', strategicValue: 'high', respawnTime: '3 min' },
-  { id: 'outpost-n', name: 'North Outpost', type: 'outpost', x: 35, y: 18, description: 'Northern staging area.', strategicValue: 'high', respawnTime: '3 min' },
-  { id: 'outpost-nc', name: 'North-Central Outpost', type: 'outpost', x: 33, y: 30, description: 'Mid-north control.', strategicValue: 'high', respawnTime: '3 min' },
-  { id: 'outpost-c', name: 'Central Outpost', type: 'outpost', x: 62, y: 60, description: 'Central map presence.', strategicValue: 'high', respawnTime: '3 min' },
-  { id: 'outpost-e', name: 'East Outpost', type: 'outpost', x: 79, y: 60, description: 'Eastern staging area.', strategicValue: 'high', respawnTime: '3 min' },
-  { id: 'outpost-se', name: 'Southeast Outpost', type: 'outpost', x: 63, y: 72, description: 'Southern flank control.', strategicValue: 'high', respawnTime: '3 min' },
+  { id: 'outpost-nw', name: 'Northwest Outpost', type: 'outpost', x: 17, y: 26, description: 'Forward spawn point.', strategicValue: 'high' },
+  { id: 'outpost-n', name: 'North Outpost', type: 'outpost', x: 35, y: 18, description: 'Northern staging area.', strategicValue: 'high' },
+  { id: 'outpost-nc', name: 'North-Central Outpost', type: 'outpost', x: 33, y: 30, description: 'Mid-north control.', strategicValue: 'high' },
+  { id: 'outpost-c', name: 'Central Outpost', type: 'outpost', x: 62, y: 60, description: 'Central map presence.', strategicValue: 'high' },
+  { id: 'outpost-e', name: 'East Outpost', type: 'outpost', x: 79, y: 60, description: 'Eastern staging area.', strategicValue: 'high' },
+  { id: 'outpost-se', name: 'Southeast Outpost', type: 'outpost', x: 63, y: 72, description: 'Southern flank control.', strategicValue: 'high' },
   { id: 'shrine-war-w', name: 'Western Shrine of War', type: 'shrine_war', x: 30, y: 48, description: 'Combat buff shrine.', strategicValue: 'critical', points: 200 },
   { id: 'shrine-war-e', name: 'Eastern Shrine of War', type: 'shrine_war', x: 70, y: 42, description: 'Combat buff shrine.', strategicValue: 'critical', points: 200 },
   { id: 'shrine-life-ne', name: 'NE Shrine of Life', type: 'shrine_life', x: 70, y: 16, description: 'Healing buff shrine.', strategicValue: 'high', points: 150 },
@@ -81,37 +78,29 @@ const mapLocations: MapLocation[] = [
   { id: 'altar-desert-s', name: 'South Desert Altar', type: 'desert_altar', x: 42, y: 61, description: 'Resource bonus.', strategicValue: 'medium', points: 75 },
   { id: 'altar-sky-ne', name: 'NE Sky Altar', type: 'sky_altar', x: 85, y: 27, description: 'Vision buff.', strategicValue: 'medium', points: 75 },
   { id: 'altar-sky-sw', name: 'SW Sky Altar', type: 'sky_altar', x: 12, y: 57, description: 'Vision buff.', strategicValue: 'medium', points: 75 },
-  { id: 'base-ally', name: 'Allied Base', type: 'base', x: 15, y: 13, description: 'Main spawn point.', strategicValue: 'critical' },
+  { id: 'base-ally', name: 'Our Base', type: 'base', x: 15, y: 13, description: 'Main spawn point.', strategicValue: 'critical' },
   { id: 'base-enemy', name: 'Enemy Base', type: 'base', x: 85, y: 82, description: 'Enemy spawn.', strategicValue: 'critical' },
   { id: 'central', name: 'Central Shrine', type: 'central_shrine', x: 48, y: 45, description: 'Primary objective.', strategicValue: 'critical', points: 500 },
   { id: 'ark', name: 'The Ark', type: 'ark', x: 50, y: 38, description: 'Retrieve and deliver for massive points.', strategicValue: 'critical', points: 1000 },
 ];
 
-// Strategy templates per faction
-const defaultStrategies: Record<Faction, TeamStrategy[]> = {
-  iset: [
-    { team: 1, phase: 'opening', objective: 'Rush Central Shrine', description: 'Fast push to contest central shrine. Establish presence before enemy arrives.', locations: ['central', 'shrine-war-w'], priority: 'primary', icon: 'swords' },
-    { team: 1, phase: 'mid', objective: 'Hold Central', description: 'Maintain control of central shrine. Rotate to defend against flanks.', locations: ['central', 'shrine-war-w', 'shrine-war-e'], priority: 'primary', icon: 'shield' },
-    { team: 1, phase: 'late', objective: 'Push Enemy Base', description: 'With point lead, apply pressure to enemy spawn.', locations: ['base-enemy', 'outpost-e'], priority: 'primary', icon: 'swords' },
-    { team: 2, phase: 'opening', objective: 'Secure Ark Route', description: 'Position along ark spawn path. Prepare for retrieval.', locations: ['ark', 'altar-desert-n'], priority: 'primary', icon: 'flag' },
-    { team: 2, phase: 'mid', objective: 'Retrieve the Ark', description: 'When ark spawns, secure and escort to scoring zone.', locations: ['ark', 'central'], priority: 'primary', icon: 'flag' },
-    { team: 2, phase: 'late', objective: 'Defend Ark Carrier', description: 'Protect ark carrier at all costs. Clear path to objective.', locations: ['ark', 'central', 'outpost-nc'], priority: 'primary', icon: 'shield' },
-    { team: 3, phase: 'opening', objective: 'Capture Flanks', description: 'Secure obelisks and altars on flanks. Deny enemy resources.', locations: ['obelisk-w', 'altar-sky-sw', 'shrine-life-sw'], priority: 'secondary', icon: 'zap' },
-    { team: 3, phase: 'mid', objective: 'Harass & Reinforce', description: 'Rotate to support Team 1 or 2 as needed. Keep pressure on enemy flanks.', locations: ['obelisk-w', 'obelisk-s', 'shrine-war-w'], priority: 'support', icon: 'zap' },
-    { team: 3, phase: 'late', objective: 'Cut Reinforcements', description: 'Intercept enemy respawns. Control southern routes.', locations: ['outpost-se', 'obelisk-s', 'shrine-life-sw'], priority: 'secondary', icon: 'swords' },
-  ],
-  seth: [
-    { team: 1, phase: 'opening', objective: 'Contest Central', description: 'Push to central shrine. Fight for control.', locations: ['central', 'shrine-war-e'], priority: 'primary', icon: 'swords' },
-    { team: 1, phase: 'mid', objective: 'Control Shrines', description: 'Secure both war shrines for combat advantage.', locations: ['shrine-war-e', 'shrine-war-w', 'central'], priority: 'primary', icon: 'shield' },
-    { team: 1, phase: 'late', objective: 'Siege Enemy', description: 'Full assault on enemy territory.', locations: ['base-ally', 'outpost-nw'], priority: 'primary', icon: 'swords' },
-    { team: 2, phase: 'opening', objective: 'Ark Intercept', description: 'Position to contest ark spawn. Deny enemy retrieval.', locations: ['ark', 'altar-desert-n', 'altar-desert-s'], priority: 'primary', icon: 'flag' },
-    { team: 2, phase: 'mid', objective: 'Secure the Ark', description: 'Retrieve ark and escort to scoring zone.', locations: ['ark', 'central'], priority: 'primary', icon: 'flag' },
-    { team: 2, phase: 'late', objective: 'Ark Delivery', description: 'Final push with ark. Coordinate with all teams.', locations: ['ark', 'central'], priority: 'primary', icon: 'flag' },
-    { team: 3, phase: 'opening', objective: 'Eastern Control', description: 'Secure eastern obelisks and altars.', locations: ['obelisk-e', 'altar-sky-ne', 'shrine-life-ne'], priority: 'secondary', icon: 'zap' },
-    { team: 3, phase: 'mid', objective: 'Flank Support', description: 'Rotate to reinforce main team or ark team.', locations: ['obelisk-e', 'shrine-war-e', 'outpost-e'], priority: 'support', icon: 'zap' },
-    { team: 3, phase: 'late', objective: 'Spawn Control', description: 'Camp enemy spawn routes. Delay reinforcements.', locations: ['outpost-nw', 'outpost-n', 'obelisk-w'], priority: 'secondary', icon: 'swords' },
-  ],
-};
+// Team strategies
+const strategies: TeamStrategy[] = [
+  // Team 1 - Main assault
+  { team: 1, phase: 'opening', objective: 'Rush Central Shrine', description: 'Fast push to contest central shrine. Establish presence before enemy arrives.', locations: ['central', 'shrine-war-w'], icon: 'swords' },
+  { team: 1, phase: 'mid', objective: 'Hold Central', description: 'Maintain control of central shrine. Rotate to defend against flanks.', locations: ['central', 'shrine-war-w', 'shrine-war-e'], icon: 'shield' },
+  { team: 1, phase: 'late', objective: 'Push Enemy Base', description: 'With point lead, apply pressure to enemy spawn.', locations: ['base-enemy', 'outpost-e'], icon: 'swords' },
+
+  // Team 2 - Ark specialists
+  { team: 2, phase: 'opening', objective: 'Secure Ark Route', description: 'Position along ark spawn path. Prepare for retrieval.', locations: ['ark', 'altar-desert-n'], icon: 'flag' },
+  { team: 2, phase: 'mid', objective: 'Retrieve the Ark', description: 'When ark spawns, secure and escort to scoring zone.', locations: ['ark', 'central'], icon: 'flag' },
+  { team: 2, phase: 'late', objective: 'Defend Ark Carrier', description: 'Protect ark carrier at all costs. Clear path to objective.', locations: ['ark', 'central', 'outpost-nc'], icon: 'shield' },
+
+  // Team 3 - Flankers & Support
+  { team: 3, phase: 'opening', objective: 'Capture Flanks', description: 'Secure obelisks and altars on flanks. Deny enemy resources.', locations: ['obelisk-w', 'altar-sky-sw', 'shrine-life-sw'], icon: 'zap' },
+  { team: 3, phase: 'mid', objective: 'Harass & Reinforce', description: 'Rotate to support Team 1 or 2 as needed. Keep pressure on enemy flanks.', locations: ['obelisk-w', 'obelisk-s', 'shrine-war-w'], icon: 'zap' },
+  { team: 3, phase: 'late', objective: 'Cut Reinforcements', description: 'Intercept enemy respawns. Control southern routes.', locations: ['outpost-se', 'obelisk-s', 'shrine-life-sw'], icon: 'swords' },
+];
 
 const strategicValueColors: Record<string, { dark: string; light: string }> = {
   low: { dark: '#6B7280', light: '#9CA3AF' },
@@ -133,16 +122,13 @@ const StrategyIcon = ({ type, className, style }: { type: string; className?: st
 
 export default function AOOInteractiveMap() {
   const [isDark, setIsDark] = useState(true);
-  const [faction, setFaction] = useState<Faction>('iset');
   const [selectedTeam, setSelectedTeam] = useState<SubTeam | 'all'>('all');
   const [selectedPhase, setSelectedPhase] = useState<Phase>('all');
   const [selectedLocation, setSelectedLocation] = useState<MapLocation | null>(null);
   const [hoveredLocation, setHoveredLocation] = useState<MapLocation | null>(null);
   const [showStrategyPanel, setShowStrategyPanel] = useState(true);
 
-  const toggleTheme = useCallback(() => setIsDark(prev => !prev), []);
-
-  const activeStrategies = defaultStrategies[faction].filter(s => {
+  const activeStrategies = strategies.filter(s => {
     if (selectedTeam !== 'all' && s.team !== selectedTeam) return false;
     if (selectedPhase !== 'all' && s.phase !== selectedPhase) return false;
     return true;
@@ -159,8 +145,6 @@ export default function AOOInteractiveMap() {
     textSecondary: isDark ? 'text-zinc-400' : 'text-slate-600',
     textMuted: isDark ? 'text-zinc-500' : 'text-slate-400',
     border: isDark ? 'border-zinc-800' : 'border-slate-200',
-    accent: faction === 'iset' ? 'text-blue-400' : 'text-red-400',
-    accentBg: faction === 'iset' ? 'bg-blue-500' : 'bg-red-500',
   };
 
   const getMarkerSize = (type: LocationType) => {
@@ -174,28 +158,7 @@ export default function AOOInteractiveMap() {
       {/* Header */}
       <header className={`${theme.bgSecondary} border-b ${theme.border} px-4 py-3 sticky top-0 z-50`}>
         <div className="max-w-[1800px] mx-auto flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-4 flex-wrap">
-            <h1 className={`text-xl font-bold ${theme.text}`}>AOO Strategy Map</h1>
-            
-            <div className={`flex rounded-lg ${theme.bgTertiary} p-1`}>
-              <button
-                onClick={() => setFaction('iset')}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-                  faction === 'iset' ? 'bg-blue-500 text-white shadow-lg' : `${theme.textSecondary} ${theme.bgHover}`
-                }`}
-              >
-                Iset
-              </button>
-              <button
-                onClick={() => setFaction('seth')}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-                  faction === 'seth' ? 'bg-red-500 text-white shadow-lg' : `${theme.textSecondary} ${theme.bgHover}`
-                }`}
-              >
-                Seth
-              </button>
-            </div>
-          </div>
+          <h1 className={`text-xl font-bold ${theme.text}`}>AOO Strategy Map</h1>
 
           <div className="flex items-center gap-3">
             <button
@@ -207,7 +170,7 @@ export default function AOOInteractiveMap() {
             </button>
 
             <button
-              onClick={toggleTheme}
+              onClick={() => setIsDark(!isDark)}
               className={`p-2 rounded-lg ${theme.bgTertiary} ${theme.text} ${theme.bgHover} transition-colors`}
               aria-label="Toggle theme"
             >
@@ -219,7 +182,7 @@ export default function AOOInteractiveMap() {
 
       <div className="max-w-[1800px] mx-auto p-4">
         <div className="flex flex-col lg:flex-row gap-4">
-          
+
           {/* Left Panel */}
           <div className="lg:w-64 space-y-4">
             {/* Team Selector */}
@@ -230,24 +193,22 @@ export default function AOOInteractiveMap() {
               <div className="space-y-2">
                 <button
                   onClick={() => setSelectedTeam('all')}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                    selectedTeam === 'all' ? `${theme.accentBg} text-white` : `${theme.bgTertiary} ${theme.text} ${theme.bgHover}`
-                  }`}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${selectedTeam === 'all' ? 'bg-emerald-600 text-white' : `${theme.bgTertiary} ${theme.text} ${theme.bgHover}`
+                    }`}
                 >
                   <Users size={18} />
                   <span className="font-medium">All Teams</span>
                 </button>
-                
+
                 {([1, 2, 3] as SubTeam[]).map((team) => (
                   <button
                     key={team}
                     onClick={() => setSelectedTeam(team)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                      selectedTeam === team ? 'text-white shadow-lg' : `${theme.bgTertiary} ${theme.text} ${theme.bgHover}`
-                    }`}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${selectedTeam === team ? 'text-white shadow-lg' : `${theme.bgTertiary} ${theme.text} ${theme.bgHover}`
+                      }`}
                     style={selectedTeam === team ? { backgroundColor: teamColors[team].primary } : {}}
                   >
-                    <div 
+                    <div
                       className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
                       style={{ backgroundColor: selectedTeam === team ? 'rgba(255,255,255,0.25)' : teamColors[team].primary }}
                     >
@@ -269,9 +230,8 @@ export default function AOOInteractiveMap() {
                   <button
                     key={phase}
                     onClick={() => setSelectedPhase(phase)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium capitalize transition-all ${
-                      selectedPhase === phase ? `${theme.accentBg} text-white` : `${theme.bgTertiary} ${theme.text} ${theme.bgHover}`
-                    }`}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium capitalize transition-all ${selectedPhase === phase ? 'bg-emerald-600 text-white' : `${theme.bgTertiary} ${theme.text} ${theme.bgHover}`
+                      }`}
                   >
                     {phase === 'all' ? 'All' : phase}
                   </button>
@@ -299,17 +259,14 @@ export default function AOOInteractiveMap() {
           <div className="flex-1">
             <div className={`${theme.bgSecondary} rounded-xl overflow-hidden border ${theme.border}`}>
               <div className="relative" style={{ paddingBottom: '70%' }}>
-                <div 
-                  className="absolute inset-0"
-                  style={{ backgroundColor: isDark ? '#3D3428' : '#C4A77D' }}
-                >
-                  <img
-                    src="/aoo-map.jpg"
-                    alt="AOO Map"
-                    className="w-full h-full object-cover"
-                    style={{ opacity: isDark ? 0.7 : 1 }}
-                  />
-                </div>
+                <div
+                  className="absolute inset-0 bg-cover bg-center"
+                  style={{
+                    backgroundImage: 'url(/aoo-map.jpg)',
+                    backgroundColor: isDark ? '#3D3428' : '#C4A77D',
+                    opacity: isDark ? 0.8 : 1,
+                  }}
+                />
 
                 {/* Route lines */}
                 {selectedTeam !== 'all' && (
@@ -359,29 +316,31 @@ export default function AOOInteractiveMap() {
                       onMouseEnter={() => setHoveredLocation(location)}
                       onMouseLeave={() => setHoveredLocation(null)}
                     >
+                      {/* Highlight glow for strategy locations */}
                       {isHighlighted && (
-                        <div 
+                        <div
                           className="absolute rounded-full"
                           style={{
                             width: size + 12,
                             height: size + 12,
                             left: -6,
                             top: -6,
-                            backgroundColor: teamsHere.length > 0 ? teamColors[teamsHere[0]].primary : (faction === 'iset' ? '#2563EB' : '#EF4444'),
+                            backgroundColor: teamsHere.length > 0 ? teamColors[teamsHere[0]].primary : '#10B981',
                             opacity: 0.25,
                           }}
                         />
                       )}
 
+                      {/* Main marker */}
                       <div
-                        className={`rounded-full flex items-center justify-center shadow-lg transition-all`}
+                        className="rounded-full flex items-center justify-center shadow-lg transition-all"
                         style={{
                           width: size,
                           height: size,
                           backgroundColor: isDark ? config.darkColor : config.color,
-                          boxShadow: isSelected 
-                            ? `0 0 0 3px ${faction === 'iset' ? '#3B82F6' : '#EF4444'}` 
-                            : isHighlighted && teamsHere.length > 0 
+                          boxShadow: isSelected
+                            ? '0 0 0 3px #10B981'
+                            : isHighlighted && teamsHere.length > 0
                               ? `0 0 0 2px ${teamColors[teamsHere[0]].primary}`
                               : undefined,
                         }}
@@ -389,6 +348,7 @@ export default function AOOInteractiveMap() {
                         <span style={{ fontSize: size * 0.5 }}>{config.icon}</span>
                       </div>
 
+                      {/* Team indicators */}
                       {teamsHere.length > 0 && (
                         <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
                           {[...new Set(teamsHere)].map(t => (
@@ -403,10 +363,11 @@ export default function AOOInteractiveMap() {
                         </div>
                       )}
 
+                      {/* Hover tooltip */}
                       {isHovered && !isSelected && (
                         <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 rounded-lg text-xs whitespace-nowrap z-50 shadow-xl border ${theme.bgSecondary} ${theme.text} ${theme.border}`}>
                           {location.name}
-                          <div 
+                          <div
                             className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent"
                             style={{ borderTopColor: isDark ? '#18181B' : '#FFFFFF' }}
                           />
@@ -426,7 +387,7 @@ export default function AOOInteractiveMap() {
                 <h3 className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted} mb-3`}>
                   {selectedTeam === 'all' ? 'All Team Objectives' : `${teamColors[selectedTeam as SubTeam].name} Objectives`}
                 </h3>
-                
+
                 {activeStrategies.length > 0 ? (
                   <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
                     {activeStrategies.map((strategy, idx) => (
@@ -441,7 +402,7 @@ export default function AOOInteractiveMap() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span 
+                              <span
                                 className="text-xs font-medium px-1.5 py-0.5 rounded"
                                 style={{ backgroundColor: `${teamColors[strategy.team].primary}20`, color: teamColors[strategy.team].primary }}
                               >
@@ -474,6 +435,7 @@ export default function AOOInteractiveMap() {
                 )}
               </div>
 
+              {/* Selected Location Details */}
               {selectedLocation && (
                 <div className={`${theme.bgSecondary} rounded-xl p-4 border ${theme.border}`}>
                   <div className="flex items-start justify-between mb-3">
@@ -484,11 +446,11 @@ export default function AOOInteractiveMap() {
                         <p className={`text-xs ${theme.textMuted}`}>{locationConfig[selectedLocation.type].label}</p>
                       </div>
                     </div>
-                    <button onClick={() => setSelectedLocation(null)} className={`${theme.textMuted} hover:${theme.text} text-xl leading-none`}>×</button>
+                    <button onClick={() => setSelectedLocation(null)} className={`${theme.textMuted} text-xl leading-none hover:opacity-70`}>×</button>
                   </div>
-                  
+
                   <p className={`text-sm ${theme.textSecondary} mb-3`}>{selectedLocation.description}</p>
-                  
+
                   <div className="grid grid-cols-2 gap-2">
                     <div className={`${theme.bgTertiary} rounded-lg p-2`}>
                       <p className={`text-xs ${theme.textMuted}`}>Value</p>
@@ -499,13 +461,7 @@ export default function AOOInteractiveMap() {
                     {selectedLocation.points && (
                       <div className={`${theme.bgTertiary} rounded-lg p-2`}>
                         <p className={`text-xs ${theme.textMuted}`}>Points</p>
-                        <p className={`font-semibold text-sm ${theme.accent}`}>{selectedLocation.points}</p>
-                      </div>
-                    )}
-                    {selectedLocation.respawnTime && (
-                      <div className={`${theme.bgTertiary} rounded-lg p-2`}>
-                        <p className={`text-xs ${theme.textMuted}`}>Respawn</p>
-                        <p className="font-semibold text-sm text-green-400">{selectedLocation.respawnTime}</p>
+                        <p className="font-semibold text-sm text-emerald-500">{selectedLocation.points}</p>
                       </div>
                     )}
                   </div>
