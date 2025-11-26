@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
+import type { MapAssignments } from '@/components/AOOInteractiveMap';
 
 // Dynamic import to avoid SSR issues with the map
 const AOOInteractiveMap = dynamic(() => import('@/components/AOOInteractiveMap'), {
@@ -31,6 +32,7 @@ interface StrategyData {
     teams: TeamInfo[];
     mapImage: string | null;
     notes: string;
+    mapAssignments?: MapAssignments;
 }
 
 const DEFAULT_TEAMS: TeamInfo[] = [
@@ -61,6 +63,7 @@ export default function AooStrategyPage() {
     const [teams, setTeams] = useState<TeamInfo[]>(DEFAULT_TEAMS);
     const [mapImage, setMapImage] = useState<string | null>(null);
     const [notes, setNotes] = useState('');
+    const [mapAssignments, setMapAssignments] = useState<MapAssignments | undefined>(undefined);
     const [isLoading, setIsLoading] = useState(true);
     const [isEditor, setIsEditor] = useState(false);
     const [editorPassword, setEditorPassword] = useState('');
@@ -111,6 +114,7 @@ export default function AooStrategyPage() {
                 setTeams(strategyData?.teams || DEFAULT_TEAMS);
                 setMapImage(strategyData?.mapImage || null);
                 setNotes(strategyData?.notes || '');
+                setMapAssignments(strategyData?.mapAssignments || undefined);
             }
         } catch (error) {
             console.error('Error loading data:', error);
@@ -124,6 +128,7 @@ export default function AooStrategyPage() {
             teams: updatedData.teams ?? teams,
             mapImage: updatedData.mapImage ?? mapImage,
             notes: updatedData.notes ?? notes,
+            mapAssignments: updatedData.mapAssignments ?? mapAssignments,
         };
         try {
             if (strategyId) {
@@ -233,6 +238,11 @@ export default function AooStrategyPage() {
 
     const getTeamPlayers = (teamNum: number) => players.filter(p => p.team === teamNum);
 
+    const handleMapSave = (newAssignments: MapAssignments) => {
+        setMapAssignments(newAssignments);
+        saveData({ mapAssignments: newAssignments });
+    };
+
     const theme = {
         bg: darkMode ? 'bg-zinc-950' : 'bg-gray-50',
         card: darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200',
@@ -326,7 +336,11 @@ export default function AooStrategyPage() {
 
             {/* Tab Content */}
             {activeTab === 'map' ? (
-                <AOOInteractiveMap />
+                <AOOInteractiveMap 
+                    initialAssignments={mapAssignments}
+                    onSave={handleMapSave}
+                    isEditor={isEditor}
+                />
             ) : (
                 /* Roster Tab */
                 <div className="max-w-7xl mx-auto p-4 md:p-6">
