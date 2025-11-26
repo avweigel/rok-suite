@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { Moon, Sun, RotateCcw } from 'lucide-react';
-import Image from 'next/image';
 
 type TeamNumber = 1 | 2 | 3 | null;
 
@@ -256,13 +255,12 @@ export default function AOOInteractiveMap() {
             <div className={`${theme.bgSecondary} rounded-xl overflow-hidden border ${theme.border}`}>
               <div className="relative w-full" style={{ aspectRatio: '1275 / 891' }}>
                 {/* Map Background */}
-                <Image
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src="/aoo-map.jpg"
                   alt="AOO Map"
-                  fill
-                  className="object-cover"
+                  className="absolute inset-0 w-full h-full object-cover"
                   style={{ opacity: isDark ? 0.8 : 1 }}
-                  priority
                 />
 
                 {/* Building Markers */}
