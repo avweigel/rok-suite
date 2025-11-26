@@ -29,8 +29,8 @@ export default function AooStrategyPage() {
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [strategyId, setStrategyId] = useState<string | null>(null);
 
-  // Password
-  const EDITOR_PASSWORD = 'carn-dum';
+  // EditorPassword
+  const EDITOR_PASSWORD = 'test123';
 
   // Load from Supabase on mount
   useEffect(() => {
