@@ -82,14 +82,39 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
   };
 
   const matchCommander = (text: string): Commander | null => {
-    const lowerText = text.toLowerCase();
+    // Normalize text: lowercase, remove extra spaces, handle common OCR issues
+    const normalizedText = text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')  // Replace special chars with spaces
+      .replace(/\s+/g, ' ')           // Collapse multiple spaces
+      .trim();
+    
     for (const commander of commanders) {
-      const nameParts = commander.name.toLowerCase().split(' ');
-      if (nameParts.some(part => part.length > 3 && lowerText.includes(part))) {
+      const commanderName = commander.name.toLowerCase();
+      
+      // Direct match
+      if (normalizedText.includes(commanderName)) {
         return commander;
       }
-      if (lowerText.includes(commander.name.toLowerCase())) {
-        return commander;
+      
+      // Match individual name parts (for names like "Cao Cao", "Yi Seong-Gye")
+      const nameParts = commanderName.split(/[\s-]+/);
+      for (const part of nameParts) {
+        if (part.length >= 3 && normalizedText.includes(part)) {
+          return commander;
+        }
+      }
+      
+      // Handle common OCR variations
+      const variations = [
+        commanderName.replace(/\s+/g, ''),  // "caocao"
+        commanderName.replace(/-/g, ' '),    // "yi seong gye"
+      ];
+      
+      for (const variation of variations) {
+        if (normalizedText.includes(variation)) {
+          return commander;
+        }
       }
     }
     return null;
