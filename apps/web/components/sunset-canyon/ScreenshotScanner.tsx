@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Upload, Scan, Check, X, AlertCircle, Loader2 } from 'lucide-react';
 import { createWorker } from 'tesseract.js';
 import { Commander, fetchCommanders } from '@/lib/sunset-canyon/commanders';
@@ -29,6 +29,7 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
   const [error, setError] = useState<string | null>(null);
   const [commanders, setCommanders] = useState<Commander[]>([]);
   const [isLoadingCommanders, setIsLoadingCommanders] = useState(true);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     async function loadCommanders() {
@@ -82,22 +83,19 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
   };
 
   const matchCommander = (text: string): Commander | null => {
-    // Normalize text: lowercase, remove extra spaces, handle common OCR issues
     const normalizedText = text
       .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')  // Replace special chars with spaces
-      .replace(/\s+/g, ' ')           // Collapse multiple spaces
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
       .trim();
     
     for (const commander of commanders) {
       const commanderName = commander.name.toLowerCase();
       
-      // Direct match
       if (normalizedText.includes(commanderName)) {
         return commander;
       }
       
-      // Match individual name parts (for names like "Cao Cao", "Yi Seong-Gye")
       const nameParts = commanderName.split(/[\s-]+/);
       for (const part of nameParts) {
         if (part.length >= 3 && normalizedText.includes(part)) {
@@ -105,10 +103,9 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
         }
       }
       
-      // Handle common OCR variations
       const variations = [
-        commanderName.replace(/\s+/g, ''),  // "caocao"
-        commanderName.replace(/-/g, ' '),    // "yi seong gye"
+        commanderName.replace(/\s+/g, ''),
+        commanderName.replace(/-/g, ' '),
       ];
       
       for (const variation of variations) {
@@ -120,46 +117,145 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
     return null;
   };
 
-  const extractLevel = (text: string): number => {
-    const levelMatch = text.match(/(?:level|lv\.?|lvl\.?)\s*(\d{1,2})/i);
-    if (levelMatch) return parseInt(levelMatch[1]);
-    const standaloneNumbers = text.match(/\b([1-5]?\d)\b/g);
-    if (standaloneNumbers) {
-      for (const num of standaloneNumbers) {
-        const n = parseInt(num);
-        if (n >= 1 && n <= 60) return n;
+  // Count gold stars by analyzing pixel colors in the star region
+  const countStars = (imageData: ImageData, width: number, height: number): number => {
+    // Stars are typically in the upper-right area of commander profile
+    // They appear as bright yellow/gold pixels
+    // Approximate region: 60-80% from left, 25-35% from top
+    
+    const startX = Math.floor(width * 0.55);
+    const endX = Math.floor(width * 0.85);
+    const startY = Math.floor(height * 0.20);
+    const endY = Math.floor(height * 0.35);
+    
+    let goldPixelClusters = 0;
+    let inCluster = false;
+    let clusterWidth = 0;
+    
+    // Scan horizontally for gold pixel clusters (each star is a cluster)
+    for (let y = startY; y < endY; y++) {
+      let rowClusters = 0;
+      inCluster = false;
+      clusterWidth = 0;
+      
+      for (let x = startX; x < endX; x++) {
+        const idx = (y * width + x) * 4;
+        const r = imageData.data[idx];
+        const g = imageData.data[idx + 1];
+        const b = imageData.data[idx + 2];
+        
+        // Check if pixel is gold/yellow (high red, high green, low blue)
+        const isGold = r > 180 && g > 150 && b < 100 && r > b + 80 && g > b + 50;
+        
+        if (isGold) {
+          if (!inCluster) {
+            inCluster = true;
+            clusterWidth = 1;
+          } else {
+            clusterWidth++;
+          }
+        } else {
+          if (inCluster && clusterWidth > 5) {
+            rowClusters++;
+          }
+          inCluster = false;
+          clusterWidth = 0;
+        }
+      }
+      
+      if (inCluster && clusterWidth > 5) {
+        rowClusters++;
+      }
+      
+      // Track max clusters found in any row
+      if (rowClusters > goldPixelClusters) {
+        goldPixelClusters = rowClusters;
       }
     }
-    return 1;
+    
+    // Clamp to 1-5 range
+    return Math.max(1, Math.min(5, goldPixelClusters));
   };
 
-  const extractStars = (text: string): number => {
-    const starPatterns = [
-      /(\d)\s*(?:star|★|⭐)/i,
-      /(?:star|★|⭐)\s*(\d)/i,
+  // Extract level from a specific region using OCR
+  const extractLevelFromRegion = (text: string): number => {
+    // Look for "Level XX" or "Lv.XX" or just numbers 1-60
+    const levelPatterns = [
+      /level\s*(\d{1,2})/i,
+      /lv\.?\s*(\d{1,2})/i,
+      /lvl\.?\s*(\d{1,2})/i,
+      /(\d{1,2})\s*\/\s*\d{2}/,  // "48/50" format
     ];
-    for (const pattern of starPatterns) {
+    
+    for (const pattern of levelPatterns) {
       const match = text.match(pattern);
       if (match) {
-        const stars = parseInt(match[1]);
-        if (stars >= 1 && stars <= 5) return stars;
+        const level = parseInt(match[1]);
+        if (level >= 1 && level <= 60) {
+          return level;
+        }
       }
     }
-    return 1;
+    
+    return 60; // Default to max level
   };
 
-  const extractSkills = (text: string): number[] => {
-    const skillPattern = /(\d)[\/\s,]+(\d)[\/\s,]+(\d)[\/\s,]+(\d)/;
+  // Try to extract skill levels from skill region
+  const extractSkillLevels = (text: string): number[] => {
+    // Look for patterns like "5" near skill icons, or sequences of single digits
+    const skillNumbers: number[] = [];
+    
+    // Look for individual digits that could be skill levels
+    const digits = text.match(/\b[1-5]\b/g);
+    if (digits && digits.length >= 4) {
+      return digits.slice(0, 4).map(d => parseInt(d));
+    }
+    
+    // Look for skill format like "5/5/5/5" or "5 5 5 5"
+    const skillPattern = /([1-5])\s*[\/\s,]\s*([1-5])\s*[\/\s,]\s*([1-5])\s*[\/\s,]\s*([1-5])/;
     const match = text.match(skillPattern);
     if (match) {
       return [
-        Math.min(5, Math.max(1, parseInt(match[1]))),
-        Math.min(5, Math.max(1, parseInt(match[2]))),
-        Math.min(5, Math.max(1, parseInt(match[3]))),
-        Math.min(5, Math.max(1, parseInt(match[4]))),
+        parseInt(match[1]),
+        parseInt(match[2]),
+        parseInt(match[3]),
+        parseInt(match[4]),
       ];
     }
-    return [1, 1, 1, 1];
+    
+    // Default to max skills for legendary, mid for epic
+    return [5, 5, 5, 5];
+  };
+
+  const analyzeImage = async (imgSrc: string): Promise<{ stars: number; imageData: ImageData | null }> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) {
+          resolve({ stars: 5, imageData: null });
+          return;
+        }
+        
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve({ stars: 5, imageData: null });
+          return;
+        }
+        
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, img.width, img.height);
+        const stars = countStars(imageData, img.width, img.height);
+        
+        resolve({ stars, imageData });
+      };
+      img.onerror = () => {
+        resolve({ stars: 5, imageData: null });
+      };
+      img.src = imgSrc;
+    });
   };
 
   const processImage = async () => {
@@ -170,10 +266,17 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
     setError(null);
 
     try {
+      // First, analyze the image for stars
+      setProgress(10);
+      const { stars: detectedStars } = await analyzeImage(image);
+      
+      setProgress(20);
+      
+      // Then run OCR for text
       const worker = await createWorker('eng', 1, {
         logger: (m) => {
           if (m.status === 'recognizing text') {
-            setProgress(Math.round(m.progress * 100));
+            setProgress(20 + Math.round(m.progress * 70));
           }
         },
       });
@@ -181,25 +284,43 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
       const { data: { text } } = await worker.recognize(image);
       await worker.terminate();
 
+      setProgress(95);
+
       const lines = text.split('\n').filter(line => line.trim().length > 0);
       const detectedCommanders: DetectedCommander[] = [];
+      const fullText = lines.join(' ');
       
+      // Find commander name
+      let matchedCommander: Commander | null = null;
       for (const line of lines) {
-        const matched = matchCommander(line);
-        if (matched) {
-          const alreadyDetected = detectedCommanders.some(d => d.matchedCommander?.id === matched.id);
-          if (!alreadyDetected) {
-            detectedCommanders.push({
-              name: matched.name,
-              level: extractLevel(text),
-              stars: extractStars(text),
-              skillLevels: extractSkills(text),
-              confidence: 0.7,
-              matchedCommander: matched,
-            });
-          }
-        }
+        matchedCommander = matchCommander(line);
+        if (matchedCommander) break;
       }
+      
+      // Also try the full text
+      if (!matchedCommander) {
+        matchedCommander = matchCommander(fullText);
+      }
+
+      if (matchedCommander) {
+        const level = extractLevelFromRegion(fullText);
+        const skillLevels = extractSkillLevels(fullText);
+        
+        // Use detected stars, or default based on rarity
+        const finalStars = detectedStars > 0 ? detectedStars : 
+          (matchedCommander.rarity === 'legendary' ? 5 : 4);
+        
+        detectedCommanders.push({
+          name: matchedCommander.name,
+          level,
+          stars: finalStars,
+          skillLevels,
+          confidence: 0.8,
+          matchedCommander,
+        });
+      }
+
+      setProgress(100);
 
       if (detectedCommanders.length === 0) {
         setError('No commanders detected. Try a clearer screenshot or add commanders manually.');
@@ -262,6 +383,9 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
   return (
     <>
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50" onClick={onClose} />
+      
+      {/* Hidden canvas for image analysis */}
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
       
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90vw] max-w-3xl max-h-[90vh] overflow-hidden rounded-xl bg-gradient-to-br from-stone-800 to-stone-900 border border-amber-600/20">
         <div className="flex items-center justify-between p-4 border-b border-stone-700">
