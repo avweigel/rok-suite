@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Upload, Scan, Check, X, AlertCircle, Loader2 } from 'lucide-react';
 import { createWorker } from 'tesseract.js';
-import { commanderDatabase, Commander } from '@/lib/sunset-canyon/commanders';
+import { Commander, fetchCommanders } from '@/lib/sunset-canyon/commanders';
 
 interface DetectedCommander {
   name: string;
@@ -27,6 +27,18 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
   const [detected, setDetected] = useState<DetectedCommander[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [commanders, setCommanders] = useState<Commander[]>([]);
+  const [isLoadingCommanders, setIsLoadingCommanders] = useState(true);
+
+  useEffect(() => {
+    async function loadCommanders() {
+      setIsLoadingCommanders(true);
+      const data = await fetchCommanders();
+      setCommanders(data);
+      setIsLoadingCommanders(false);
+    }
+    loadCommanders();
+  }, []);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -71,7 +83,7 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
 
   const matchCommander = (text: string): Commander | null => {
     const lowerText = text.toLowerCase();
-    for (const commander of commanderDatabase) {
+    for (const commander of commanders) {
       const nameParts = commander.name.toLowerCase().split(' ');
       if (nameParts.some(part => part.length > 3 && lowerText.includes(part))) {
         return commander;
@@ -207,6 +219,20 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
       return { ...d, [field]: value };
     }));
   };
+
+  if (isLoadingCommanders) {
+    return (
+      <>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50" onClick={onClose} />
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90vw] max-w-3xl rounded-xl bg-gradient-to-br from-stone-800 to-stone-900 border border-amber-600/20 p-12">
+          <div className="flex flex-col items-center justify-center">
+            <Loader2 className="w-8 h-8 text-amber-500 animate-spin mb-3" />
+            <p className="text-stone-400">Loading commanders database...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
