@@ -1,41 +1,28 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Swords, Play, RotateCcw, Activity, AlertCircle, Plus, ArrowLeft, Scan, Settings, Castle } from 'lucide-react';
+import { Shield, Swords, ArrowLeft, Settings, Castle, Users, Scan, Plus, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { FormationGrid } from '@/components/sunset-canyon/FormationGrid';
-import { CommanderSelector } from '@/components/sunset-canyon/CommanderSelector';
-import { BattleResults } from '@/components/sunset-canyon/BattleResults';
 import { AddCommanderModal } from '@/components/sunset-canyon/AddCommanderModal';
 import { ScreenshotScanner } from '@/components/sunset-canyon/ScreenshotScanner';
 import { useSunsetCanyonStore } from '@/lib/sunset-canyon/store';
-import { UserCommander, Commander } from '@/lib/sunset-canyon/commanders';
+import { Commander } from '@/lib/sunset-canyon/commanders';
+
+type TabType = 'defense' | 'offense';
 
 export default function SunsetCanyonPage() {
   const [mounted, setMounted] = useState(false);
-  const [showSelector, setShowSelector] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>('defense');
+  const [showSettings, setShowSettings] = useState(false);
   const [showAddCommander, setShowAddCommander] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [simulationIterations, setSimulationIterations] = useState(100);
 
   const {
     cityHallLevel,
     setCityHallLevel,
     userCommanders,
-    attackFormation,
-    defenseFormation,
-    lastBattleResult,
-    simulationResults,
-    selectedCommanderSlot,
-    isSimulating,
     addUserCommander,
-    setFormationSlot,
-    clearFormation,
-    selectCommanderSlot,
-    clearSelection,
-    runBattle,
-    runMultipleSimulations,
+    removeUserCommander,
   } = useSunsetCanyonStore();
 
   useEffect(() => {
@@ -50,33 +37,6 @@ export default function SunsetCanyonPage() {
     );
   }
 
-  const handleSlotClick = (type: 'attack' | 'defense', index: number) => {
-    const formation = type === 'attack' ? attackFormation : defenseFormation;
-    if (formation[index]) {
-      setFormationSlot(type, index, null);
-    } else {
-      selectCommanderSlot(type, index);
-      setShowSelector(true);
-    }
-  };
-
-  const handleRemoveArmy = (type: 'attack' | 'defense', index: number) => {
-    setFormationSlot(type, index, null);
-  };
-
-  const handleSelectCommander = (primary: UserCommander, secondary?: UserCommander) => {
-    if (selectedCommanderSlot) {
-      setFormationSlot(
-        selectedCommanderSlot.type,
-        selectedCommanderSlot.index,
-        primary,
-        secondary
-      );
-    }
-    setShowSelector(false);
-    clearSelection();
-  };
-
   const handleAddCommander = (commander: Commander, level: number, skillLevels: number[], stars: number) => {
     addUserCommander(commander, level, skillLevels, stars);
     setShowAddCommander(false);
@@ -89,25 +49,9 @@ export default function SunsetCanyonPage() {
     setShowScanner(false);
   };
 
-  const getUsedCommanderIds = (): string[] => {
-    const ids: string[] = [];
-    [...attackFormation, ...defenseFormation].forEach((army) => {
-      if (army) {
-        ids.push(army.primaryCommander.uniqueId);
-        if (army.secondaryCommander) {
-          ids.push(army.secondaryCommander.uniqueId);
-        }
-      }
-    });
-    return ids;
-  };
-
-  const attackArmyCount = attackFormation.filter(Boolean).length;
-  const defenseArmyCount = defenseFormation.filter(Boolean).length;
-  const canBattle = attackArmyCount > 0 && defenseArmyCount > 0;
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-900 to-stone-950">
+      {/* Header */}
       <header className="sticky top-0 z-40 border-b border-amber-600/20 bg-stone-900/95 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -130,7 +74,6 @@ export default function SunsetCanyonPage() {
               </div>
             </div>
             
-            {/* Settings Button */}
             <button
               onClick={() => setShowSettings(!showSettings)}
               className="flex items-center gap-2 px-3 py-2 rounded-lg border border-stone-700 hover:border-amber-600 transition-colors"
@@ -185,215 +128,113 @@ export default function SunsetCanyonPage() {
           </div>
         )}
 
-        <div className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-amber-500 mb-2">
-            Sunset Canyon Simulator
-          </h1>
-          <p className="text-stone-400 max-w-2xl mx-auto">
-            Plan your perfect lineup. Test formations against opponents. Dominate the canyon.
-          </p>
+        {/* Tab Navigation */}
+        <div className="flex gap-2 mb-8">
+          <button
+            onClick={() => setActiveTab('defense')}
+            className={`flex-1 flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-semibold transition-all ${
+              activeTab === 'defense'
+                ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/20'
+                : 'bg-stone-800/50 text-stone-400 hover:bg-stone-700/50 border border-stone-700'
+            }`}
+          >
+            <Shield className="w-6 h-6" />
+            <div className="text-left">
+              <div className="text-lg">Defense Setup</div>
+              <div className={`text-xs ${activeTab === 'defense' ? 'text-blue-200' : 'text-stone-500'}`}>
+                Optimize for when others attack you
+              </div>
+            </div>
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('offense')}
+            className={`flex-1 flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-semibold transition-all ${
+              activeTab === 'offense'
+                ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg shadow-red-500/20'
+                : 'bg-stone-800/50 text-stone-400 hover:bg-stone-700/50 border border-stone-700'
+            }`}
+          >
+            <Swords className="w-6 h-6" />
+            <div className="text-left">
+              <div className="text-lg">Offense Setup</div>
+              <div className={`text-xs ${activeTab === 'offense' ? 'text-red-200' : 'text-stone-500'}`}>
+                Counter enemy defenses
+              </div>
+            </div>
+          </button>
         </div>
 
-        {userCommanders.length === 0 && (
-          <div className="mb-8 p-4 rounded-lg bg-amber-900/20 border border-amber-600/30 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-amber-500 font-medium">No commanders added yet!</p>
-              <p className="text-sm text-stone-400 mt-1">
-                Add your commanders manually or scan a screenshot to import them.
-              </p>
-              <div className="flex gap-2 mt-3">
-                <button
-                  onClick={() => setShowAddCommander(true)}
-                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-amber-600 to-amber-700 text-stone-900 font-semibold text-sm hover:from-amber-500 hover:to-amber-600 transition-all flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Commander
-                </button>
-                <button
-                  onClick={() => setShowScanner(true)}
-                  className="px-4 py-2 rounded-lg border border-amber-600 text-amber-500 font-semibold text-sm hover:bg-amber-600/10 transition-all flex items-center gap-2"
-                >
-                  <Scan className="w-4 h-4" />
-                  Scan Screenshot
-                </button>
-              </div>
+        {/* Your Commander Roster - Shared between tabs */}
+        <div className="mb-6 p-4 rounded-xl bg-gradient-to-br from-stone-800/90 to-stone-900/80 border border-amber-600/20">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-amber-500 uppercase tracking-wider flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              Your Commander Roster ({userCommanders.length})
+            </h3>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowAddCommander(true)}
+                className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-600 to-amber-700 text-stone-900 text-sm font-semibold hover:from-amber-500 hover:to-amber-600 transition-all flex items-center gap-1"
+              >
+                <Plus className="w-3 h-3" />
+                Add
+              </button>
+              <button
+                onClick={() => setShowScanner(true)}
+                className="px-3 py-1.5 rounded-lg border border-amber-600 text-amber-500 text-sm hover:bg-amber-600/10 transition-all flex items-center gap-1"
+              >
+                <Scan className="w-3 h-3" />
+                Scan
+              </button>
             </div>
           </div>
-        )}
-
-        {/* Commander Roster Summary */}
-        {userCommanders.length > 0 && (
-          <div className="mb-6 p-4 rounded-xl bg-gradient-to-br from-stone-800/90 to-stone-900/80 border border-amber-600/20">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-amber-500 uppercase tracking-wider">
-                Your Commanders ({userCommanders.length})
-              </h3>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowAddCommander(true)}
-                  className="px-3 py-1.5 rounded-lg border border-amber-600 text-amber-500 text-sm hover:bg-amber-600/10 transition-all flex items-center gap-1"
-                >
-                  <Plus className="w-3 h-3" />
-                  Add
-                </button>
-                <button
-                  onClick={() => setShowScanner(true)}
-                  className="px-3 py-1.5 rounded-lg border border-amber-600 text-amber-500 text-sm hover:bg-amber-600/10 transition-all flex items-center gap-1"
-                >
-                  <Scan className="w-3 h-3" />
-                  Scan
-                </button>
-              </div>
+          
+          {userCommanders.length === 0 ? (
+            <div className="text-center py-8">
+              <Users className="w-12 h-12 text-stone-600 mx-auto mb-3" />
+              <p className="text-stone-400 mb-2">No commanders added yet</p>
+              <p className="text-sm text-stone-500">
+                Add your commanders by scanning screenshots or adding manually
+              </p>
             </div>
+          ) : (
             <div className="flex flex-wrap gap-2">
               {userCommanders.map((cmd) => (
                 <div
                   key={cmd.uniqueId}
-                  className={`px-2 py-1 rounded text-xs ${
+                  className={`group relative px-3 py-2 rounded-lg text-sm ${
                     cmd.rarity === 'legendary' 
                       ? 'bg-yellow-900/30 text-yellow-500 border border-yellow-600/30'
                       : 'bg-purple-900/30 text-purple-400 border border-purple-600/30'
                   }`}
                 >
-                  {cmd.name} (Lv.{cmd.level})
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{cmd.name}</span>
+                    <span className="text-xs opacity-70">Lv.{cmd.level}</span>
+                    <span className="text-xs opacity-70">{'★'.repeat(cmd.stars)}</span>
+                  </div>
+                  <button
+                    onClick={() => removeUserCommander(cmd.uniqueId)}
+                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                  >
+                    ×
+                  </button>
                 </div>
               ))}
             </div>
-          </div>
+          )}
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === 'defense' ? (
+          <DefenseTab />
+        ) : (
+          <OffenseTab />
         )}
-
-        <div className="grid lg:grid-cols-3 gap-6">
-          <div>
-            <FormationGrid
-              formation={attackFormation}
-              type="attack"
-              selectedSlot={selectedCommanderSlot?.type === 'attack' ? selectedCommanderSlot.index : null}
-              onSlotClick={(index) => handleSlotClick('attack', index)}
-              onRemoveArmy={(index) => handleRemoveArmy('attack', index)}
-              label="Your Attack Formation"
-            />
-            <div className="mt-3 flex justify-end">
-              <button
-                onClick={() => clearFormation('attack')}
-                className="text-sm text-stone-500 hover:text-amber-500 transition-colors"
-              >
-                Clear Formation
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="rounded-xl p-4 bg-gradient-to-br from-stone-800/90 to-stone-900/80 border border-amber-600/20">
-              <h3 className="text-lg font-semibold text-amber-500 mb-4">Battle Controls</h3>
-              
-              <div className="space-y-4">
-                <button
-                  onClick={runBattle}
-                  disabled={!canBattle || isSimulating}
-                  className="w-full px-4 py-3 rounded-lg bg-gradient-to-r from-amber-600 to-amber-700 text-stone-900 font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:from-amber-500 hover:to-amber-600 transition-all flex items-center justify-center gap-2"
-                >
-                  <Play className="w-5 h-5" />
-                  Run Single Battle
-                </button>
-
-                <div className="border-t border-stone-700 pt-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Activity className="w-4 h-4 text-amber-500" />
-                    <span className="text-sm font-medium text-amber-500">Monte Carlo Simulation</span>
-                  </div>
-                  
-                  <div className="flex gap-2 mb-3">
-                    <input
-                      type="number"
-                      min="10"
-                      max="1000"
-                      step="10"
-                      value={simulationIterations}
-                      onChange={(e) => setSimulationIterations(Math.max(10, Math.min(1000, parseInt(e.target.value) || 100)))}
-                      className="flex-1 px-3 py-2 rounded-lg bg-stone-700 border border-stone-600 text-stone-200 focus:outline-none focus:border-amber-600"
-                    />
-                    <span className="self-center text-sm text-stone-500">iterations</span>
-                  </div>
-                  
-                  <button
-                    onClick={() => runMultipleSimulations(simulationIterations)}
-                    disabled={!canBattle || isSimulating}
-                    className="w-full px-4 py-2 rounded-lg border border-amber-600 text-amber-500 font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-amber-600/10 transition-all flex items-center justify-center gap-2"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    Run Simulation
-                  </button>
-                </div>
-
-                {!canBattle && (
-                  <p className="text-xs text-center text-stone-500">
-                    Add armies to both formations to battle
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <FormationGrid
-              formation={defenseFormation}
-              type="defense"
-              selectedSlot={selectedCommanderSlot?.type === 'defense' ? selectedCommanderSlot.index : null}
-              onSlotClick={(index) => handleSlotClick('defense', index)}
-              onRemoveArmy={(index) => handleRemoveArmy('defense', index)}
-              label="Enemy Defense Formation"
-            />
-            <div className="mt-3 flex justify-end">
-              <button
-                onClick={() => clearFormation('defense')}
-                className="text-sm text-stone-500 hover:text-amber-500 transition-colors"
-              >
-                Clear Formation
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-8">
-          <BattleResults
-            result={lastBattleResult}
-            simulationResults={simulationResults}
-            isSimulating={isSimulating}
-          />
-        </div>
-
-        <div className="mt-8 rounded-xl p-6 bg-gradient-to-br from-stone-800/90 to-stone-900/80 border border-amber-600/20">
-          <h3 className="text-lg font-semibold text-amber-500 mb-4">Sunset Canyon Tips</h3>
-          <div className="grid md:grid-cols-3 gap-4 text-sm text-stone-400">
-            <div>
-              <h4 className="font-semibold text-amber-500 mb-1">Front Row = Tanks</h4>
-              <p>Place commanders like Richard, Charles Martel, and Leonidas in the front row to absorb damage.</p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-amber-500 mb-1">Back Row = Damage</h4>
-              <p>AoE nukers like YSG, Mehmed, and Sun Tzu shine in the back row where they can hit multiple targets.</p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-amber-500 mb-1">Counter Formations</h4>
-              <p>As attacker, you can see the defender&apos;s setup. Position cavalry against archers, infantry against cavalry.</p>
-            </div>
-          </div>
-        </div>
       </main>
 
-      {showSelector && (
-        <CommanderSelector
-          commanders={userCommanders}
-          usedCommanderIds={getUsedCommanderIds()}
-          onSelect={handleSelectCommander}
-          onClose={() => {
-            setShowSelector(false);
-            clearSelection();
-          }}
-        />
-      )}
-
+      {/* Modals */}
       {showAddCommander && (
         <AddCommanderModal
           onAdd={handleAddCommander}
@@ -407,6 +248,240 @@ export default function SunsetCanyonPage() {
           onClose={() => setShowScanner(false)}
         />
       )}
+    </div>
+  );
+}
+
+// Defense Tab Component
+function DefenseTab() {
+  const { userCommanders } = useSunsetCanyonStore();
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [optimizedFormation, setOptimizedFormation] = useState<null | {
+    formation: Array<{ primary: string; secondary?: string; position: number }>;
+    winRate: number;
+  }>(null);
+
+  const handleOptimize = async () => {
+    setIsOptimizing(true);
+    // TODO: Implement optimization logic
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate work
+    setIsOptimizing(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Step-by-step instructions */}
+      <div className="rounded-xl p-6 bg-gradient-to-br from-blue-900/20 to-stone-900/80 border border-blue-600/20">
+        <h2 className="text-xl font-semibold text-blue-400 mb-4 flex items-center gap-2">
+          <Shield className="w-6 h-6" />
+          Defense Optimization
+        </h2>
+        <p className="text-stone-400 mb-6">
+          Set up the best defense for when other players attack you. Your defense runs automatically - 
+          you can&apos;t change it mid-battle, so optimization is key!
+        </p>
+
+        {/* Steps */}
+        <div className="space-y-4">
+          {/* Step 1 */}
+          <div className={`p-4 rounded-lg border ${
+            userCommanders.length >= 5 
+              ? 'bg-green-900/20 border-green-600/30' 
+              : 'bg-stone-800/50 border-stone-700'
+          }`}>
+            <div className="flex items-start gap-3">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
+                userCommanders.length >= 5 
+                  ? 'bg-green-600 text-white' 
+                  : 'bg-stone-700 text-stone-400'
+              }`}>
+                {userCommanders.length >= 5 ? '✓' : '1'}
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-stone-200">Import Your Commanders</h3>
+                <p className="text-sm text-stone-400 mt-1">
+                  Add at least 5 commanders to your roster using the scanner or manual entry above.
+                </p>
+                <p className="text-sm text-stone-500 mt-2">
+                  {userCommanders.length >= 5 
+                    ? `✓ ${userCommanders.length} commanders ready`
+                    : `${userCommanders.length}/5 minimum commanders added`
+                  }
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Step 2 */}
+          <div className="p-4 rounded-lg bg-stone-800/50 border border-stone-700">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-stone-700 text-stone-400 flex items-center justify-center font-bold">
+                2
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-stone-200">Optimize Formation</h3>
+                <p className="text-sm text-stone-400 mt-1">
+                  We&apos;ll test thousands of combinations to find the best defensive lineup.
+                </p>
+                <ul className="text-sm text-stone-500 mt-2 space-y-1">
+                  <li>• Best commander pairings (primary + secondary)</li>
+                  <li>• Optimal positions (tanks front, damage back)</li>
+                  <li>• Troop type balance for versatility</li>
+                </ul>
+                
+                <button
+                  onClick={handleOptimize}
+                  disabled={userCommanders.length < 5 || isOptimizing}
+                  className="mt-4 px-6 py-3 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:from-blue-500 hover:to-blue-600 transition-all flex items-center gap-2"
+                >
+                  {isOptimizing ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Optimizing...
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="w-5 h-5" />
+                      Optimize My Defense
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Step 3 - Results */}
+          {optimizedFormation && (
+            <div className="p-4 rounded-lg bg-green-900/20 border border-green-600/30">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center font-bold">
+                  3
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-stone-200">Recommended Formation</h3>
+                  <p className="text-sm text-green-400 mt-1">
+                    Win Rate: {optimizedFormation.winRate.toFixed(1)}%
+                  </p>
+                  {/* TODO: Display formation grid */}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Formation Preview Grid */}
+      <div className="rounded-xl p-6 bg-gradient-to-br from-stone-800/90 to-stone-900/80 border border-amber-600/20">
+        <h3 className="text-lg font-semibold text-amber-500 mb-4">Formation Preview</h3>
+        <div className="grid grid-cols-4 gap-3">
+          {/* Back Row */}
+          {[4, 5, 6, 7].map((slot) => (
+            <div
+              key={slot}
+              className="aspect-square rounded-lg border-2 border-dashed border-stone-600 flex items-center justify-center"
+            >
+              <span className="text-xs text-stone-500">Back {slot - 3}</span>
+            </div>
+          ))}
+          {/* Front Row */}
+          {[0, 1, 2, 3].map((slot) => (
+            <div
+              key={slot}
+              className="aspect-square rounded-lg border-2 border-dashed border-stone-600 flex items-center justify-center"
+            >
+              <span className="text-xs text-stone-500">Front {slot + 1}</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-stone-500 mt-3 text-center">
+          Back row (damage dealers) → Front row (tanks)
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Offense Tab Component
+function OffenseTab() {
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl p-6 bg-gradient-to-br from-red-900/20 to-stone-900/80 border border-red-600/20">
+        <h2 className="text-xl font-semibold text-red-400 mb-4 flex items-center gap-2">
+          <Swords className="w-6 h-6" />
+          Offense Planning
+        </h2>
+        <p className="text-stone-400 mb-6">
+          When you attack another player, you can see their defense first. 
+          Scan their formation to get counter-recommendations!
+        </p>
+
+        {/* Steps */}
+        <div className="space-y-4">
+          {/* Step 1 */}
+          <div className="p-4 rounded-lg bg-stone-800/50 border border-stone-700">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-stone-700 text-stone-400 flex items-center justify-center font-bold">
+                1
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-stone-200">Scan Enemy Defense</h3>
+                <p className="text-sm text-stone-400 mt-1">
+                  Take a screenshot of your opponent&apos;s defense formation and scan it.
+                </p>
+                
+                <button
+                  className="mt-4 px-6 py-3 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:from-red-500 hover:to-red-600 transition-all flex items-center gap-2"
+                >
+                  <Scan className="w-5 h-5" />
+                  Scan Enemy Formation
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Step 2 */}
+          <div className="p-4 rounded-lg bg-stone-800/50 border border-stone-700 opacity-50">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-stone-700 text-stone-400 flex items-center justify-center font-bold">
+                2
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-stone-200">Get Counter Recommendations</h3>
+                <p className="text-sm text-stone-400 mt-1">
+                  We&apos;ll analyze their setup and recommend the best counters from your roster.
+                </p>
+                <ul className="text-sm text-stone-500 mt-2 space-y-1">
+                  <li>• Position cavalry against their archers</li>
+                  <li>• Match your tanks against their damage dealers</li>
+                  <li>• Exploit gaps in their formation</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Step 3 */}
+          <div className="p-4 rounded-lg bg-stone-800/50 border border-stone-700 opacity-50">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-stone-700 text-stone-400 flex items-center justify-center font-bold">
+                3
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-stone-200">Deploy &amp; Win</h3>
+                <p className="text-sm text-stone-400 mt-1">
+                  Use the recommended formation in-game to maximize your win rate!
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Coming Soon Notice */}
+      <div className="rounded-xl p-6 bg-stone-800/30 border border-stone-700 text-center">
+        <p className="text-stone-400">
+          🚧 Enemy formation scanning coming soon! For now, focus on optimizing your defense.
+        </p>
+      </div>
     </div>
   );
 }
