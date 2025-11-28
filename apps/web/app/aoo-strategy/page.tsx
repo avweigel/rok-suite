@@ -312,7 +312,7 @@ export default function AooStrategyPage() {
                                 activeTab === 'roster' ? theme.tabActive : theme.tabInactive
                             }`}
                         >
-                            👥 Team Roster
+                            👥 Zone Roster
                         </button>
                     </div>
                 </div>
