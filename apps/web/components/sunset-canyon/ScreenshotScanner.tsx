@@ -11,6 +11,10 @@ import {
   findByAltName,
   CommanderReference 
 } from '@/lib/sunset-canyon/commander-reference';
+import {
+  extractDominantColors,
+  matchByDominantColors,
+} from '@/lib/sunset-canyon/image-fingerprint';
 
 interface DetectedCommander {
   name: string;
@@ -327,74 +331,6 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
     return null;
   };
 
-  // Color-based commander identification for when OCR fails completely
-  const identifyByColor = (imageData: ImageData, width: number, height: number): string | null => {
-    // Sample the center-right area where the commander portrait is displayed
-    const startX = Math.floor(width * 0.35);
-    const endX = Math.floor(width * 0.65);
-    const startY = Math.floor(height * 0.25);
-    const endY = Math.floor(height * 0.70);
-    
-    let totalR = 0, totalG = 0, totalB = 0;
-    let goldCount = 0;
-    let blueCount = 0;
-    let redCount = 0;
-    let greenCount = 0;
-    let brownCount = 0;
-    let pixelCount = 0;
-    
-    for (let y = startY; y < endY; y += 5) {
-      for (let x = startX; x < endX; x += 5) {
-        const i = (y * width + x) * 4;
-        const r = imageData.data[i];
-        const g = imageData.data[i + 1];
-        const b = imageData.data[i + 2];
-        
-        totalR += r;
-        totalG += g;
-        totalB += b;
-        pixelCount++;
-        
-        // Count color categories
-        if (r > 180 && g > 140 && b < 100) goldCount++;
-        if (b > 150 && r < 100 && g < 150) blueCount++;
-        if (r > 180 && g < 100 && b < 100) redCount++;
-        if (g > 150 && r < 150 && b < 100) greenCount++;
-        if (r > 100 && r < 180 && g > 60 && g < 140 && b < 80) brownCount++;
-      }
-    }
-    
-    const avgR = totalR / pixelCount;
-    const avgG = totalG / pixelCount;
-    const avgB = totalB / pixelCount;
-    
-    const colorThreshold = pixelCount * 0.15; // 15% of pixels
-    
-    console.log(`[Color Debug] Avg RGB: ${avgR.toFixed(0)}, ${avgG.toFixed(0)}, ${avgB.toFixed(0)}`);
-    console.log(`[Color Debug] Gold: ${goldCount}, Blue: ${blueCount}, Red: ${redCount}, Green: ${greenCount}, Brown: ${brownCount}`);
-    
-    // Thutmose III - Very gold/Egyptian theme with pyramids
-    if (goldCount > colorThreshold && avgR > 150 && avgG > 120 && avgB < 120) {
-      // Could be Thutmose III, Cleopatra, or Ramesses
-      // Thutmose has more blue accents (sky, costume)
-      if (blueCount > colorThreshold * 0.3) {
-        return 'Thutmose III';
-      }
-    }
-    
-    // Charles Martel - Blue armor with gold accents
-    if (blueCount > colorThreshold && goldCount > colorThreshold * 0.5) {
-      return 'Charles Martel';
-    }
-    
-    // Baibars - Teal/white desert theme
-    if (greenCount > colorThreshold * 0.5 && avgB > 100) {
-      return 'Baibars';
-    }
-    
-    return null;
-  };
-
   const countStars = (imageData: ImageData, width: number, height: number): number => {
     const startX = Math.floor(width * 0.55);
     const endX = Math.floor(width * 0.85);
@@ -545,11 +481,17 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
         img.src = image.src;
         await new Promise(resolve => { img.onload = resolve; });
         
-        const colorMatch = identifyByColor(imageData, img.width, img.height);
+        // Extract dominant colors and match against fingerprint database
+        const dominantColors = extractDominantColors(imageData, img.width, img.height);
+        console.log(`[Color Debug] Dominant colors:`, dominantColors);
+        
+        const colorMatch = matchByDominantColors(dominantColors);
         if (colorMatch) {
-          matchedCommander = commanders.find(c => c.name.toLowerCase() === colorMatch.toLowerCase()) || null;
+          matchedCommander = commanders.find(c => 
+            c.name.toLowerCase() === colorMatch.commander.toLowerCase()
+          ) || null;
           if (matchedCommander) {
-            console.log(`[OCR Match] Color-based match: ${matchedCommander.name}`);
+            console.log(`[OCR Match] Color fingerprint match: ${matchedCommander.name} (${(colorMatch.confidence * 100).toFixed(1)}%)`);
           }
         }
       }
