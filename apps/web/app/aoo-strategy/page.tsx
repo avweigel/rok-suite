@@ -36,12 +36,12 @@ interface StrategyData {
 }
 
 const DEFAULT_TEAMS: TeamInfo[] = [
-    { name: 'Team 1', description: 'Ark' },
-    { name: 'Team 2', description: 'Upper' },
-    { name: 'Team 3', description: 'Lower' },
+    { name: 'Zone 1', description: 'Ark' },
+    { name: 'Zone 2', description: 'Upper' },
+    { name: 'Zone 3', description: 'Lower' },
 ];
 
-const AVAILABLE_TAGS = ['Rally Leader', 'Tank', 'Support', 'Scout', 'Flag Runner', 'Garrison', 'Reinforcer', 'Crystal'];
+const AVAILABLE_TAGS = ['Rally Leader', 'Tank', 'Support', 'Scout', 'Flag Runner', 'Garrison', 'Reinforcer', 'Crystal', 'Teleport 1st', 'Teleport 2nd'];
 
 const ALLIANCE_ROSTER = [
     'Fluffy', 'Soutz', 'BBQSGE', 'aubs', 'Giza', 'Sysstm', 'Freddy', 'TRAP', 'KomVD2',
@@ -169,7 +169,7 @@ export default function AooStrategyPage() {
         if (!isEditor || !name.trim()) return;
         const teamCount = players.filter(p => p.team === newPlayerTeam).length;
         if (teamCount >= 10) {
-            alert(`Team ${newPlayerTeam} already has 10 players!`);
+            alert(`Zone ${newPlayerTeam} already has 10 players!`);
             return;
         }
         if (players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
@@ -217,7 +217,7 @@ export default function AooStrategyPage() {
         if (!isEditor) return;
         const teamCount = players.filter(p => p.team === newTeam && p.id !== playerId).length;
         if (teamCount >= 10) {
-            alert(`Team ${newTeam} already has 10 players!`);
+            alert(`Zone ${newTeam} already has 10 players!`);
             return;
         }
         const updatedPlayers = players.map(p => p.id === playerId ? { ...p, team: newTeam } : p);
@@ -378,9 +378,9 @@ export default function AooStrategyPage() {
                                 <div className="w-40">
                                     <select value={newPlayerTeam} onChange={(e) => setNewPlayerTeam(Number(e.target.value))}
                                         className={`w-full px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500`}>
-                                        <option value={1}>Team 1 ({getTeamPlayers(1).length}/10)</option>
-                                        <option value={2}>Team 2 ({getTeamPlayers(2).length}/10)</option>
-                                        <option value={3}>Team 3 ({getTeamPlayers(3).length}/10)</option>
+                                        <option value={1}>Zone 1 ({getTeamPlayers(1).length}/10)</option>
+                                        <option value={2}>Zone 2 ({getTeamPlayers(2).length}/10)</option>
+                                        <option value={3}>Zone 3 ({getTeamPlayers(3).length}/10)</option>
                                     </select>
                                 </div>
                                 {useCustomName && (
@@ -428,7 +428,7 @@ export default function AooStrategyPage() {
                                                             <div className="flex items-center gap-2">
                                                                 <select value={player.team} onChange={(e) => movePlayer(player.id, Number(e.target.value))}
                                                                     className={`text-xs px-2 py-1 rounded border ${theme.input}`}>
-                                                                    <option value={1}>T1</option><option value={2}>T2</option><option value={3}>T3</option>
+                                                                    <option value={1}>Z1</option><option value={2}>Z2</option><option value={3}>Z3</option>
                                                                 </select>
                                                                 <button onClick={() => removePlayer(player.id)} className="text-red-500 hover:text-red-400 text-sm">✕</button>
                                                             </div>
