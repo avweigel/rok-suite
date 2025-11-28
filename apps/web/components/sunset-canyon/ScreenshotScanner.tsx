@@ -89,27 +89,59 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
       .replace(/\s+/g, ' ')
       .trim();
     
+    // Also create version without spaces for matching
+    const noSpaceText = normalizedText.replace(/\s/g, '');
+    
     for (const commander of commanders) {
       const commanderName = commander.name.toLowerCase();
+      const commanderNoSpace = commanderName.replace(/[\s-]/g, '');
       
+      // Direct match
       if (normalizedText.includes(commanderName)) {
         return commander;
       }
       
-      const nameParts = commanderName.split(/[\s-]+/);
-      for (const part of nameParts) {
-        if (part.length >= 3 && normalizedText.includes(part)) {
+      // No-space match (catches "CaoCao" vs "Cao Cao")
+      if (noSpaceText.includes(commanderNoSpace)) {
+        return commander;
+      }
+      
+      // Match individual name parts
+      const nameParts = commanderName.split(/[\s-]+/).filter(p => p.length >= 3);
+      
+      // For multi-part names, require at least 2 parts or 1 unique part (5+ chars)
+      if (nameParts.length >= 2) {
+        const matchedParts = nameParts.filter(part => normalizedText.includes(part));
+        if (matchedParts.length >= 2) {
+          return commander;
+        }
+        // Single unique part match for distinctive names
+        for (const part of nameParts) {
+          if (part.length >= 5 && normalizedText.includes(part)) {
+            return commander;
+          }
+        }
+      } else if (nameParts.length === 1 && nameParts[0].length >= 4) {
+        if (normalizedText.includes(nameParts[0])) {
           return commander;
         }
       }
       
-      const variations = [
-        commanderName.replace(/\s+/g, ''),
-        commanderName.replace(/-/g, ' '),
+      // Handle Roman numerals (I, II, III)
+      const nameWithoutNumeral = commanderName.replace(/\s+(i{1,3}|iv|v)$/i, '');
+      if (nameWithoutNumeral !== commanderName && normalizedText.includes(nameWithoutNumeral)) {
+        return commander;
+      }
+      
+      // Handle common OCR misreads
+      const ocrVariations = [
+        commanderName.replace(/l/g, 'i'),
+        commanderName.replace(/i/g, 'l'),
+        commanderName.replace(/o/g, '0'),
       ];
       
-      for (const variation of variations) {
-        if (normalizedText.includes(variation)) {
+      for (const variation of ocrVariations) {
+        if (variation !== commanderName && normalizedText.includes(variation)) {
           return commander;
         }
       }
