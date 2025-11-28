@@ -248,29 +248,63 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
     // ===== STRATEGY 7: SPECIFIC PATTERNS FOR PROBLEM NAMES =====
     // These are commanders that consistently fail OCR
     const problemPatterns: Array<{ pattern: RegExp; name: string }> = [
+      // Mehmed II
       { pattern: /\bmeh\w{0,4}d?\b/i, name: 'Mehmed II' },
       { pattern: /conqueror.*istanbul/i, name: 'Mehmed II' },
+      
+      // Charles Martel - CRITICAL: Check for Infantry+Garrison+Defense tags
       { pattern: /immortal.*hammer/i, name: 'Charles Martel' },
       { pattern: /\bmart[eaio]l?\b/i, name: 'Charles Martel' },
+      { pattern: /infantry.*garrison.*defense/i, name: 'Charles Martel' },
+      { pattern: /garrison.*defense.*infantry/i, name: 'Charles Martel' },
+      
+      // Scipio Africanus
       { pattern: /blades.*warfare/i, name: 'Scipio Africanus' },
       { pattern: /\bscip\w{0,3}\b/i, name: 'Scipio Africanus' },
+      
+      // Baibars - OCR reads as "Baingy" or "Baiing"
       { pattern: /father.*conquest/i, name: 'Baibars' },
       { pattern: /\bbaib\w{0,4}\b/i, name: 'Baibars' },
       { pattern: /\bbaiing\b/i, name: 'Baibars' },
+      { pattern: /\bbaingy\b/i, name: 'Baibars' },
+      { pattern: /\bbai[bn]g/i, name: 'Baibars' },
+      
+      // Thutmose III
       { pattern: /beloved.*thoth/i, name: 'Thutmose III' },
       { pattern: /\bthut\w{0,5}\b/i, name: 'Thutmose III' },
+      
+      // Osman I
       { pattern: /imperial.*pioneer/i, name: 'Osman I' },
       { pattern: /\bosma\w{0,2}\b/i, name: 'Osman I' },
+      
+      // Björn Ironside
       { pattern: /king.*kattegat/i, name: 'Björn Ironside' },
       { pattern: /\bbjor\w{0,2}\b/i, name: 'Björn Ironside' },
       { pattern: /\biron\s*side\b/i, name: 'Björn Ironside' },
+      
+      // Sun Tzu
       { pattern: /tactical.*genius/i, name: 'Sun Tzu' },
+      
+      // Boudica
       { pattern: /celtic.*rose/i, name: 'Boudica' },
+      
+      // Lohar
       { pattern: /roaring.*barbarian/i, name: 'Lohar' },
+      
+      // Kusunoki Masashige
       { pattern: /bushido.*spirit/i, name: 'Kusunoki Masashige' },
+      
+      // Minamoto no Yoshitsune
       { pattern: /kamakura.*warlord/i, name: 'Minamoto no Yoshitsune' },
+      
+      // Wak Chanil Ajaw
       { pattern: /lady.*six.*sky/i, name: 'Wak Chanil Ajaw' },
       { pattern: /\bwak\s*chan/i, name: 'Wak Chanil Ajaw' },
+      
+      // Æthelflæd - OCR reads as "Athelfiad", "Athelliad", etc. DB has "Aethelflaed"
+      { pattern: /lady.*mercians/i, name: 'Aethelflaed' },
+      { pattern: /\bathel\w{0,5}d?\b/i, name: 'Aethelflaed' },
+      { pattern: /\baethel/i, name: 'Aethelflaed' },
     ];
     
     for (const { pattern, name } of problemPatterns) {
