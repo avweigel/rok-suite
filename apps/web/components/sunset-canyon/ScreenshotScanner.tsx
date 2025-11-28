@@ -4,6 +4,13 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Upload, Scan, Check, X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Trash2, Images } from 'lucide-react';
 import { createWorker } from 'tesseract.js';
 import { Commander, fetchCommanders } from '@/lib/sunset-canyon/commanders';
+import { 
+  commanderReferences, 
+  findByTitle, 
+  findBySpecialties, 
+  findByAltName,
+  CommanderReference 
+} from '@/lib/sunset-canyon/commander-reference';
 
 interface DetectedCommander {
   name: string;
@@ -99,6 +106,14 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
     });
   };
 
+  // Helper to convert CommanderReference to Commander from database
+  const refToCommander = (ref: CommanderReference): Commander | null => {
+    return commanders.find(c => 
+      c.name.toLowerCase() === ref.name.toLowerCase() ||
+      c.id === ref.id
+    ) || null;
+  };
+
   const matchCommander = (text: string): Commander | null => {
     const normalizedText = text
       .toLowerCase()
@@ -108,36 +123,67 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
     
     const noSpaceText = normalizedText.replace(/\s/g, '');
     
+    // ===== STRATEGY 1: TITLE MATCHING (most reliable with OCR) =====
+    // Titles like "The Immortal Hammer", "Conqueror of Istanbul" are often more readable
+    const titleMatch = findByTitle(normalizedText);
+    if (titleMatch) {
+      const commander = refToCommander(titleMatch);
+      if (commander) {
+        console.log(`[OCR Match] Found by title: "${titleMatch.title}" -> ${commander.name}`);
+        return commander;
+      }
+    }
+    
+    // ===== STRATEGY 2: DIRECT NAME MATCHING =====
     for (const commander of commanders) {
       const commanderName = commander.name.toLowerCase();
       const commanderNoSpace = commanderName.replace(/[\s-]/g, '');
       
       // Direct match
       if (normalizedText.includes(commanderName)) {
+        console.log(`[OCR Match] Direct name match: ${commander.name}`);
         return commander;
       }
       
       // No-space match
       if (noSpaceText.includes(commanderNoSpace)) {
+        console.log(`[OCR Match] No-space match: ${commander.name}`);
         return commander;
       }
-      
+    }
+    
+    // ===== STRATEGY 3: ALT NAMES FROM REFERENCE =====
+    const altNameMatch = findByAltName(normalizedText);
+    if (altNameMatch) {
+      const commander = refToCommander(altNameMatch);
+      if (commander) {
+        console.log(`[OCR Match] Found by alt name: ${commander.name}`);
+        return commander;
+      }
+    }
+    
+    // ===== STRATEGY 4: PARTIAL NAME MATCHING =====
+    for (const commander of commanders) {
+      const commanderName = commander.name.toLowerCase();
       const nameParts = commanderName.split(/[\s-]+/).filter(p => p.length >= 3);
       
       // Multi-part name matching
       if (nameParts.length >= 2) {
         const matchedParts = nameParts.filter(part => normalizedText.includes(part));
         if (matchedParts.length >= 2) {
+          console.log(`[OCR Match] Multi-part match (${matchedParts.join(', ')}): ${commander.name}`);
           return commander;
         }
         // Single unique part (6+ chars)
         for (const part of nameParts) {
           if (part.length >= 6 && normalizedText.includes(part)) {
+            console.log(`[OCR Match] Unique part match (${part}): ${commander.name}`);
             return commander;
           }
         }
-      } else if (nameParts.length === 1 && nameParts[0].length >= 4) {
+      } else if (nameParts.length === 1 && nameParts[0].length >= 5) {
         if (normalizedText.includes(nameParts[0])) {
+          console.log(`[OCR Match] Single name match: ${commander.name}`);
           return commander;
         }
       }
@@ -146,90 +192,97 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
       const nameWithoutNumeral = commanderName.replace(/\s+(i{1,3}|iv|v|vi{0,3})$/i, '').trim();
       if (nameWithoutNumeral !== commanderName && nameWithoutNumeral.length >= 4) {
         if (normalizedText.includes(nameWithoutNumeral)) {
+          console.log(`[OCR Match] Without numeral match: ${commander.name}`);
           return commander;
         }
       }
+    }
+    
+    // ===== STRATEGY 5: OCR VARIATIONS =====
+    for (const commander of commanders) {
+      const commanderName = commander.name.toLowerCase();
       
-      // OCR variations - common misreads
       const ocrVariations: string[] = [
         commanderName.replace(/l/g, 'i'),
         commanderName.replace(/i/g, 'l'),
         commanderName.replace(/l/g, '1'),
         commanderName.replace(/o/g, '0'),
-        commanderName.replace(/(.)\1/g, '$1'), // double letters
-        commanderName.replace(/ö/g, 'o'), // Björn
-        commanderName.replace(/'/g, ''), // K'ak
+        commanderName.replace(/(.)\1/g, '$1'),
+        commanderName.replace(/ö/g, 'o'),
+        commanderName.replace(/'/g, ''),
+        commanderName.replace(/æ/g, 'ae'),
+        commanderName.replace(/ð/g, 'd'),
       ];
       
       for (const variation of ocrVariations) {
-        if (variation !== commanderName) {
-          if (normalizedText.includes(variation)) {
-            return commander;
-          }
-          // Also try no-space version
-          const variationNoSpace = variation.replace(/[\s-]/g, '');
-          if (noSpaceText.includes(variationNoSpace)) {
-            return commander;
-          }
+        if (variation !== commanderName && normalizedText.includes(variation)) {
+          console.log(`[OCR Match] OCR variation match: ${commander.name}`);
+          return commander;
         }
-      }
-      
-      // PARTIAL PREFIX MATCHING for garbled OCR
-      // Look for first 3-4 chars of distinctive names
-      const firstName = nameParts[0];
-      if (firstName && firstName.length >= 4) {
-        const prefix3 = firstName.substring(0, 3);
-        const prefix4 = firstName.substring(0, 4);
-        
-        // Only use prefix matching for distinctive prefixes (not common words)
-        const commonPrefixes = ['the', 'sun', 'war', 'kin', 'que', 'pri', 'lor'];
-        
-        if (!commonPrefixes.includes(prefix3)) {
-          // Check if prefix appears followed by reasonable characters
-          const prefixRegex3 = new RegExp(prefix3 + '[a-z0-9\\s]{0,10}', 'i');
-          const prefixRegex4 = new RegExp(prefix4 + '[a-z0-9\\s]{0,10}', 'i');
-          
-          if (prefix4.length === 4 && prefixRegex4.test(normalizedText)) {
-            // Extra validation: check if other parts of name might be nearby
-            const lastName = nameParts[nameParts.length - 1];
-            if (nameParts.length === 1 || lastName.length < 4) {
-              return commander;
-            }
-            // For multi-part names, check if any part of last name is present
-            const lastPrefix = lastName.substring(0, Math.min(3, lastName.length));
-            if (normalizedText.includes(lastPrefix)) {
-              return commander;
-            }
-          }
-        }
-      }
-      
-      // SPECIAL CASES for commonly misread names
-      // Mehmed -> "meh" anywhere in text
-      if (commanderName.includes('mehmed') && /\bmeh\w*/.test(normalizedText)) {
-        return commander;
-      }
-      // Charles -> "char" or "marti" (from Martel)
-      if (commanderName.includes('charles') && (/\bchar\w*/.test(normalizedText) || /mart[eio]/.test(normalizedText))) {
-        return commander;
-      }
-      // Scipio -> "scip" or "afric"
-      if (commanderName.includes('scipio') && (/\bscip\w*/.test(normalizedText) || /afric/.test(normalizedText))) {
-        return commander;
-      }
-      // Baibars -> "baib" or "barsb"
-      if (commanderName.includes('baibars') && /\bbaib\w*/.test(normalizedText)) {
-        return commander;
-      }
-      // Osman -> "osma" 
-      if (commanderName.includes('osman') && /\bosma\w*/.test(normalizedText)) {
-        return commander;
-      }
-      // Thutmose -> "thut" or "thotm"
-      if (commanderName.includes('thutmose') && /\bthut\w*/.test(normalizedText)) {
-        return commander;
       }
     }
+    
+    // ===== STRATEGY 6: SPECIALTY TAG MATCHING =====
+    const specialtyMatches = findBySpecialties(normalizedText);
+    if (specialtyMatches.length === 1) {
+      // Unique match by specialties
+      const commander = refToCommander(specialtyMatches[0]);
+      if (commander) {
+        console.log(`[OCR Match] Unique specialty match: ${commander.name}`);
+        return commander;
+      }
+    } else if (specialtyMatches.length > 1) {
+      // Multiple matches - try to narrow down with partial name
+      for (const ref of specialtyMatches) {
+        const firstName = ref.name.split(/[\s-]/)[0].toLowerCase();
+        if (firstName.length >= 3 && normalizedText.includes(firstName.substring(0, 3))) {
+          const commander = refToCommander(ref);
+          if (commander) {
+            console.log(`[OCR Match] Specialty + partial name: ${commander.name}`);
+            return commander;
+          }
+        }
+      }
+    }
+    
+    // ===== STRATEGY 7: SPECIFIC PATTERNS FOR PROBLEM NAMES =====
+    // These are commanders that consistently fail OCR
+    const problemPatterns: Array<{ pattern: RegExp; name: string }> = [
+      { pattern: /\bmeh\w{0,4}d?\b/i, name: 'Mehmed II' },
+      { pattern: /conqueror.*istanbul/i, name: 'Mehmed II' },
+      { pattern: /immortal.*hammer/i, name: 'Charles Martel' },
+      { pattern: /\bmart[eaio]l?\b/i, name: 'Charles Martel' },
+      { pattern: /blades.*warfare/i, name: 'Scipio Africanus' },
+      { pattern: /\bscip\w{0,3}\b/i, name: 'Scipio Africanus' },
+      { pattern: /father.*conquest/i, name: 'Baibars' },
+      { pattern: /\bbaib\w{0,4}\b/i, name: 'Baibars' },
+      { pattern: /\bbaiing\b/i, name: 'Baibars' },
+      { pattern: /beloved.*thoth/i, name: 'Thutmose III' },
+      { pattern: /\bthut\w{0,5}\b/i, name: 'Thutmose III' },
+      { pattern: /imperial.*pioneer/i, name: 'Osman I' },
+      { pattern: /\bosma\w{0,2}\b/i, name: 'Osman I' },
+      { pattern: /king.*kattegat/i, name: 'Björn Ironside' },
+      { pattern: /\bbjor\w{0,2}\b/i, name: 'Björn Ironside' },
+      { pattern: /\biron\s*side\b/i, name: 'Björn Ironside' },
+      { pattern: /tactical.*genius/i, name: 'Sun Tzu' },
+      { pattern: /celtic.*rose/i, name: 'Boudica' },
+      { pattern: /roaring.*barbarian/i, name: 'Lohar' },
+      { pattern: /bushido.*spirit/i, name: 'Kusunoki Masashige' },
+      { pattern: /kamakura.*warlord/i, name: 'Minamoto no Yoshitsune' },
+      { pattern: /lady.*six.*sky/i, name: 'Wak Chanil Ajaw' },
+      { pattern: /\bwak\s*chan/i, name: 'Wak Chanil Ajaw' },
+    ];
+    
+    for (const { pattern, name } of problemPatterns) {
+      if (pattern.test(normalizedText)) {
+        const commander = commanders.find(c => c.name.toLowerCase() === name.toLowerCase());
+        if (commander) {
+          console.log(`[OCR Match] Problem pattern match (${pattern}): ${commander.name}`);
+          return commander;
+        }
+      }
+    }
+    
     return null;
   };
 
