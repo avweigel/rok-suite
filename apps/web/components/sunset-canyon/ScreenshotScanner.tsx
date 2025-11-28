@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Upload, Scan, Check, X, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, Scan, Check, X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Trash2, Images } from 'lucide-react';
 import { createWorker } from 'tesseract.js';
 import { Commander, fetchCommanders } from '@/lib/sunset-canyon/commanders';
 
@@ -12,6 +12,13 @@ interface DetectedCommander {
   skillLevels: number[];
   confidence: number;
   matchedCommander: Commander | null;
+  imageIndex: number;
+}
+
+interface ImageItem {
+  src: string;
+  processed: boolean;
+  error?: string;
 }
 
 interface ScreenshotScannerProps {
@@ -21,12 +28,13 @@ interface ScreenshotScannerProps {
 
 export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps) {
   const [dragActive, setDragActive] = useState(false);
-  const [image, setImage] = useState<string | null>(null);
+  const [images, setImages] = useState<ImageItem[]>([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingIndex, setProcessingIndex] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
   const [detected, setDetected] = useState<DetectedCommander[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [error, setError] = useState<string | null>(null);
   const [commanders, setCommanders] = useState<Commander[]>([]);
   const [isLoadingCommanders, setIsLoadingCommanders] = useState(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -55,31 +63,40 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFile(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFiles(Array.from(e.dataTransfer.files));
     }
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
-    if (e.target.files && e.target.files[0]) {
-      handleFile(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      handleFiles(Array.from(e.target.files));
     }
   };
 
-  const handleFile = (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      setError('Please upload an image file');
-      return;
-    }
-    setError(null);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setImage(e.target?.result as string);
-      setDetected([]);
-      setSelected(new Set());
-    };
-    reader.readAsDataURL(file);
+  const handleFiles = (files: File[]) => {
+    const imageFiles = files.filter(f => f.type.startsWith('image/'));
+    if (imageFiles.length === 0) return;
+
+    const newImages: ImageItem[] = [];
+    let loadedCount = 0;
+
+    imageFiles.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        newImages.push({
+          src: e.target?.result as string,
+          processed: false,
+        });
+        loadedCount++;
+        
+        if (loadedCount === imageFiles.length) {
+          setImages(prev => [...prev, ...newImages]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   const matchCommander = (text: string): Commander | null => {
@@ -89,33 +106,27 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
       .replace(/\s+/g, ' ')
       .trim();
     
-    // Also create version without spaces for matching
     const noSpaceText = normalizedText.replace(/\s/g, '');
     
     for (const commander of commanders) {
       const commanderName = commander.name.toLowerCase();
       const commanderNoSpace = commanderName.replace(/[\s-]/g, '');
       
-      // Direct match
       if (normalizedText.includes(commanderName)) {
         return commander;
       }
       
-      // No-space match (catches "CaoCao" vs "Cao Cao")
       if (noSpaceText.includes(commanderNoSpace)) {
         return commander;
       }
       
-      // Match individual name parts
       const nameParts = commanderName.split(/[\s-]+/).filter(p => p.length >= 3);
       
-      // For multi-part names, require at least 2 parts or 1 unique part (5+ chars)
       if (nameParts.length >= 2) {
         const matchedParts = nameParts.filter(part => normalizedText.includes(part));
         if (matchedParts.length >= 2) {
           return commander;
         }
-        // Single unique part match for distinctive names
         for (const part of nameParts) {
           if (part.length >= 5 && normalizedText.includes(part)) {
             return commander;
@@ -127,13 +138,11 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
         }
       }
       
-      // Handle Roman numerals (I, II, III)
       const nameWithoutNumeral = commanderName.replace(/\s+(i{1,3}|iv|v)$/i, '');
       if (nameWithoutNumeral !== commanderName && normalizedText.includes(nameWithoutNumeral)) {
         return commander;
       }
       
-      // Handle common OCR misreads
       const ocrVariations = [
         commanderName.replace(/l/g, 'i'),
         commanderName.replace(/i/g, 'l'),
@@ -149,74 +158,51 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
     return null;
   };
 
-  // Count gold stars by analyzing pixel colors in the star region
   const countStars = (imageData: ImageData, width: number, height: number): number => {
-    // Stars are typically in the upper-right area of commander profile
-    // They appear as bright yellow/gold pixels
-    // Approximate region: 60-80% from left, 25-35% from top
-    
     const startX = Math.floor(width * 0.55);
     const endX = Math.floor(width * 0.85);
     const startY = Math.floor(height * 0.20);
     const endY = Math.floor(height * 0.35);
     
     let goldPixelClusters = 0;
-    let inCluster = false;
-    let clusterWidth = 0;
     
-    // Scan horizontally for gold pixel clusters (each star is a cluster)
-    for (let y = startY; y < endY; y++) {
+    for (let y = startY; y < endY; y += 3) {
+      let inGoldRegion = false;
       let rowClusters = 0;
-      inCluster = false;
-      clusterWidth = 0;
       
       for (let x = startX; x < endX; x++) {
-        const idx = (y * width + x) * 4;
-        const r = imageData.data[idx];
-        const g = imageData.data[idx + 1];
-        const b = imageData.data[idx + 2];
+        const i = (y * width + x) * 4;
+        const r = imageData.data[i];
+        const g = imageData.data[i + 1];
+        const b = imageData.data[i + 2];
         
-        // Check if pixel is gold/yellow (high red, high green, low blue)
-        const isGold = r > 180 && g > 150 && b < 100 && r > b + 80 && g > b + 50;
+        const isGold = r > 180 && g > 140 && g < 220 && b < 100 && r > g;
+        const isBrightYellow = r > 200 && g > 180 && b < 120 && r > b * 2;
         
-        if (isGold) {
-          if (!inCluster) {
-            inCluster = true;
-            clusterWidth = 1;
-          } else {
-            clusterWidth++;
-          }
-        } else {
-          if (inCluster && clusterWidth > 5) {
+        if (isGold || isBrightYellow) {
+          if (!inGoldRegion) {
+            inGoldRegion = true;
             rowClusters++;
           }
-          inCluster = false;
-          clusterWidth = 0;
+        } else {
+          inGoldRegion = false;
         }
       }
       
-      if (inCluster && clusterWidth > 5) {
-        rowClusters++;
-      }
-      
-      // Track max clusters found in any row
       if (rowClusters > goldPixelClusters) {
         goldPixelClusters = rowClusters;
       }
     }
     
-    // Clamp to 1-5 range
     return Math.max(1, Math.min(5, goldPixelClusters));
   };
 
-  // Extract level from a specific region using OCR
   const extractLevelFromRegion = (text: string): number => {
-    // Look for "Level XX" or "Lv.XX" or just numbers 1-60
     const levelPatterns = [
       /level\s*(\d{1,2})/i,
       /lv\.?\s*(\d{1,2})/i,
       /lvl\.?\s*(\d{1,2})/i,
-      /(\d{1,2})\s*\/\s*\d{2}/,  // "48/50" format
+      /(\d{1,2})\s*\/\s*\d{2}/,
     ];
     
     for (const pattern of levelPatterns) {
@@ -229,33 +215,21 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
       }
     }
     
-    return 60; // Default to max level
+    return 60;
   };
 
-  // Try to extract skill levels from skill region
   const extractSkillLevels = (text: string): number[] => {
-    // Look for patterns like "5" near skill icons, or sequences of single digits
-    const skillNumbers: number[] = [];
-    
-    // Look for individual digits that could be skill levels
     const digits = text.match(/\b[1-5]\b/g);
     if (digits && digits.length >= 4) {
       return digits.slice(0, 4).map(d => parseInt(d));
     }
     
-    // Look for skill format like "5/5/5/5" or "5 5 5 5"
     const skillPattern = /([1-5])\s*[\/\s,]\s*([1-5])\s*[\/\s,]\s*([1-5])\s*[\/\s,]\s*([1-5])/;
     const match = text.match(skillPattern);
     if (match) {
-      return [
-        parseInt(match[1]),
-        parseInt(match[2]),
-        parseInt(match[3]),
-        parseInt(match[4]),
-      ];
+      return [parseInt(match[1]), parseInt(match[2]), parseInt(match[3]), parseInt(match[4])];
     }
     
-    // Default to max skills for legendary, mid for epic
     return [5, 5, 5, 5];
   };
 
@@ -283,88 +257,103 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
         
         resolve({ stars, imageData });
       };
-      img.onerror = () => {
-        resolve({ stars: 5, imageData: null });
-      };
+      img.onerror = () => resolve({ stars: 5, imageData: null });
       img.src = imgSrc;
     });
   };
 
-  const processImage = async () => {
-    if (!image) return;
-    
-    setIsProcessing(true);
-    setProgress(0);
-    setError(null);
+  const processSingleImage = async (imageIndex: number): Promise<DetectedCommander | null> => {
+    const image = images[imageIndex];
+    if (!image || image.processed) return null;
 
     try {
-      // First, analyze the image for stars
-      setProgress(10);
-      const { stars: detectedStars } = await analyzeImage(image);
+      const { stars: detectedStars } = await analyzeImage(image.src);
       
-      setProgress(20);
-      
-      // Then run OCR for text
       const worker = await createWorker('eng', 1, {
         logger: (m) => {
           if (m.status === 'recognizing text') {
-            setProgress(20 + Math.round(m.progress * 70));
+            setProgress(Math.round(m.progress * 100));
           }
         },
       });
 
-      const { data: { text } } = await worker.recognize(image);
+      const { data: { text } } = await worker.recognize(image.src);
       await worker.terminate();
 
-      setProgress(95);
-
       const lines = text.split('\n').filter(line => line.trim().length > 0);
-      const detectedCommanders: DetectedCommander[] = [];
       const fullText = lines.join(' ');
       
-      // Find commander name
       let matchedCommander: Commander | null = null;
       for (const line of lines) {
         matchedCommander = matchCommander(line);
         if (matchedCommander) break;
       }
       
-      // Also try the full text
       if (!matchedCommander) {
         matchedCommander = matchCommander(fullText);
       }
 
+      setImages(prev => prev.map((img, i) => 
+        i === imageIndex ? { ...img, processed: true, error: matchedCommander ? undefined : 'No commander detected' } : img
+      ));
+
       if (matchedCommander) {
         const level = extractLevelFromRegion(fullText);
         const skillLevels = extractSkillLevels(fullText);
-        
-        // Use detected stars, or default based on rarity
         const finalStars = detectedStars > 0 ? detectedStars : 
           (matchedCommander.rarity === 'legendary' ? 5 : 4);
         
-        detectedCommanders.push({
+        return {
           name: matchedCommander.name,
           level,
           stars: finalStars,
           skillLevels,
           confidence: 0.8,
           matchedCommander,
-        });
+          imageIndex,
+        };
       }
 
-      setProgress(100);
-
-      if (detectedCommanders.length === 0) {
-        setError('No commanders detected. Try a clearer screenshot or add commanders manually.');
-      } else {
-        setDetected(detectedCommanders);
-        setSelected(new Set(detectedCommanders.map((_, i) => i)));
-      }
+      return null;
     } catch (err) {
-      setError('Failed to process image. Please try again.');
-      console.error(err);
-    } finally {
-      setIsProcessing(false);
+      setImages(prev => prev.map((img, i) => 
+        i === imageIndex ? { ...img, processed: true, error: 'Processing failed' } : img
+      ));
+      return null;
+    }
+  };
+
+  const processAllImages = async () => {
+    setIsProcessing(true);
+    setDetected([]);
+    setSelected(new Set());
+    
+    const newDetected: DetectedCommander[] = [];
+    
+    for (let i = 0; i < images.length; i++) {
+      if (images[i].processed) continue;
+      
+      setProcessingIndex(i);
+      setCurrentImageIndex(i);
+      setProgress(0);
+      
+      const result = await processSingleImage(i);
+      if (result) {
+        newDetected.push(result);
+      }
+    }
+    
+    setDetected(newDetected);
+    setSelected(new Set(newDetected.map((_, i) => i)));
+    setProcessingIndex(null);
+    setIsProcessing(false);
+  };
+
+  const removeImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+    setDetected(prev => prev.filter(d => d.imageIndex !== index));
+    if (currentImageIndex >= images.length - 1) {
+      setCurrentImageIndex(Math.max(0, images.length - 2));
     }
   };
 
@@ -398,6 +387,9 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
     }));
   };
 
+  const unprocessedCount = images.filter(img => !img.processed).length;
+  const processedCount = images.filter(img => img.processed).length;
+
   if (isLoadingCommanders) {
     return (
       <>
@@ -416,14 +408,15 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
     <>
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50" onClick={onClose} />
       
-      {/* Hidden canvas for image analysis */}
       <canvas ref={canvasRef} style={{ display: 'none' }} />
       
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90vw] max-w-3xl max-h-[90vh] overflow-hidden rounded-xl bg-gradient-to-br from-stone-800 to-stone-900 border border-amber-600/20">
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90vw] max-w-4xl max-h-[90vh] overflow-hidden rounded-xl bg-gradient-to-br from-stone-800 to-stone-900 border border-amber-600/20">
         <div className="flex items-center justify-between p-4 border-b border-stone-700">
           <div>
-            <h2 className="text-xl font-semibold text-amber-500">Scan Screenshot</h2>
-            <p className="text-xs text-stone-400 mt-1">Beta feature - results may need manual adjustment</p>
+            <h2 className="text-xl font-semibold text-amber-500">Scan Screenshots</h2>
+            <p className="text-xs text-stone-400 mt-1">
+              Upload multiple screenshots at once • Beta feature
+            </p>
           </div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-stone-700 transition-colors">
             <X className="w-5 h-5 text-stone-400" />
@@ -431,9 +424,10 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
         </div>
 
         <div className="p-4 overflow-y-auto max-h-[calc(90vh-140px)]">
-          {!image ? (
+          {/* Upload area */}
+          {!isProcessing && (
             <div
-              className={`border-2 border-dashed rounded-xl p-12 text-center transition-all ${
+              className={`border-2 border-dashed rounded-xl p-6 text-center transition-all mb-4 ${
                 dragActive ? 'border-amber-500 bg-amber-500/10' : 'border-stone-600 hover:border-amber-600'
               }`}
               onDragEnter={handleDrag}
@@ -441,12 +435,13 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
               onDragOver={handleDrag}
               onDrop={handleDrop}
             >
-              <Upload className="w-12 h-12 text-amber-500/50 mx-auto mb-4" />
-              <p className="text-stone-300 mb-2">Drop your screenshot here</p>
-              <p className="text-stone-500 text-sm mb-4">or click to browse</p>
+              <Upload className="w-10 h-10 text-amber-500/50 mx-auto mb-3" />
+              <p className="text-stone-300 mb-1">Drop screenshots here or click to browse</p>
+              <p className="text-stone-500 text-sm mb-3">Select multiple files at once</p>
               <input
                 type="file"
                 accept="image/*"
+                multiple
                 onChange={handleChange}
                 className="hidden"
                 id="screenshot-upload"
@@ -455,152 +450,273 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
                 htmlFor="screenshot-upload"
                 className="inline-block px-4 py-2 rounded-lg bg-gradient-to-r from-amber-600 to-amber-700 text-stone-900 font-semibold cursor-pointer hover:from-amber-500 hover:to-amber-600 transition-all"
               >
-                Select Image
+                <Images className="w-4 h-4 inline mr-2" />
+                Select Images
               </label>
             </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="relative rounded-lg overflow-hidden bg-stone-900">
-                <img src={image} alt="Screenshot" className="w-full h-auto max-h-[200px] object-contain" />
-                <button
-                  onClick={() => {
-                    setImage(null);
-                    setDetected([]);
-                  }}
-                  className="absolute top-2 right-2 p-1 rounded bg-stone-900/80 hover:bg-stone-800"
-                >
-                  <X className="w-4 h-4 text-stone-400" />
-                </button>
+          )}
+
+          {/* Image thumbnails */}
+          {images.length > 0 && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-amber-500 uppercase tracking-wider">
+                  Screenshots ({images.length})
+                </h3>
+                {processedCount > 0 && (
+                  <span className="text-xs text-stone-400">
+                    {processedCount} processed, {unprocessedCount} remaining
+                  </span>
+                )}
               </div>
-
-              {detected.length === 0 && !isProcessing && (
-                <button
-                  onClick={processImage}
-                  className="w-full px-4 py-3 rounded-lg bg-gradient-to-r from-amber-600 to-amber-700 text-stone-900 font-semibold hover:from-amber-500 hover:to-amber-600 transition-all flex items-center justify-center gap-2"
-                >
-                  <Scan className="w-5 h-5" />
-                  Scan for Commanders
-                </button>
-              )}
-
-              {isProcessing && (
-                <div className="text-center py-8">
-                  <Loader2 className="w-8 h-8 text-amber-500 animate-spin mx-auto mb-3" />
-                  <p className="text-stone-300">Scanning image...</p>
-                  <div className="w-48 h-2 bg-stone-700 rounded-full mx-auto mt-3 overflow-hidden">
-                    <div
-                      className="h-full bg-amber-500 transition-all duration-300"
-                      style={{ width: `${progress}%` }}
-                    />
+              
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {images.map((img, i) => (
+                  <div
+                    key={i}
+                    className={`relative flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${
+                      currentImageIndex === i 
+                        ? 'border-amber-500' 
+                        : img.processed 
+                          ? img.error 
+                            ? 'border-red-500/50' 
+                            : 'border-green-500/50'
+                          : 'border-stone-600'
+                    } ${processingIndex === i ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-stone-900' : ''}`}
+                    onClick={() => setCurrentImageIndex(i)}
+                  >
+                    <img src={img.src} alt={`Screenshot ${i + 1}`} className="w-full h-full object-cover" />
+                    
+                    {img.processed && (
+                      <div className={`absolute inset-0 flex items-center justify-center ${
+                        img.error ? 'bg-red-900/60' : 'bg-green-900/60'
+                      }`}>
+                        {img.error ? (
+                          <AlertCircle className="w-6 h-6 text-red-400" />
+                        ) : (
+                          <Check className="w-6 h-6 text-green-400" />
+                        )}
+                      </div>
+                    )}
+                    
+                    {processingIndex === i && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                        <Loader2 className="w-6 h-6 text-amber-500 animate-spin" />
+                      </div>
+                    )}
+                    
+                    {!isProcessing && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeImage(i);
+                        }}
+                        className="absolute top-1 right-1 p-1 rounded bg-stone-900/80 hover:bg-red-600 transition-colors"
+                      >
+                        <X className="w-3 h-3 text-stone-400" />
+                      </button>
+                    )}
+                    
+                    <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-stone-900/80 text-xs text-stone-300">
+                      {i + 1}
+                    </div>
                   </div>
-                  <p className="text-stone-500 text-sm mt-2">{progress}%</p>
-                </div>
-              )}
+                ))}
+              </div>
+            </div>
+          )}
 
-              {error && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-900/20 border border-red-500/30">
-                  <AlertCircle className="w-5 h-5 text-red-400" />
-                  <p className="text-red-400 text-sm">{error}</p>
-                </div>
-              )}
+          {/* Current image preview */}
+          {images.length > 0 && images[currentImageIndex] && (
+            <div className="mb-4">
+              <div className="relative rounded-lg overflow-hidden bg-stone-900">
+                <img 
+                  src={images[currentImageIndex].src} 
+                  alt="Current screenshot" 
+                  className="w-full h-auto max-h-[200px] object-contain" 
+                />
+                
+                {images.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => setCurrentImageIndex(i => Math.max(0, i - 1))}
+                      disabled={currentImageIndex === 0}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-stone-900/80 hover:bg-stone-700 disabled:opacity-30 transition-all"
+                    >
+                      <ChevronLeft className="w-5 h-5 text-stone-300" />
+                    </button>
+                    <button
+                      onClick={() => setCurrentImageIndex(i => Math.min(images.length - 1, i + 1))}
+                      disabled={currentImageIndex === images.length - 1}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-stone-900/80 hover:bg-stone-700 disabled:opacity-30 transition-all"
+                    >
+                      <ChevronRight className="w-5 h-5 text-stone-300" />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
-              {detected.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-amber-500 uppercase tracking-wider">
-                    Detected Commanders ({detected.length})
-                  </h3>
-                  <p className="text-xs text-stone-400">Click to select/deselect. Edit values if needed.</p>
-                  
-                  {detected.map((d, i) => (
-                    <div
-                      key={i}
-                      className={`p-3 rounded-lg border transition-all ${
-                        selected.has(i)
-                          ? 'bg-green-900/20 border-green-500/50'
-                          : 'bg-stone-800/50 border-stone-700'
+          {/* Scan button */}
+          {images.length > 0 && unprocessedCount > 0 && !isProcessing && (
+            <button
+              onClick={processAllImages}
+              className="w-full px-4 py-3 rounded-lg bg-gradient-to-r from-amber-600 to-amber-700 text-stone-900 font-semibold hover:from-amber-500 hover:to-amber-600 transition-all flex items-center justify-center gap-2 mb-4"
+            >
+              <Scan className="w-5 h-5" />
+              Scan {unprocessedCount} Screenshot{unprocessedCount !== 1 ? 's' : ''} for Commanders
+            </button>
+          )}
+
+          {/* Processing status */}
+          {isProcessing && (
+            <div className="text-center py-4 mb-4 rounded-lg bg-stone-800/50">
+              <Loader2 className="w-8 h-8 text-amber-500 animate-spin mx-auto mb-3" />
+              <p className="text-stone-300">
+                Processing image {(processingIndex ?? 0) + 1} of {images.length}...
+              </p>
+              <div className="w-48 h-2 bg-stone-700 rounded-full mx-auto mt-3 overflow-hidden">
+                <div
+                  className="h-full bg-amber-500 transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Detected commanders */}
+          {detected.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-amber-500 uppercase tracking-wider">
+                Detected Commanders ({detected.length})
+              </h3>
+              <p className="text-xs text-stone-400">Click to select/deselect. Edit values if needed.</p>
+              
+              {detected.map((d, i) => (
+                <div
+                  key={i}
+                  className={`p-3 rounded-lg border transition-all ${
+                    selected.has(i)
+                      ? 'bg-green-900/20 border-green-500/50'
+                      : 'bg-stone-800/50 border-stone-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => toggleSelection(i)}
+                      className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                        selected.has(i) ? 'bg-green-500 text-white' : 'bg-stone-700 text-stone-500'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => toggleSelection(i)}
-                          className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                            selected.has(i) ? 'bg-green-500 text-white' : 'bg-stone-700 text-stone-500'
-                          }`}
-                        >
-                          {selected.has(i) && <Check className="w-4 h-4" />}
-                        </button>
-                        
-                        <div className="flex-1">
-                          <p className={`font-semibold ${
-                            d.matchedCommander?.rarity === 'legendary' ? 'text-yellow-500' : 'text-purple-400'
-                          }`}>
-                            {d.name}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-3 gap-2 mt-3">
-                        <div>
-                          <label className="text-xs text-stone-500">Level</label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="60"
-                            value={d.level}
-                            onChange={(e) => updateDetected(i, 'level', parseInt(e.target.value) || 1)}
-                            className="w-full px-2 py-1 rounded bg-stone-700 border border-stone-600 text-stone-200 text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-stone-500">Stars</label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="5"
-                            value={d.stars}
-                            onChange={(e) => updateDetected(i, 'stars', parseInt(e.target.value) || 1)}
-                            className="w-full px-2 py-1 rounded bg-stone-700 border border-stone-600 text-stone-200 text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-stone-500">Skills</label>
-                          <input
-                            type="text"
-                            value={d.skillLevels.join('/')}
-                            onChange={(e) => {
-                              const parts = e.target.value.split('/').map(s => parseInt(s) || 1);
-                              while (parts.length < 4) parts.push(1);
-                              updateDetected(i, 'skillLevels', parts.slice(0, 4).map(n => Math.min(5, Math.max(1, n))));
-                            }}
-                            placeholder="5/5/5/5"
-                            className="w-full px-2 py-1 rounded bg-stone-700 border border-stone-600 text-stone-200 text-sm"
-                          />
-                        </div>
-                      </div>
+                      {selected.has(i) && <Check className="w-4 h-4" />}
+                    </button>
+                    
+                    <div className="flex-1">
+                      <p className={`font-semibold ${
+                        d.matchedCommander?.rarity === 'legendary' ? 'text-yellow-500' : 'text-purple-400'
+                      }`}>
+                        {d.name}
+                      </p>
                     </div>
-                  ))}
+                    
+                    <button
+                      onClick={() => setCurrentImageIndex(d.imageIndex)}
+                      className="text-xs text-stone-500 hover:text-amber-500"
+                    >
+                      img #{d.imageIndex + 1}
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-2 mt-3">
+                    <div>
+                      <label className="text-xs text-stone-500">Level</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="60"
+                        value={d.level}
+                        onChange={(e) => updateDetected(i, 'level', parseInt(e.target.value) || 1)}
+                        className="w-full px-2 py-1 rounded bg-stone-700 border border-stone-600 text-stone-200 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-stone-500">Stars</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="5"
+                        value={d.stars}
+                        onChange={(e) => updateDetected(i, 'stars', parseInt(e.target.value) || 1)}
+                        className="w-full px-2 py-1 rounded bg-stone-700 border border-stone-600 text-stone-200 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-stone-500">Skills</label>
+                      <input
+                        type="text"
+                        value={d.skillLevels.join('/')}
+                        onChange={(e) => {
+                          const parts = e.target.value.split('/').map(s => parseInt(s) || 1);
+                          while (parts.length < 4) parts.push(1);
+                          updateDetected(i, 'skillLevels', parts.slice(0, 4).map(n => Math.min(5, Math.max(1, n))));
+                        }}
+                        placeholder="5/5/5/5"
+                        className="w-full px-2 py-1 rounded bg-stone-700 border border-stone-600 text-stone-200 text-sm"
+                      />
+                    </div>
+                  </div>
                 </div>
-              )}
+              ))}
+            </div>
+          )}
+
+          {/* Error summary */}
+          {processedCount > 0 && images.some(img => img.error) && (
+            <div className="mt-4 p-3 rounded-lg bg-red-900/20 border border-red-500/30">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertCircle className="w-5 h-5 text-red-400" />
+                <p className="text-red-400 font-medium">Some images failed</p>
+              </div>
+              <p className="text-sm text-stone-400">
+                {images.filter(img => img.error).length} screenshot(s) could not be processed. 
+                Try clearer screenshots or add commanders manually.
+              </p>
             </div>
           )}
         </div>
 
-        <div className="flex justify-end gap-3 p-4 border-t border-stone-700">
+        <div className="flex justify-between gap-3 p-4 border-t border-stone-700">
           <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-lg border border-stone-600 text-stone-400 hover:bg-stone-700 transition-colors"
+            onClick={() => {
+              setImages([]);
+              setDetected([]);
+              setSelected(new Set());
+            }}
+            disabled={images.length === 0 || isProcessing}
+            className="px-4 py-2 rounded-lg border border-stone-600 text-stone-400 hover:bg-stone-700 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
-            Cancel
+            <Trash2 className="w-4 h-4" />
+            Clear All
           </button>
-          {detected.length > 0 && (
+          
+          <div className="flex gap-3">
             <button
-              onClick={handleImport}
-              disabled={selected.size === 0}
-              className="px-4 py-2 rounded-lg bg-gradient-to-r from-amber-600 to-amber-700 text-stone-900 font-semibold disabled:opacity-50 hover:from-amber-500 hover:to-amber-600 transition-all"
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg border border-stone-600 text-stone-400 hover:bg-stone-700 transition-colors"
             >
-              Import {selected.size} Commander{selected.size !== 1 ? 's' : ''}
+              Cancel
             </button>
-          )}
+            {detected.length > 0 && (
+              <button
+                onClick={handleImport}
+                disabled={selected.size === 0}
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-amber-600 to-amber-700 text-stone-900 font-semibold disabled:opacity-50 hover:from-amber-500 hover:to-amber-600 transition-all"
+              >
+                Import {selected.size} Commander{selected.size !== 1 ? 's' : ''}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </>
