@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Shield, Swords, ArrowLeft, Settings, Castle, Users, Scan, Plus, Loader2 } from 'lucide-react';
+import { Shield, Swords, ArrowLeft, Settings, Castle, Users, Scan, Plus, Loader2, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { AddCommanderModal } from '@/components/sunset-canyon/AddCommanderModal';
 import { ScreenshotScanner } from '@/components/sunset-canyon/ScreenshotScanner';
 import { useSunsetCanyonStore } from '@/lib/sunset-canyon/store';
 import { Commander } from '@/lib/sunset-canyon/commanders';
+import { optimizeDefense, OptimizedFormation } from '@/lib/sunset-canyon/optimizer';
 
 type TabType = 'defense' | 'offense';
 
@@ -254,19 +255,38 @@ export default function SunsetCanyonPage() {
 
 // Defense Tab Component
 function DefenseTab() {
-  const { userCommanders } = useSunsetCanyonStore();
+  const { userCommanders, cityHallLevel } = useSunsetCanyonStore();
   const [isOptimizing, setIsOptimizing] = useState(false);
-  const [optimizedFormation, setOptimizedFormation] = useState<null | {
-    formation: Array<{ primary: string; secondary?: string; position: number }>;
-    winRate: number;
-  }>(null);
+  const [progress, setProgress] = useState(0);
+  const [progressMessage, setProgressMessage] = useState('');
+  const [optimizedFormations, setOptimizedFormations] = useState<OptimizedFormation[]>([]);
+  const [selectedFormationIndex, setSelectedFormationIndex] = useState(0);
 
   const handleOptimize = async () => {
     setIsOptimizing(true);
-    // TODO: Implement optimization logic
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate work
-    setIsOptimizing(false);
+    setProgress(0);
+    setOptimizedFormations([]);
+    
+    try {
+      const results = await optimizeDefense(
+        userCommanders,
+        cityHallLevel,
+        100,
+        (prog, msg) => {
+          setProgress(prog);
+          setProgressMessage(msg);
+        }
+      );
+      setOptimizedFormations(results);
+      setSelectedFormationIndex(0);
+    } catch (error) {
+      console.error('Optimization failed:', error);
+    } finally {
+      setIsOptimizing(false);
+    }
   };
+
+  const selectedFormation = optimizedFormations[selectedFormationIndex];
 
   return (
     <div className="space-y-6">
@@ -301,10 +321,13 @@ function DefenseTab() {
                 <h3 className="font-semibold text-stone-200">Import Your Commanders</h3>
                 <p className="text-sm text-stone-400 mt-1">
                   Add at least 5 commanders to your roster using the scanner or manual entry above.
+                  For best results with primary+secondary pairings, add 10+ commanders.
                 </p>
                 <p className="text-sm text-stone-500 mt-2">
-                  {userCommanders.length >= 5 
-                    ? `✓ ${userCommanders.length} commanders ready`
+                  {userCommanders.length >= 10 
+                    ? `✓ ${userCommanders.length} commanders ready (full pairings possible)`
+                    : userCommanders.length >= 5
+                    ? `✓ ${userCommanders.length} commanders (add more for better pairings)`
                     : `${userCommanders.length}/5 minimum commanders added`
                   }
                 </p>
@@ -313,15 +336,21 @@ function DefenseTab() {
           </div>
 
           {/* Step 2 */}
-          <div className="p-4 rounded-lg bg-stone-800/50 border border-stone-700">
+          <div className={`p-4 rounded-lg border ${
+            isOptimizing ? 'bg-blue-900/20 border-blue-600/30' : 'bg-stone-800/50 border-stone-700'
+          }`}>
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-full bg-stone-700 text-stone-400 flex items-center justify-center font-bold">
-                2
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
+                optimizedFormations.length > 0 
+                  ? 'bg-green-600 text-white' 
+                  : 'bg-stone-700 text-stone-400'
+              }`}>
+                {optimizedFormations.length > 0 ? '✓' : '2'}
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-stone-200">Optimize Formation</h3>
                 <p className="text-sm text-stone-400 mt-1">
-                  We&apos;ll test thousands of combinations to find the best defensive lineup.
+                  We&apos;ll analyze your commanders and find the best defensive lineup.
                 </p>
                 <ul className="text-sm text-stone-500 mt-2 space-y-1">
                   <li>• Best commander pairings (primary + secondary)</li>
@@ -329,74 +358,261 @@ function DefenseTab() {
                   <li>• Troop type balance for versatility</li>
                 </ul>
                 
-                <button
-                  onClick={handleOptimize}
-                  disabled={userCommanders.length < 5 || isOptimizing}
-                  className="mt-4 px-6 py-3 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:from-blue-500 hover:to-blue-600 transition-all flex items-center gap-2"
-                >
-                  {isOptimizing ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Optimizing...
-                    </>
-                  ) : (
-                    <>
-                      <Shield className="w-5 h-5" />
-                      Optimize My Defense
-                    </>
-                  )}
-                </button>
+                {isOptimizing ? (
+                  <div className="mt-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+                      <span className="text-blue-400">{progressMessage}</span>
+                    </div>
+                    <div className="h-2 bg-stone-700 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-blue-500 transition-all duration-300"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleOptimize}
+                    disabled={userCommanders.length < 5}
+                    className="mt-4 px-6 py-3 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:from-blue-500 hover:to-blue-600 transition-all flex items-center gap-2"
+                  >
+                    <Shield className="w-5 h-5" />
+                    {optimizedFormations.length > 0 ? 'Re-optimize Defense' : 'Optimize My Defense'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Step 3 - Results */}
-          {optimizedFormation && (
-            <div className="p-4 rounded-lg bg-green-900/20 border border-green-600/30">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center font-bold">
-                  3
+      {/* Results */}
+      {optimizedFormations.length > 0 && (
+        <div className="rounded-xl p-6 bg-gradient-to-br from-green-900/20 to-stone-900/80 border border-green-600/20">
+          <h3 className="text-lg font-semibold text-green-400 mb-4 flex items-center gap-2">
+            <Trophy className="w-5 h-5" />
+            Recommended Formations
+          </h3>
+          
+          {/* Formation selector tabs */}
+          <div className="flex gap-2 mb-6">
+            {optimizedFormations.map((formation, index) => (
+              <button
+                key={index}
+                onClick={() => setSelectedFormationIndex(index)}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  selectedFormationIndex === index
+                    ? 'bg-green-600 text-white'
+                    : 'bg-stone-700 text-stone-300 hover:bg-stone-600'
+                }`}
+              >
+                <div className="text-sm">Option {index + 1}</div>
+                <div className="text-xs opacity-80">{formation.winRate.toFixed(0)}% est.</div>
+              </button>
+            ))}
+          </div>
+
+          {/* Selected formation details */}
+          {selectedFormation && (
+            <div className="space-y-4">
+              {/* Win rate */}
+              <div className="flex items-center gap-4 p-4 rounded-lg bg-stone-800/50">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-green-400">
+                    {selectedFormation.winRate.toFixed(1)}%
+                  </div>
+                  <div className="text-xs text-stone-500">Estimated Win Rate</div>
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-stone-200">Recommended Formation</h3>
-                  <p className="text-sm text-green-400 mt-1">
-                    Win Rate: {optimizedFormation.winRate.toFixed(1)}%
-                  </p>
-                  {/* TODO: Display formation grid */}
+                <div className="flex-1 pl-4 border-l border-stone-700">
+                  <div className="text-sm text-stone-400">Strategy:</div>
+                  <ul className="text-sm text-stone-300">
+                    {selectedFormation.reasoning.map((reason, i) => (
+                      <li key={i}>• {reason}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Formation grid */}
+              <div>
+                <h4 className="text-sm font-semibold text-amber-500 uppercase tracking-wider mb-3">
+                  Formation Layout
+                </h4>
+                <div className="grid grid-cols-4 gap-3">
+                  {/* Back Row */}
+                  {[0, 1, 2, 3].map((slot) => {
+                    const army = selectedFormation.armies.find(
+                      a => a.position.row === 'back' && a.position.slot === slot
+                    );
+                    return (
+                      <div
+                        key={`back-${slot}`}
+                        className={`p-3 rounded-lg border ${
+                          army 
+                            ? 'bg-gradient-to-br from-stone-700 to-stone-800 border-amber-600/30'
+                            : 'border-2 border-dashed border-stone-700'
+                        }`}
+                      >
+                        {army ? (
+                          <div>
+                            <div className={`text-sm font-semibold truncate ${
+                              army.primary.rarity === 'legendary' ? 'text-yellow-500' : 'text-purple-400'
+                            }`}>
+                              {army.primary.name}
+                            </div>
+                            {army.secondary && (
+                              <div className={`text-xs truncate opacity-80 ${
+                                army.secondary.rarity === 'legendary' ? 'text-yellow-500' : 'text-purple-400'
+                              }`}>
+                                + {army.secondary.name}
+                              </div>
+                            )}
+                            <div className="text-xs text-stone-500 mt-1">
+                              {army.primary.troopType}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-xs text-stone-600 text-center py-2">
+                            Empty
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Front Row */}
+                  {[0, 1, 2, 3].map((slot) => {
+                    const army = selectedFormation.armies.find(
+                      a => a.position.row === 'front' && a.position.slot === slot
+                    );
+                    return (
+                      <div
+                        key={`front-${slot}`}
+                        className={`p-3 rounded-lg border ${
+                          army 
+                            ? 'bg-gradient-to-br from-blue-900/30 to-stone-800 border-blue-600/30'
+                            : 'border-2 border-dashed border-stone-700'
+                        }`}
+                      >
+                        {army ? (
+                          <div>
+                            <div className={`text-sm font-semibold truncate ${
+                              army.primary.rarity === 'legendary' ? 'text-yellow-500' : 'text-purple-400'
+                            }`}>
+                              {army.primary.name}
+                            </div>
+                            {army.secondary && (
+                              <div className={`text-xs truncate opacity-80 ${
+                                army.secondary.rarity === 'legendary' ? 'text-yellow-500' : 'text-purple-400'
+                              }`}>
+                                + {army.secondary.name}
+                              </div>
+                            )}
+                            <div className="text-xs text-stone-500 mt-1">
+                              {army.primary.troopType}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-xs text-stone-600 text-center py-2">
+                            Empty
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-between text-xs text-stone-500 mt-2 px-1">
+                  <span>← Back Row (Damage)</span>
+                  <span>Front Row (Tanks) →</span>
+                </div>
+              </div>
+
+              {/* Army details */}
+              <div>
+                <h4 className="text-sm font-semibold text-amber-500 uppercase tracking-wider mb-3">
+                  Army Details
+                </h4>
+                <div className="space-y-2">
+                  {selectedFormation.armies.map((army, index) => (
+                    <div 
+                      key={index}
+                      className="flex items-center gap-4 p-3 rounded-lg bg-stone-800/50"
+                    >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                        army.position.row === 'front' 
+                          ? 'bg-blue-600 text-white' 
+                          : 'bg-amber-600 text-stone-900'
+                      }`}>
+                        {army.position.row === 'front' ? 'F' : 'B'}{army.position.slot + 1}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-semibold ${
+                            army.primary.rarity === 'legendary' ? 'text-yellow-500' : 'text-purple-400'
+                          }`}>
+                            {army.primary.name}
+                          </span>
+                          <span className="text-xs text-stone-500">Lv.{army.primary.level}</span>
+                          {army.secondary && (
+                            <>
+                              <span className="text-stone-600">+</span>
+                              <span className={`${
+                                army.secondary.rarity === 'legendary' ? 'text-yellow-500' : 'text-purple-400'
+                              }`}>
+                                {army.secondary.name}
+                              </span>
+                              <span className="text-xs text-stone-500">Lv.{army.secondary.level}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className={`px-2 py-1 rounded text-xs ${
+                        army.primary.troopType === 'infantry' ? 'bg-blue-900/50 text-blue-300' :
+                        army.primary.troopType === 'cavalry' ? 'bg-red-900/50 text-red-300' :
+                        army.primary.troopType === 'archer' ? 'bg-green-900/50 text-green-300' :
+                        'bg-amber-900/50 text-amber-300'
+                      }`}>
+                        {army.primary.troopType}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           )}
         </div>
-      </div>
+      )}
 
-      {/* Formation Preview Grid */}
-      <div className="rounded-xl p-6 bg-gradient-to-br from-stone-800/90 to-stone-900/80 border border-amber-600/20">
-        <h3 className="text-lg font-semibold text-amber-500 mb-4">Formation Preview</h3>
-        <div className="grid grid-cols-4 gap-3">
-          {/* Back Row */}
-          {[4, 5, 6, 7].map((slot) => (
-            <div
-              key={slot}
-              className="aspect-square rounded-lg border-2 border-dashed border-stone-600 flex items-center justify-center"
-            >
-              <span className="text-xs text-stone-500">Back {slot - 3}</span>
-            </div>
-          ))}
-          {/* Front Row */}
-          {[0, 1, 2, 3].map((slot) => (
-            <div
-              key={slot}
-              className="aspect-square rounded-lg border-2 border-dashed border-stone-600 flex items-center justify-center"
-            >
-              <span className="text-xs text-stone-500">Front {slot + 1}</span>
-            </div>
-          ))}
+      {/* Formation Preview Grid - shown when no optimization yet */}
+      {optimizedFormations.length === 0 && (
+        <div className="rounded-xl p-6 bg-gradient-to-br from-stone-800/90 to-stone-900/80 border border-amber-600/20">
+          <h3 className="text-lg font-semibold text-amber-500 mb-4">Formation Preview</h3>
+          <div className="grid grid-cols-4 gap-3">
+            {/* Back Row */}
+            {[4, 5, 6, 7].map((slot) => (
+              <div
+                key={slot}
+                className="aspect-square rounded-lg border-2 border-dashed border-stone-600 flex items-center justify-center"
+              >
+                <span className="text-xs text-stone-500">Back {slot - 3}</span>
+              </div>
+            ))}
+            {/* Front Row */}
+            {[0, 1, 2, 3].map((slot) => (
+              <div
+                key={slot}
+                className="aspect-square rounded-lg border-2 border-dashed border-stone-600 flex items-center justify-center"
+              >
+                <span className="text-xs text-stone-500">Front {slot + 1}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-stone-500 mt-3 text-center">
+            Back row (damage dealers) → Front row (tanks)
+          </p>
         </div>
-        <p className="text-xs text-stone-500 mt-3 text-center">
-          Back row (damage dealers) → Front row (tanks)
-        </p>
-      </div>
+      )}
     </div>
   );
 }
