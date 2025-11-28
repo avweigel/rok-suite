@@ -174,20 +174,60 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
         }
       }
       
-      // Last resort: first name only (5+ chars) with OCR variations
+      // PARTIAL PREFIX MATCHING for garbled OCR
+      // Look for first 3-4 chars of distinctive names
       const firstName = nameParts[0];
-      if (firstName && firstName.length >= 5) {
-        const fnVariations = [
-          firstName,
-          firstName.replace(/l/g, 'i'),
-          firstName.replace(/i/g, 'l'),
-          firstName.replace(/l/g, '1'),
-        ];
-        for (const fnv of fnVariations) {
-          if (normalizedText.includes(fnv)) {
-            return commander;
+      if (firstName && firstName.length >= 4) {
+        const prefix3 = firstName.substring(0, 3);
+        const prefix4 = firstName.substring(0, 4);
+        
+        // Only use prefix matching for distinctive prefixes (not common words)
+        const commonPrefixes = ['the', 'sun', 'war', 'kin', 'que', 'pri', 'lor'];
+        
+        if (!commonPrefixes.includes(prefix3)) {
+          // Check if prefix appears followed by reasonable characters
+          const prefixRegex3 = new RegExp(prefix3 + '[a-z0-9\\s]{0,10}', 'i');
+          const prefixRegex4 = new RegExp(prefix4 + '[a-z0-9\\s]{0,10}', 'i');
+          
+          if (prefix4.length === 4 && prefixRegex4.test(normalizedText)) {
+            // Extra validation: check if other parts of name might be nearby
+            const lastName = nameParts[nameParts.length - 1];
+            if (nameParts.length === 1 || lastName.length < 4) {
+              return commander;
+            }
+            // For multi-part names, check if any part of last name is present
+            const lastPrefix = lastName.substring(0, Math.min(3, lastName.length));
+            if (normalizedText.includes(lastPrefix)) {
+              return commander;
+            }
           }
         }
+      }
+      
+      // SPECIAL CASES for commonly misread names
+      // Mehmed -> "meh" anywhere in text
+      if (commanderName.includes('mehmed') && /\bmeh\w*/.test(normalizedText)) {
+        return commander;
+      }
+      // Charles -> "char" or "marti" (from Martel)
+      if (commanderName.includes('charles') && (/\bchar\w*/.test(normalizedText) || /mart[eio]/.test(normalizedText))) {
+        return commander;
+      }
+      // Scipio -> "scip" or "afric"
+      if (commanderName.includes('scipio') && (/\bscip\w*/.test(normalizedText) || /afric/.test(normalizedText))) {
+        return commander;
+      }
+      // Baibars -> "baib" or "barsb"
+      if (commanderName.includes('baibars') && /\bbaib\w*/.test(normalizedText)) {
+        return commander;
+      }
+      // Osman -> "osma" 
+      if (commanderName.includes('osman') && /\bosma\w*/.test(normalizedText)) {
+        return commander;
+      }
+      // Thutmose -> "thut" or "thotm"
+      if (commanderName.includes('thutmose') && /\bthut\w*/.test(normalizedText)) {
+        return commander;
       }
     }
     return null;
