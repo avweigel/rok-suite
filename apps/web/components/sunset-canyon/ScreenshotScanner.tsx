@@ -269,9 +269,15 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
       { pattern: /\bbaingy\b/i, name: 'Baibars' },
       { pattern: /\bbai[bn]g/i, name: 'Baibars' },
       
-      // Thutmose III
+      // Thutmose III - title is "Beloved of Thoth", specialties: Archer/Versatility/Support
       { pattern: /beloved.*thoth/i, name: 'Thutmose III' },
-      { pattern: /\bthut\w{0,5}\b/i, name: 'Thutmose III' },
+      { pattern: /beloved/i, name: 'Thutmose III' },
+      { pattern: /\bthut/i, name: 'Thutmose III' },
+      { pattern: /\bthoth/i, name: 'Thutmose III' },
+      { pattern: /thotm/i, name: 'Thutmose III' },
+      { pattern: /tutmos/i, name: 'Thutmose III' },
+      { pattern: /archer.*versatility.*support/i, name: 'Thutmose III' },
+      { pattern: /versatility.*support.*archer/i, name: 'Thutmose III' },
       
       // Osman I
       { pattern: /imperial.*pioneer/i, name: 'Osman I' },
@@ -303,8 +309,9 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
       
       // Æthelflæd - OCR reads as "Athelfiad", "Athelliad", etc. DB has "Aethelflaed"
       { pattern: /lady.*mercians/i, name: 'Aethelflaed' },
-      { pattern: /\bathel\w{0,5}d?\b/i, name: 'Aethelflaed' },
-      { pattern: /\baethel/i, name: 'Aethelflaed' },
+      { pattern: /athelf[il]a/i, name: 'Aethelflaed' },
+      { pattern: /aethelf/i, name: 'Aethelflaed' },
+      { pattern: /thelfla/i, name: 'Aethelflaed' },
     ];
     
     for (const { pattern, name } of problemPatterns) {
@@ -315,6 +322,74 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
           return commander;
         }
       }
+    }
+    
+    return null;
+  };
+
+  // Color-based commander identification for when OCR fails completely
+  const identifyByColor = (imageData: ImageData, width: number, height: number): string | null => {
+    // Sample the center-right area where the commander portrait is displayed
+    const startX = Math.floor(width * 0.35);
+    const endX = Math.floor(width * 0.65);
+    const startY = Math.floor(height * 0.25);
+    const endY = Math.floor(height * 0.70);
+    
+    let totalR = 0, totalG = 0, totalB = 0;
+    let goldCount = 0;
+    let blueCount = 0;
+    let redCount = 0;
+    let greenCount = 0;
+    let brownCount = 0;
+    let pixelCount = 0;
+    
+    for (let y = startY; y < endY; y += 5) {
+      for (let x = startX; x < endX; x += 5) {
+        const i = (y * width + x) * 4;
+        const r = imageData.data[i];
+        const g = imageData.data[i + 1];
+        const b = imageData.data[i + 2];
+        
+        totalR += r;
+        totalG += g;
+        totalB += b;
+        pixelCount++;
+        
+        // Count color categories
+        if (r > 180 && g > 140 && b < 100) goldCount++;
+        if (b > 150 && r < 100 && g < 150) blueCount++;
+        if (r > 180 && g < 100 && b < 100) redCount++;
+        if (g > 150 && r < 150 && b < 100) greenCount++;
+        if (r > 100 && r < 180 && g > 60 && g < 140 && b < 80) brownCount++;
+      }
+    }
+    
+    const avgR = totalR / pixelCount;
+    const avgG = totalG / pixelCount;
+    const avgB = totalB / pixelCount;
+    
+    const colorThreshold = pixelCount * 0.15; // 15% of pixels
+    
+    console.log(`[Color Debug] Avg RGB: ${avgR.toFixed(0)}, ${avgG.toFixed(0)}, ${avgB.toFixed(0)}`);
+    console.log(`[Color Debug] Gold: ${goldCount}, Blue: ${blueCount}, Red: ${redCount}, Green: ${greenCount}, Brown: ${brownCount}`);
+    
+    // Thutmose III - Very gold/Egyptian theme with pyramids
+    if (goldCount > colorThreshold && avgR > 150 && avgG > 120 && avgB < 120) {
+      // Could be Thutmose III, Cleopatra, or Ramesses
+      // Thutmose has more blue accents (sky, costume)
+      if (blueCount > colorThreshold * 0.3) {
+        return 'Thutmose III';
+      }
+    }
+    
+    // Charles Martel - Blue armor with gold accents
+    if (blueCount > colorThreshold && goldCount > colorThreshold * 0.5) {
+      return 'Charles Martel';
+    }
+    
+    // Baibars - Teal/white desert theme
+    if (greenCount > colorThreshold * 0.5 && avgB > 100) {
+      return 'Baibars';
     }
     
     return null;
@@ -429,7 +504,7 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
     if (!image || image.processed) return null;
 
     try {
-      const { stars: detectedStars } = await analyzeImage(image.src);
+      const { stars: detectedStars, imageData } = await analyzeImage(image.src);
       
       const worker = await createWorker('eng', 1, {
         logger: (m) => {
@@ -461,6 +536,21 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
         matchedCommander = matchCommander(fullText);
         if (matchedCommander) {
           console.log(`[OCR Debug] Matched "${matchedCommander.name}" from full text`);
+        }
+      }
+
+      // FALLBACK: Try color-based identification if OCR failed
+      if (!matchedCommander && imageData) {
+        const img = new Image();
+        img.src = image.src;
+        await new Promise(resolve => { img.onload = resolve; });
+        
+        const colorMatch = identifyByColor(imageData, img.width, img.height);
+        if (colorMatch) {
+          matchedCommander = commanders.find(c => c.name.toLowerCase() === colorMatch.toLowerCase()) || null;
+          if (matchedCommander) {
+            console.log(`[OCR Match] Color-based match: ${matchedCommander.name}`);
+          }
         }
       }
 
