@@ -11,10 +11,6 @@ import {
   findByAltName,
   CommanderReference 
 } from '@/lib/sunset-canyon/commander-reference';
-import {
-  extractDominantColors,
-  matchByDominantColors,
-} from '@/lib/sunset-canyon/image-fingerprint';
 
 interface DetectedCommander {
   name: string;
@@ -249,76 +245,32 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
       }
     }
     
-    // ===== STRATEGY 7: SPECIFIC PATTERNS FOR PROBLEM NAMES =====
-    // These are commanders that consistently fail OCR
-    const problemPatterns: Array<{ pattern: RegExp; name: string }> = [
-      // Mehmed II
-      { pattern: /\bmeh\w{0,4}d?\b/i, name: 'Mehmed II' },
-      { pattern: /conqueror.*istanbul/i, name: 'Mehmed II' },
-      
-      // Charles Martel - CRITICAL: Check for Infantry+Garrison+Defense tags
-      { pattern: /immortal.*hammer/i, name: 'Charles Martel' },
-      { pattern: /\bmart[eaio]l?\b/i, name: 'Charles Martel' },
-      { pattern: /infantry.*garrison.*defense/i, name: 'Charles Martel' },
-      { pattern: /garrison.*defense.*infantry/i, name: 'Charles Martel' },
-      
-      // Scipio Africanus
-      { pattern: /blades.*warfare/i, name: 'Scipio Africanus' },
-      { pattern: /\bscip\w{0,3}\b/i, name: 'Scipio Africanus' },
-      
-      // Baibars - OCR reads as "Baingy" or "Baiing"
-      { pattern: /father.*conquest/i, name: 'Baibars' },
-      { pattern: /\bbaib\w{0,4}\b/i, name: 'Baibars' },
-      { pattern: /\bbaiing\b/i, name: 'Baibars' },
-      { pattern: /\bbaingy\b/i, name: 'Baibars' },
-      { pattern: /\bbai[bn]g/i, name: 'Baibars' },
-      
-      // Thutmose III - title is "Beloved of Thoth", specialties: Archer/Versatility/Support
-      { pattern: /beloved.*thoth/i, name: 'Thutmose III' },
-      { pattern: /beloved/i, name: 'Thutmose III' },
-      { pattern: /\bthut/i, name: 'Thutmose III' },
-      { pattern: /\bthoth/i, name: 'Thutmose III' },
-      { pattern: /thotm/i, name: 'Thutmose III' },
-      { pattern: /tutmos/i, name: 'Thutmose III' },
-      { pattern: /archer.*versatility.*support/i, name: 'Thutmose III' },
-      { pattern: /versatility.*support.*archer/i, name: 'Thutmose III' },
-      
-      // Osman I
-      { pattern: /imperial.*pioneer/i, name: 'Osman I' },
-      { pattern: /\bosma\w{0,2}\b/i, name: 'Osman I' },
-      
-      // Björn Ironside
-      { pattern: /king.*kattegat/i, name: 'Björn Ironside' },
-      { pattern: /\bbjor\w{0,2}\b/i, name: 'Björn Ironside' },
-      { pattern: /\biron\s*side\b/i, name: 'Björn Ironside' },
-      
-      // Sun Tzu
-      { pattern: /tactical.*genius/i, name: 'Sun Tzu' },
-      
-      // Boudica
-      { pattern: /celtic.*rose/i, name: 'Boudica' },
-      
-      // Lohar
-      { pattern: /roaring.*barbarian/i, name: 'Lohar' },
-      
-      // Kusunoki Masashige
-      { pattern: /bushido.*spirit/i, name: 'Kusunoki Masashige' },
-      
-      // Minamoto no Yoshitsune
+    // ===== STRATEGY 7: SPECIFIC TITLE PATTERNS (HIGH CONFIDENCE ONLY) =====
+    // Only match on FULL titles, not partial patterns
+    const titlePatterns: Array<{ pattern: RegExp; name: string }> = [
+      // Full title matches only
+      { pattern: /conqueror\s*(of\s*)?istanbul/i, name: 'Mehmed II' },
+      { pattern: /immortal\s*hammer/i, name: 'Charles Martel' },
+      { pattern: /blades\s*(of\s*)?warfare/i, name: 'Scipio Africanus' },
+      { pattern: /father\s*(of\s*)?conquest/i, name: 'Baibars' },
+      { pattern: /beloved\s*(of\s*)?thoth/i, name: 'Thutmose III' },
+      { pattern: /imperial\s*pioneer/i, name: 'Osman I' },
+      { pattern: /king\s*(of\s*)?kattegat/i, name: 'Björn Ironside' },
+      { pattern: /tactical\s*genius/i, name: 'Sun Tzu' },
+      { pattern: /celtic\s*rose/i, name: 'Boudica' },
+      { pattern: /roaring\s*barbarian/i, name: 'Lohar' },
+      { pattern: /bushido\s*spirit/i, name: 'Kusunoki Masashige' },
       { pattern: /kamakura.*warlord/i, name: 'Minamoto no Yoshitsune' },
-      
-      // Wak Chanil Ajaw
-      { pattern: /lady.*six.*sky/i, name: 'Wak Chanil Ajaw' },
-      { pattern: /\bwak\s*chan/i, name: 'Wak Chanil Ajaw' },
-      
-      // Æthelflæd - OCR reads as "Athelfiad", "Athelliad", etc. DB has "Aethelflaed"
-      { pattern: /lady.*mercians/i, name: 'Aethelflaed' },
-      { pattern: /athelf[il]a/i, name: 'Aethelflaed' },
-      { pattern: /aethelf/i, name: 'Aethelflaed' },
-      { pattern: /thelfla/i, name: 'Aethelflaed' },
+      { pattern: /lady\s*six\s*sky/i, name: 'Wak Chanil Ajaw' },
+      { pattern: /lady\s*(of\s*(the\s*)?)?mercians/i, name: 'Aethelflaed' },
+      { pattern: /king\s*(of\s*)?wei/i, name: 'Cao Cao' },
+      { pattern: /spirit\s*(of\s*(the\s*)?)?steppe/i, name: 'Genghis Khan' },
+      { pattern: /saint\s*(of\s*)?war/i, name: 'Guan Yu' },
+      { pattern: /the\s*lionheart/i, name: 'Richard I' },
+      { pattern: /king\s*(of\s*)?joseon/i, name: 'Yi Seong-Gye' },
     ];
     
-    for (const { pattern, name } of problemPatterns) {
+    for (const { pattern, name } of titlePatterns) {
       if (pattern.test(normalizedText)) {
         const commander = commanders.find(c => c.name.toLowerCase() === name.toLowerCase());
         if (commander) {
@@ -475,26 +427,8 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
         }
       }
 
-      // FALLBACK: Try color-based identification if OCR failed
-      if (!matchedCommander && imageData) {
-        const img = new Image();
-        img.src = image.src;
-        await new Promise(resolve => { img.onload = resolve; });
-        
-        // Extract dominant colors and match against fingerprint database
-        const dominantColors = extractDominantColors(imageData, img.width, img.height);
-        console.log(`[Color Debug] Dominant colors:`, dominantColors);
-        
-        const colorMatch = matchByDominantColors(dominantColors);
-        if (colorMatch) {
-          matchedCommander = commanders.find(c => 
-            c.name.toLowerCase() === colorMatch.commander.toLowerCase()
-          ) || null;
-          if (matchedCommander) {
-            console.log(`[OCR Match] Color fingerprint match: ${matchedCommander.name} (${(colorMatch.confidence * 100).toFixed(1)}%)`);
-          }
-        }
-      }
+      // If no match found after all OCR strategies, don't guess
+      // User can add manually - better than wrong match
 
       if (!matchedCommander) {
         console.log(`[OCR Debug] No match found. Full text:`, fullText);
