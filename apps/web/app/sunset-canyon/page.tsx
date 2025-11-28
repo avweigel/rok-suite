@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Swords, Play, RotateCcw, Activity, AlertCircle, Plus, ArrowLeft, Scan } from 'lucide-react';
+import { Swords, Play, RotateCcw, Activity, AlertCircle, Plus, ArrowLeft, Scan, Settings, Castle } from 'lucide-react';
 import Link from 'next/link';
 import { FormationGrid } from '@/components/sunset-canyon/FormationGrid';
 import { CommanderSelector } from '@/components/sunset-canyon/CommanderSelector';
@@ -9,7 +9,6 @@ import { BattleResults } from '@/components/sunset-canyon/BattleResults';
 import { AddCommanderModal } from '@/components/sunset-canyon/AddCommanderModal';
 import { ScreenshotScanner } from '@/components/sunset-canyon/ScreenshotScanner';
 import { useSunsetCanyonStore } from '@/lib/sunset-canyon/store';
-import { Army } from '@/lib/sunset-canyon/simulation';
 import { UserCommander, Commander } from '@/lib/sunset-canyon/commanders';
 
 export default function SunsetCanyonPage() {
@@ -17,9 +16,12 @@ export default function SunsetCanyonPage() {
   const [showSelector, setShowSelector] = useState(false);
   const [showAddCommander, setShowAddCommander] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [simulationIterations, setSimulationIterations] = useState(100);
 
   const {
+    cityHallLevel,
+    setCityHallLevel,
     userCommanders,
     attackFormation,
     defenseFormation,
@@ -127,11 +129,62 @@ export default function SunsetCanyonPage() {
                 </div>
               </div>
             </div>
+            
+            {/* Settings Button */}
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-stone-700 hover:border-amber-600 transition-colors"
+            >
+              <Settings className="w-4 h-4 text-stone-400" />
+              <span className="text-sm text-stone-400">Settings</span>
+            </button>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Settings Panel */}
+        {showSettings && (
+          <div className="mb-6 p-4 rounded-xl bg-gradient-to-br from-stone-800/90 to-stone-900/80 border border-amber-600/20">
+            <h3 className="text-lg font-semibold text-amber-500 mb-4 flex items-center gap-2">
+              <Castle className="w-5 h-5" />
+              Game Settings
+            </h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-300 mb-2">
+                  City Hall Level
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="1"
+                    max="25"
+                    value={cityHallLevel}
+                    onChange={(e) => setCityHallLevel(parseInt(e.target.value))}
+                    className="flex-1 accent-amber-500"
+                  />
+                  <div className="w-12 text-center">
+                    <span className="text-xl font-bold text-amber-500">{cityHallLevel}</span>
+                  </div>
+                </div>
+                <p className="text-xs text-stone-500 mt-1">
+                  Affects troop capacity per army. Higher = more troops.
+                </p>
+              </div>
+              <div className="flex items-center justify-center p-4 rounded-lg bg-stone-800/50">
+                <div className="text-center">
+                  <p className="text-xs text-stone-500 uppercase tracking-wider">Example Troop Count</p>
+                  <p className="text-2xl font-bold text-amber-500">
+                    {((60 + cityHallLevel) * 250).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-stone-500">for a Level 60 commander</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="text-center mb-8">
           <h1 className="text-3xl md:text-4xl font-bold text-amber-500 mb-2">
             Sunset Canyon Simulator
@@ -165,6 +218,47 @@ export default function SunsetCanyonPage() {
                   Scan Screenshot
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Commander Roster Summary */}
+        {userCommanders.length > 0 && (
+          <div className="mb-6 p-4 rounded-xl bg-gradient-to-br from-stone-800/90 to-stone-900/80 border border-amber-600/20">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-amber-500 uppercase tracking-wider">
+                Your Commanders ({userCommanders.length})
+              </h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowAddCommander(true)}
+                  className="px-3 py-1.5 rounded-lg border border-amber-600 text-amber-500 text-sm hover:bg-amber-600/10 transition-all flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" />
+                  Add
+                </button>
+                <button
+                  onClick={() => setShowScanner(true)}
+                  className="px-3 py-1.5 rounded-lg border border-amber-600 text-amber-500 text-sm hover:bg-amber-600/10 transition-all flex items-center gap-1"
+                >
+                  <Scan className="w-3 h-3" />
+                  Scan
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {userCommanders.map((cmd) => (
+                <div
+                  key={cmd.uniqueId}
+                  className={`px-2 py-1 rounded text-xs ${
+                    cmd.rarity === 'legendary' 
+                      ? 'bg-yellow-900/30 text-yellow-500 border border-yellow-600/30'
+                      : 'bg-purple-900/30 text-purple-400 border border-purple-600/30'
+                  }`}
+                >
+                  {cmd.name} (Lv.{cmd.level})
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -239,25 +333,6 @@ export default function SunsetCanyonPage() {
                 )}
               </div>
             </div>
-
-            {userCommanders.length > 0 && (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowAddCommander(true)}
-                  className="flex-1 px-4 py-2 rounded-lg border border-amber-600 text-amber-500 font-semibold hover:bg-amber-600/10 transition-all flex items-center justify-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add
-                </button>
-                <button
-                  onClick={() => setShowScanner(true)}
-                  className="flex-1 px-4 py-2 rounded-lg border border-amber-600 text-amber-500 font-semibold hover:bg-amber-600/10 transition-all flex items-center justify-center gap-2"
-                >
-                  <Scan className="w-4 h-4" />
-                  Scan
-                </button>
-              </div>
-            )}
           </div>
 
           <div>

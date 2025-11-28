@@ -46,8 +46,17 @@ export interface Formation {
     armies: Army[];
 }
 
-// Base troop count for Sunset Canyon (T3 troops, equal for all)
-export const BASE_TROOP_COUNT = 20000;
+// Base troop multiplier for Sunset Canyon
+// Actual troop count = (Commander Level + City Hall Level) * TROOP_MULTIPLIER
+export const TROOP_MULTIPLIER = 250;
+
+// Calculate troop count based on commander level and city hall level
+export function calculateTroopCount(commanderLevel: number, cityHallLevel: number): number {
+    // Formula: (Commander Level + City Hall Level) * multiplier
+    // At max (60 + 25) * 250 = 21,250 troops
+    // At lower levels, e.g. (40 + 20) * 250 = 15,000 troops
+    return (commanderLevel + cityHallLevel) * TROOP_MULTIPLIER;
+}
 
 // Troop type effectiveness
 const TROOP_EFFECTIVENESS: Record<TroopType, Record<TroopType, number>> = {
@@ -447,14 +456,17 @@ export function createArmy(
     primary: UserCommander,
     secondary: UserCommander | undefined,
     position: { row: 'front' | 'back'; slot: number },
+    cityHallLevel: number = 25,
     troopType?: TroopType
 ): Army {
+    const troopCount = calculateTroopCount(primary.level, cityHallLevel);
+    
     return {
         id: `army-${primary.id}-${position.row}-${position.slot}`,
         primaryCommander: primary,
         secondaryCommander: secondary,
         troopType: troopType || primary.troopType,
-        troopCount: BASE_TROOP_COUNT,
+        troopCount,
         position,
         currentHealth: 0,
         currentRage: 0,

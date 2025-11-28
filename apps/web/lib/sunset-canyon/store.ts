@@ -23,14 +23,26 @@ interface SimulationResults {
 }
 
 interface SunsetCanyonState {
+  // Settings
+  cityHallLevel: number;
+  
+  // Commander roster
   userCommanders: UserCommander[];
+  
+  // Formations
   attackFormation: (FormationArmy | null)[];
   defenseFormation: (FormationArmy | null)[];
+  
+  // Battle results
   lastBattleResult: BattleResult | null;
   simulationResults: SimulationResults | null;
+  
+  // UI state
   selectedCommanderSlot: { type: 'attack' | 'defense'; index: number } | null;
   isSimulating: boolean;
 
+  // Actions
+  setCityHallLevel: (level: number) => void;
   addUserCommander: (commander: Commander, level: number, skillLevels: number[], stars: number) => void;
   removeUserCommander: (uniqueId: string) => void;
   updateUserCommander: (uniqueId: string, updates: Partial<UserCommander>) => void;
@@ -57,13 +69,27 @@ function indexToPosition(index: number): { row: 'front' | 'back'; slot: number }
 }
 
 export const useSunsetCanyonStore = create<SunsetCanyonState>((set, get) => ({
+  // Settings
+  cityHallLevel: 25,
+  
+  // Commander roster
   userCommanders: [],
+  
+  // Formations
   attackFormation: [null, null, null, null, null, null, null, null],
   defenseFormation: [null, null, null, null, null, null, null, null],
+  
+  // Battle results
   lastBattleResult: null,
   simulationResults: null,
+  
+  // UI state
   selectedCommanderSlot: null,
   isSimulating: false,
+
+  setCityHallLevel: (level) => {
+    set(() => ({ cityHallLevel: Math.max(1, Math.min(25, level)) }));
+  },
 
   addUserCommander: (commander, level, skillLevels, stars) => {
     const userCommander = createUserCommander(commander, level, skillLevels, stars);
@@ -127,7 +153,7 @@ export const useSunsetCanyonStore = create<SunsetCanyonState>((set, get) => ({
   },
 
   runBattle: () => {
-    const { attackFormation, defenseFormation } = get();
+    const { attackFormation, defenseFormation, cityHallLevel } = get();
 
     const attackArmies: Army[] = attackFormation
       .map((army, index) => {
@@ -136,7 +162,8 @@ export const useSunsetCanyonStore = create<SunsetCanyonState>((set, get) => ({
         return createArmy(
           army.primaryCommander,
           army.secondaryCommander,
-          position
+          position,
+          cityHallLevel
         );
       })
       .filter((a): a is Army => a !== null);
@@ -148,7 +175,8 @@ export const useSunsetCanyonStore = create<SunsetCanyonState>((set, get) => ({
         return createArmy(
           army.primaryCommander,
           army.secondaryCommander,
-          position
+          position,
+          cityHallLevel
         );
       })
       .filter((a): a is Army => a !== null);
@@ -171,7 +199,7 @@ export const useSunsetCanyonStore = create<SunsetCanyonState>((set, get) => ({
     set(() => ({ isSimulating: true }));
 
     setTimeout(() => {
-      const { attackFormation, defenseFormation } = get();
+      const { attackFormation, defenseFormation, cityHallLevel } = get();
 
       const attackArmies: Army[] = attackFormation
         .map((army, index) => {
@@ -180,7 +208,8 @@ export const useSunsetCanyonStore = create<SunsetCanyonState>((set, get) => ({
           return createArmy(
             army.primaryCommander,
             army.secondaryCommander,
-            position
+            position,
+            cityHallLevel
           );
         })
         .filter((a): a is Army => a !== null);
@@ -192,7 +221,8 @@ export const useSunsetCanyonStore = create<SunsetCanyonState>((set, get) => ({
           return createArmy(
             army.primaryCommander,
             army.secondaryCommander,
-            position
+            position,
+            cityHallLevel
           );
         })
         .filter((a): a is Army => a !== null);
