@@ -64,11 +64,11 @@ const buildings: Building[] = [
   { id: 'ark', name: 'Ark', shortName: 'Ark', x: 48, y: 45 },
 ];
 
-// Team colors - colorblind friendly
+// Zone colors - colorblind friendly
 const teamColors: Record<number, { bg: string; text: string; name: string }> = {
-  1: { bg: '#2563EB', text: 'white', name: 'Team 1' },
-  2: { bg: '#D97706', text: 'white', name: 'Team 2' },
-  3: { bg: '#7C3AED', text: 'white', name: 'Team 3' },
+  1: { bg: '#2563EB', text: 'white', name: 'Zone 1' },
+  2: { bg: '#D97706', text: 'white', name: 'Zone 2' },
+  3: { bg: '#7C3AED', text: 'white', name: 'Zone 3' },
 };
 
 const getDefaultAssignments = (): MapAssignments => {
@@ -189,12 +189,12 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
       <div className="max-w-[1600px] mx-auto p-4">
         <div className="flex flex-col lg:flex-row gap-4">
           
-          {/* Left Panel - Team Filter & Assignment */}
+          {/* Left Panel - Zone Filter & Assignment */}
           <div className="lg:w-72 space-y-4">
-            {/* Filter by Team */}
+            {/* Filter by Zone */}
             <div className={`${theme.bgSecondary} rounded-xl p-4 border ${theme.border}`}>
               <h3 className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted} mb-3`}>
-                View Team
+                View Zone
               </h3>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -212,13 +212,13 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                     className={`px-3 py-2 rounded-lg text-sm font-medium transition-all`}
                     style={filterTeam === t ? { backgroundColor: teamColors[t].bg, color: 'white' } : {}}
                   >
-                    Team {t}
+                    Zone {t}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Team Attack Orders */}
+            {/* Zone Attack Orders */}
             {[1, 2, 3].map(team => {
               const teamBuildings = getTeamBuildings(team);
               if (filterTeam !== 'all' && filterTeam !== team) return null;
@@ -351,7 +351,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 
                 {isEditor ? (
                   <>
-                    <p className={`text-sm ${theme.textMuted} mb-4`}>Assign to a team:</p>
+                    <p className={`text-sm ${theme.textMuted} mb-4`}>Assign to a zone:</p>
                     
                     <div className="space-y-2">
                       {[1, 2, 3].map(team => {
@@ -391,7 +391,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 ) : (
                   <p className={`text-sm ${theme.textMuted}`}>
                     {assignments[selectedBuilding.id]?.team 
-                      ? `Assigned to Team ${assignments[selectedBuilding.id].team}`
+                      ? `Assigned to Zone ${assignments[selectedBuilding.id].team}`
                       : 'Not assigned'}
                   </p>
                 )}
@@ -399,7 +399,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
             ) : (
               <div className={`${theme.bgSecondary} rounded-xl p-4 border ${theme.border}`}>
                 <p className={`text-sm ${theme.textMuted} text-center py-4`}>
-                  Click a building on the map to {isEditor ? 'assign it to a team' : 'view details'}
+                  Click a building on the map to {isEditor ? 'assign it to a zone' : 'view details'}
                 </p>
               </div>
             )}
