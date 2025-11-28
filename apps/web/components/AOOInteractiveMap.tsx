@@ -160,6 +160,16 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
     });
   };
 
+  const setOrder = (buildingId: string, newOrder: number) => {
+    if (!isEditor) return;
+    if (newOrder < 1) return;
+    
+    updateAssignments({
+      ...assignments,
+      [buildingId]: { ...assignments[buildingId], order: newOrder },
+    });
+  };
+
   return (
     <div className={`${theme.bg} min-h-screen transition-colors`}>
       {/* Header */}
@@ -240,31 +250,41 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                     <p className={`text-sm ${theme.textMuted}`}>No buildings assigned</p>
                   ) : (
                     <div className="space-y-1">
-                      {teamBuildings.map((building, idx) => (
+                      {teamBuildings.map((building) => (
                         <div 
                           key={building.id}
                           className={`flex items-center gap-2 px-2 py-1.5 rounded ${theme.bgTertiary}`}
                         >
-                          <span 
-                            className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                            style={{ backgroundColor: teamColors[team].bg }}
-                          >
-                            {idx + 1}
-                          </span>
+                          {isEditor ? (
+                            <input
+                              type="number"
+                              min="1"
+                              value={assignments[building.id]?.order || 1}
+                              onChange={(e) => setOrder(building.id, parseInt(e.target.value) || 1)}
+                              className="w-8 h-6 rounded text-center text-xs font-bold text-white border-0 focus:ring-2 focus:ring-white"
+                              style={{ backgroundColor: teamColors[team].bg }}
+                            />
+                          ) : (
+                            <span 
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                              style={{ backgroundColor: teamColors[team].bg }}
+                            >
+                              {assignments[building.id]?.order || 1}
+                            </span>
+                          )}
                           <span className={`flex-1 text-sm ${theme.text}`}>{building.name}</span>
                           {isEditor && (
                             <div className="flex gap-1">
                               <button
-                                onClick={() => moveOrder(building.id, 'up')}
-                                disabled={idx === 0}
-                                className={`text-xs px-1 ${idx === 0 ? 'opacity-30' : 'hover:opacity-70'} ${theme.textSecondary}`}
+                                onClick={() => setOrder(building.id, (assignments[building.id]?.order || 1) - 1)}
+                                disabled={(assignments[building.id]?.order || 1) <= 1}
+                                className={`text-xs px-1 ${(assignments[building.id]?.order || 1) <= 1 ? 'opacity-30' : 'hover:opacity-70'} ${theme.textSecondary}`}
                               >
                                 ▲
                               </button>
                               <button
-                                onClick={() => moveOrder(building.id, 'down')}
-                                disabled={idx === teamBuildings.length - 1}
-                                className={`text-xs px-1 ${idx === teamBuildings.length - 1 ? 'opacity-30' : 'hover:opacity-70'} ${theme.textSecondary}`}
+                                onClick={() => setOrder(building.id, (assignments[building.id]?.order || 1) + 1)}
+                                className={`text-xs px-1 hover:opacity-70 ${theme.textSecondary}`}
                               >
                                 ▼
                               </button>

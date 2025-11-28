@@ -43,6 +43,19 @@ const DEFAULT_TEAMS: TeamInfo[] = [
 
 const AVAILABLE_TAGS = ['Rally Leader', 'Tank', 'Support', 'Scout', 'Flag Runner', 'Garrison', 'Reinforcer', 'Crystal', 'Teleport 1st', 'Teleport 2nd'];
 
+const TAG_COLORS: Record<string, string> = {
+    'Rally Leader': 'bg-red-600 text-white',
+    'Tank': 'bg-blue-600 text-white',
+    'Support': 'bg-green-600 text-white',
+    'Scout': 'bg-yellow-500 text-black',
+    'Flag Runner': 'bg-purple-600 text-white',
+    'Garrison': 'bg-orange-600 text-white',
+    'Reinforcer': 'bg-cyan-600 text-white',
+    'Crystal': 'bg-pink-500 text-white',
+    'Teleport 1st': 'bg-emerald-600 text-white',
+    'Teleport 2nd': 'bg-teal-600 text-white',
+};
+
 const ALLIANCE_ROSTER = [
     'Fluffy', 'Soutz', 'BBQSGE', 'aubs', 'Giza', 'Sysstm', 'Freddy', 'TRAP', 'KomVD2',
     'Suntzu', 'Funny', 'notfun', 'Raijin', 'Qindar', 'Buby', 'Nhi', 'Cain', 'Enes1111', 'yigitl',
@@ -390,7 +403,7 @@ export default function AooStrategyPage() {
                             <div className="mt-3 flex flex-wrap gap-2">
                                 {AVAILABLE_TAGS.map(tag => (
                                     <button key={tag} onClick={() => setNewPlayerTags(newPlayerTags.includes(tag) ? newPlayerTags.filter(t => t !== tag) : [...newPlayerTags, tag])}
-                                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${newPlayerTags.includes(tag) ? theme.tagActive : theme.tag}`}>
+                                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${newPlayerTags.includes(tag) ? TAG_COLORS[tag] : theme.tag}`}>
                                         {tag}
                                     </button>
                                 ))}
@@ -438,13 +451,13 @@ export default function AooStrategyPage() {
                                                         {isEditor ? (
                                                             AVAILABLE_TAGS.map(tag => (
                                                                 <button key={tag} onClick={() => togglePlayerTag(player.id, tag)}
-                                                                    className={`px-2 py-0.5 rounded text-xs transition-colors ${player.tags.includes(tag) ? theme.tagActive : theme.tag}`}>
+                                                                    className={`px-2 py-0.5 rounded text-xs transition-colors ${player.tags.includes(tag) ? TAG_COLORS[tag] : theme.tag}`}>
                                                                     {tag}
                                                                 </button>
                                                             ))
                                                         ) : (
                                                             player.tags.length > 0 ? player.tags.map(tag => (
-                                                                <span key={tag} className={`px-2 py-0.5 rounded text-xs ${theme.tagActive}`}>{tag}</span>
+                                                                <span key={tag} className={`px-2 py-0.5 rounded text-xs ${TAG_COLORS[tag]}`}>{tag}</span>
                                                             )) : <span className={`text-xs ${theme.textMuted}`}>No tags</span>
                                                         )}
                                                     </div>
