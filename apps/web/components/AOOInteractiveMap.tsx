@@ -292,6 +292,20 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   style={{ opacity: isDark ? 0.8 : 1 }}
                 />
 
+                {/* START Marker */}
+                <div
+                  className="absolute flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-sm shadow-lg border-2 border-emerald-400"
+                  style={{
+                    left: '8%',
+                    top: '88%',
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 20,
+                  }}
+                >
+                  <span>⚔️</span>
+                  <span>START</span>
+                </div>
+
                 {/* Building Markers */}
                 {buildings.map(building => {
                   const assignment = assignments[building.id];
