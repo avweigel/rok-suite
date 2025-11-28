@@ -318,14 +318,27 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
       const lines = text.split('\n').filter(line => line.trim().length > 0);
       const fullText = lines.join(' ');
       
+      // DEBUG: Log what OCR found
+      console.log(`[OCR Debug] Image ${imageIndex + 1}:`, fullText.substring(0, 200));
+      
       let matchedCommander: Commander | null = null;
       for (const line of lines) {
         matchedCommander = matchCommander(line);
-        if (matchedCommander) break;
+        if (matchedCommander) {
+          console.log(`[OCR Debug] Matched "${matchedCommander.name}" from line: "${line}"`);
+          break;
+        }
       }
       
       if (!matchedCommander) {
         matchedCommander = matchCommander(fullText);
+        if (matchedCommander) {
+          console.log(`[OCR Debug] Matched "${matchedCommander.name}" from full text`);
+        }
+      }
+
+      if (!matchedCommander) {
+        console.log(`[OCR Debug] No match found. Full text:`, fullText);
       }
 
       setImages(prev => prev.map((img, i) => 
@@ -351,6 +364,7 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
 
       return null;
     } catch (err) {
+      console.error(`[OCR Debug] Error processing image ${imageIndex + 1}:`, err);
       setImages(prev => prev.map((img, i) => 
         i === imageIndex ? { ...img, processed: true, error: 'Processing failed' } : img
       ));
