@@ -296,8 +296,8 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 <div
                   className="absolute flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-sm shadow-lg border-2 border-emerald-400"
                   style={{
-                    left: '8%',
-                    top: '88%',
+                    left: '85%',
+                    top: '82%',
                     transform: 'translate(-50%, -50%)',
                     zIndex: 20,
                   }}
