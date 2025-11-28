@@ -112,23 +112,27 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
       const commanderName = commander.name.toLowerCase();
       const commanderNoSpace = commanderName.replace(/[\s-]/g, '');
       
+      // Direct match
       if (normalizedText.includes(commanderName)) {
         return commander;
       }
       
+      // No-space match
       if (noSpaceText.includes(commanderNoSpace)) {
         return commander;
       }
       
       const nameParts = commanderName.split(/[\s-]+/).filter(p => p.length >= 3);
       
+      // Multi-part name matching
       if (nameParts.length >= 2) {
         const matchedParts = nameParts.filter(part => normalizedText.includes(part));
         if (matchedParts.length >= 2) {
           return commander;
         }
+        // Single unique part (6+ chars)
         for (const part of nameParts) {
-          if (part.length >= 5 && normalizedText.includes(part)) {
+          if (part.length >= 6 && normalizedText.includes(part)) {
             return commander;
           }
         }
@@ -138,20 +142,51 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
         }
       }
       
-      const nameWithoutNumeral = commanderName.replace(/\s+(i{1,3}|iv|v)$/i, '');
-      if (nameWithoutNumeral !== commanderName && normalizedText.includes(nameWithoutNumeral)) {
-        return commander;
+      // Strip Roman numerals for matching
+      const nameWithoutNumeral = commanderName.replace(/\s+(i{1,3}|iv|v|vi{0,3})$/i, '').trim();
+      if (nameWithoutNumeral !== commanderName && nameWithoutNumeral.length >= 4) {
+        if (normalizedText.includes(nameWithoutNumeral)) {
+          return commander;
+        }
       }
       
-      const ocrVariations = [
+      // OCR variations - common misreads
+      const ocrVariations: string[] = [
         commanderName.replace(/l/g, 'i'),
         commanderName.replace(/i/g, 'l'),
+        commanderName.replace(/l/g, '1'),
         commanderName.replace(/o/g, '0'),
+        commanderName.replace(/(.)\1/g, '$1'), // double letters
+        commanderName.replace(/ö/g, 'o'), // Björn
+        commanderName.replace(/'/g, ''), // K'ak
       ];
       
       for (const variation of ocrVariations) {
-        if (variation !== commanderName && normalizedText.includes(variation)) {
-          return commander;
+        if (variation !== commanderName) {
+          if (normalizedText.includes(variation)) {
+            return commander;
+          }
+          // Also try no-space version
+          const variationNoSpace = variation.replace(/[\s-]/g, '');
+          if (noSpaceText.includes(variationNoSpace)) {
+            return commander;
+          }
+        }
+      }
+      
+      // Last resort: first name only (5+ chars) with OCR variations
+      const firstName = nameParts[0];
+      if (firstName && firstName.length >= 5) {
+        const fnVariations = [
+          firstName,
+          firstName.replace(/l/g, 'i'),
+          firstName.replace(/i/g, 'l'),
+          firstName.replace(/l/g, '1'),
+        ];
+        for (const fnv of fnVariations) {
+          if (normalizedText.includes(fnv)) {
+            return commander;
+          }
         }
       }
     }
