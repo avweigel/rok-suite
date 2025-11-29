@@ -389,7 +389,6 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 >
                   ⚡ TP: cloud, MayorEric, bear
                 </div>
-                </div>
 
                 {/* Building Markers */}
                 {buildings.map(building => {
