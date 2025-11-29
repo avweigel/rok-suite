@@ -312,18 +312,87 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   style={{ opacity: isDark ? 0.8 : 1 }}
                 />
 
-                {/* START Marker */}
+                {/* START Marker - Upper Left (Iset/Blue) */}
                 <div
                   className="absolute flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-sm shadow-lg border-2 border-emerald-400"
                   style={{
-                    left: '85%',
-                    top: '82%',
+                    left: '15%',
+                    top: '12%',
                     transform: 'translate(-50%, -50%)',
                     zIndex: 20,
                   }}
                 >
                   <span>⚔️</span>
                   <span>START</span>
+                </div>
+
+                {/* ENEMY Marker - Lower Right (Seth/Red) */}
+                <div
+                  className="absolute flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-600 text-white font-bold text-sm shadow-lg border-2 border-red-400"
+                  style={{
+                    left: '85%',
+                    top: '88%',
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 20,
+                  }}
+                >
+                  <span>☠️</span>
+                  <span>ENEMY</span>
+                </div>
+
+                {/* Zone Labels */}
+                <div
+                  className="absolute px-2 py-1 rounded bg-blue-600/90 text-white text-xs font-bold shadow-lg"
+                  style={{
+                    left: '8%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 15,
+                    writingMode: 'vertical-rl',
+                    textOrientation: 'mixed',
+                  }}
+                >
+                  ZONE 1 (LOWER)
+                </div>
+
+                <div
+                  className="absolute px-2 py-1 rounded bg-orange-500/90 text-white text-xs font-bold shadow-lg"
+                  style={{
+                    left: '50%',
+                    top: '8%',
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 15,
+                  }}
+                >
+                  ZONE 2 (ARK)
+                </div>
+
+                <div
+                  className="absolute px-2 py-1 rounded bg-purple-600/90 text-white text-xs font-bold shadow-lg"
+                  style={{
+                    left: '92%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 15,
+                    writingMode: 'vertical-rl',
+                    textOrientation: 'mixed',
+                  }}
+                >
+                  ZONE 3 (UPPER)
+                </div>
+
+                {/* Phase Labels on Key Buildings */}
+                <div
+                  className="absolute px-1.5 py-0.5 rounded bg-yellow-500 text-black text-xs font-bold shadow"
+                  style={{ left: '41%', top: '83%', transform: 'translate(-50%, -50%)', zIndex: 25 }}
+                >
+                  RUSH
+                </div>
+                <div
+                  className="absolute px-1.5 py-0.5 rounded bg-yellow-500 text-black text-xs font-bold shadow"
+                  style={{ left: '53%', top: '21%', transform: 'translate(-50%, -50%)', zIndex: 25 }}
+                >
+                  RUSH
                 </div>
 
                 {/* Building Markers */}
@@ -373,6 +442,34 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Map Legend */}
+            <div className={`mt-3 p-3 rounded-lg ${theme.bgTertiary} flex flex-wrap gap-4 text-xs`}>
+              <div className="flex items-center gap-1.5">
+                <span className="px-2 py-0.5 rounded bg-emerald-600 text-white font-bold">⚔️ START</span>
+                <span className={theme.textMuted}>Your spawn</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="px-2 py-0.5 rounded bg-red-600 text-white font-bold">☠️ ENEMY</span>
+                <span className={theme.textMuted}>Enemy spawn</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="px-2 py-0.5 rounded bg-yellow-500 text-black font-bold">RUSH</span>
+                <span className={theme.textMuted}>Phase 1 priority</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded-full bg-blue-600"></span>
+                <span className={theme.textMuted}>Zone 1</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded-full bg-orange-500"></span>
+                <span className={theme.textMuted}>Zone 2</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded-full bg-purple-600"></span>
+                <span className={theme.textMuted}>Zone 3</span>
               </div>
             </div>
           </div>
