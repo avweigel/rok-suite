@@ -312,58 +312,61 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   style={{ opacity: isDark ? 0.8 : 1 }}
                 />
 
-                {/* Zone Overlays - Like in-game map */}
-                {/* Zone 1 (Blue/Lower) - Left side */}
-                <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }}>
-                  <path
-                    d="M 0,0 L 35,0 L 40,25 L 35,55 L 25,75 L 15,90 L 0,100 Z"
-                    fill="rgba(37, 99, 235, 0.25)"
-                    stroke="rgba(37, 99, 235, 0.6)"
-                    strokeWidth="2"
-                    transform="scale(2.83, 2.5)"
-                  />
-                </svg>
+                {/* Zone Overlays - Simple rectangular regions */}
+                {/* Zone 1 (Blue) - Left/Lower side */}
+                <div
+                  className="absolute border-2 border-blue-500 bg-blue-500/15 rounded-lg"
+                  style={{
+                    left: '2%',
+                    top: '15%',
+                    width: '30%',
+                    height: '70%',
+                    zIndex: 5,
+                  }}
+                />
 
-                {/* Zone 2 (Orange/Ark) - Center */}
-                <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }}>
-                  <path
-                    d="M 35,25 L 65,25 L 70,45 L 65,65 L 35,65 L 30,45 Z"
-                    fill="rgba(217, 119, 6, 0.25)"
-                    stroke="rgba(217, 119, 6, 0.6)"
-                    strokeWidth="2"
-                    transform="scale(2.83, 2.5)"
-                  />
-                </svg>
+                {/* Zone 2 (Orange) - Center/Ark area */}
+                <div
+                  className="absolute border-2 border-orange-500 bg-orange-500/15 rounded-lg"
+                  style={{
+                    left: '32%',
+                    top: '25%',
+                    width: '36%',
+                    height: '50%',
+                    zIndex: 5,
+                  }}
+                />
 
-                {/* Zone 3 (Purple/Upper) - Right side */}
-                <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }}>
-                  <path
-                    d="M 65,0 L 100,0 L 100,100 L 85,100 L 75,75 L 65,55 L 60,25 Z"
-                    fill="rgba(124, 58, 237, 0.25)"
-                    stroke="rgba(124, 58, 237, 0.6)"
-                    strokeWidth="2"
-                    transform="scale(2.83, 2.5)"
-                  />
-                </svg>
+                {/* Zone 3 (Purple) - Right/Upper side */}
+                <div
+                  className="absolute border-2 border-purple-500 bg-purple-500/15 rounded-lg"
+                  style={{
+                    left: '68%',
+                    top: '10%',
+                    width: '30%',
+                    height: '55%',
+                    zIndex: 5,
+                  }}
+                />
 
-                {/* Enemy Territory Indicator */}
-                <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 4 }}>
-                  <path
-                    d="M 75,75 L 100,75 L 100,100 L 60,100 L 65,85 Z"
-                    fill="rgba(239, 68, 68, 0.2)"
-                    stroke="rgba(239, 68, 68, 0.5)"
-                    strokeWidth="2"
-                    strokeDasharray="5,5"
-                    transform="scale(2.83, 2.5)"
-                  />
-                </svg>
+                {/* Enemy Territory (Red dashed) - Lower right */}
+                <div
+                  className="absolute border-2 border-dashed border-red-500 bg-red-500/10 rounded-lg"
+                  style={{
+                    left: '60%',
+                    top: '65%',
+                    width: '38%',
+                    height: '33%',
+                    zIndex: 4,
+                  }}
+                />
 
                 {/* START Marker - Upper Left (Iset/Blue) */}
                 <div
                   className="absolute flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-sm shadow-lg border-2 border-emerald-400"
                   style={{
-                    left: '15%',
-                    top: '12%',
+                    left: '18%',
+                    top: '8%',
                     transform: 'translate(-50%, -50%)',
                     zIndex: 20,
                   }}
@@ -376,8 +379,8 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 <div
                   className="absolute flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-600 text-white font-bold text-sm shadow-lg border-2 border-red-400"
                   style={{
-                    left: '85%',
-                    top: '88%',
+                    left: '82%',
+                    top: '92%',
                     transform: 'translate(-50%, -50%)',
                     zIndex: 20,
                   }}
@@ -388,11 +391,11 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
 
                 {/* Zone Labels */}
                 <div
-                  className="absolute px-2 py-1 rounded bg-blue-600/90 text-white text-xs font-bold shadow-lg"
+                  className="absolute px-2 py-1 rounded bg-blue-600 text-white text-xs font-bold shadow-lg"
                   style={{
-                    left: '5%',
-                    top: '35%',
-                    transform: 'translate(-50%, -50%) rotate(-90deg)',
+                    left: '4%',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
                     zIndex: 15,
                   }}
                 >
@@ -400,10 +403,10 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 </div>
 
                 <div
-                  className="absolute px-2 py-1 rounded bg-orange-500/90 text-white text-xs font-bold shadow-lg"
+                  className="absolute px-2 py-1 rounded bg-orange-500 text-white text-xs font-bold shadow-lg"
                   style={{
-                    left: '48%',
-                    top: '45%',
+                    left: '50%',
+                    top: '50%',
                     transform: 'translate(-50%, -50%)',
                     zIndex: 15,
                   }}
@@ -412,27 +415,27 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 </div>
 
                 <div
-                  className="absolute px-2 py-1 rounded bg-purple-600/90 text-white text-xs font-bold shadow-lg"
+                  className="absolute px-2 py-1 rounded bg-purple-600 text-white text-xs font-bold shadow-lg"
                   style={{
-                    left: '95%',
+                    left: '94%',
                     top: '35%',
-                    transform: 'translate(-50%, -50%) rotate(90deg)',
+                    transform: 'translateY(-50%)',
                     zIndex: 15,
                   }}
                 >
                   ZONE 3
                 </div>
 
-                {/* RUSH Labels - Obelisk 1 (top) and Obelisk 2 (left) - YOUR obelisks */}
+                {/* RUSH Labels - Obelisk 1 (top center) and Obelisk 2 (left) */}
                 <div
                   className="absolute px-1.5 py-0.5 rounded bg-yellow-500 text-black text-xs font-bold shadow"
-                  style={{ left: '53%', top: '21%', transform: 'translate(-50%, -50%)', zIndex: 25 }}
+                  style={{ left: '53%', top: '20%', transform: 'translate(-50%, -50%)', zIndex: 25 }}
                 >
                   RUSH
                 </div>
                 <div
                   className="absolute px-1.5 py-0.5 rounded bg-yellow-500 text-black text-xs font-bold shadow"
-                  style={{ left: '10%', top: '49%', transform: 'translate(-50%, -50%)', zIndex: 25 }}
+                  style={{ left: '10%', top: '50%', transform: 'translate(-50%, -50%)', zIndex: 25 }}
                 >
                   RUSH
                 </div>
