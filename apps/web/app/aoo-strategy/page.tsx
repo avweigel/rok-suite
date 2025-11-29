@@ -18,7 +18,7 @@ const AOOInteractiveMap = dynamic(() => import('@/components/AOOInteractiveMap')
 interface Player {
     id: number;
     name: string;
-    team: number;
+    team: number; // 0 = substitute, 1-3 = zones
     tags: string[];
 }
 
@@ -33,6 +33,7 @@ interface StrategyData {
     mapImage: string | null;
     notes: string;
     mapAssignments?: MapAssignments;
+    substitutes?: Player[];
 }
 
 const DEFAULT_TEAMS: TeamInfo[] = [
@@ -67,8 +68,9 @@ const ALLIANCE_ROSTER = [
 ].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 
 export default function AooStrategyPage() {
-    const [activeTab, setActiveTab] = useState<'map' | 'roster'>('map');
+    const [activeTab, setActiveTab] = useState<'map' | 'roster' | 'lookup'>('map');
     const [players, setPlayers] = useState<Player[]>([]);
+    const [substitutes, setSubstitutes] = useState<Player[]>([]);
     const [teams, setTeams] = useState<TeamInfo[]>(DEFAULT_TEAMS);
     const [mapImage, setMapImage] = useState<string | null>(null);
     const [notes, setNotes] = useState('');
@@ -85,6 +87,7 @@ export default function AooStrategyPage() {
     const [newPlayerTeam, setNewPlayerTeam] = useState(1);
     const [newPlayerTags, setNewPlayerTags] = useState<string[]>([]);
     const [useCustomName, setUseCustomName] = useState(false);
+    const [lookupSearch, setLookupSearch] = useState('');
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const EDITOR_PASSWORD = 'carn-dum';
@@ -120,6 +123,7 @@ export default function AooStrategyPage() {
                 setStrategyId(data.id);
                 const strategyData = data.data as StrategyData;
                 setPlayers(strategyData?.players || []);
+                setSubstitutes(strategyData?.substitutes || []);
                 setTeams(strategyData?.teams || DEFAULT_TEAMS);
                 setMapImage(strategyData?.mapImage || null);
                 setNotes(strategyData?.notes || '');
@@ -138,6 +142,7 @@ export default function AooStrategyPage() {
             mapImage: updatedData.mapImage ?? mapImage,
             notes: updatedData.notes ?? notes,
             mapAssignments: updatedData.mapAssignments ?? mapAssignments,
+            substitutes: updatedData.substitutes ?? substitutes,
         };
         try {
             if (strategyId) {
@@ -168,7 +173,7 @@ export default function AooStrategyPage() {
         }
     };
 
-    const assignedNames = players.map(p => p.name.toLowerCase());
+    const assignedNames = [...players, ...substitutes].map(p => p.name.toLowerCase());
     const filteredRoster = ALLIANCE_ROSTER.filter(name =>
         name.toLowerCase().includes(playerSearch.toLowerCase()) &&
         !assignedNames.includes(name.toLowerCase())
@@ -176,14 +181,24 @@ export default function AooStrategyPage() {
 
     const addPlayer = (name: string) => {
         if (!isEditor || !name.trim()) return;
-        if (players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+        if ([...players, ...substitutes].some(p => p.name.toLowerCase() === name.toLowerCase())) {
             alert('Player already assigned!');
             return;
         }
         const newPlayer: Player = { id: Date.now(), name: name.trim(), team: newPlayerTeam, tags: newPlayerTags };
-        const updatedPlayers = [...players, newPlayer];
-        setPlayers(updatedPlayers);
-        saveData({ players: updatedPlayers });
+        
+        if (newPlayerTeam === 0) {
+            // Add to substitutes
+            const updatedSubs = [...substitutes, newPlayer];
+            setSubstitutes(updatedSubs);
+            saveData({ substitutes: updatedSubs });
+        } else {
+            // Add to players
+            const updatedPlayers = [...players, newPlayer];
+            setPlayers(updatedPlayers);
+            saveData({ players: updatedPlayers });
+        }
+        
         setPlayerSearch('');
         setNewPlayerTags([]);
         setShowDropdown(false);
@@ -313,6 +328,14 @@ export default function AooStrategyPage() {
                         >
                             👥 Zone Roster
                         </button>
+                        <button
+                            onClick={() => setActiveTab('lookup')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                activeTab === 'lookup' ? theme.tabActive : theme.tabInactive
+                            }`}
+                        >
+                            🔍 Find My Role
+                        </button>
                     </div>
                 </div>
             </header>
@@ -334,13 +357,15 @@ export default function AooStrategyPage() {
             )}
 
             {/* Tab Content */}
-            {activeTab === 'map' ? (
+            {activeTab === 'map' && (
                 <AOOInteractiveMap 
                     initialAssignments={mapAssignments}
                     onSave={handleMapSave}
                     isEditor={isEditor}
                 />
-            ) : (
+            )}
+
+            {activeTab === 'roster' && (
                 /* Roster Tab */
                 <div className="max-w-7xl mx-auto p-4 md:p-6">
                     {isEditor && (
@@ -374,12 +399,13 @@ export default function AooStrategyPage() {
                                         </div>
                                     )}
                                 </div>
-                                <div className="w-40">
+                                <div className="w-48">
                                     <select value={newPlayerTeam} onChange={(e) => setNewPlayerTeam(Number(e.target.value))}
                                         className={`w-full px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500`}>
                                         <option value={1}>Zone 1 ({getTeamPlayers(1).length})</option>
                                         <option value={2}>Zone 2 ({getTeamPlayers(2).length})</option>
                                         <option value={3}>Zone 3 ({getTeamPlayers(3).length})</option>
+                                        <option value={0}>Substitute ({substitutes.length})</option>
                                     </select>
                                 </div>
                                 {useCustomName && (
@@ -461,6 +487,152 @@ export default function AooStrategyPage() {
                         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={() => isEditor && saveData({ notes })}
                             placeholder={isEditor ? 'Add notes...' : 'No notes'} disabled={!isEditor}
                             className={`w-full min-h-[120px] px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 resize-y`} />
+                    </section>
+
+                    {/* Substitutes Section */}
+                    <section className={`${theme.card} border rounded-xl p-4 mt-6`}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted}`}>Substitutes</h2>
+                            <span className={`text-xs ${theme.textMuted}`}>{substitutes.length} players</span>
+                        </div>
+                        {isEditor && (
+                            <div className="flex gap-2 mb-4">
+                                <input 
+                                    type="text" 
+                                    placeholder="Add substitute name..."
+                                    className={`flex-1 px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter') {
+                                            const input = e.target as HTMLInputElement;
+                                            if (input.value.trim()) {
+                                                const newSub: Player = { id: Date.now(), name: input.value.trim(), team: 0, tags: [] };
+                                                const updatedSubs = [...substitutes, newSub];
+                                                setSubstitutes(updatedSubs);
+                                                saveData({ substitutes: updatedSubs });
+                                                input.value = '';
+                                            }
+                                        }
+                                    }}
+                                />
+                            </div>
+                        )}
+                        <div className="flex flex-wrap gap-2">
+                            {substitutes.length === 0 ? (
+                                <p className={`text-sm ${theme.textMuted}`}>No substitutes added</p>
+                            ) : (
+                                substitutes.map(sub => (
+                                    <div key={sub.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+                                        <span className="text-sm">{sub.name}</span>
+                                        {isEditor && (
+                                            <button 
+                                                onClick={() => {
+                                                    const updatedSubs = substitutes.filter(s => s.id !== sub.id);
+                                                    setSubstitutes(updatedSubs);
+                                                    saveData({ substitutes: updatedSubs });
+                                                }}
+                                                className="text-red-500 hover:text-red-400 text-xs"
+                                            >✕</button>
+                                        )}
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </section>
+
+                    <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
+                        <p className={`text-xs ${theme.textMuted}`}>Angmar Alliance • Rise of Kingdoms</p>
+                    </footer>
+                </div>
+            )}
+
+            {/* Lookup Tab */}
+            {activeTab === 'lookup' && (
+                <div className="max-w-2xl mx-auto p-4 md:p-6">
+                    <section className={`${theme.card} border rounded-xl p-6`}>
+                        <h2 className={`text-xl font-semibold mb-4 text-center`}>🔍 Find Your Role</h2>
+                        <p className={`text-sm ${theme.textMuted} text-center mb-6`}>Enter your in-game name to see your zone assignment and responsibilities</p>
+                        
+                        <input 
+                            type="text" 
+                            value={lookupSearch}
+                            onChange={(e) => setLookupSearch(e.target.value)}
+                            placeholder="Enter your name..."
+                            className={`w-full px-4 py-3 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500 text-lg text-center`}
+                        />
+
+                        {lookupSearch.trim() && (() => {
+                            const searchLower = lookupSearch.toLowerCase().trim();
+                            const foundPlayer = players.find(p => p.name.toLowerCase().includes(searchLower));
+                            const foundSub = substitutes.find(s => s.name.toLowerCase().includes(searchLower));
+                            
+                            if (foundPlayer) {
+                                const teamInfo = teams[foundPlayer.team - 1];
+                                return (
+                                    <div className={`mt-6 p-6 rounded-xl ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+                                        <div className="text-center mb-4">
+                                            <h3 className="text-2xl font-bold text-emerald-500">{foundPlayer.name}</h3>
+                                            <p className={`text-lg ${theme.textMuted}`}>
+                                                {teamInfo?.name || `Zone ${foundPlayer.team}`}
+                                                {teamInfo?.description && ` • ${teamInfo.description}`}
+                                            </p>
+                                        </div>
+                                        
+                                        {foundPlayer.tags.length > 0 && (
+                                            <div className="mb-6">
+                                                <h4 className={`text-sm font-semibold uppercase tracking-wider mb-2 ${theme.textMuted}`}>Your Roles</h4>
+                                                <div className="flex flex-wrap gap-2 justify-center">
+                                                    {foundPlayer.tags.map(tag => (
+                                                        <span key={tag} className={`px-3 py-1.5 rounded-full text-sm font-medium ${TAG_COLORS[tag]}`}>{tag}</span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
+                                            <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>What You Should Do</h4>
+                                            <ul className={`space-y-2 text-sm ${theme.text}`}>
+                                                {foundPlayer.tags.includes('Rally Leader') && (
+                                                    <li>🎯 <strong>Rally Leader:</strong> Launch rallies on obelisks and enemy structures. Use your strongest commanders.</li>
+                                                )}
+                                                {foundPlayer.tags.includes('Teleport 1st') && (
+                                                    <li>⚡ <strong>Teleport 1st:</strong> You are priority teleport. Teleport to the obelisk immediately after capture.</li>
+                                                )}
+                                                {foundPlayer.tags.includes('Teleport 2nd') && (
+                                                    <li>⚡ <strong>Teleport 2nd:</strong> Second wave teleport. Wait for first wave, then teleport to support.</li>
+                                                )}
+                                                {foundPlayer.tags.includes('Garrison') && (
+                                                    <li>🛡️ <strong>Garrison:</strong> Defend captured buildings. Keep marches stationed in structures.</li>
+                                                )}
+                                                {foundPlayer.tags.includes('Farm') && (
+                                                    <li>🌾 <strong>Farm:</strong> Gather resources on the map for bonus points. Can earn 13,000+ points!</li>
+                                                )}
+                                                {foundPlayer.tags.includes('Conquer') && (
+                                                    <li>⚔️ <strong>Conquer:</strong> Fast cavalry to capture undefended buildings quickly.</li>
+                                                )}
+                                                {foundPlayer.tags.length === 0 && (
+                                                    <li>📋 Follow your zone leader&apos;s instructions and support rallies when called.</li>
+                                                )}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                );
+                            } else if (foundSub) {
+                                return (
+                                    <div className={`mt-6 p-6 rounded-xl ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'} text-center`}>
+                                        <h3 className="text-2xl font-bold text-yellow-500">{foundSub.name}</h3>
+                                        <p className={`text-lg ${theme.textMuted} mt-2`}>📋 Substitute</p>
+                                        <p className={`mt-4 ${theme.text}`}>You are on the substitute list. Be ready to join if a spot opens up!</p>
+                                    </div>
+                                );
+                            } else {
+                                return (
+                                    <div className={`mt-6 p-6 rounded-xl ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'} text-center`}>
+                                        <p className={`text-lg ${theme.textMuted}`}>❌ Player not found</p>
+                                        <p className={`mt-2 text-sm ${theme.textMuted}`}>Try checking the Zone Roster tab or contact your alliance leader.</p>
+                                    </div>
+                                );
+                            }
+                        })()}
                     </section>
 
                     <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
