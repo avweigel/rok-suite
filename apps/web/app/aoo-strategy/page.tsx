@@ -41,19 +41,15 @@ const DEFAULT_TEAMS: TeamInfo[] = [
     { name: 'Zone 3', description: 'Lower' },
 ];
 
-const AVAILABLE_TAGS = ['Rally Leader', 'Tank', 'Support', 'Scout', 'Flag Runner', 'Garrison', 'Reinforcer', 'Crystal', 'Teleport 1st', 'Teleport 2nd'];
+const AVAILABLE_TAGS = ['Rally Leader', 'Teleport 1st', 'Teleport 2nd', 'Garrison', 'Farm', 'Conquer'];
 
 const TAG_COLORS: Record<string, string> = {
     'Rally Leader': 'bg-red-600 text-white',
-    'Tank': 'bg-blue-600 text-white',
-    'Support': 'bg-green-600 text-white',
-    'Scout': 'bg-yellow-500 text-black',
-    'Flag Runner': 'bg-purple-600 text-white',
-    'Garrison': 'bg-orange-600 text-white',
-    'Reinforcer': 'bg-cyan-600 text-white',
-    'Crystal': 'bg-pink-500 text-white',
     'Teleport 1st': 'bg-emerald-600 text-white',
     'Teleport 2nd': 'bg-teal-600 text-white',
+    'Garrison': 'bg-orange-600 text-white',
+    'Farm': 'bg-yellow-500 text-black',
+    'Conquer': 'bg-purple-600 text-white',
 };
 
 const ALLIANCE_ROSTER = [
