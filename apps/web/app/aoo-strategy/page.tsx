@@ -149,6 +149,7 @@ export default function AooStrategyPage() {
     const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
     const [strategyId, setStrategyId] = useState<number | null>(null);
     const [darkMode, setDarkMode] = useState(true);
+    const [strategyExpanded, setStrategyExpanded] = useState(false);
 
     const [playerSearch, setPlayerSearch] = useState('');
     const [showDropdown, setShowDropdown] = useState(false);
@@ -437,6 +438,37 @@ export default function AooStrategyPage() {
             {activeTab === 'roster' && (
                 /* Roster Tab */
                 <div className="max-w-7xl mx-auto p-4 md:p-6">
+                    {/* Expandable Strategy Overview */}
+                    <section className={`${theme.card} border rounded-xl mb-6 overflow-hidden`}>
+                        <button 
+                            onClick={() => setStrategyExpanded(!strategyExpanded)}
+                            className={`w-full p-4 flex items-center justify-between hover:opacity-80 transition-opacity`}
+                        >
+                            <div className="flex items-center gap-2">
+                                <span className="text-lg">📋</span>
+                                <h2 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted}`}>Strategy Overview</h2>
+                            </div>
+                            <span className={`text-lg ${theme.textMuted}`}>{strategyExpanded ? '▼' : '▶'}</span>
+                        </button>
+                        {strategyExpanded && (
+                            <div className={`px-4 pb-4 border-t ${theme.border}`}>
+                                {isEditor ? (
+                                    <textarea 
+                                        value={notes} 
+                                        onChange={(e) => setNotes(e.target.value)} 
+                                        onBlur={() => saveData({ notes })}
+                                        placeholder="Add strategy notes..."
+                                        className={`w-full min-h-[300px] mt-4 px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-y font-mono text-sm`} 
+                                    />
+                                ) : (
+                                    <div className={`mt-4 whitespace-pre-wrap font-mono text-sm ${theme.text}`}>
+                                        {notes || 'No strategy notes available'}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </section>
+
                     {isEditor && (
                         <section className={`${theme.card} border rounded-xl p-4 mb-6`}>
                             <h2 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>Add Player</h2>
@@ -563,13 +595,6 @@ export default function AooStrategyPage() {
                             );
                         })}
                     </div>
-
-                    <section className={`${theme.card} border rounded-xl p-4`}>
-                        <h2 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>Strategy Notes</h2>
-                        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={() => isEditor && saveData({ notes })}
-                            placeholder={isEditor ? 'Add notes...' : 'No notes'} disabled={!isEditor}
-                            className={`w-full min-h-[120px] px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 resize-y`} />
-                    </section>
 
                     {/* Substitutes Section */}
                     <section className={`${theme.card} border rounded-xl p-4 mt-6`}>
@@ -785,6 +810,85 @@ export default function AooStrategyPage() {
                                                 </div>
                                             </div>
                                         )}
+
+                                        {/* Mini Map showing assigned buildings */}
+                                        <div className={`mt-4 p-4 rounded-lg ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
+                                            <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>🗺️ Your Buildings</h4>
+                                            <div className="relative w-full rounded-lg overflow-hidden" style={{ aspectRatio: '1275 / 891' }}>
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img
+                                                    src="/aoo-map.jpg"
+                                                    alt="AOO Map"
+                                                    className="absolute inset-0 w-full h-full object-cover"
+                                                    style={{ opacity: darkMode ? 0.6 : 0.8 }}
+                                                />
+                                                {/* Highlight assigned buildings */}
+                                                {foundPlayer.assignments && (() => {
+                                                    const buildingPositions: Record<string, {x: number, y: number, name: string}> = {
+                                                        'obelisk (upper)': {x: 50, y: 12, name: 'Obelisk (Upper)'},
+                                                        'obelisk (left)': {x: 10, y: 40, name: 'Obelisk (Left)'},
+                                                        'obelisk (right)': {x: 90, y: 40, name: 'Obelisk (Right)'},
+                                                        'obelisk (lower)': {x: 42, y: 78, name: 'Obelisk (Lower)'},
+                                                        'outpost of iset 1': {x: 35, y: 15, name: 'Iset 1'},
+                                                        'outpost of iset 2': {x: 15, y: 24, name: 'Iset 2'},
+                                                        'outpost of iset 3': {x: 35, y: 28, name: 'Iset 3'},
+                                                        'outpost of seth 1': {x: 65, y: 60, name: 'Seth 1'},
+                                                        'outpost of seth 2': {x: 85, y: 60, name: 'Seth 2'},
+                                                        'outpost of seth 3': {x: 65, y: 73, name: 'Seth 3'},
+                                                        'shrine of war (left)': {x: 28, y: 46, name: 'War-L'},
+                                                        'shrine of war (right)': {x: 72, y: 38, name: 'War-R'},
+                                                        'shrine of life (right)': {x: 72, y: 18, name: 'Life-R'},
+                                                        'shrine of life (left)': {x: 22, y: 73, name: 'Life-L'},
+                                                        'desert altar (right)': {x: 55, y: 28, name: 'Des-R'},
+                                                        'desert altar (left)': {x: 42, y: 60, name: 'Des-L'},
+                                                        'sky altar (right)': {x: 88, y: 25, name: 'Sky-R'},
+                                                        'sky altar (left)': {x: 10, y: 58, name: 'Sky-L'},
+                                                        'ark': {x: 48, y: 43, name: 'Ark'},
+                                                    };
+                                                    
+                                                    const allAssignments = Object.values(foundPlayer.assignments).join(' ').toLowerCase();
+                                                    const assignedBuildings = Object.entries(buildingPositions).filter(([key]) => 
+                                                        allAssignments.includes(key)
+                                                    );
+                                                    
+                                                    const zoneMarkerColors: Record<number, string> = {
+                                                        1: '#2563EB',
+                                                        2: '#D97706', 
+                                                        3: '#7C3AED'
+                                                    };
+                                                    
+                                                    return assignedBuildings.map(([key, pos]) => (
+                                                        <div
+                                                            key={key}
+                                                            className="absolute flex flex-col items-center"
+                                                            style={{
+                                                                left: `${pos.x}%`,
+                                                                top: `${pos.y}%`,
+                                                                transform: 'translate(-50%, -50%)',
+                                                            }}
+                                                        >
+                                                            <div 
+                                                                className="w-6 h-6 rounded-full border-2 border-white shadow-lg flex items-center justify-center animate-pulse"
+                                                                style={{ backgroundColor: zoneMarkerColors[foundPlayer.team] }}
+                                                            >
+                                                                <span className="text-white text-[8px] font-bold">★</span>
+                                                            </div>
+                                                            <span className="text-[8px] font-bold text-white bg-black/70 px-1 rounded mt-0.5">{pos.name}</span>
+                                                        </div>
+                                                    ));
+                                                })()}
+                                                {/* START marker */}
+                                                <div
+                                                    className="absolute px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[8px] font-bold"
+                                                    style={{ left: '12%', top: '6%', transform: 'translate(-50%, -50%)' }}
+                                                >
+                                                    START
+                                                </div>
+                                            </div>
+                                            <p className={`text-xs ${theme.textMuted} mt-2 text-center`}>
+                                                ★ = Your assigned buildings across all phases
+                                            </p>
+                                        </div>
 
                                         {/* Role instructions */}
                                         <div className={`mt-4 p-4 rounded-lg ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>

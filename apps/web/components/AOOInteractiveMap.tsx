@@ -46,36 +46,36 @@ interface Props {
 // All buildings on the map with positions (percentages based on new map)
 const buildings: Building[] = [
   // Obelisks
-  { id: 'obelisk-1', name: 'Obelisk (Upper)', shortName: 'Ob1', x: 50, y: 12 },
-  { id: 'obelisk-2', name: 'Obelisk (Left)', shortName: 'Ob2', x: 10, y: 40 },
-  { id: 'obelisk-3', name: 'Obelisk (Right)', shortName: 'Ob3', x: 90, y: 40 },
-  { id: 'obelisk-4', name: 'Obelisk (Lower)', shortName: 'Ob4', x: 42, y: 78 },
+  { id: 'obelisk-1', name: 'Obelisk (Upper)', shortName: 'Ob-Upper', x: 50, y: 12 },
+  { id: 'obelisk-2', name: 'Obelisk (Left)', shortName: 'Ob-Left', x: 10, y: 40 },
+  { id: 'obelisk-3', name: 'Obelisk (Right)', shortName: 'Ob-Right', x: 90, y: 40 },
+  { id: 'obelisk-4', name: 'Obelisk (Lower)', shortName: 'Ob-Lower', x: 42, y: 78 },
   
   // Outposts of Iset (your side - upper left)
-  { id: 'iset-1', name: 'Outpost of Iset 1', shortName: 'Iset1', x: 35, y: 15 },
-  { id: 'iset-2', name: 'Outpost of Iset 2', shortName: 'Iset2', x: 15, y: 24 },
-  { id: 'iset-3', name: 'Outpost of Iset 3', shortName: 'Iset3', x: 35, y: 28 },
+  { id: 'iset-1', name: 'Outpost of Iset 1', shortName: 'Iset-1', x: 35, y: 15 },
+  { id: 'iset-2', name: 'Outpost of Iset 2', shortName: 'Iset-2', x: 15, y: 24 },
+  { id: 'iset-3', name: 'Outpost of Iset 3', shortName: 'Iset-3', x: 35, y: 28 },
   
   // Outposts of Seth (enemy side - lower right)
-  { id: 'seth-1', name: 'Outpost of Seth 1', shortName: 'Seth1', x: 65, y: 60 },
-  { id: 'seth-2', name: 'Outpost of Seth 2', shortName: 'Seth2', x: 85, y: 60 },
-  { id: 'seth-3', name: 'Outpost of Seth 3', shortName: 'Seth3', x: 65, y: 73 },
+  { id: 'seth-1', name: 'Outpost of Seth 1', shortName: 'Seth-1', x: 65, y: 60 },
+  { id: 'seth-2', name: 'Outpost of Seth 2', shortName: 'Seth-2', x: 85, y: 60 },
+  { id: 'seth-3', name: 'Outpost of Seth 3', shortName: 'Seth-3', x: 65, y: 73 },
   
   // Shrines of War
-  { id: 'war-1', name: 'Shrine of War', shortName: 'War1', x: 28, y: 46 },
-  { id: 'war-2', name: 'Shrine of War', shortName: 'War2', x: 72, y: 38 },
+  { id: 'war-1', name: 'Shrine of War (Left)', shortName: 'War-L', x: 28, y: 46 },
+  { id: 'war-2', name: 'Shrine of War (Right)', shortName: 'War-R', x: 72, y: 38 },
   
   // Shrines of Life
-  { id: 'life-1', name: 'Shrine of Life', shortName: 'Life1', x: 72, y: 18 },
-  { id: 'life-2', name: 'Shrine of Life', shortName: 'Life2', x: 22, y: 73 },
+  { id: 'life-1', name: 'Shrine of Life (Right)', shortName: 'Life-R', x: 72, y: 18 },
+  { id: 'life-2', name: 'Shrine of Life (Left)', shortName: 'Life-L', x: 22, y: 73 },
   
   // Desert Altars
-  { id: 'desert-1', name: 'Desert Altar', shortName: 'Des1', x: 55, y: 28 },
-  { id: 'desert-2', name: 'Desert Altar', shortName: 'Des2', x: 42, y: 60 },
+  { id: 'desert-1', name: 'Desert Altar (Right)', shortName: 'Des-R', x: 55, y: 28 },
+  { id: 'desert-2', name: 'Desert Altar (Left)', shortName: 'Des-L', x: 42, y: 60 },
   
   // Sky Altars
-  { id: 'sky-1', name: 'Sky Altar', shortName: 'Sky1', x: 88, y: 25 },
-  { id: 'sky-2', name: 'Sky Altar', shortName: 'Sky2', x: 10, y: 58 },
+  { id: 'sky-1', name: 'Sky Altar (Right)', shortName: 'Sky-R', x: 88, y: 25 },
+  { id: 'sky-2', name: 'Sky Altar (Left)', shortName: 'Sky-L', x: 10, y: 58 },
   
   // Ark (center)
   { id: 'ark', name: 'Ark', shortName: 'Ark', x: 48, y: 43 },
@@ -523,16 +523,20 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                       ];
                       
                       // Add common variations
-                      if (buildingId === 'obelisk-1') searchTerms.push('obelisk 1', 'ob1', 'obelisk (upper)');
-                      if (buildingId === 'obelisk-2') searchTerms.push('obelisk 2', 'ob2', 'obelisk (left)');
-                      if (buildingId === 'obelisk-3') searchTerms.push('obelisk 3', 'ob3', 'obelisk (right)');
-                      if (buildingId === 'obelisk-4') searchTerms.push('obelisk 4', 'ob4', 'obelisk (lower)');
+                      if (buildingId === 'obelisk-1') searchTerms.push('obelisk 1', 'ob1', 'obelisk (upper)', 'ob-upper', 'upper');
+                      if (buildingId === 'obelisk-2') searchTerms.push('obelisk 2', 'ob2', 'obelisk (left)', 'ob-left', 'left');
+                      if (buildingId === 'obelisk-3') searchTerms.push('obelisk 3', 'ob3', 'obelisk (right)', 'ob-right', 'right');
+                      if (buildingId === 'obelisk-4') searchTerms.push('obelisk 4', 'ob4', 'obelisk (lower)', 'ob-lower', 'lower');
                       if (buildingId.includes('iset')) searchTerms.push('iset', 'outpost of iset');
                       if (buildingId.includes('seth')) searchTerms.push('seth', 'outpost of seth', 'seth outpost');
-                      if (buildingId.includes('war')) searchTerms.push('shrine of war', 'war');
-                      if (buildingId.includes('life')) searchTerms.push('shrine of life', 'life');
-                      if (buildingId.includes('desert')) searchTerms.push('desert altar', 'desert');
-                      if (buildingId.includes('sky')) searchTerms.push('sky altar', 'sky');
+                      if (buildingId === 'war-1') searchTerms.push('shrine of war', 'war', 'war (left)', 'war-l');
+                      if (buildingId === 'war-2') searchTerms.push('shrine of war', 'war', 'war (right)', 'war-r');
+                      if (buildingId === 'life-1') searchTerms.push('shrine of life', 'life', 'life (right)', 'life-r');
+                      if (buildingId === 'life-2') searchTerms.push('shrine of life', 'life', 'life (left)', 'life-l');
+                      if (buildingId === 'desert-1') searchTerms.push('desert altar', 'desert', 'desert (right)', 'des-r');
+                      if (buildingId === 'desert-2') searchTerms.push('desert altar', 'desert', 'desert (left)', 'des-l');
+                      if (buildingId === 'sky-1') searchTerms.push('sky altar', 'sky', 'sky (right)', 'sky-r');
+                      if (buildingId === 'sky-2') searchTerms.push('sky altar', 'sky', 'sky (left)', 'sky-l');
                       if (buildingId === 'ark') searchTerms.push('ark');
                       
                       // Find players assigned to this building
