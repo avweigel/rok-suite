@@ -1077,42 +1077,38 @@ export default function AooStrategyPage() {
                             className={`p-6 rounded-lg ${darkMode ? 'bg-zinc-900 hover:bg-zinc-800' : 'bg-gray-50 hover:bg-gray-100'} cursor-pointer border-2 border-emerald-500/50 transition-colors`}
                         >
                             <div className={`copy-text font-mono text-sm ${theme.text} whitespace-pre-line leading-relaxed`}>
-{`⚔️ ARK OF OSIRIS BATTLE ⚔️
+{`ARK OF OSIRIS BATTLE
 
-📋 BEFORE BATTLE:
-✓ Clear hospital completely
-✓ Use 25% troop expansion buff
-✓ Check your zone: rok-suite.vercel.app/aoo-strategy
+BEFORE BATTLE:
+- Clear hospital completely
+- Use 25% troop expansion buff
+- Check your zone: rok-suite.vercel.app/aoo-strategy
 
-🎯 KNOW YOUR ROLE:
-• Rally Leader - Start rallies on buildings
-• Teleport 1st - TP immediately when obelisk captured
-• Teleport 2nd - WAIT for leader's call
-• Garrison - Stay IN buildings to defend
-• Conquer - Use T1 CAVALRY ONLY (fastest!)
-• Farm - Support rallies FIRST, then gather
+KNOW YOUR ROLE:
+- Rally Leader: Start rallies on buildings
+- Teleport 1st: TP immediately when your obelisk captured
+- Teleport 2nd: TP when Obelisks 3 & 4 are captured
+- Garrison: Stay in buildings to defend
+- Conquer: Use cavalry, be first to buildings
+- Farm: Support rallies first, then gather
 
-🏃 PHASE 1 - RUSH (0:00):
-🔵 Zone 1 → Obelisk LEFT
-🟣 Zone 3 → Obelisk UPPER
-🟠 Zone 2 → Support both
-⚡ Conquer players = T1 CAV - BE FIRST!
+PHASE 1 - RUSH (0:00):
+Zone 1 rushes Obelisk 2 (left)
+Zone 3 rushes Obelisk 1 (upper)
+Zone 2 supports both zones
 
-📍 PHASE 2 - SECURE (~5:00):
-⚡ TELEPORT 1ST - TP NOW! (don't wait)
-⏱️ TELEPORT 2ND - WAIT for my call
-🏃 Conquer - Capture Iset Outposts (T1 cav)
-🛡️ Garrison - Stay in buildings
+PHASE 2 & 3 - SECURE & EXPAND (~5:00):
+Teleport 1st: TP to your obelisk now
+Teleport 2nd: Wait for Obelisks 3 & 4, then TP
+Conquer: Capture Iset Outposts, then Shrines/Altars
+Garrison: Defend captured buildings
+Rally Leaders: Lead rallies on buildings
+Zone 2: Control the Ark
 
-⚔️ PHASE 3 - EXPAND (~15:00):
-🗡️ Rally Shrines & Altars
-🏛️ Zone 2 - Control the ARK
-🌾 Farm - Gather constantly
-
-💥 PHASE 4 - CONTEST (~45:00):
-⚔️ Attack enemy obelisks
-🛡️ Defend our buildings
-📢 Follow leader's calls`}
+PHASE 4 - CONTEST (~45:00):
+Attack enemy obelisks (Lower & Right)
+Defend our buildings
+Follow leader's calls`}
                             </div>
                         </div>
                         <p className={`text-xs ${theme.textMuted} text-center mt-3`}>Click anywhere on the text to copy</p>
