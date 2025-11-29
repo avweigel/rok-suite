@@ -293,9 +293,14 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
       { pattern: /imperial\s*pi/i, name: 'Osman I' },
       { pattern: /\bosma?n?\b/i, name: 'Osman I' },
       
-      // Mehmed II - OCR reads "Conqueror", "Meh", "Mehm"
-      { pattern: /\bconqueror\b/i, name: 'Mehmed II' },
+      // Mehmed II - OCR reads "Conqueror of Istanbul", "Meh", "Mehm"
+      // Must be "Istanbul" not just "Conqueror" (Cao Cao is "Conqueror of Chaos")
+      { pattern: /conqueror\s*(of\s*)?istanbul/i, name: 'Mehmed II' },
       { pattern: /\bmehm?e?d?\b/i, name: 'Mehmed II' },
+      
+      // Cao Cao - "Conqueror of Chaos" or "King of Wei"
+      { pattern: /conqueror\s*(of\s*)?chaos/i, name: 'Cao Cao' },
+      { pattern: /cao\s*cao/i, name: 'Cao Cao' },
       
       // SPECIALTY-BASED PATTERNS (when OCR completely fails on name)
       // Only use when the specialty combo is unique or nearly unique
