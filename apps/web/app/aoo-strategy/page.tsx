@@ -15,12 +15,20 @@ const AOOInteractiveMap = dynamic(() => import('@/components/AOOInteractiveMap')
   ),
 });
 
+interface PlayerAssignments {
+    phase1: string;
+    phase2: string;
+    phase3: string;
+    phase4: string;
+}
+
 interface Player {
     id: number;
     name: string;
     team: number; // 0 = substitute, 1-3 = zones
     tags: string[];
     power?: number;
+    assignments?: PlayerAssignments;
 }
 
 interface TeamInfo {
@@ -620,10 +628,74 @@ export default function AooStrategyPage() {
 
             {/* Lookup Tab */}
             {activeTab === 'lookup' && (
-                <div className="max-w-2xl mx-auto p-4 md:p-6">
+                <div className="max-w-3xl mx-auto p-4 md:p-6">
+                    {/* Timeline */}
+                    <section className={`${theme.card} border rounded-xl p-4 mb-6`}>
+                        <h2 className={`text-lg font-semibold mb-4 text-center`}>⏱️ Battle Timeline</h2>
+                        <div className="relative">
+                            {/* Timeline bar */}
+                            <div className={`h-2 rounded-full ${darkMode ? 'bg-zinc-700' : 'bg-gray-200'} mb-4`}>
+                                <div className="h-full rounded-full bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500" style={{ width: '100%' }}></div>
+                            </div>
+                            {/* Phase markers */}
+                            <div className="flex justify-between text-xs">
+                                <div className="text-center">
+                                    <div className="w-3 h-3 rounded-full bg-yellow-500 mx-auto mb-1"></div>
+                                    <div className="font-bold">0:00</div>
+                                    <div className={`${theme.textMuted}`}>START</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="w-3 h-3 rounded-full bg-yellow-600 mx-auto mb-1"></div>
+                                    <div className="font-bold">~5:00</div>
+                                    <div className={`${theme.textMuted}`}>Teleport</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="w-3 h-3 rounded-full bg-orange-500 mx-auto mb-1"></div>
+                                    <div className="font-bold">~7:00</div>
+                                    <div className={`${theme.textMuted}`}>Ark Spawns</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="w-3 h-3 rounded-full bg-orange-600 mx-auto mb-1"></div>
+                                    <div className="font-bold">~15:00</div>
+                                    <div className={`${theme.textMuted}`}>Expand</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="w-3 h-3 rounded-full bg-red-500 mx-auto mb-1"></div>
+                                    <div className="font-bold">~45:00</div>
+                                    <div className={`${theme.textMuted}`}>Contest</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="w-3 h-3 rounded-full bg-red-600 mx-auto mb-1"></div>
+                                    <div className="font-bold">60:00</div>
+                                    <div className={`${theme.textMuted}`}>END</div>
+                                </div>
+                            </div>
+                        </div>
+                        {/* Phase descriptions */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4 text-xs">
+                            <div className={`p-2 rounded ${darkMode ? 'bg-yellow-900/30' : 'bg-yellow-100'} border border-yellow-500/50`}>
+                                <div className="font-bold text-yellow-500">Phase 1: RUSH</div>
+                                <div className={theme.textMuted}>Capture your obelisks</div>
+                            </div>
+                            <div className={`p-2 rounded ${darkMode ? 'bg-yellow-800/30' : 'bg-yellow-50'} border border-yellow-600/50`}>
+                                <div className="font-bold text-yellow-600">Phase 2: SECURE</div>
+                                <div className={theme.textMuted}>Teleport & outposts</div>
+                            </div>
+                            <div className={`p-2 rounded ${darkMode ? 'bg-orange-900/30' : 'bg-orange-100'} border border-orange-500/50`}>
+                                <div className="font-bold text-orange-500">Phase 3: EXPAND</div>
+                                <div className={theme.textMuted}>Shrines, Altars, Ark</div>
+                            </div>
+                            <div className={`p-2 rounded ${darkMode ? 'bg-red-900/30' : 'bg-red-100'} border border-red-500/50`}>
+                                <div className="font-bold text-red-500">Phase 4: CONTEST</div>
+                                <div className={theme.textMuted}>Enemy territory</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Player Lookup */}
                     <section className={`${theme.card} border rounded-xl p-6`}>
                         <h2 className={`text-xl font-semibold mb-4 text-center`}>🔍 Find Your Role</h2>
-                        <p className={`text-sm ${theme.textMuted} text-center mb-6`}>Enter your in-game name to see your zone assignment and responsibilities</p>
+                        <p className={`text-sm ${theme.textMuted} text-center mb-6`}>Enter your in-game name to see your assignments for each phase</p>
                         
                         <input 
                             type="text" 
@@ -641,22 +713,33 @@ export default function AooStrategyPage() {
                             if (foundPlayer) {
                                 const teamInfo = teams[foundPlayer.team - 1];
                                 const playerPower = foundPlayer.power || PLAYER_POWER[foundPlayer.name];
+                                const zoneColors: Record<number, string> = {
+                                    1: 'text-blue-500',
+                                    2: 'text-orange-500',
+                                    3: 'text-purple-500'
+                                };
+                                const zoneBgColors: Record<number, string> = {
+                                    1: darkMode ? 'bg-blue-900/30 border-blue-500/50' : 'bg-blue-100 border-blue-300',
+                                    2: darkMode ? 'bg-orange-900/30 border-orange-500/50' : 'bg-orange-100 border-orange-300',
+                                    3: darkMode ? 'bg-purple-900/30 border-purple-500/50' : 'bg-purple-100 border-purple-300'
+                                };
                                 return (
                                     <div className={`mt-6 p-6 rounded-xl ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
-                                        <div className="text-center mb-4">
-                                            <h3 className="text-2xl font-bold text-emerald-500">{foundPlayer.name}</h3>
+                                        {/* Player header */}
+                                        <div className="text-center mb-6">
+                                            <h3 className={`text-2xl font-bold ${zoneColors[foundPlayer.team]}`}>{foundPlayer.name}</h3>
                                             {playerPower && (
                                                 <p className={`text-sm ${theme.textMuted}`}>⚔️ {formatPower(playerPower)} Power</p>
                                             )}
-                                            <p className={`text-lg ${theme.textMuted} mt-1`}>
+                                            <p className={`text-lg font-semibold mt-1 ${zoneColors[foundPlayer.team]}`}>
                                                 {teamInfo?.name || `Zone ${foundPlayer.team}`}
-                                                {teamInfo?.description && ` • ${teamInfo.description}`}
+                                                {teamInfo?.description && <span className={theme.textMuted}> • {teamInfo.description}</span>}
                                             </p>
                                         </div>
                                         
+                                        {/* Role tags */}
                                         {foundPlayer.tags.length > 0 && (
-                                            <div className="mb-6">
-                                                <h4 className={`text-sm font-semibold uppercase tracking-wider mb-2 ${theme.textMuted}`}>Your Roles</h4>
+                                            <div className="mb-6 text-center">
                                                 <div className="flex flex-wrap gap-2 justify-center">
                                                     {foundPlayer.tags.map(tag => (
                                                         <span key={tag} className={`px-3 py-1.5 rounded-full text-sm font-medium ${TAG_COLORS[tag]}`}>{tag}</span>
@@ -665,40 +748,87 @@ export default function AooStrategyPage() {
                                             </div>
                                         )}
 
-                                        <div className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
-                                            <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>What You Should Do</h4>
+                                        {/* Phase-by-phase assignments */}
+                                        {foundPlayer.assignments && (
+                                            <div className={`p-4 rounded-lg border ${zoneBgColors[foundPlayer.team]}`}>
+                                                <h4 className={`text-sm font-semibold uppercase tracking-wider mb-4 ${theme.textMuted} text-center`}>📋 Your Assignments</h4>
+                                                <div className="grid gap-3">
+                                                    <div className={`p-3 rounded-lg ${darkMode ? 'bg-zinc-900' : 'bg-white'} border-l-4 border-yellow-500`}>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="text-yellow-500 font-bold text-sm">PHASE 1</span>
+                                                            <span className={`text-xs ${theme.textMuted}`}>RUSH (0:00)</span>
+                                                        </div>
+                                                        <p className={`font-medium ${theme.text}`}>{foundPlayer.assignments.phase1}</p>
+                                                    </div>
+                                                    <div className={`p-3 rounded-lg ${darkMode ? 'bg-zinc-900' : 'bg-white'} border-l-4 border-yellow-600`}>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="text-yellow-600 font-bold text-sm">PHASE 2</span>
+                                                            <span className={`text-xs ${theme.textMuted}`}>SECURE (~5:00)</span>
+                                                        </div>
+                                                        <p className={`font-medium ${theme.text}`}>{foundPlayer.assignments.phase2}</p>
+                                                    </div>
+                                                    <div className={`p-3 rounded-lg ${darkMode ? 'bg-zinc-900' : 'bg-white'} border-l-4 border-orange-500`}>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="text-orange-500 font-bold text-sm">PHASE 3</span>
+                                                            <span className={`text-xs ${theme.textMuted}`}>EXPAND (~15:00)</span>
+                                                        </div>
+                                                        <p className={`font-medium ${theme.text}`}>{foundPlayer.assignments.phase3}</p>
+                                                    </div>
+                                                    <div className={`p-3 rounded-lg ${darkMode ? 'bg-zinc-900' : 'bg-white'} border-l-4 border-red-500`}>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="text-red-500 font-bold text-sm">PHASE 4</span>
+                                                            <span className={`text-xs ${theme.textMuted}`}>CONTEST (~45:00)</span>
+                                                        </div>
+                                                        <p className={`font-medium ${theme.text}`}>{foundPlayer.assignments.phase4}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Role instructions */}
+                                        <div className={`mt-4 p-4 rounded-lg ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
+                                            <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>💡 Role Tips</h4>
                                             <ul className={`space-y-2 text-sm ${theme.text}`}>
                                                 {foundPlayer.tags.includes('Rally Leader') && (
-                                                    <li>🎯 <strong>Rally Leader:</strong> Launch rallies on obelisks and enemy structures. Use your strongest commanders.</li>
+                                                    <li>🎯 <strong>Rally Leader:</strong> Use strongest commanders (Guan Yu, Martel, YSG). Start rallies early!</li>
                                                 )}
                                                 {foundPlayer.tags.includes('Teleport 1st') && (
-                                                    <li>⚡ <strong>Teleport 1st:</strong> You are priority teleport. Teleport to the obelisk immediately after capture.</li>
+                                                    <li>⚡ <strong>Teleport 1st:</strong> Teleport IMMEDIATELY when obelisk is captured. Don&apos;t wait!</li>
                                                 )}
                                                 {foundPlayer.tags.includes('Teleport 2nd') && (
-                                                    <li>⚡ <strong>Teleport 2nd:</strong> Second wave teleport. Wait for first wave, then teleport to support.</li>
+                                                    <li>⚡ <strong>Teleport 2nd:</strong> Wait for Discord call, then teleport to reinforce.</li>
                                                 )}
                                                 {foundPlayer.tags.includes('Garrison') && (
-                                                    <li>🛡️ <strong>Garrison:</strong> Defend captured buildings. Keep marches stationed in structures.</li>
+                                                    <li>🛡️ <strong>Garrison:</strong> Use infantry commanders. Stay in buildings to defend!</li>
                                                 )}
                                                 {foundPlayer.tags.includes('Farm') && (
-                                                    <li>🌾 <strong>Farm:</strong> Gather resources on the map for bonus points. Can earn 13,000+ points!</li>
+                                                    <li>🌾 <strong>Farm:</strong> Gather constantly! Can earn 13,000+ points for the team.</li>
                                                 )}
                                                 {foundPlayer.tags.includes('Conquer') && (
-                                                    <li>⚔️ <strong>Conquer:</strong> Fast cavalry to capture undefended buildings quickly.</li>
-                                                )}
-                                                {foundPlayer.tags.length === 0 && (
-                                                    <li>📋 Follow your zone leader&apos;s instructions and support rallies when called.</li>
+                                                    <li>🏃 <strong>Conquer:</strong> Use T1 cavalry for speed. Capture undefended buildings fast!</li>
                                                 )}
                                             </ul>
                                         </div>
                                     </div>
                                 );
                             } else if (foundSub) {
+                                const subPower = foundSub.power || PLAYER_POWER[foundSub.name];
                                 return (
                                     <div className={`mt-6 p-6 rounded-xl ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'} text-center`}>
                                         <h3 className="text-2xl font-bold text-yellow-500">{foundSub.name}</h3>
+                                        {subPower && (
+                                            <p className={`text-sm ${theme.textMuted}`}>⚔️ {formatPower(subPower)} Power</p>
+                                        )}
                                         <p className={`text-lg ${theme.textMuted} mt-2`}>📋 Substitute</p>
-                                        <p className={`mt-4 ${theme.text}`}>You are on the substitute list. Be ready to join if a spot opens up!</p>
+                                        <div className={`mt-4 p-4 rounded-lg ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
+                                            <p className={theme.text}>You are on the substitute list.</p>
+                                            <p className={`mt-2 text-sm ${theme.textMuted}`}>Be ready to join if a spot opens up! Make sure you:</p>
+                                            <ul className={`mt-2 text-sm ${theme.textMuted} text-left max-w-xs mx-auto`}>
+                                                <li>• Clear your hospital before battle</li>
+                                                <li>• Have troops ready in your city</li>
+                                                <li>• Stay available on Discord</li>
+                                            </ul>
+                                        </div>
                                     </div>
                                 );
                             } else {
