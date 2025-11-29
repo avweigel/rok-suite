@@ -20,6 +20,7 @@ interface Player {
     name: string;
     team: number; // 0 = substitute, 1-3 = zones
     tags: string[];
+    power?: number;
 }
 
 interface TeamInfo {
@@ -51,6 +52,65 @@ const TAG_COLORS: Record<string, string> = {
     'Garrison': 'bg-orange-600 text-white',
     'Farm': 'bg-yellow-500 text-black',
     'Conquer': 'bg-purple-600 text-white',
+};
+
+// Player power data from roster
+const PLAYER_POWER: Record<string, number> = {
+    'Soutz': 12105470,
+    'cloud': 11688006,
+    'MayorEric': 10583063,
+    'bear': 9626742,
+    'Funny': 9497210,
+    'notfun': 9094607,
+    'CBC': 8089612,
+    'Lady Leanna': 7575583,
+    'Batussai': 7071806,
+    'Zdrawee': 7044077,
+    'aubs': 7027928,
+    'Buby': 6830766,
+    'Cain': 5904444,
+    'AlakD': 5344479,
+    'Fluffy': 50693872,
+    'Sysstm': 40782106,
+    'Suntzu': 11195333,
+    'Divid3': 10227129,
+    'Mornamarth': 10119180,
+    'Calca': 9015237,
+    'Raijin': 8905144,
+    'Obi': 8325745,
+    'Gallo': 7691294,
+    'FnDuke': 7516205,
+    'Xtelli': 7160714,
+    'Zetma': 7007776,
+    'Bryan': 6817555,
+    'MrOren': 6414288,
+    'Monke': 5910567,
+    'Crus8r': 5753284,
+    'DoOofy': 22232513,
+    'Kasurana': 21749286,
+    'ang': 14533951,
+    'BBQSage': 9064819,
+    'Centurium': 7957569,
+    'Assa555': 7020235,
+    'Alcar': 6704917,
+    'Trap': 6126850,
+    'Conejo': 6086334,
+    'lml Keter lml': 5830654,
+    'Neco': 8090213,
+    'ClayFM': 7773463,
+    'Nhi': 6176665,
+    'Yuriy': 5996394,
+    'nLeander': 5945108,
+    'Enes1111': 5552503,
+    'Shroud': 4432679,
+};
+
+// Format power number with M suffix
+const formatPower = (power: number): string => {
+    if (power >= 1000000) {
+        return (power / 1000000).toFixed(1) + 'M';
+    }
+    return power.toLocaleString();
 };
 
 const ALLIANCE_ROSTER = [
@@ -427,12 +487,18 @@ export default function AooStrategyPage() {
                         {[1, 2, 3].map((teamNum) => {
                             const teamInfo = teams[teamNum - 1];
                             const teamPlayers = getTeamPlayers(teamNum);
+                            const zoneTotalPower = teamPlayers.reduce((sum, p) => sum + (p.power || PLAYER_POWER[p.name] || 0), 0);
                             return (
                                 <section key={teamNum} className={`${theme.card} border rounded-xl p-4`}>
                                     <div className={`mb-4 pb-3 border-b ${theme.border}`}>
                                         <div className="flex items-center justify-between">
                                             <h3 className="font-semibold">{teamInfo.name}</h3>
-                                            <span className={`text-xs ${theme.textMuted}`}>{teamPlayers.length}</span>
+                                            <div className="text-right">
+                                                <span className={`text-xs ${theme.textMuted}`}>{teamPlayers.length} players</span>
+                                                {zoneTotalPower > 0 && (
+                                                    <p className={`text-xs ${theme.textAccent}`}>{formatPower(zoneTotalPower)}</p>
+                                                )}
+                                            </div>
                                         </div>
                                         {isEditor ? (
                                             <input type="text" value={teamInfo.description} onChange={(e) => updateTeamDescription(teamNum - 1, e.target.value)}
@@ -448,7 +514,14 @@ export default function AooStrategyPage() {
                                             teamPlayers.map((player) => (
                                                 <div key={player.id} className={`rounded-lg p-3 ${darkMode ? 'bg-zinc-800/50' : 'bg-gray-50'}`}>
                                                     <div className="flex items-center justify-between mb-2">
-                                                        <span className="font-medium text-sm">{player.name}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-medium text-sm">{player.name}</span>
+                                                            {(player.power || PLAYER_POWER[player.name]) && (
+                                                                <span className={`text-xs ${theme.textMuted}`}>
+                                                                    {formatPower(player.power || PLAYER_POWER[player.name])}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         {isEditor && (
                                                             <div className="flex items-center gap-2">
                                                                 <select value={player.team} onChange={(e) => movePlayer(player.id, Number(e.target.value))}
@@ -567,11 +640,15 @@ export default function AooStrategyPage() {
                             
                             if (foundPlayer) {
                                 const teamInfo = teams[foundPlayer.team - 1];
+                                const playerPower = foundPlayer.power || PLAYER_POWER[foundPlayer.name];
                                 return (
                                     <div className={`mt-6 p-6 rounded-xl ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
                                         <div className="text-center mb-4">
                                             <h3 className="text-2xl font-bold text-emerald-500">{foundPlayer.name}</h3>
-                                            <p className={`text-lg ${theme.textMuted}`}>
+                                            {playerPower && (
+                                                <p className={`text-sm ${theme.textMuted}`}>⚔️ {formatPower(playerPower)} Power</p>
+                                            )}
+                                            <p className={`text-lg ${theme.textMuted} mt-1`}>
                                                 {teamInfo?.name || `Zone ${foundPlayer.team}`}
                                                 {teamInfo?.description && ` • ${teamInfo.description}`}
                                             </p>
