@@ -26,42 +26,42 @@ interface Props {
   isEditor?: boolean;
 }
 
-// All buildings on the map with positions (percentages)
+// All buildings on the map with positions (percentages based on new map)
 const buildings: Building[] = [
   // Obelisks
-  { id: 'obelisk-1', name: 'Obelisk 1', shortName: 'Ob1', x: 53, y: 15 },
-  { id: 'obelisk-2', name: 'Obelisk 2', shortName: 'Ob2', x: 10, y: 43 },
-  { id: 'obelisk-3', name: 'Obelisk 3', shortName: 'Ob3', x: 87, y: 43 },
-  { id: 'obelisk-4', name: 'Obelisk 4', shortName: 'Ob4', x: 41, y: 77 },
+  { id: 'obelisk-1', name: 'Obelisk (Upper)', shortName: 'Ob1', x: 50, y: 12 },
+  { id: 'obelisk-2', name: 'Obelisk (Left)', shortName: 'Ob2', x: 10, y: 40 },
+  { id: 'obelisk-3', name: 'Obelisk (Right)', shortName: 'Ob3', x: 90, y: 40 },
+  { id: 'obelisk-4', name: 'Obelisk (Lower)', shortName: 'Ob4', x: 42, y: 78 },
   
-  // Outposts of Iset (our side)
-  { id: 'iset-1', name: 'Outpost of Iset 1', shortName: 'Iset1', x: 35, y: 18 },
-  { id: 'iset-2', name: 'Outpost of Iset 2', shortName: 'Iset2', x: 17, y: 26 },
-  { id: 'iset-3', name: 'Outpost of Iset 3', shortName: 'Iset3', x: 33, y: 30 },
+  // Outposts of Iset (your side - upper left)
+  { id: 'iset-1', name: 'Outpost of Iset 1', shortName: 'Iset1', x: 35, y: 15 },
+  { id: 'iset-2', name: 'Outpost of Iset 2', shortName: 'Iset2', x: 15, y: 24 },
+  { id: 'iset-3', name: 'Outpost of Iset 3', shortName: 'Iset3', x: 35, y: 28 },
   
-  // Outposts of Seth (enemy side)
-  { id: 'seth-1', name: 'Outpost of Seth 1', shortName: 'Seth1', x: 62, y: 60 },
-  { id: 'seth-2', name: 'Outpost of Seth 2', shortName: 'Seth2', x: 79, y: 60 },
-  { id: 'seth-3', name: 'Outpost of Seth 3', shortName: 'Seth3', x: 63, y: 72 },
+  // Outposts of Seth (enemy side - lower right)
+  { id: 'seth-1', name: 'Outpost of Seth 1', shortName: 'Seth1', x: 65, y: 60 },
+  { id: 'seth-2', name: 'Outpost of Seth 2', shortName: 'Seth2', x: 85, y: 60 },
+  { id: 'seth-3', name: 'Outpost of Seth 3', shortName: 'Seth3', x: 65, y: 73 },
   
   // Shrines of War
-  { id: 'war-1', name: 'Shrine of War 1', shortName: 'War1', x: 30, y: 48 },
-  { id: 'war-2', name: 'Shrine of War 2', shortName: 'War2', x: 70, y: 42 },
+  { id: 'war-1', name: 'Shrine of War', shortName: 'War1', x: 28, y: 46 },
+  { id: 'war-2', name: 'Shrine of War', shortName: 'War2', x: 72, y: 38 },
   
   // Shrines of Life
-  { id: 'life-1', name: 'Shrine of Life 1', shortName: 'Life1', x: 70, y: 16 },
-  { id: 'life-2', name: 'Shrine of Life 2', shortName: 'Life2', x: 22, y: 72 },
+  { id: 'life-1', name: 'Shrine of Life', shortName: 'Life1', x: 72, y: 18 },
+  { id: 'life-2', name: 'Shrine of Life', shortName: 'Life2', x: 22, y: 73 },
   
   // Desert Altars
-  { id: 'desert-1', name: 'Desert Altar 1', shortName: 'Des1', x: 55, y: 31 },
-  { id: 'desert-2', name: 'Desert Altar 2', shortName: 'Des2', x: 42, y: 61 },
+  { id: 'desert-1', name: 'Desert Altar', shortName: 'Des1', x: 55, y: 28 },
+  { id: 'desert-2', name: 'Desert Altar', shortName: 'Des2', x: 42, y: 60 },
   
   // Sky Altars
-  { id: 'sky-1', name: 'Sky Altar 1', shortName: 'Sky1', x: 85, y: 27 },
-  { id: 'sky-2', name: 'Sky Altar 2', shortName: 'Sky2', x: 12, y: 57 },
+  { id: 'sky-1', name: 'Sky Altar', shortName: 'Sky1', x: 88, y: 25 },
+  { id: 'sky-2', name: 'Sky Altar', shortName: 'Sky2', x: 10, y: 58 },
   
-  // Ark
-  { id: 'ark', name: 'Ark', shortName: 'Ark', x: 48, y: 45 },
+  // Ark (center)
+  { id: 'ark', name: 'Ark', shortName: 'Ark', x: 48, y: 43 },
 ];
 
 // Zone colors - colorblind friendly
@@ -312,61 +312,12 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   style={{ opacity: isDark ? 0.8 : 1 }}
                 />
 
-                {/* Zone Overlays - Simple rectangular regions */}
-                {/* Zone 1 (Blue) - Left/Lower side */}
-                <div
-                  className="absolute border-2 border-blue-500 bg-blue-500/15 rounded-lg"
-                  style={{
-                    left: '2%',
-                    top: '15%',
-                    width: '30%',
-                    height: '70%',
-                    zIndex: 5,
-                  }}
-                />
-
-                {/* Zone 2 (Orange) - Center/Ark area */}
-                <div
-                  className="absolute border-2 border-orange-500 bg-orange-500/15 rounded-lg"
-                  style={{
-                    left: '32%',
-                    top: '25%',
-                    width: '36%',
-                    height: '50%',
-                    zIndex: 5,
-                  }}
-                />
-
-                {/* Zone 3 (Purple) - Right/Upper side */}
-                <div
-                  className="absolute border-2 border-purple-500 bg-purple-500/15 rounded-lg"
-                  style={{
-                    left: '68%',
-                    top: '10%',
-                    width: '30%',
-                    height: '55%',
-                    zIndex: 5,
-                  }}
-                />
-
-                {/* Enemy Territory (Red dashed) - Lower right */}
-                <div
-                  className="absolute border-2 border-dashed border-red-500 bg-red-500/10 rounded-lg"
-                  style={{
-                    left: '60%',
-                    top: '65%',
-                    width: '38%',
-                    height: '33%',
-                    zIndex: 4,
-                  }}
-                />
-
-                {/* START Marker - Upper Left (Iset/Blue) */}
+                {/* START Marker - Upper Left spawn circle */}
                 <div
                   className="absolute flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-sm shadow-lg border-2 border-emerald-400"
                   style={{
-                    left: '18%',
-                    top: '8%',
+                    left: '12%',
+                    top: '6%',
                     transform: 'translate(-50%, -50%)',
                     zIndex: 20,
                   }}
@@ -375,12 +326,12 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   <span>START</span>
                 </div>
 
-                {/* ENEMY Marker - Lower Right (Seth/Red) */}
+                {/* ENEMY Marker - Lower Right spawn circle */}
                 <div
                   className="absolute flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-600 text-white font-bold text-sm shadow-lg border-2 border-red-400"
                   style={{
-                    left: '82%',
-                    top: '92%',
+                    left: '88%',
+                    top: '94%',
                     transform: 'translate(-50%, -50%)',
                     zIndex: 20,
                   }}
@@ -389,55 +340,20 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   <span>ENEMY</span>
                 </div>
 
-                {/* Zone Labels */}
+                {/* RUSH Labels - Your two obelisks to capture first */}
+                {/* Obelisk in upper area (top-center of map) */}
                 <div
-                  className="absolute px-2 py-1 rounded bg-blue-600 text-white text-xs font-bold shadow-lg"
-                  style={{
-                    left: '4%',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    zIndex: 15,
-                  }}
+                  className="absolute px-2 py-1 rounded bg-yellow-500 text-black text-xs font-bold shadow-lg border border-yellow-600"
+                  style={{ left: '50%', top: '8%', transform: 'translate(-50%, -50%)', zIndex: 25 }}
                 >
-                  ZONE 1
+                  🎯 RUSH
                 </div>
-
+                {/* Obelisk on left side */}
                 <div
-                  className="absolute px-2 py-1 rounded bg-orange-500 text-white text-xs font-bold shadow-lg"
-                  style={{
-                    left: '50%',
-                    top: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    zIndex: 15,
-                  }}
+                  className="absolute px-2 py-1 rounded bg-yellow-500 text-black text-xs font-bold shadow-lg border border-yellow-600"
+                  style={{ left: '5%', top: '40%', transform: 'translate(-50%, -50%)', zIndex: 25 }}
                 >
-                  ZONE 2
-                </div>
-
-                <div
-                  className="absolute px-2 py-1 rounded bg-purple-600 text-white text-xs font-bold shadow-lg"
-                  style={{
-                    left: '94%',
-                    top: '35%',
-                    transform: 'translateY(-50%)',
-                    zIndex: 15,
-                  }}
-                >
-                  ZONE 3
-                </div>
-
-                {/* RUSH Labels - Obelisk 1 (top center) and Obelisk 2 (left) */}
-                <div
-                  className="absolute px-1.5 py-0.5 rounded bg-yellow-500 text-black text-xs font-bold shadow"
-                  style={{ left: '53%', top: '20%', transform: 'translate(-50%, -50%)', zIndex: 25 }}
-                >
-                  RUSH
-                </div>
-                <div
-                  className="absolute px-1.5 py-0.5 rounded bg-yellow-500 text-black text-xs font-bold shadow"
-                  style={{ left: '10%', top: '50%', transform: 'translate(-50%, -50%)', zIndex: 25 }}
-                >
-                  RUSH
+                  🎯 RUSH
                 </div>
 
                 {/* Building Markers */}
@@ -501,24 +417,20 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 <span className={theme.textMuted}>Enemy spawn</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="px-2 py-0.5 rounded bg-yellow-500 text-black font-bold">RUSH</span>
-                <span className={theme.textMuted}>Phase 1 priority</span>
+                <span className="px-2 py-0.5 rounded bg-yellow-500 text-black font-bold">🎯 RUSH</span>
+                <span className={theme.textMuted}>Phase 1 obelisks</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded-full bg-blue-600"></span>
-                <span className={theme.textMuted}>Zone 1</span>
+                <span className="w-4 h-4 rounded" style={{ backgroundColor: '#8B9A7D' }}></span>
+                <span className={theme.textMuted}>Lower (Zone 1)</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded-full bg-orange-500"></span>
-                <span className={theme.textMuted}>Zone 2</span>
+                <span className="w-4 h-4 rounded" style={{ backgroundColor: '#D4A574' }}></span>
+                <span className={theme.textMuted}>Middle (Zone 2)</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded-full bg-purple-600"></span>
-                <span className={theme.textMuted}>Zone 3</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded border-2 border-dashed border-red-500 bg-red-500/20"></span>
-                <span className={theme.textMuted}>Enemy territory</span>
+                <span className="w-4 h-4 rounded" style={{ backgroundColor: '#C4908A' }}></span>
+                <span className={theme.textMuted}>Upper (Zone 3)</span>
               </div>
             </div>
           </div>
