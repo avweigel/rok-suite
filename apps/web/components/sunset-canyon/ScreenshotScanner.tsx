@@ -230,7 +230,63 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
       }
     }
     
-    // ===== STRATEGY 6: SPECIALTY TAG MATCHING =====
+    // ===== STRATEGY 6: SPECIFIC TITLE/NAME PATTERNS =====
+    // These are high-confidence patterns - check BEFORE specialty matching
+    const titlePatterns: Array<{ pattern: RegExp; name: string }> = [
+      // MOST SPECIFIC FIRST - multi-word titles
+      { pattern: /bushido\s*spirit/i, name: 'Kusunoki Masashige' },  // Must be before "spirit"
+      { pattern: /spirit\s*(of\s*(the\s*)?)?steppe/i, name: 'Genghis Khan' },
+      { pattern: /immortal\s*hammer/i, name: 'Charles Martel' },
+      { pattern: /conqueror\s*(of\s*)?istanbul/i, name: 'Mehmed II' },
+      { pattern: /blades?\s*(of\s*)?warfare/i, name: 'Scipio Africanus' },
+      { pattern: /father\s*(of\s*)?conquest/i, name: 'Baibars' },
+      { pattern: /beloved\s*(of\s*)?thoth/i, name: 'Thutmose III' },
+      { pattern: /imperial\s*pioneer/i, name: 'Osman I' },
+      { pattern: /king\s*(of\s*)?kattegat/i, name: 'Björn Ironside' },
+      { pattern: /tactical\s*genius/i, name: 'Sun Tzu' },
+      { pattern: /celtic\s*rose/i, name: 'Boudica' },
+      { pattern: /roaring\s*barbarian/i, name: 'Lohar' },
+      { pattern: /kamakura.*warlord/i, name: 'Minamoto no Yoshitsune' },
+      { pattern: /lady\s*six\s*sky/i, name: 'Wak Chanil Ajaw' },
+      { pattern: /lady\s*(of\s*(the\s*)?)?mercians/i, name: 'Aethelflaed' },
+      { pattern: /king\s*(of\s*)?wei/i, name: 'Cao Cao' },
+      { pattern: /conqueror\s*(of\s*)?chaos/i, name: 'Cao Cao' },
+      { pattern: /saint\s*(of\s*)?war/i, name: 'Guan Yu' },
+      { pattern: /the\s*lionheart/i, name: 'Richard I' },
+      { pattern: /king\s*(of\s*)?joseon/i, name: 'Yi Seong-Gye' },
+      
+      // DIRECT NAME PATTERNS
+      { pattern: /kusunoki\s*masashig/i, name: 'Kusunoki Masashige' },
+      { pattern: /kusunoki/i, name: 'Kusunoki Masashige' },
+      { pattern: /masashig/i, name: 'Kusunoki Masashige' },
+      { pattern: /charles\s*martel/i, name: 'Charles Martel' },
+      { pattern: /arles\s*mart/i, name: 'Charles Martel' },
+      { pattern: /bjorn\s*ironside/i, name: 'Björn Ironside' },
+      { pattern: /thutmose/i, name: 'Thutmose III' },
+      { pattern: /aethelfla?e?d/i, name: 'Aethelflaed' },
+      { pattern: /athelfla?e?d/i, name: 'Aethelflaed' },
+      { pattern: /thelfl/i, name: 'Aethelflaed' },
+      { pattern: /imperial\s*pi/i, name: 'Osman I' },
+      { pattern: /\bosma?n?\b/i, name: 'Osman I' },
+      { pattern: /\bmehm?e?d?\b/i, name: 'Mehmed II' },
+      { pattern: /cao\s*cao/i, name: 'Cao Cao' },
+      { pattern: /scipio/i, name: 'Scipio Africanus' },
+      { pattern: /africanus/i, name: 'Scipio Africanus' },
+      { pattern: /\bwarfare\b/i, name: 'Scipio Africanus' },  // "Blades of Warfare"
+    ];
+    
+    for (const { pattern, name } of titlePatterns) {
+      if (pattern.test(normalizedText)) {
+        const commander = commanders.find(c => c.name.toLowerCase() === name.toLowerCase());
+        if (commander) {
+          console.log(`[OCR Match] Found by title: "${pattern.source}" -> ${commander.name}`);
+          return commander;
+        }
+      }
+    }
+    
+    // ===== STRATEGY 7: SPECIALTY TAG MATCHING =====
+    // Only used if title patterns didn't match
     const specialtyMatches = findBySpecialties(normalizedText);
     if (specialtyMatches.length === 1) {
       // Unique match by specialties
@@ -249,70 +305,6 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
             console.log(`[OCR Match] Specialty + partial name: ${commander.name}`);
             return commander;
           }
-        }
-      }
-    }
-    
-    // ===== STRATEGY 7: SPECIFIC TITLE PATTERNS (HIGH CONFIDENCE ONLY) =====
-    // Order matters! More specific patterns must come before general ones
-    const titlePatterns: Array<{ pattern: RegExp; name: string }> = [
-      // MOST SPECIFIC FIRST - multi-word titles
-      { pattern: /bushido\s*spirit/i, name: 'Kusunoki Masashige' },  // Must be before "spirit"
-      { pattern: /spirit\s*(of\s*(the\s*)?)?steppe/i, name: 'Genghis Khan' },
-      { pattern: /immortal\s*hammer/i, name: 'Charles Martel' },
-      { pattern: /conqueror\s*(of\s*)?istanbul/i, name: 'Mehmed II' },
-      { pattern: /blades\s*(of\s*)?warfare/i, name: 'Scipio Africanus' },
-      { pattern: /father\s*(of\s*)?conquest/i, name: 'Baibars' },
-      { pattern: /beloved\s*(of\s*)?thoth/i, name: 'Thutmose III' },
-      { pattern: /imperial\s*pioneer/i, name: 'Osman I' },
-      { pattern: /king\s*(of\s*)?kattegat/i, name: 'Björn Ironside' },
-      { pattern: /tactical\s*genius/i, name: 'Sun Tzu' },
-      { pattern: /celtic\s*rose/i, name: 'Boudica' },
-      { pattern: /roaring\s*barbarian/i, name: 'Lohar' },
-      { pattern: /kamakura.*warlord/i, name: 'Minamoto no Yoshitsune' },
-      { pattern: /lady\s*six\s*sky/i, name: 'Wak Chanil Ajaw' },
-      { pattern: /lady\s*(of\s*(the\s*)?)?mercians/i, name: 'Aethelflaed' },
-      { pattern: /king\s*(of\s*)?wei/i, name: 'Cao Cao' },
-      { pattern: /saint\s*(of\s*)?war/i, name: 'Guan Yu' },
-      { pattern: /the\s*lionheart/i, name: 'Richard I' },
-      { pattern: /king\s*(of\s*)?joseon/i, name: 'Yi Seong-Gye' },
-      
-      // DIRECT NAME PATTERNS (less specific)
-      { pattern: /kusunoki\s*masashig/i, name: 'Kusunoki Masashige' },
-      { pattern: /kusunoki/i, name: 'Kusunoki Masashige' },
-      { pattern: /masashig/i, name: 'Kusunoki Masashige' },
-      { pattern: /charles\s*martel/i, name: 'Charles Martel' },
-      { pattern: /arles\s*mart/i, name: 'Charles Martel' },
-      { pattern: /bjorn\s*ironside/i, name: 'Björn Ironside' },
-      { pattern: /thutmose/i, name: 'Thutmose III' },
-      { pattern: /aethelfla?e?d/i, name: 'Aethelflaed' },
-      { pattern: /athelfla?e?d/i, name: 'Aethelflaed' },
-      { pattern: /thelfl/i, name: 'Aethelflaed' },
-      
-      // Osman I - OCR reads "Imperial Pi", "osm", "Osma"
-      { pattern: /imperial\s*pi/i, name: 'Osman I' },
-      { pattern: /\bosma?n?\b/i, name: 'Osman I' },
-      
-      // Mehmed II - OCR reads "Conqueror of Istanbul", "Meh", "Mehm"
-      // Must be "Istanbul" not just "Conqueror" (Cao Cao is "Conqueror of Chaos")
-      { pattern: /conqueror\s*(of\s*)?istanbul/i, name: 'Mehmed II' },
-      { pattern: /\bmehm?e?d?\b/i, name: 'Mehmed II' },
-      
-      // Cao Cao - "Conqueror of Chaos" or "King of Wei"
-      { pattern: /conqueror\s*(of\s*)?chaos/i, name: 'Cao Cao' },
-      { pattern: /cao\s*cao/i, name: 'Cao Cao' },
-      
-      // SPECIALTY-BASED PATTERNS (when OCR completely fails on name)
-      // Only use when the specialty combo is unique or nearly unique
-      // Charles Martel: Infantry/Garrison/Defense (shared with Richard I, but Richard has "Lionheart")
-    ];
-    
-    for (const { pattern, name } of titlePatterns) {
-      if (pattern.test(normalizedText)) {
-        const commander = commanders.find(c => c.name.toLowerCase() === name.toLowerCase());
-        if (commander) {
-          console.log(`[OCR Match] Problem pattern match (${pattern}): ${commander.name}`);
-          return commander;
         }
       }
     }
