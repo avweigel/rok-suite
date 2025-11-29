@@ -340,20 +340,20 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   <span>ENEMY</span>
                 </div>
 
-                {/* RUSH Labels - Your two obelisks to capture first */}
-                {/* Obelisk in upper area (top-center of map) */}
+                {/* RUSH indicators - small arrows pointing to obelisks */}
+                {/* Obelisk in upper area */}
                 <div
-                  className="absolute px-2 py-1 rounded bg-yellow-500 text-black text-xs font-bold shadow-lg border border-yellow-600"
-                  style={{ left: '50%', top: '8%', transform: 'translate(-50%, -50%)', zIndex: 25 }}
+                  className="absolute px-1.5 py-0.5 rounded bg-yellow-500/90 text-black text-[10px] font-bold shadow"
+                  style={{ left: '50%', top: '5%', transform: 'translate(-50%, 0)', zIndex: 15 }}
                 >
-                  🎯 RUSH
+                  RUSH ↓
                 </div>
                 {/* Obelisk on left side */}
                 <div
-                  className="absolute px-2 py-1 rounded bg-yellow-500 text-black text-xs font-bold shadow-lg border border-yellow-600"
-                  style={{ left: '5%', top: '40%', transform: 'translate(-50%, -50%)', zIndex: 25 }}
+                  className="absolute px-1.5 py-0.5 rounded bg-yellow-500/90 text-black text-[10px] font-bold shadow"
+                  style={{ left: '3%', top: '40%', transform: 'translate(0, -50%)', zIndex: 15 }}
                 >
-                  🎯 RUSH
+                  RUSH →
                 </div>
 
                 {/* Building Markers */}
@@ -417,20 +417,16 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 <span className={theme.textMuted}>Enemy spawn</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="px-2 py-0.5 rounded bg-yellow-500 text-black font-bold">🎯 RUSH</span>
-                <span className={theme.textMuted}>Phase 1 obelisks</span>
+                <span className="w-4 h-4 rounded bg-blue-500/50 border border-blue-500"></span>
+                <span className={theme.textMuted}>Zone 1 (Lower)</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded" style={{ backgroundColor: '#8B9A7D' }}></span>
-                <span className={theme.textMuted}>Lower (Zone 1)</span>
+                <span className="w-4 h-4 rounded bg-orange-500/50 border border-orange-500"></span>
+                <span className={theme.textMuted}>Zone 2 (Middle)</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded" style={{ backgroundColor: '#D4A574' }}></span>
-                <span className={theme.textMuted}>Middle (Zone 2)</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded" style={{ backgroundColor: '#C4908A' }}></span>
-                <span className={theme.textMuted}>Upper (Zone 3)</span>
+                <span className="w-4 h-4 rounded bg-purple-500/50 border border-purple-500"></span>
+                <span className={theme.textMuted}>Zone 3 (Upper)</span>
               </div>
             </div>
           </div>
