@@ -367,12 +367,28 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 >
                   Z3 RUSH ↓
                 </div>
+                {/* Teleport indicator for Obelisk 1 */}
+                <div
+                  className="absolute px-1.5 py-0.5 rounded bg-purple-800/80 text-purple-200 text-[9px] font-medium shadow"
+                  style={{ left: '58%', top: '10%', transform: 'translate(-50%, 0)', zIndex: 15 }}
+                >
+                  ⚡ TP: Divid3, Mornamarth, Calca
+                </div>
+                
                 {/* Zone 1 rushes Obelisk 2 (left) */}
                 <div
                   className="absolute px-1.5 py-0.5 rounded bg-blue-600 text-white text-[10px] font-bold shadow"
                   style={{ left: '2%', top: '40%', transform: 'translate(0, -50%)', zIndex: 15 }}
                 >
                   Z1 RUSH →
+                </div>
+                {/* Teleport indicator for Obelisk 2 */}
+                <div
+                  className="absolute px-1.5 py-0.5 rounded bg-blue-800/80 text-blue-200 text-[9px] font-medium shadow"
+                  style={{ left: '10%', top: '48%', transform: 'translate(-50%, 0)', zIndex: 15 }}
+                >
+                  ⚡ TP: cloud, MayorEric, bear
+                </div>
                 </div>
 
                 {/* Building Markers */}
@@ -498,23 +514,52 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                     {players.length > 0 && (() => {
                       const buildingName = selectedBuilding.name;
                       const shortName = selectedBuilding.shortName;
+                      const buildingId = selectedBuilding.id;
                       const assignedTeam = assignments[selectedBuilding.id]?.team;
+                      
+                      // Create search terms for this building
+                      const searchTerms: string[] = [
+                        buildingName.toLowerCase(),
+                        shortName.toLowerCase(),
+                      ];
+                      
+                      // Add common variations
+                      if (buildingId === 'obelisk-1') searchTerms.push('obelisk 1', 'ob1', 'obelisk (upper)');
+                      if (buildingId === 'obelisk-2') searchTerms.push('obelisk 2', 'ob2', 'obelisk (left)');
+                      if (buildingId === 'obelisk-3') searchTerms.push('obelisk 3', 'ob3', 'obelisk (right)');
+                      if (buildingId === 'obelisk-4') searchTerms.push('obelisk 4', 'ob4', 'obelisk (lower)');
+                      if (buildingId.includes('iset')) searchTerms.push('iset', 'outpost of iset');
+                      if (buildingId.includes('seth')) searchTerms.push('seth', 'outpost of seth', 'seth outpost');
+                      if (buildingId.includes('war')) searchTerms.push('shrine of war', 'war');
+                      if (buildingId.includes('life')) searchTerms.push('shrine of life', 'life');
+                      if (buildingId.includes('desert')) searchTerms.push('desert altar', 'desert');
+                      if (buildingId.includes('sky')) searchTerms.push('sky altar', 'sky');
+                      if (buildingId === 'ark') searchTerms.push('ark');
                       
                       // Find players assigned to this building
                       const getPlayersForRole = (role: string) => {
                         return players.filter(p => {
                           if (p.team !== assignedTeam) return false;
                           if (!p.assignments) return false;
-                          const allAssignments = Object.values(p.assignments).join(' ');
-                          return allAssignments.toLowerCase().includes(buildingName.toLowerCase()) ||
-                                 allAssignments.toLowerCase().includes(shortName.toLowerCase());
+                          const allAssignments = Object.values(p.assignments).join(' ').toLowerCase();
+                          return searchTerms.some(term => allAssignments.includes(term));
                         }).filter(p => p.tags.includes(role));
+                      };
+                      
+                      // Also get teleporters for obelisks
+                      const getTeleporters = () => {
+                        if (!buildingId.includes('obelisk')) return { first: [], second: [] };
+                        return {
+                          first: players.filter(p => p.team === assignedTeam && p.tags.includes('Teleport 1st')),
+                          second: players.filter(p => p.team === assignedTeam && p.tags.includes('Teleport 2nd'))
+                        };
                       };
 
                       const conquerors = getPlayersForRole('Conquer');
                       const garrisons = getPlayersForRole('Garrison');
                       const rallyLeaders = getPlayersForRole('Rally Leader');
-                      const allAssigned = [...new Set([...conquerors, ...garrisons, ...rallyLeaders])];
+                      const teleporters = getTeleporters();
+                      const allAssigned = [...new Set([...conquerors, ...garrisons, ...rallyLeaders, ...teleporters.first, ...teleporters.second])];
 
                       if (allAssigned.length === 0) {
                         return (
@@ -562,6 +607,42 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                                 <div key={p.id} className={`text-sm ${theme.text}`}>{p.name}</div>
                               ))}
                             </div>
+                          )}
+                          
+                          {/* Teleport info for obelisks */}
+                          {buildingId.includes('obelisk') && (teleporters.first.length > 0 || teleporters.second.length > 0) && (
+                            <>
+                              {teleporters.first.length > 0 && (
+                                <div className={`p-2 rounded ${theme.bgTertiary}`}>
+                                  <div className="flex items-center gap-1 mb-1">
+                                    <span className="text-blue-500">⚡</span>
+                                    <span className={`text-xs font-medium ${theme.textMuted}`}>Teleport 1st (Immediate)</span>
+                                  </div>
+                                  <div className={`text-xs ${theme.text}`}>
+                                    {teleporters.first.map(p => p.name).join(', ')}
+                                  </div>
+                                </div>
+                              )}
+                              {teleporters.second.length > 0 && (
+                                <div className={`p-2 rounded ${theme.bgTertiary}`}>
+                                  <div className="flex items-center gap-1 mb-1">
+                                    <span className="text-cyan-500">⚡</span>
+                                    <span className={`text-xs font-medium ${theme.textMuted}`}>Teleport 2nd (When Called)</span>
+                                  </div>
+                                  <div className={`text-xs ${theme.text}`}>
+                                    {teleporters.second.map(p => p.name).join(', ')}
+                                  </div>
+                                </div>
+                              )}
+                              <div className={`p-2 rounded border ${theme.border} text-xs ${theme.textMuted}`}>
+                                <p className="font-medium mb-1">📍 Teleport Rules:</p>
+                                <ul className="space-y-0.5">
+                                  <li>• First capture: 5-8 teleports earned</li>
+                                  <li>• Obelisks generate more over time</li>
+                                  <li>• Troops must be in city or buildings</li>
+                                </ul>
+                              </div>
+                            </>
                           )}
                         </div>
                       );
