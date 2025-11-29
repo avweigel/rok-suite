@@ -51,12 +51,12 @@ const DEFAULT_TEAMS: TeamInfo[] = [
     { name: 'Zone 3', description: 'Lower' },
 ];
 
-const AVAILABLE_TAGS = ['Rally Leader', 'Teleport 1st', 'Teleport 2nd', 'Garrison', 'Farm', 'Conquer'];
+const AVAILABLE_TAGS = ['Rally Leader', 'Teleport 1st', 'Hold Obelisks', 'Garrison', 'Farm', 'Conquer'];
 
 const TAG_COLORS: Record<string, string> = {
     'Rally Leader': 'bg-red-600 text-white',
     'Teleport 1st': 'bg-blue-600 text-white',
-    'Teleport 2nd': 'bg-cyan-400 text-black',
+    'Hold Obelisks': 'bg-cyan-400 text-black',
     'Garrison': 'bg-orange-600 text-white',
     'Farm': 'bg-yellow-500 text-black',
     'Conquer': 'bg-purple-600 text-white',
@@ -947,10 +947,10 @@ export default function AooStrategyPage() {
                                                     <li>🎯 <strong>Rally Leader:</strong> Use strongest commanders (Guan Yu, Martel, YSG). Start rallies early!</li>
                                                 )}
                                                 {foundPlayer.tags.includes('Teleport 1st') && (
-                                                    <li>⚡ <strong>Teleport 1st:</strong> Teleport IMMEDIATELY when obelisk is captured. Don&apos;t wait!</li>
+                                                    <li>⚡ <strong>Teleport 1st:</strong> You are Fluffy, Sysstm, or Suntzu. Teleport IMMEDIATELY!</li>
                                                 )}
-                                                {foundPlayer.tags.includes('Teleport 2nd') && (
-                                                    <li>⚡ <strong>Teleport 2nd:</strong> Wait for Discord call, then teleport to reinforce.</li>
+                                                {foundPlayer.tags.includes('Hold Obelisks') && (
+                                                    <li>🏰 <strong>Hold Obelisks:</strong> Send 1 troop to EACH Obelisk 3&4. Once first wave TPs, join rallies!</li>
                                                 )}
                                                 {foundPlayer.tags.includes('Garrison') && (
                                                     <li>🛡️ <strong>Garrison:</strong> Use infantry commanders. Stay in buildings to defend!</li>
@@ -1019,12 +1019,22 @@ export default function AooStrategyPage() {
                                                         </ul>
                                                     </div>
                                                 )}
-                                                {(foundPlayer.tags.includes('Teleport 1st') || foundPlayer.tags.includes('Teleport 2nd')) && (
+                                                {foundPlayer.tags.includes('Teleport 1st') && (
                                                     <div className={`p-2 rounded border-l-2 border-blue-500 ${darkMode ? 'bg-blue-900/20' : 'bg-blue-50'}`}>
                                                         <p className="font-medium text-blue-500">Teleport Marches:</p>
                                                         <ul className={`text-xs ${theme.textMuted}`}>
                                                             <li>• Before teleport: All troops in city OR in buildings</li>
-                                                            <li>• After teleport: Fill rallies &amp; garrison buildings</li>
+                                                            <li>• After teleport: Rally altars &amp; fill rallies</li>
+                                                        </ul>
+                                                    </div>
+                                                )}
+                                                {foundPlayer.tags.includes('Hold Obelisks') && (
+                                                    <div className={`p-2 rounded border-l-2 border-cyan-500 ${darkMode ? 'bg-cyan-900/20' : 'bg-cyan-50'}`}>
+                                                        <p className="font-medium text-cyan-600">Hold Strategy:</p>
+                                                        <ul className={`text-xs ${theme.textMuted}`}>
+                                                            <li>• Send 1 troop (any type) to Obelisk 3</li>
+                                                            <li>• Send 1 troop (any type) to Obelisk 4</li>
+                                                            <li>• Once Fluffy/Sysstm/Suntzu TP, join rallies!</li>
                                                         </ul>
                                                     </div>
                                                 )}
@@ -1086,8 +1096,8 @@ BEFORE BATTLE:
 
 KNOW YOUR ROLE:
 - Rally Leader: Rally altars after teleport (1 min rallies)
-- Teleport 1st: TP immediately when your obelisk captured
-- Teleport 2nd: TP when Obelisks 3 & 4 are captured
+- Teleport 1st (Fluffy/Sysstm/Suntzu): TP immediately
+- Hold Obelisks: Send 1 troop to each Obelisk 3&4
 - Garrison: Stay in buildings to defend
 - Conquer: Use cavalry, be first to buildings
 - Farm: Support rallies first, then gather
@@ -1228,12 +1238,13 @@ Follow leader's calls`}
                                 </div>
                             </div>
                             <div className={`p-4 rounded-lg ${darkMode ? 'bg-yellow-900/30' : 'bg-yellow-100'} border border-yellow-600/50 mb-4`}>
-                                <div className="font-bold text-yellow-600 mb-2">⚡ CRITICAL: TELEPORT WAVE</div>
+                                <div className="font-bold text-yellow-600 mb-2">⚡ CRITICAL: FIRST WAVE TELEPORT</div>
                                 <div className={`text-sm ${theme.text} space-y-2`}>
-                                    <div>🔷 <strong>Teleport 1st:</strong> Teleport IMMEDIATELY when obelisk captured (don't wait!)</div>
-                                    <div>🔷 <strong>Teleport 2nd:</strong> Wait for leader's call, then teleport to reinforce</div>
+                                    <div>⚡ <strong>Fluffy, Sysstm, Suntzu:</strong> Teleport IMMEDIATELY (first wave!)</div>
+                                    <div>🏰 <strong>Hold Obelisks (Top Team):</strong> Send 1 troop to EACH Obelisk 3&4</div>
+                                    <div>📢 <strong>Once first wave TPs:</strong> Rally the obelisks!</div>
                                     <div>🛡️ <strong>Garrison:</strong> Stay in buildings to defend</div>
-                                    <div>🏃 <strong>Conquer:</strong> Capture Iset Outposts with T1 cavalry</div>
+                                    <div>🏃 <strong>Conquer:</strong> Capture outposts, then shrines/altars with cavalry</div>
                                     <div>🌾 <strong>Farm:</strong> Support rallies, then gather with remaining marches</div>
                                 </div>
                             </div>
@@ -1309,15 +1320,15 @@ Follow leader's calls`}
                                 </ul>
                             </div>
 
-                            {/* Teleport 2nd */}
+                            {/* Hold Obelisks */}
                             <div className={`p-4 rounded-xl ${darkMode ? 'bg-cyan-900/30 border-2 border-cyan-400' : 'bg-cyan-50 border-2 border-cyan-400'}`}>
-                                <div className="text-3xl mb-2">⏱️</div>
-                                <h3 className="font-bold text-cyan-400 text-lg mb-2">Teleport 2nd</h3>
+                                <div className="text-3xl mb-2">🏰</div>
+                                <h3 className="font-bold text-cyan-400 text-lg mb-2">Hold Obelisks</h3>
                                 <ul className={`text-sm ${theme.text} space-y-1`}>
-                                    <li>✓ WAIT for leader's call</li>
-                                    <li>✓ Don't teleport early</li>
-                                    <li>✓ Reinforce when called</li>
-                                    <li>✓ Fill rallies immediately</li>
+                                    <li>✓ Send 1 troop to Obelisk 3</li>
+                                    <li>✓ Send 1 troop to Obelisk 4</li>
+                                    <li>✓ Wait for first wave TP</li>
+                                    <li>✓ Then join rallies!</li>
                                 </ul>
                             </div>
 
