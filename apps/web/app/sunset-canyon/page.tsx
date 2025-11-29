@@ -451,10 +451,19 @@ function DefenseTab() {
       {/* Results */}
       {optimizedFormations.length > 0 && selectedFormation && (
         <div className="rounded-xl p-6 bg-gradient-to-br from-green-900/20 to-stone-900/80 border border-green-600/20">
-          <h3 className="text-lg font-semibold text-green-400 mb-4 flex items-center gap-2">
-            <Trophy className="w-5 h-5" />
-            Your Optimal Defense (Castle Level {cityHallLevel})
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-green-400 flex items-center gap-2">
+              <Trophy className="w-5 h-5" />
+              Your Optimal Defense (Castle Level {cityHallLevel})
+            </h3>
+            {/* Total Power */}
+            <div className="text-right">
+              <div className="text-xs text-stone-500 uppercase">Total Power</div>
+              <div className="text-2xl font-bold text-amber-500">
+                {selectedFormation.totalPower?.toLocaleString() || 'N/A'}
+              </div>
+            </div>
+          </div>
           
           {/* Formation selector tabs */}
           {optimizedFormations.length > 1 && (
@@ -545,6 +554,14 @@ function DefenseTab() {
                           <div className="text-stone-500 italic">None (solo)</div>
                         )}
                       </div>
+                    </div>
+                  </div>
+                  
+                  {/* Troop Power */}
+                  <div className="text-right mr-2">
+                    <div className="text-xs text-stone-500">Power</div>
+                    <div className="text-lg font-bold text-green-400">
+                      {army.troopPower?.toLocaleString() || '-'}
                     </div>
                   </div>
                   

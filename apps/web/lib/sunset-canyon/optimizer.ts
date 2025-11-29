@@ -3,12 +3,16 @@
 import { UserCommander } from './commanders';
 import { createArmy, runSimulations, Formation, Army } from './simulation';
 
+export interface OptimizedArmy {
+  primary: UserCommander;
+  secondary: UserCommander | undefined;
+  position: { row: 'front' | 'back'; slot: number };
+  troopPower: number;
+}
+
 export interface OptimizedFormation {
-  armies: {
-    primary: UserCommander;
-    secondary: UserCommander | undefined;
-    position: { row: 'front' | 'back'; slot: number };
-  }[];
+  armies: OptimizedArmy[];
+  totalPower: number;
   winRate: number;
   reasoning: string[];
 }
@@ -117,18 +121,20 @@ function getBackRowScore(commander: UserCommander): number {
 }
 
 // Generate all possible pairings of commanders
-function generatePairings(commanders: UserCommander[]): Array<{ primary: UserCommander; secondary: UserCommander | undefined; score: number }> {
+function generatePairings(commanders: UserCommander[], requirePairs: boolean = false): Array<{ primary: UserCommander; secondary: UserCommander | undefined; score: number }> {
   const pairings: Array<{ primary: UserCommander; secondary: UserCommander | undefined; score: number }> = [];
   
   for (let i = 0; i < commanders.length; i++) {
     const primary = commanders[i];
     
-    // Solo option (no secondary)
-    pairings.push({
-      primary,
-      secondary: undefined,
-      score: primary.level + (primary.rarity === 'legendary' ? 20 : 0)
-    });
+    // Solo option (no secondary) - only if we don't have enough for full pairs
+    if (!requirePairs) {
+      pairings.push({
+        primary,
+        secondary: undefined,
+        score: primary.level + (primary.rarity === 'legendary' ? 20 : 0) - 100 // Heavy penalty for solo
+      });
+    }
     
     // Pair with each other commander
     for (let j = 0; j < commanders.length; j++) {
@@ -146,13 +152,17 @@ function generatePairings(commanders: UserCommander[]): Array<{ primary: UserCom
 // Select 5 armies that don't reuse any commander
 function selectNonOverlappingArmies(
   pairings: Array<{ primary: UserCommander; secondary: UserCommander | undefined; score: number }>,
-  count: number = 5
+  count: number = 5,
+  requirePairs: boolean = false
 ): Array<{ primary: UserCommander; secondary: UserCommander | undefined }> {
   const selected: Array<{ primary: UserCommander; secondary: UserCommander | undefined }> = [];
   const usedIds = new Set<string>();
   
   for (const pairing of pairings) {
     if (selected.length >= count) break;
+    
+    // Skip solo options if we require pairs
+    if (requirePairs && !pairing.secondary) continue;
     
     const primaryId = pairing.primary.uniqueId;
     const secondaryId = pairing.secondary?.uniqueId;
@@ -172,8 +182,9 @@ function selectNonOverlappingArmies(
 
 // Assign positions to armies based on their characteristics
 function assignPositions(
-  armies: Array<{ primary: UserCommander; secondary: UserCommander | undefined }>
-): Array<{ primary: UserCommander; secondary: UserCommander | undefined; position: { row: 'front' | 'back'; slot: number } }> {
+  armies: Array<{ primary: UserCommander; secondary: UserCommander | undefined }>,
+  cityHallLevel: number
+): OptimizedArmy[] {
   // Score each army for front vs back
   const scoredArmies = armies.map(army => ({
     ...army,
@@ -184,7 +195,7 @@ function assignPositions(
   // Sort by difference (most "tanky" first)
   scoredArmies.sort((a, b) => (b.frontScore - b.backScore) - (a.frontScore - a.backScore));
   
-  const positioned: Array<{ primary: UserCommander; secondary: UserCommander | undefined; position: { row: 'front' | 'back'; slot: number } }> = [];
+  const positioned: OptimizedArmy[] = [];
   
   // Typical formation: 2-3 front, 2-3 back, spread across slots
   // Front row slots: 0, 1, 2, 3
@@ -198,6 +209,7 @@ function assignPositions(
   
   for (let i = 0; i < scoredArmies.length; i++) {
     const army = scoredArmies[i];
+    const troopPower = calculateTroopPower(army.primary, army.secondary, cityHallLevel);
     
     // First 2 go to front (or more if they're clearly tanks)
     if (i < 2 || (army.frontScore > army.backScore && frontIndex < frontSlots.length)) {
@@ -205,7 +217,8 @@ function assignPositions(
         positioned.push({
           primary: army.primary,
           secondary: army.secondary,
-          position: { row: 'front', slot: frontSlots[frontIndex] }
+          position: { row: 'front', slot: frontSlots[frontIndex] },
+          troopPower
         });
         frontIndex++;
         continue;
@@ -217,7 +230,8 @@ function assignPositions(
       positioned.push({
         primary: army.primary,
         secondary: army.secondary,
-        position: { row: 'back', slot: backSlots[backIndex] }
+        position: { row: 'back', slot: backSlots[backIndex] },
+        troopPower
       });
       backIndex++;
     }
@@ -233,6 +247,34 @@ function generateMetaAttackers(cityHallLevel: number): Formation[] {
   return [];
 }
 
+// Calculate troop power for an army
+export function calculateTroopPower(
+  primary: UserCommander,
+  secondary: UserCommander | undefined,
+  cityHallLevel: number
+): number {
+  // Base troop count formula: (commander level + city hall level) * multiplier
+  // At CH23 with level 60 commander: (60 + 23) * ~1000 = ~83,000 troops
+  const baseMultiplier = 1000;
+  const primaryTroops = (primary.level + cityHallLevel) * baseMultiplier;
+  
+  // Secondary commander adds ~10% bonus to troop effectiveness
+  const secondaryBonus = secondary ? 0.1 * (secondary.level / 60) : 0;
+  
+  // Skill levels add bonus (max skills add ~15% more power)
+  const primarySkillBonus = primary.skillLevels.reduce((a, b) => a + b, 0) / 20 * 0.15;
+  const secondarySkillBonus = secondary 
+    ? secondary.skillLevels.reduce((a, b) => a + b, 0) / 20 * 0.05 
+    : 0;
+  
+  // Star level bonus (5 stars = full power, 4 stars = 90%, etc)
+  const starBonus = (primary.stars || 5) / 5;
+  
+  const totalPower = primaryTroops * (1 + secondaryBonus + primarySkillBonus + secondarySkillBonus) * starBonus;
+  
+  return Math.round(totalPower);
+}
+
 // Main optimization function
 export async function optimizeDefense(
   userCommanders: UserCommander[],
@@ -246,8 +288,11 @@ export async function optimizeDefense(
   
   onProgress?.(5, 'Analyzing commander pairings...');
   
+  // If we have 10+ commanders, require full pairs (no solos)
+  const requirePairs = userCommanders.length >= 10;
+  
   // Generate all possible pairings
-  const allPairings = generatePairings(userCommanders);
+  const allPairings = generatePairings(userCommanders, requirePairs);
   
   onProgress?.(15, 'Selecting best army compositions...');
   
@@ -256,11 +301,13 @@ export async function optimizeDefense(
   const reasoning: string[] = [];
   
   // Strategy 1: Best pairings first
-  const bestPairings = selectNonOverlappingArmies(allPairings, 5);
+  const bestPairings = selectNonOverlappingArmies(allPairings, 5, requirePairs);
   if (bestPairings.length === 5) {
-    const positioned = assignPositions(bestPairings);
+    const positioned = assignPositions(bestPairings, cityHallLevel);
+    const totalPower = positioned.reduce((sum, army) => sum + army.troopPower, 0);
     candidateFormations.push({
       armies: positioned,
+      totalPower,
       winRate: 0,
       reasoning: ['Best synergy pairings', 'Optimal role positioning']
     });
@@ -270,12 +317,14 @@ export async function optimizeDefense(
   
   // Strategy 2: Prioritize tanks in front
   const tankFirst = [...userCommanders].sort((a, b) => getFrontRowScore(b) - getFrontRowScore(a));
-  const tankPairings = generatePairings(tankFirst);
-  const tankFormation = selectNonOverlappingArmies(tankPairings, 5);
+  const tankPairings = generatePairings(tankFirst, requirePairs);
+  const tankFormation = selectNonOverlappingArmies(tankPairings, 5, requirePairs);
   if (tankFormation.length === 5) {
-    const positioned = assignPositions(tankFormation);
+    const positioned = assignPositions(tankFormation, cityHallLevel);
+    const totalPower = positioned.reduce((sum, army) => sum + army.troopPower, 0);
     candidateFormations.push({
       armies: positioned,
+      totalPower,
       winRate: 0,
       reasoning: ['Tank-heavy strategy', 'Maximum survivability']
     });
@@ -283,12 +332,14 @@ export async function optimizeDefense(
   
   // Strategy 3: Prioritize damage
   const damageFirst = [...userCommanders].sort((a, b) => getBackRowScore(b) - getBackRowScore(a));
-  const damagePairings = generatePairings(damageFirst);
-  const damageFormation = selectNonOverlappingArmies(damagePairings, 5);
+  const damagePairings = generatePairings(damageFirst, requirePairs);
+  const damageFormation = selectNonOverlappingArmies(damagePairings, 5, requirePairs);
   if (damageFormation.length === 5) {
-    const positioned = assignPositions(damageFormation);
+    const positioned = assignPositions(damageFormation, cityHallLevel);
+    const totalPower = positioned.reduce((sum, army) => sum + army.troopPower, 0);
     candidateFormations.push({
       armies: positioned,
+      totalPower,
       winRate: 0,
       reasoning: ['Damage-focused strategy', 'Fast elimination potential']
     });
