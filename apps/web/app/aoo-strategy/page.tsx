@@ -735,58 +735,6 @@ export default function AooStrategyPage() {
                         </div>
                     </section>
 
-                    {/* Quick Copy Messages - ALWAYS VISIBLE */}
-                    <section className={`${theme.card} border-4 border-emerald-500 rounded-xl p-4 mb-6`}>
-                        <h2 className="text-lg font-bold text-center mb-1">💬 Quick Copy Messages</h2>
-                        <p className={`text-xs ${theme.textMuted} text-center mb-3`}>Click to copy for in-game chat</p>
-                        <div className="grid md:grid-cols-2 gap-2">
-                            <div
-                                onClick={() => {
-                                    const text = `⚔️ AOO IN 30 MIN ⚔️\n✓ Clear hospital NOW\n✓ Use 25% troop buff\n✓ Check zone: rok-suite.vercel.app/aoo-strategy`;
-                                    navigator.clipboard.writeText(text);
-                                    alert('Copied to clipboard!');
-                                }}
-                                className={`p-3 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border border-emerald-500/30 transition-colors`}
-                            >
-                                <div className="text-xs font-semibold text-emerald-500 mb-1">📋 Pre-Battle</div>
-                                <div className={`text-[10px] ${theme.textMuted}`}>Clear hospital, buffs, zones</div>
-                            </div>
-                            <div
-                                onClick={() => {
-                                    const text = `🏃 PHASE 1 - RUSH!\n🔵 Zone 1 → Obelisk LEFT\n🟣 Zone 3 → Obelisk UPPER\n🏃 CONQUER = T1 CAV!`;
-                                    navigator.clipboard.writeText(text);
-                                    alert('Copied to clipboard!');
-                                }}
-                                className={`p-3 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border border-yellow-500/30 transition-colors`}
-                            >
-                                <div className="text-xs font-semibold text-yellow-500 mb-1">🏃 Phase 1</div>
-                                <div className={`text-[10px] ${theme.textMuted}`}>Rush to obelisks</div>
-                            </div>
-                            <div
-                                onClick={() => {
-                                    const text = `📍 PHASE 2 - SECURE!\n⚡ TELEPORT 1ST - TP NOW!\n⏱️ TELEPORT 2ND - WAIT\n🏃 Conquer Iset (T1 cav)`;
-                                    navigator.clipboard.writeText(text);
-                                    alert('Copied to clipboard!');
-                                }}
-                                className={`p-3 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border border-yellow-600/30 transition-colors`}
-                            >
-                                <div className="text-xs font-semibold text-yellow-600 mb-1">📍 Phase 2</div>
-                                <div className={`text-[10px] ${theme.textMuted}`}>Teleport & secure</div>
-                            </div>
-                            <div
-                                onClick={() => {
-                                    const text = `🚨 FILL RALLIES NOW!\n⚔️ Rally on [building name]\nNeed ALL zones!`;
-                                    navigator.clipboard.writeText(text);
-                                    alert('Copied to clipboard!');
-                                }}
-                                className={`p-3 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border border-red-500/30 transition-colors`}
-                            >
-                                <div className="text-xs font-semibold text-red-500 mb-1">🚨 Emergency</div>
-                                <div className={`text-[10px] ${theme.textMuted}`}>Fill rallies call</div>
-                            </div>
-                        </div>
-                    </section>
-
                     {/* Player Lookup */}
                     <section className={`${theme.card} border rounded-xl p-6`}>
                         <h2 className={`text-xl font-semibold mb-4 text-center`}>🔍 Find Your Role</h2>
@@ -1113,6 +1061,61 @@ export default function AooStrategyPage() {
                                 );
                             }
                         })()}
+                    </section>
+
+                    {/* Quick Copy Instructions - Single Text Block */}
+                    <section className={`${theme.card} border-4 border-emerald-500 rounded-xl p-6 mt-6`}>
+                        <h2 className="text-xl font-bold text-center mb-2">💬 Copy All Instructions</h2>
+                        <p className={`text-sm ${theme.textMuted} text-center mb-4`}>Click the text below to copy everything for in-game chat</p>
+                        <div
+                            onClick={(e) => {
+                                const textElement = e.currentTarget.querySelector('.copy-text');
+                                const text = textElement?.textContent || '';
+                                navigator.clipboard.writeText(text);
+                                alert('Copied to clipboard!');
+                            }}
+                            className={`p-6 rounded-lg ${darkMode ? 'bg-zinc-900 hover:bg-zinc-800' : 'bg-gray-50 hover:bg-gray-100'} cursor-pointer border-2 border-emerald-500/50 transition-colors`}
+                        >
+                            <div className={`copy-text font-mono text-sm ${theme.text} whitespace-pre-line leading-relaxed`}>
+{`⚔️ ARK OF OSIRIS BATTLE ⚔️
+
+📋 BEFORE BATTLE:
+✓ Clear hospital completely
+✓ Use 25% troop expansion buff
+✓ Check your zone: rok-suite.vercel.app/aoo-strategy
+
+🎯 KNOW YOUR ROLE:
+• Rally Leader - Start rallies on buildings
+• Teleport 1st - TP immediately when obelisk captured
+• Teleport 2nd - WAIT for leader's call
+• Garrison - Stay IN buildings to defend
+• Conquer - Use T1 CAVALRY ONLY (fastest!)
+• Farm - Support rallies FIRST, then gather
+
+🏃 PHASE 1 - RUSH (0:00):
+🔵 Zone 1 → Obelisk LEFT
+🟣 Zone 3 → Obelisk UPPER
+🟠 Zone 2 → Support both
+⚡ Conquer players = T1 CAV - BE FIRST!
+
+📍 PHASE 2 - SECURE (~5:00):
+⚡ TELEPORT 1ST - TP NOW! (don't wait)
+⏱️ TELEPORT 2ND - WAIT for my call
+🏃 Conquer - Capture Iset Outposts (T1 cav)
+🛡️ Garrison - Stay in buildings
+
+⚔️ PHASE 3 - EXPAND (~15:00):
+🗡️ Rally Shrines & Altars
+🏛️ Zone 2 - Control the ARK
+🌾 Farm - Gather constantly
+
+💥 PHASE 4 - CONTEST (~45:00):
+⚔️ Attack enemy obelisks
+🛡️ Defend our buildings
+📢 Follow leader's calls`}
+                            </div>
+                        </div>
+                        <p className={`text-xs ${theme.textMuted} text-center mt-3`}>Click anywhere on the text to copy</p>
                     </section>
 
                     <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
