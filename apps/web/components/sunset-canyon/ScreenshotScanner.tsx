@@ -289,6 +289,14 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
       { pattern: /athelfla?e?d/i, name: 'Aethelflaed' },
       { pattern: /thelfl/i, name: 'Aethelflaed' },
       
+      // Osman I - OCR reads "Imperial Pi", "osm", "Osma"
+      { pattern: /imperial\s*pi/i, name: 'Osman I' },
+      { pattern: /\bosma?n?\b/i, name: 'Osman I' },
+      
+      // Mehmed II - OCR reads "Conqueror", "Meh", "Mehm"
+      { pattern: /\bconqueror\b/i, name: 'Mehmed II' },
+      { pattern: /\bmehm?e?d?\b/i, name: 'Mehmed II' },
+      
       // SPECIALTY-BASED PATTERNS (when OCR completely fails on name)
       // Only use when the specialty combo is unique or nearly unique
       // Charles Martel: Infantry/Garrison/Defense (shared with Richard I, but Richard has "Lionheart")
