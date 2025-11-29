@@ -13,9 +13,9 @@ export const commanderHashes: CommanderHash[] = [
   {
     id: 'aethelflaed',
     name: 'Aethelflaed',
-    phash: 'b3360c4c1c67b0e3c9c779f25999324da38fe798d9924d1eba1c82e136b87199',
-    ahash: '01ff03ff03ff04ff007f01e0f9c0fffff87ff87ffc7ff87ff87fe03f80000000',
-    dhash: '170016402ed05be619e10f402b9c32f190fe31f021f041f080f042f00570f480',
+    phash: 'cd998ccc78e743c3744e99e063993b3e63bbd3889d1a67180b74627932e87d18',
+    ahash: '0380038007800780078007c3e7fc3ff00f800f800fc01ec00ec003c0fc00ec00',
+    dhash: '172016202e203d000d292f1e8f1cee01188259007900b1807d80be8091405000',
   },
   {
     id: 'alexander-the-great',
@@ -90,9 +90,9 @@ export const commanderHashes: CommanderHash[] = [
   {
     id: 'charles-martel',
     name: 'Charles Martel',
-    phash: '87a385c8d66086077b8f8b43b99d5b36a1f3559a4ae63de84f1b319296386c69',
-    ahash: '1fff1fff1fff1fff17ff01cf090f089f000f000b041f1e1f0e030e0000000000',
-    dhash: 'ba40be68bc74b6d8af98339d135e31bd5a9d5a93787ab0bab69bf8c7a9382281',
+    phash: '85a399f26ae125233d1a46af3a9d8a5cc57b94684a656de5150e3092a7bd7e4b',
+    ahash: '108018c018c01fe01ff00ff80dfc0dfc0ffe07ff0fec1e4c1f400f4000000000',
+    dhash: 'b580b190b388b6c4bf803b925b5959bc5a9c5a923848b099b49a38cca930a280',
   },
   {
     id: 'city-keeper',
