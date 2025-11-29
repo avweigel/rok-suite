@@ -1106,22 +1106,23 @@ PHASE 1 - RUSH (0:00):
 Zone 1 & 3: Send FASTEST marches to grab obelisks
 Zone 2 (Fluffy/Sysstm): Rush outposts
 
-PHASE 2 - TELEPORT & RALLY (~5:00):
+PHASE 2 - TELEPORT & CONQUER (~5:00):
 FIRST WAVE TP: Fluffy, Sysstm, Suntzu teleport NOW
 TOP TEAM: Send 1 troop to EACH Obelisk 3&4 (hold them)
-Once first wave TPs, rally the obelisks!
-Rally Leaders: Rally ALTARS (1 min - join nearest!)
-Conquer: Capture outposts, then shrines/altars
-Garrison: Defend captured buildings
+Fluffy/Sysstm: Rally 1 Shrine + 1 Altar each
+Conquer: Capture shrines & altars with cavalry
+Garrison: BACKFILL everything we conquer
 
-PHASE 3 - ARK & EXPAND (~15:00):
-Zone 2: Control the Ark
-Continue rallying altars/shrines
+PHASE 3 - ARK CONTROL (~15:00):
+Fluffy/Sysstm: 3rd march ready for Ark
+Once you take a building → STAY IN IT
+Defend what we have (priority!)
 Farm constantly for points
 
-PHASE 4 - CONTEST (~45:00):
-Attack enemy obelisks (Lower & Right)
-Defend our buildings
+PHASE 4 - PUSH ENEMY (~45:00):
+Attack enemy Obelisks 3 & 4
+Defend our buildings first
+Support weak lanes
 Follow leader's calls`}
                             </div>
                         </div>
