@@ -388,6 +388,20 @@ export const commanderHashes: CommanderHash[] = [
     ahash: '0fff03ff00ff04f7063f1e3f06ff05ff00ff07ff09ff007f003f000000000000',
     dhash: '5b862fb839b279a6187d70f27cb479e41be45da4b2c4b6e4b164b0cca868a010',
   },
+  {
+    id: 'thutmose-iii',
+    name: 'Thutmose III',
+    phash: 'e464e3cd539b1c505b25709267908f37aa4b986131f6c78efa138cb030efcb4f',
+    ahash: 'ffffff3fff3fff3ffe1ffc0ff80f7367ef6f070f4707001c2116025807480000',
+    dhash: '82402260027a546c087f193be25dc64fd84d2c5aae56e67dce34c6d0bc995143',
+  },
+  {
+    id: 'bjorn-ironside',
+    name: 'Björn Ironside',
+    phash: 'b3360c4c1c67b0e3c9c779f25999324da38fe798d9924d1eba1c82e136b87199',
+    ahash: '01ff03ff03ff04ff007f01e0f9c0fffff87ff87ffc7ff87ff87fe03f80000000',
+    dhash: '170016402ed05be619e10f402b9c32f190fe31f021f041f080f042f00570f480',
+  },
 ];
 
 // Calculate hamming distance between two hex hash strings

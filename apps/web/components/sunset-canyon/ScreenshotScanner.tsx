@@ -408,24 +408,80 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
         },
       });
 
-      const { data: { text } } = await worker.recognize(image.src);
+      // First, try OCR on just the name region (top-right where name/title appears)
+      // This region has clean white text that's easier to read
+      const img = new Image();
+      img.src = image.src;
+      await new Promise(resolve => { img.onload = resolve; });
+      
+      const w = img.width;
+      const h = img.height;
+      
+      // Create a canvas to crop the name region
+      const cropCanvas = document.createElement('canvas');
+      const nameX1 = Math.floor(w * 0.55);
+      const nameY1 = Math.floor(h * 0.05);
+      const nameX2 = Math.floor(w * 0.95);
+      const nameY2 = Math.floor(h * 0.28);
+      
+      cropCanvas.width = nameX2 - nameX1;
+      cropCanvas.height = nameY2 - nameY1;
+      const cropCtx = cropCanvas.getContext('2d');
+      
+      let nameRegionText = '';
+      if (cropCtx) {
+        cropCtx.drawImage(img, nameX1, nameY1, cropCanvas.width, cropCanvas.height, 0, 0, cropCanvas.width, cropCanvas.height);
+        const nameRegionDataUrl = cropCanvas.toDataURL('image/png');
+        
+        // OCR the name region first
+        const { data: { text: nameText } } = await worker.recognize(nameRegionDataUrl);
+        nameRegionText = nameText;
+        console.log(`[OCR Debug] Name region text:`, nameRegionText.replace(/\n/g, ' ').substring(0, 150));
+      }
+      
+      // Also do full image OCR for level/skills extraction
+      const { data: { text: fullImageText } } = await worker.recognize(image.src);
       await worker.terminate();
 
-      const lines = text.split('\n').filter(line => line.trim().length > 0);
-      const fullText = lines.join(' ');
+      const nameLines = nameRegionText.split('\n').filter(line => line.trim().length > 0);
+      const fullLines = fullImageText.split('\n').filter(line => line.trim().length > 0);
+      const fullText = fullLines.join(' ');
       
       // DEBUG: Log what OCR found
-      console.log(`[OCR Debug] Image ${imageIndex + 1}:`, fullText.substring(0, 200));
+      console.log(`[OCR Debug] Image ${imageIndex + 1} full:`, fullText.substring(0, 200));
       
       let matchedCommander: Commander | null = null;
-      for (const line of lines) {
+      
+      // PRIORITY 1: Try matching from name region (most reliable)
+      for (const line of nameLines) {
         matchedCommander = matchCommander(line);
         if (matchedCommander) {
-          console.log(`[OCR Debug] Matched "${matchedCommander.name}" from line: "${line}"`);
+          console.log(`[OCR Debug] Matched "${matchedCommander.name}" from name region: "${line}"`);
           break;
         }
       }
       
+      // PRIORITY 2: Try full name region text
+      if (!matchedCommander) {
+        const nameFullText = nameLines.join(' ');
+        matchedCommander = matchCommander(nameFullText);
+        if (matchedCommander) {
+          console.log(`[OCR Debug] Matched "${matchedCommander.name}" from name region full text`);
+        }
+      }
+      
+      // PRIORITY 3: Try each line from full image
+      if (!matchedCommander) {
+        for (const line of fullLines) {
+          matchedCommander = matchCommander(line);
+          if (matchedCommander) {
+            console.log(`[OCR Debug] Matched "${matchedCommander.name}" from full image line: "${line}"`);
+            break;
+          }
+        }
+      }
+      
+      // PRIORITY 4: Try full image text combined
       if (!matchedCommander) {
         matchedCommander = matchCommander(fullText);
         if (matchedCommander) {
