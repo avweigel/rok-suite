@@ -1097,8 +1097,9 @@ Zone 1 & 3: Send FASTEST marches to grab obelisks
 Zone 2 (Fluffy/Sysstm): Rush outposts
 
 PHASE 2 - TELEPORT & RALLY (~5:00):
-Teleport 1st: TP to your obelisk now
-Teleport 2nd: Wait for Obelisks 3 & 4, then TP
+FIRST WAVE TP: Fluffy, Sysstm, Suntzu teleport NOW
+TOP TEAM: Send 1 troop to EACH Obelisk 3&4 (hold them)
+Once first wave TPs, rally the obelisks!
 Rally Leaders: Rally ALTARS (1 min - join nearest!)
 Conquer: Capture outposts, then shrines/altars
 Garrison: Defend captured buildings
