@@ -1085,7 +1085,7 @@ BEFORE BATTLE:
 - Check your zone: rok-suite.vercel.app/aoo-strategy
 
 KNOW YOUR ROLE:
-- Rally Leader: Start rallies on buildings
+- Rally Leader: Rally altars after teleport (1 min rallies)
 - Teleport 1st: TP immediately when your obelisk captured
 - Teleport 2nd: TP when Obelisks 3 & 4 are captured
 - Garrison: Stay in buildings to defend
@@ -1093,17 +1093,20 @@ KNOW YOUR ROLE:
 - Farm: Support rallies first, then gather
 
 PHASE 1 - RUSH (0:00):
-Zone 1 rushes Obelisk 2 (left)
-Zone 3 rushes Obelisk 1 (upper)
-Zone 2 supports both zones
+Zone 1 & 3: Send FASTEST marches to grab obelisks
+Zone 2 (Fluffy/Sysstm): Rush outposts
 
-PHASE 2 & 3 - SECURE & EXPAND (~5:00):
+PHASE 2 - TELEPORT & RALLY (~5:00):
 Teleport 1st: TP to your obelisk now
 Teleport 2nd: Wait for Obelisks 3 & 4, then TP
-Conquer: Capture Iset Outposts, then Shrines/Altars
+Rally Leaders: Rally ALTARS (1 min - join nearest!)
+Conquer: Capture outposts, then shrines/altars
 Garrison: Defend captured buildings
-Rally Leaders: Lead rallies on buildings
+
+PHASE 3 - ARK & EXPAND (~15:00):
 Zone 2: Control the Ark
+Continue rallying altars/shrines
+Farm constantly for points
 
 PHASE 4 - CONTEST (~45:00):
 Attack enemy obelisks (Lower & Right)
