@@ -255,7 +255,7 @@ export default function SunsetCanyonPage() {
 
 // Defense Tab Component
 function DefenseTab() {
-  const { userCommanders, cityHallLevel } = useSunsetCanyonStore();
+  const { userCommanders, cityHallLevel, setCityHallLevel } = useSunsetCanyonStore();
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState('');
@@ -287,57 +287,123 @@ function DefenseTab() {
   };
 
   const selectedFormation = optimizedFormations[selectedFormationIndex];
+  const hasEnoughCommanders = userCommanders.length >= 10;
+  const hasMinimumCommanders = userCommanders.length >= 5;
 
   return (
     <div className="space-y-6">
-      {/* Step-by-step instructions */}
+      {/* Defense Optimization Panel */}
       <div className="rounded-xl p-6 bg-gradient-to-br from-blue-900/20 to-stone-900/80 border border-blue-600/20">
         <h2 className="text-xl font-semibold text-blue-400 mb-4 flex items-center gap-2">
           <Shield className="w-6 h-6" />
           Defense Optimization
         </h2>
         <p className="text-stone-400 mb-6">
-          Set up the best defense for when other players attack you. Your defense runs automatically - 
-          you can&apos;t change it mid-battle, so optimization is key!
+          Get the best 5 commander pairs for your Sunset Canyon defense based on your roster and castle level.
         </p>
 
-        {/* Steps */}
+        {/* Configuration Steps */}
         <div className="space-y-4">
-          {/* Step 1 */}
+          {/* Step 1: Castle Level */}
           <div className={`p-4 rounded-lg border ${
-            userCommanders.length >= 5 
+            cityHallLevel > 0 
               ? 'bg-green-900/20 border-green-600/30' 
               : 'bg-stone-800/50 border-stone-700'
           }`}>
             <div className="flex items-start gap-3">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                userCommanders.length >= 5 
+                cityHallLevel > 0 
                   ? 'bg-green-600 text-white' 
                   : 'bg-stone-700 text-stone-400'
               }`}>
-                {userCommanders.length >= 5 ? '✓' : '1'}
+                {cityHallLevel > 0 ? '✓' : '1'}
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-stone-200">Import Your Commanders</h3>
+                <h3 className="font-semibold text-stone-200 flex items-center gap-2">
+                  <Castle className="w-4 h-4" />
+                  Set Your Castle Level
+                </h3>
                 <p className="text-sm text-stone-400 mt-1">
-                  Add at least 5 commanders to your roster using the scanner or manual entry above.
-                  For best results with primary+secondary pairings, add 10+ commanders.
+                  Your castle level determines troop capacity per army.
                 </p>
-                <p className="text-sm text-stone-500 mt-2">
-                  {userCommanders.length >= 10 
-                    ? `✓ ${userCommanders.length} commanders ready (full pairings possible)`
-                    : userCommanders.length >= 5
-                    ? `✓ ${userCommanders.length} commanders (add more for better pairings)`
-                    : `${userCommanders.length}/5 minimum commanders added`
-                  }
-                </p>
+                <div className="mt-3 flex items-center gap-4">
+                  <input
+                    type="range"
+                    min="1"
+                    max="25"
+                    value={cityHallLevel}
+                    onChange={(e) => setCityHallLevel(parseInt(e.target.value))}
+                    className="flex-1 accent-amber-500 h-2"
+                  />
+                  <div className="w-20 text-center px-3 py-2 rounded-lg bg-stone-800 border border-amber-600/30">
+                    <span className="text-2xl font-bold text-amber-500">{cityHallLevel}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Step 2 */}
+          {/* Step 2: Commanders */}
           <div className={`p-4 rounded-lg border ${
-            isOptimizing ? 'bg-blue-900/20 border-blue-600/30' : 'bg-stone-800/50 border-stone-700'
+            hasEnoughCommanders 
+              ? 'bg-green-900/20 border-green-600/30' 
+              : hasMinimumCommanders
+              ? 'bg-yellow-900/20 border-yellow-600/30'
+              : 'bg-stone-800/50 border-stone-700'
+          }`}>
+            <div className="flex items-start gap-3">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
+                hasEnoughCommanders 
+                  ? 'bg-green-600 text-white' 
+                  : hasMinimumCommanders
+                  ? 'bg-yellow-600 text-white'
+                  : 'bg-stone-700 text-stone-400'
+              }`}>
+                {hasEnoughCommanders ? '✓' : hasMinimumCommanders ? '!' : '2'}
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-stone-200 flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Import Commanders
+                </h3>
+                <p className="text-sm text-stone-400 mt-1">
+                  You need <strong>10 commanders</strong> for 5 full pairs (primary + secondary).
+                  Minimum 5 for solo armies.
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="flex-1 h-2 bg-stone-700 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all ${
+                        hasEnoughCommanders ? 'bg-green-500' : hasMinimumCommanders ? 'bg-yellow-500' : 'bg-red-500'
+                      }`}
+                      style={{ width: `${Math.min(100, (userCommanders.length / 10) * 100)}%` }}
+                    />
+                  </div>
+                  <span className={`text-sm font-semibold ${
+                    hasEnoughCommanders ? 'text-green-400' : hasMinimumCommanders ? 'text-yellow-400' : 'text-red-400'
+                  }`}>
+                    {userCommanders.length}/10
+                  </span>
+                </div>
+                {!hasMinimumCommanders && (
+                  <p className="text-xs text-red-400 mt-2">
+                    Add at least {5 - userCommanders.length} more commander(s) to optimize
+                  </p>
+                )}
+                {hasMinimumCommanders && !hasEnoughCommanders && (
+                  <p className="text-xs text-yellow-400 mt-2">
+                    Add {10 - userCommanders.length} more for full primary+secondary pairs
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Step 3: Optimize Button */}
+          <div className={`p-4 rounded-lg border ${
+            isOptimizing ? 'bg-blue-900/20 border-blue-600/30' : 
+            optimizedFormations.length > 0 ? 'bg-green-900/20 border-green-600/30' :
+            'bg-stone-800/50 border-stone-700'
           }`}>
             <div className="flex items-start gap-3">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
@@ -345,18 +411,13 @@ function DefenseTab() {
                   ? 'bg-green-600 text-white' 
                   : 'bg-stone-700 text-stone-400'
               }`}>
-                {optimizedFormations.length > 0 ? '✓' : '2'}
+                {optimizedFormations.length > 0 ? '✓' : '3'}
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-stone-200">Optimize Formation</h3>
+                <h3 className="font-semibold text-stone-200">Generate Optimal Defense</h3>
                 <p className="text-sm text-stone-400 mt-1">
-                  We&apos;ll analyze your commanders and find the best defensive lineup.
+                  We&apos;ll find the best 5 commander pairs and their positions.
                 </p>
-                <ul className="text-sm text-stone-500 mt-2 space-y-1">
-                  <li>• Best commander pairings (primary + secondary)</li>
-                  <li>• Optimal positions (tanks front, damage back)</li>
-                  <li>• Troop type balance for versatility</li>
-                </ul>
                 
                 {isOptimizing ? (
                   <div className="mt-4">
@@ -374,7 +435,7 @@ function DefenseTab() {
                 ) : (
                   <button
                     onClick={handleOptimize}
-                    disabled={userCommanders.length < 5}
+                    disabled={!hasMinimumCommanders}
                     className="mt-4 px-6 py-3 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:from-blue-500 hover:to-blue-600 transition-all flex items-center gap-2"
                   >
                     <Shield className="w-5 h-5" />
@@ -388,231 +449,199 @@ function DefenseTab() {
       </div>
 
       {/* Results */}
-      {optimizedFormations.length > 0 && (
+      {optimizedFormations.length > 0 && selectedFormation && (
         <div className="rounded-xl p-6 bg-gradient-to-br from-green-900/20 to-stone-900/80 border border-green-600/20">
           <h3 className="text-lg font-semibold text-green-400 mb-4 flex items-center gap-2">
             <Trophy className="w-5 h-5" />
-            Recommended Formations
+            Your Optimal Defense (Castle Level {cityHallLevel})
           </h3>
           
           {/* Formation selector tabs */}
-          <div className="flex gap-2 mb-6">
-            {optimizedFormations.map((formation, index) => (
-              <button
-                key={index}
-                onClick={() => setSelectedFormationIndex(index)}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                  selectedFormationIndex === index
-                    ? 'bg-green-600 text-white'
-                    : 'bg-stone-700 text-stone-300 hover:bg-stone-600'
-                }`}
-              >
-                <div className="text-sm">Option {index + 1}</div>
-                <div className="text-xs opacity-80">{formation.winRate.toFixed(0)}% est.</div>
-              </button>
-            ))}
-          </div>
-
-          {/* Selected formation details */}
-          {selectedFormation && (
-            <div className="space-y-4">
-              {/* Win rate */}
-              <div className="flex items-center gap-4 p-4 rounded-lg bg-stone-800/50">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-400">
-                    {selectedFormation.winRate.toFixed(1)}%
-                  </div>
-                  <div className="text-xs text-stone-500">Estimated Win Rate</div>
-                </div>
-                <div className="flex-1 pl-4 border-l border-stone-700">
-                  <div className="text-sm text-stone-400">Strategy:</div>
-                  <ul className="text-sm text-stone-300">
-                    {selectedFormation.reasoning.map((reason, i) => (
-                      <li key={i}>• {reason}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-              {/* Formation grid */}
-              <div>
-                <h4 className="text-sm font-semibold text-amber-500 uppercase tracking-wider mb-3">
-                  Formation Layout
-                </h4>
-                <div className="grid grid-cols-4 gap-3">
-                  {/* Back Row */}
-                  {[0, 1, 2, 3].map((slot) => {
-                    const army = selectedFormation.armies.find(
-                      a => a.position.row === 'back' && a.position.slot === slot
-                    );
-                    return (
-                      <div
-                        key={`back-${slot}`}
-                        className={`p-3 rounded-lg border ${
-                          army 
-                            ? 'bg-gradient-to-br from-stone-700 to-stone-800 border-amber-600/30'
-                            : 'border-2 border-dashed border-stone-700'
-                        }`}
-                      >
-                        {army ? (
-                          <div>
-                            <div className={`text-sm font-semibold truncate ${
-                              army.primary.rarity === 'legendary' ? 'text-yellow-500' : 'text-purple-400'
-                            }`}>
-                              {army.primary.name}
-                            </div>
-                            {army.secondary && (
-                              <div className={`text-xs truncate opacity-80 ${
-                                army.secondary.rarity === 'legendary' ? 'text-yellow-500' : 'text-purple-400'
-                              }`}>
-                                + {army.secondary.name}
-                              </div>
-                            )}
-                            <div className="text-xs text-stone-500 mt-1">
-                              {army.primary.troopType}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-xs text-stone-600 text-center py-2">
-                            Empty
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  
-                  {/* Front Row */}
-                  {[0, 1, 2, 3].map((slot) => {
-                    const army = selectedFormation.armies.find(
-                      a => a.position.row === 'front' && a.position.slot === slot
-                    );
-                    return (
-                      <div
-                        key={`front-${slot}`}
-                        className={`p-3 rounded-lg border ${
-                          army 
-                            ? 'bg-gradient-to-br from-blue-900/30 to-stone-800 border-blue-600/30'
-                            : 'border-2 border-dashed border-stone-700'
-                        }`}
-                      >
-                        {army ? (
-                          <div>
-                            <div className={`text-sm font-semibold truncate ${
-                              army.primary.rarity === 'legendary' ? 'text-yellow-500' : 'text-purple-400'
-                            }`}>
-                              {army.primary.name}
-                            </div>
-                            {army.secondary && (
-                              <div className={`text-xs truncate opacity-80 ${
-                                army.secondary.rarity === 'legendary' ? 'text-yellow-500' : 'text-purple-400'
-                              }`}>
-                                + {army.secondary.name}
-                              </div>
-                            )}
-                            <div className="text-xs text-stone-500 mt-1">
-                              {army.primary.troopType}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-xs text-stone-600 text-center py-2">
-                            Empty
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="flex justify-between text-xs text-stone-500 mt-2 px-1">
-                  <span>← Back Row (Damage)</span>
-                  <span>Front Row (Tanks) →</span>
-                </div>
-              </div>
-
-              {/* Army details */}
-              <div>
-                <h4 className="text-sm font-semibold text-amber-500 uppercase tracking-wider mb-3">
-                  Army Details
-                </h4>
-                <div className="space-y-2">
-                  {selectedFormation.armies.map((army, index) => (
-                    <div 
-                      key={index}
-                      className="flex items-center gap-4 p-3 rounded-lg bg-stone-800/50"
-                    >
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                        army.position.row === 'front' 
-                          ? 'bg-blue-600 text-white' 
-                          : 'bg-amber-600 text-stone-900'
-                      }`}>
-                        {army.position.row === 'front' ? 'F' : 'B'}{army.position.slot + 1}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className={`font-semibold ${
-                            army.primary.rarity === 'legendary' ? 'text-yellow-500' : 'text-purple-400'
-                          }`}>
-                            {army.primary.name}
-                          </span>
-                          <span className="text-xs text-stone-500">Lv.{army.primary.level}</span>
-                          {army.secondary && (
-                            <>
-                              <span className="text-stone-600">+</span>
-                              <span className={`${
-                                army.secondary.rarity === 'legendary' ? 'text-yellow-500' : 'text-purple-400'
-                              }`}>
-                                {army.secondary.name}
-                              </span>
-                              <span className="text-xs text-stone-500">Lv.{army.secondary.level}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <div className={`px-2 py-1 rounded text-xs ${
-                        army.primary.troopType === 'infantry' ? 'bg-blue-900/50 text-blue-300' :
-                        army.primary.troopType === 'cavalry' ? 'bg-red-900/50 text-red-300' :
-                        army.primary.troopType === 'archer' ? 'bg-green-900/50 text-green-300' :
-                        'bg-amber-900/50 text-amber-300'
-                      }`}>
-                        {army.primary.troopType}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          {optimizedFormations.length > 1 && (
+            <div className="flex gap-2 mb-6">
+              {optimizedFormations.map((formation, index) => (
+                <button
+                  key={index}
+                  onClick={() => setSelectedFormationIndex(index)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                    selectedFormationIndex === index
+                      ? 'bg-green-600 text-white'
+                      : 'bg-stone-700 text-stone-300 hover:bg-stone-600'
+                  }`}
+                >
+                  <div className="text-sm">Option {index + 1}</div>
+                  <div className="text-xs opacity-80">{formation.reasoning[0]}</div>
+                </button>
+              ))}
             </div>
           )}
+
+          {/* 5 Pairs Display */}
+          <div className="mb-6">
+            <h4 className="text-sm font-semibold text-amber-500 uppercase tracking-wider mb-3">
+              Your 5 Commander Pairs
+            </h4>
+            <div className="grid gap-3">
+              {selectedFormation.armies.map((army, index) => (
+                <div 
+                  key={index}
+                  className={`flex items-center gap-4 p-4 rounded-lg ${
+                    army.position.row === 'front' 
+                      ? 'bg-gradient-to-r from-blue-900/30 to-stone-800 border border-blue-600/20' 
+                      : 'bg-gradient-to-r from-amber-900/20 to-stone-800 border border-amber-600/20'
+                  }`}
+                >
+                  {/* Position Badge */}
+                  <div className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center ${
+                    army.position.row === 'front' 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-amber-600 text-stone-900'
+                  }`}>
+                    <span className="text-xs font-medium">
+                      {army.position.row === 'front' ? 'FRONT' : 'BACK'}
+                    </span>
+                    <span className="text-lg font-bold">{army.position.slot + 1}</span>
+                  </div>
+                  
+                  {/* Pair Number */}
+                  <div className="text-2xl font-bold text-stone-600">
+                    #{index + 1}
+                  </div>
+                  
+                  {/* Commanders */}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3">
+                      {/* Primary */}
+                      <div className="flex-1">
+                        <div className="text-xs text-stone-500 uppercase">Primary</div>
+                        <div className={`font-semibold ${
+                          army.primary.rarity === 'legendary' ? 'text-yellow-500' : 'text-purple-400'
+                        }`}>
+                          {army.primary.name}
+                        </div>
+                        <div className="text-xs text-stone-500">
+                          Lv.{army.primary.level} • {army.primary.troopType}
+                        </div>
+                      </div>
+                      
+                      {/* Plus sign */}
+                      <div className="text-2xl text-stone-600">+</div>
+                      
+                      {/* Secondary */}
+                      <div className="flex-1">
+                        <div className="text-xs text-stone-500 uppercase">Secondary</div>
+                        {army.secondary ? (
+                          <>
+                            <div className={`font-semibold ${
+                              army.secondary.rarity === 'legendary' ? 'text-yellow-500' : 'text-purple-400'
+                            }`}>
+                              {army.secondary.name}
+                            </div>
+                            <div className="text-xs text-stone-500">
+                              Lv.{army.secondary.level}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-stone-500 italic">None (solo)</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Troop Type Badge */}
+                  <div className={`px-3 py-1 rounded-lg text-sm font-medium ${
+                    army.primary.troopType === 'infantry' ? 'bg-blue-900/50 text-blue-300' :
+                    army.primary.troopType === 'cavalry' ? 'bg-red-900/50 text-red-300' :
+                    army.primary.troopType === 'archer' ? 'bg-green-900/50 text-green-300' :
+                    'bg-amber-900/50 text-amber-300'
+                  }`}>
+                    {army.primary.troopType}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Formation Grid Visual */}
+          <div>
+            <h4 className="text-sm font-semibold text-amber-500 uppercase tracking-wider mb-3">
+              Formation Layout
+            </h4>
+            <div className="p-4 bg-stone-800/50 rounded-lg">
+              <div className="text-xs text-stone-500 text-center mb-2">← Enemy Attacks From Here</div>
+              <div className="grid grid-cols-4 gap-2 mb-2">
+                {/* Front Row */}
+                {[0, 1, 2, 3].map((slot) => {
+                  const army = selectedFormation.armies.find(
+                    a => a.position.row === 'front' && a.position.slot === slot
+                  );
+                  return (
+                    <div
+                      key={`front-${slot}`}
+                      className={`p-2 rounded-lg text-center ${
+                        army 
+                          ? 'bg-blue-900/50 border border-blue-600/30'
+                          : 'border border-dashed border-stone-600'
+                      }`}
+                    >
+                      {army ? (
+                        <div className="text-xs">
+                          <div className="font-semibold text-blue-300 truncate">{army.primary.name.split(' ')[0]}</div>
+                          {army.secondary && (
+                            <div className="text-blue-400/70 truncate">+{army.secondary.name.split(' ')[0]}</div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-stone-600">-</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="text-xs text-blue-400 text-center mb-4">↑ Front Row (Tanks)</div>
+              
+              <div className="grid grid-cols-4 gap-2">
+                {/* Back Row */}
+                {[0, 1, 2, 3].map((slot) => {
+                  const army = selectedFormation.armies.find(
+                    a => a.position.row === 'back' && a.position.slot === slot
+                  );
+                  return (
+                    <div
+                      key={`back-${slot}`}
+                      className={`p-2 rounded-lg text-center ${
+                        army 
+                          ? 'bg-amber-900/30 border border-amber-600/30'
+                          : 'border border-dashed border-stone-600'
+                      }`}
+                    >
+                      {army ? (
+                        <div className="text-xs">
+                          <div className="font-semibold text-amber-300 truncate">{army.primary.name.split(' ')[0]}</div>
+                          {army.secondary && (
+                            <div className="text-amber-400/70 truncate">+{army.secondary.name.split(' ')[0]}</div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-stone-600">-</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="text-xs text-amber-400 text-center mt-2">↑ Back Row (Damage Dealers)</div>
+            </div>
+          </div>
+
+          {/* Strategy Explanation */}
+          <div className="mt-4 p-3 rounded-lg bg-stone-800/30 border border-stone-700">
+            <div className="text-sm text-stone-400">
+              <strong className="text-stone-300">Strategy:</strong> {selectedFormation.reasoning.join(' • ')}
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Formation Preview Grid - shown when no optimization yet */}
-      {optimizedFormations.length === 0 && (
-        <div className="rounded-xl p-6 bg-gradient-to-br from-stone-800/90 to-stone-900/80 border border-amber-600/20">
-          <h3 className="text-lg font-semibold text-amber-500 mb-4">Formation Preview</h3>
-          <div className="grid grid-cols-4 gap-3">
-            {/* Back Row */}
-            {[4, 5, 6, 7].map((slot) => (
-              <div
-                key={slot}
-                className="aspect-square rounded-lg border-2 border-dashed border-stone-600 flex items-center justify-center"
-              >
-                <span className="text-xs text-stone-500">Back {slot - 3}</span>
-              </div>
-            ))}
-            {/* Front Row */}
-            {[0, 1, 2, 3].map((slot) => (
-              <div
-                key={slot}
-                className="aspect-square rounded-lg border-2 border-dashed border-stone-600 flex items-center justify-center"
-              >
-                <span className="text-xs text-stone-500">Front {slot + 1}</span>
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-stone-500 mt-3 text-center">
-            Back row (damage dealers) → Front row (tanks)
-          </p>
-        </div>
-      )}
     </div>
   );
 }
