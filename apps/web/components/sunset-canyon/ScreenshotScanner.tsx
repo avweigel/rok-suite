@@ -186,6 +186,14 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
             console.log(`[OCR Match] Unique part match (${part}): ${commander.name}`);
             return commander;
           }
+          // Check truncated version (OCR sometimes cuts off last char)
+          if (part.length >= 7) {
+            const truncated = part.slice(0, -1);
+            if (normalizedText.includes(truncated)) {
+              console.log(`[OCR Match] Truncated match (${truncated}): ${commander.name}`);
+              return commander;
+            }
+          }
         }
       } else if (nameParts.length === 1 && nameParts[0].length >= 5) {
         if (normalizedText.includes(nameParts[0])) {
@@ -258,6 +266,7 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
       { pattern: /conqueror\s*(of\s*)?istanbul/i, name: 'Mehmed II' },
       { pattern: /immortal\s*hammer/i, name: 'Charles Martel' },
       { pattern: /charles\s*martel/i, name: 'Charles Martel' },
+      { pattern: /arles\s*mart/i, name: 'Charles Martel' },  // Partial OCR match
       { pattern: /blades\s*(of\s*)?warfare/i, name: 'Scipio Africanus' },
       { pattern: /father\s*(of\s*)?conquest/i, name: 'Baibars' },
       { pattern: /beloved\s*(of\s*)?thoth/i, name: 'Thutmose III' },
@@ -269,11 +278,14 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
       { pattern: /celtic\s*rose/i, name: 'Boudica' },
       { pattern: /roaring\s*barbarian/i, name: 'Lohar' },
       { pattern: /bushido\s*spirit/i, name: 'Kusunoki Masashige' },
+      { pattern: /kusunoki/i, name: 'Kusunoki Masashige' },
+      { pattern: /masashig/i, name: 'Kusunoki Masashige' },  // Partial OCR match
       { pattern: /kamakura.*warlord/i, name: 'Minamoto no Yoshitsune' },
       { pattern: /lady\s*six\s*sky/i, name: 'Wak Chanil Ajaw' },
       { pattern: /lady\s*(of\s*(the\s*)?)?mercians/i, name: 'Aethelflaed' },
       { pattern: /aethelfla?e?d/i, name: 'Aethelflaed' },
       { pattern: /athelfla?e?d/i, name: 'Aethelflaed' },
+      { pattern: /thelfl/i, name: 'Aethelflaed' },  // Partial OCR match
       { pattern: /king\s*(of\s*)?wei/i, name: 'Cao Cao' },
       { pattern: /spirit\s*(of\s*(the\s*)?)?steppe/i, name: 'Genghis Khan' },
       { pattern: /saint\s*(of\s*)?war/i, name: 'Guan Yu' },
@@ -438,7 +450,8 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
         cropCtx.drawImage(img, nameX1, nameY1, cropCanvas.width, cropCanvas.height, 0, 0, cropCanvas.width, cropCanvas.height);
         const nameRegionDataUrl = cropCanvas.toDataURL('image/png');
         
-        // OCR the name region first
+        // OCR the name region with PSM 6 (assume uniform block of text)
+        // This works better for the stylized game font
         const { data: { text: nameText } } = await worker.recognize(nameRegionDataUrl);
         nameRegionText = nameText;
         console.log(`[OCR Debug] Name region text:`, nameRegionText.replace(/\n/g, ' ').substring(0, 150));
