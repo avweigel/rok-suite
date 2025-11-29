@@ -17,6 +17,102 @@ export interface OptimizedFormation {
   reasoning: string[];
 }
 
+// Known good commander pairings from Rise of Kingdoms meta
+// Based on research from ROK guides, Reddit, and community wikis
+const KNOWN_SYNERGIES: Record<string, { partners: string[]; reason: string }> = {
+  // Infantry Pairings
+  'Sun Tzu': { 
+    partners: ['Charles Martel', 'Björn Ironside', 'Eulji Mundeok', 'Richard I', 'Scipio Africanus', 'Yi Seong-Gye', 'Guan Yu', 'Alexander the Great'],
+    reason: 'AOE nuker with skill damage buff'
+  },
+  'Charles Martel': {
+    partners: ['Sun Tzu', 'Richard I', 'Scipio Africanus', 'Joan of Arc', 'Eulji Mundeok', 'Björn Ironside'],
+    reason: 'Tank with shield, great for front line'
+  },
+  'Björn Ironside': {
+    partners: ['Sun Tzu', 'Eulji Mundeok', 'Charles Martel', 'Scipio Africanus'],
+    reason: 'Strong infantry AOE and debuffs'
+  },
+  'Eulji Mundeok': {
+    partners: ['Sun Tzu', 'Björn Ironside', 'Osman I', 'Charles Martel'],
+    reason: 'Infantry defense debuffer'
+  },
+  'Richard I': {
+    partners: ['Charles Martel', 'Sun Tzu', 'Scipio Africanus', 'Yi Seong-Gye'],
+    reason: 'Best tank in the game with healing'
+  },
+  'Scipio Africanus': {
+    partners: ['Sun Tzu', 'Charles Martel', 'Björn Ironside', 'Joan of Arc'],
+    reason: 'Healing and troop capacity boost'
+  },
+  
+  // Cavalry Pairings
+  'Cao Cao': {
+    partners: ['Minamoto no Yoshitsune', 'Pelagius', 'Belisarius', 'Baibars', 'Osman I'],
+    reason: 'Fast cavalry with mobility and damage'
+  },
+  'Minamoto no Yoshitsune': {
+    partners: ['Cao Cao', 'Pelagius', 'Baibars', 'Osman I'],
+    reason: 'High single-target cavalry damage'
+  },
+  'Baibars': {
+    partners: ['Osman I', 'Cao Cao', 'Sun Tzu', 'Aethelflaed', 'Saladin', 'Minamoto no Yoshitsune'],
+    reason: 'AOE cavalry damage, hits 5 targets'
+  },
+  'Osman I': {
+    partners: ['Baibars', 'Eulji Mundeok', 'Cao Cao', 'Minamoto no Yoshitsune'],
+    reason: 'Troop capacity boost and conquering'
+  },
+  'Saladin': {
+    partners: ['Baibars', 'Cao Cao', 'Minamoto no Yoshitsune'],
+    reason: 'Strong cavalry commander'
+  },
+  
+  // Archer Pairings
+  'Yi Seong-Gye': {
+    partners: ['Sun Tzu', 'Aethelflaed', 'Kusunoki Masashige', 'Mehmed II', 'Richard I'],
+    reason: 'Best AOE damage, skill damage boost'
+  },
+  'Kusunoki Masashige': {
+    partners: ['Sun Tzu', 'Yi Seong-Gye', 'Aethelflaed', 'Hermann'],
+    reason: 'Archer AOE and garrison defense'
+  },
+  
+  // Leadership/Mixed Pairings
+  'Aethelflaed': {
+    partners: ['Yi Seong-Gye', 'Sun Tzu', 'Lohar', 'Boudica', 'Baibars'],
+    reason: 'Debuffer, pairs with any troop type'
+  },
+  'Boudica': {
+    partners: ['Lohar', 'Aethelflaed', 'Sun Tzu', 'Joan of Arc'],
+    reason: 'Rage engine and healing'
+  },
+  'Lohar': {
+    partners: ['Boudica', 'Aethelflaed', 'Joan of Arc'],
+    reason: 'High level early, healing support'
+  },
+  'Joan of Arc': {
+    partners: ['Charles Martel', 'Scipio Africanus', 'Boudica', 'Sun Tzu'],
+    reason: 'Versatile buffer and gathering'
+  },
+  'Mehmed II': {
+    partners: ['Yi Seong-Gye', 'Sun Tzu', 'Aethelflaed'],
+    reason: 'Conquering specialist with AOE'
+  },
+  'Thutmose III': {
+    partners: ['Yi Seong-Gye', 'Kusunoki Masashige', 'Aethelflaed'],
+    reason: 'Archer support commander'
+  },
+  'Wak Chanil Ajaw': {
+    partners: ['Aethelflaed', 'Boudica', 'Lohar'],
+    reason: 'Integration and gathering specialist'
+  },
+  'Genghis Khan': {
+    partners: ['Cao Cao', 'Minamoto no Yoshitsune', 'Baibars'],
+    reason: 'Cavalry nuker with high skill damage'
+  },
+};
+
 // Commander role classification based on their characteristics
 function getCommanderRole(commander: UserCommander): 'tank' | 'nuker' | 'support' | 'hybrid' {
   const role = commander.role;
@@ -26,46 +122,66 @@ function getCommanderRole(commander: UserCommander): 'tank' | 'nuker' | 'support
   return 'hybrid';
 }
 
-// Score how well two commanders pair together
+// Calculate effective power of a commander (level + skills + stars)
+function getEffectivePower(commander: UserCommander): number {
+  const levelPower = commander.level * 100;
+  const skillPower = commander.skillLevels.reduce((a, b) => a + b, 0) * 50;
+  const starPower = (commander.stars || 1) * 200;
+  const rarityBonus = commander.rarity === 'legendary' ? 500 : commander.rarity === 'epic' ? 300 : 100;
+  
+  return levelPower + skillPower + starPower + rarityBonus;
+}
+
+// Score how well two commanders pair together - based on actual game meta
 function getPairingScore(primary: UserCommander, secondary: UserCommander): number {
   let score = 0;
   
+  // Check for known synergies first (most important!)
+  const knownSynergy = KNOWN_SYNERGIES[primary.name];
+  if (knownSynergy && knownSynergy.partners.includes(secondary.name)) {
+    score += 100; // Big bonus for known good pairings
+  }
+  
+  // Reverse check - secondary's synergies
+  const reverseSynergy = KNOWN_SYNERGIES[secondary.name];
+  if (reverseSynergy && reverseSynergy.partners.includes(primary.name)) {
+    score += 50; // Smaller bonus for reverse match
+  }
+  
   // Same troop type bonus (synergy)
   if (primary.troopType === secondary.troopType) {
-    score += 20;
+    score += 30;
   }
   
   // Mixed troop type commanders pair well with anyone
   if (primary.troopType === 'mixed' || secondary.troopType === 'mixed') {
-    score += 10;
+    score += 15;
   }
   
   // Role complementarity
   const primaryRole = getCommanderRole(primary);
   const secondaryRole = getCommanderRole(secondary);
   
-  // Tank + Support is great
-  if ((primaryRole === 'tank' && secondaryRole === 'support') ||
-      (primaryRole === 'support' && secondaryRole === 'tank')) {
-    score += 15;
-  }
-  
-  // Nuker + Nuker for max damage
-  if (primaryRole === 'nuker' && secondaryRole === 'nuker') {
-    score += 15;
-  }
-  
-  // Level bonus - higher level secondaries contribute more
-  score += secondary.level / 10;
-  
-  // Skill level bonus
-  const avgSkill = secondary.skillLevels.reduce((a, b) => a + b, 0) / secondary.skillLevels.length;
-  score += avgSkill * 3;
-  
-  // Check explicit synergies if defined
-  if (primary.synergies?.includes(secondary.id)) {
+  // Tank + Nuker is great for front line
+  if ((primaryRole === 'tank' && secondaryRole === 'nuker') ||
+      (primaryRole === 'nuker' && secondaryRole === 'tank')) {
     score += 25;
   }
+  
+  // Support + Nuker for damage boost
+  if ((primaryRole === 'support' && secondaryRole === 'nuker') ||
+      (primaryRole === 'nuker' && secondaryRole === 'support')) {
+    score += 20;
+  }
+  
+  // CRITICAL: Factor in commander power (level + skills + stars)
+  // Secondary commander power matters a lot!
+  const secondaryPower = getEffectivePower(secondary);
+  score += secondaryPower / 50; // Scale down but still significant
+  
+  // Primary should also be strong
+  const primaryPower = getEffectivePower(primary);
+  score += primaryPower / 100;
   
   return score;
 }
@@ -124,22 +240,25 @@ function getBackRowScore(commander: UserCommander): number {
 function generatePairings(commanders: UserCommander[], requirePairs: boolean = false): Array<{ primary: UserCommander; secondary: UserCommander | undefined; score: number }> {
   const pairings: Array<{ primary: UserCommander; secondary: UserCommander | undefined; score: number }> = [];
   
-  for (let i = 0; i < commanders.length; i++) {
-    const primary = commanders[i];
+  // Sort commanders by effective power first - best commanders as primary
+  const sortedCommanders = [...commanders].sort((a, b) => getEffectivePower(b) - getEffectivePower(a));
+  
+  for (let i = 0; i < sortedCommanders.length; i++) {
+    const primary = sortedCommanders[i];
     
     // Solo option (no secondary) - only if we don't have enough for full pairs
     if (!requirePairs) {
       pairings.push({
         primary,
         secondary: undefined,
-        score: primary.level + (primary.rarity === 'legendary' ? 20 : 0) - 100 // Heavy penalty for solo
+        score: getEffectivePower(primary) - 500 // Heavy penalty for solo
       });
     }
     
     // Pair with each other commander
-    for (let j = 0; j < commanders.length; j++) {
+    for (let j = 0; j < sortedCommanders.length; j++) {
       if (i === j) continue;
-      const secondary = commanders[j];
+      const secondary = sortedCommanders[j];
       const score = getPairingScore(primary, secondary);
       pairings.push({ primary, secondary, score });
     }
