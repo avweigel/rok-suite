@@ -1176,10 +1176,10 @@ export default function AooStrategyPage() {
                                 <div className="font-bold text-yellow-600 mb-2">⚡ CRITICAL: TELEPORT WAVE</div>
                                 <div className={`text-sm ${theme.text} space-y-2`}>
                                     <div>🔷 <strong>Teleport 1st:</strong> Teleport IMMEDIATELY when obelisk captured (don't wait!)</div>
-                                    <div>🔷 <strong>Teleport 2nd:</strong> Wait for Discord call, then teleport to reinforce</div>
+                                    <div>🔷 <strong>Teleport 2nd:</strong> Wait for leader's call, then teleport to reinforce</div>
                                     <div>🛡️ <strong>Garrison:</strong> Stay in buildings to defend</div>
                                     <div>🏃 <strong>Conquer:</strong> Capture Iset Outposts with T1 cavalry</div>
-                                    <div>🌾 <strong>Farm:</strong> Start gathering resources near your zone</div>
+                                    <div>🌾 <strong>Farm:</strong> Support rallies, then gather with remaining marches</div>
                                 </div>
                             </div>
                         </div>
@@ -1220,7 +1220,7 @@ export default function AooStrategyPage() {
                                     <div>⚔️ <strong>Attack enemy obelisks</strong> (Lower & Right)</div>
                                     <div>🗡️ <strong>Fill all rallies</strong> when called</div>
                                     <div>🛡️ <strong>Defend our buildings</strong> from counter-attacks</div>
-                                    <div>📢 <strong>Listen to Discord</strong> for real-time calls</div>
+                                    <div>📢 <strong>Follow leader's calls</strong> for real-time coordination</div>
                                 </div>
                             </div>
                         </div>
@@ -1238,7 +1238,7 @@ export default function AooStrategyPage() {
                                     <li>✓ Lead rallies on buildings</li>
                                     <li>✓ Use strongest commanders</li>
                                     <li>✓ Start rallies early</li>
-                                    <li>✓ Call in Discord when ready</li>
+                                    <li>✓ Coordinate with team</li>
                                 </ul>
                             </div>
 
@@ -1259,7 +1259,7 @@ export default function AooStrategyPage() {
                                 <div className="text-3xl mb-2">⏱️</div>
                                 <h3 className="font-bold text-cyan-400 text-lg mb-2">Teleport 2nd</h3>
                                 <ul className={`text-sm ${theme.text} space-y-1`}>
-                                    <li>✓ WAIT for Discord call</li>
+                                    <li>✓ WAIT for leader's call</li>
                                     <li>✓ Don't teleport early</li>
                                     <li>✓ Reinforce when called</li>
                                     <li>✓ Fill rallies immediately</li>
@@ -1295,8 +1295,8 @@ export default function AooStrategyPage() {
                                 <div className="text-3xl mb-2">🌾</div>
                                 <h3 className="font-bold text-yellow-600 text-lg mb-2">Farm</h3>
                                 <ul className={`text-sm ${theme.text} space-y-1`}>
-                                    <li>✓ Gather non-stop</li>
-                                    <li>✓ All 5 marches gathering</li>
+                                    <li>✓ Support rallies FIRST</li>
+                                    <li>✓ Then gather with remaining marches</li>
                                     <li>✓ Stay in safe territory</li>
                                     <li>✓ Can earn 13,000+ points!</li>
                                 </ul>
@@ -1307,58 +1307,24 @@ export default function AooStrategyPage() {
                     {/* Pre-Battle Checklist */}
                     <section className={`${theme.card} border rounded-xl p-6`}>
                         <h2 className="text-2xl font-bold text-center mb-6">✅ Pre-Battle Checklist</h2>
-                        <div className="grid md:grid-cols-2 gap-6">
-                            <div>
-                                <h3 className="font-bold text-lg mb-3 text-emerald-500">Before Battle Starts:</h3>
-                                <ul className={`space-y-2 ${theme.text}`}>
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-emerald-500 font-bold">☐</span>
-                                        <span>Clear your hospital completely</span>
-                                    </li>
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-emerald-500 font-bold">☐</span>
-                                        <span>Activate 25% troop expansion buff</span>
-                                    </li>
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-emerald-500 font-bold">☐</span>
-                                        <span>Know your zone assignment</span>
-                                    </li>
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-emerald-500 font-bold">☐</span>
-                                        <span>Know your role (Rally/Teleport/Garrison/Conquer/Farm)</span>
-                                    </li>
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-emerald-500 font-bold">☐</span>
-                                        <span>Join Discord voice channel</span>
-                                    </li>
-                                </ul>
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-lg mb-3 text-emerald-500">Commander Setup:</h3>
-                                <ul className={`space-y-2 ${theme.text}`}>
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-emerald-500 font-bold">☐</span>
-                                        <span><strong>Rally Leaders:</strong> Guan Yu, Martel, YSG, Alex</span>
-                                    </li>
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-emerald-500 font-bold">☐</span>
-                                        <span><strong>Garrison:</strong> Infantry pairs (Charles, Richard, etc.)</span>
-                                    </li>
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-emerald-500 font-bold">☐</span>
-                                        <span><strong>Conquer:</strong> T1 Cavalry ONLY (fastest)</span>
-                                    </li>
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-emerald-500 font-bold">☐</span>
-                                        <span><strong>Farm:</strong> Gathering commanders (Seondeok, Cleopatra)</span>
-                                    </li>
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-emerald-500 font-bold">☐</span>
-                                        <span><strong>Support:</strong> Your best march commanders</span>
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
+                        <ul className={`space-y-2 ${theme.text} max-w-2xl mx-auto`}>
+                            <li className="flex items-start gap-2">
+                                <span className="text-emerald-500 font-bold">✓</span>
+                                <span>Clear your hospital completely</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="text-emerald-500 font-bold">✓</span>
+                                <span>Activate 25% troop expansion buff</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="text-emerald-500 font-bold">✓</span>
+                                <span>Know your zone assignment</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="text-emerald-500 font-bold">✓</span>
+                                <span>Know your role (Rally/Teleport/Garrison/Conquer/Farm)</span>
+                            </li>
+                        </ul>
                     </section>
 
                     <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
