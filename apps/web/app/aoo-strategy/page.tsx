@@ -45,8 +45,8 @@ const AVAILABLE_TAGS = ['Rally Leader', 'Teleport 1st', 'Teleport 2nd', 'Garriso
 
 const TAG_COLORS: Record<string, string> = {
     'Rally Leader': 'bg-red-600 text-white',
-    'Teleport 1st': 'bg-emerald-600 text-white',
-    'Teleport 2nd': 'bg-teal-600 text-white',
+    'Teleport 1st': 'bg-blue-600 text-white',
+    'Teleport 2nd': 'bg-cyan-400 text-black',
     'Garrison': 'bg-orange-600 text-white',
     'Farm': 'bg-yellow-500 text-black',
     'Conquer': 'bg-purple-600 text-white',
@@ -176,11 +176,6 @@ export default function AooStrategyPage() {
 
     const addPlayer = (name: string) => {
         if (!isEditor || !name.trim()) return;
-        const teamCount = players.filter(p => p.team === newPlayerTeam).length;
-        if (teamCount >= 10) {
-            alert(`Zone ${newPlayerTeam} already has 10 players!`);
-            return;
-        }
         if (players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
             alert('Player already assigned!');
             return;
@@ -224,11 +219,6 @@ export default function AooStrategyPage() {
 
     const movePlayer = (playerId: number, newTeam: number) => {
         if (!isEditor) return;
-        const teamCount = players.filter(p => p.team === newTeam && p.id !== playerId).length;
-        if (teamCount >= 10) {
-            alert(`Zone ${newTeam} already has 10 players!`);
-            return;
-        }
         const updatedPlayers = players.map(p => p.id === playerId ? { ...p, team: newTeam } : p);
         setPlayers(updatedPlayers);
         saveData({ players: updatedPlayers });
@@ -387,9 +377,9 @@ export default function AooStrategyPage() {
                                 <div className="w-40">
                                     <select value={newPlayerTeam} onChange={(e) => setNewPlayerTeam(Number(e.target.value))}
                                         className={`w-full px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500`}>
-                                        <option value={1}>Zone 1 ({getTeamPlayers(1).length}/10)</option>
-                                        <option value={2}>Zone 2 ({getTeamPlayers(2).length}/10)</option>
-                                        <option value={3}>Zone 3 ({getTeamPlayers(3).length}/10)</option>
+                                        <option value={1}>Zone 1 ({getTeamPlayers(1).length})</option>
+                                        <option value={2}>Zone 2 ({getTeamPlayers(2).length})</option>
+                                        <option value={3}>Zone 3 ({getTeamPlayers(3).length})</option>
                                     </select>
                                 </div>
                                 {useCustomName && (
@@ -416,7 +406,7 @@ export default function AooStrategyPage() {
                                     <div className={`mb-4 pb-3 border-b ${theme.border}`}>
                                         <div className="flex items-center justify-between">
                                             <h3 className="font-semibold">{teamInfo.name}</h3>
-                                            <span className={`text-xs ${theme.textMuted}`}>{teamPlayers.length}/10</span>
+                                            <span className={`text-xs ${theme.textMuted}`}>{teamPlayers.length}</span>
                                         </div>
                                         {isEditor ? (
                                             <input type="text" value={teamInfo.description} onChange={(e) => updateTeamDescription(teamNum - 1, e.target.value)}
