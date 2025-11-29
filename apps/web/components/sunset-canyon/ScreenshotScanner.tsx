@@ -11,12 +11,6 @@ import {
   findByAltName,
   CommanderReference 
 } from '@/lib/sunset-canyon/commander-reference';
-import {
-  computeAverageHash,
-  computeDifferenceHash,
-  computePerceptualHash,
-  findCommanderByHash,
-} from '@/lib/sunset-canyon/commander-hashes';
 
 interface DetectedCommander {
   name: string;
@@ -260,37 +254,40 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
     }
     
     // ===== STRATEGY 7: SPECIFIC TITLE PATTERNS (HIGH CONFIDENCE ONLY) =====
-    // Only match on FULL titles, not partial patterns
+    // Order matters! More specific patterns must come before general ones
     const titlePatterns: Array<{ pattern: RegExp; name: string }> = [
-      // Full title matches only
-      { pattern: /conqueror\s*(of\s*)?istanbul/i, name: 'Mehmed II' },
+      // MOST SPECIFIC FIRST - multi-word titles
+      { pattern: /bushido\s*spirit/i, name: 'Kusunoki Masashige' },  // Must be before "spirit"
+      { pattern: /spirit\s*(of\s*(the\s*)?)?steppe/i, name: 'Genghis Khan' },
       { pattern: /immortal\s*hammer/i, name: 'Charles Martel' },
-      { pattern: /charles\s*martel/i, name: 'Charles Martel' },
-      { pattern: /arles\s*mart/i, name: 'Charles Martel' },  // Partial OCR match
+      { pattern: /conqueror\s*(of\s*)?istanbul/i, name: 'Mehmed II' },
       { pattern: /blades\s*(of\s*)?warfare/i, name: 'Scipio Africanus' },
       { pattern: /father\s*(of\s*)?conquest/i, name: 'Baibars' },
       { pattern: /beloved\s*(of\s*)?thoth/i, name: 'Thutmose III' },
-      { pattern: /thutmose/i, name: 'Thutmose III' },
       { pattern: /imperial\s*pioneer/i, name: 'Osman I' },
       { pattern: /king\s*(of\s*)?kattegat/i, name: 'Björn Ironside' },
-      { pattern: /bjorn\s*ironside/i, name: 'Björn Ironside' },
       { pattern: /tactical\s*genius/i, name: 'Sun Tzu' },
       { pattern: /celtic\s*rose/i, name: 'Boudica' },
       { pattern: /roaring\s*barbarian/i, name: 'Lohar' },
-      { pattern: /bushido\s*spirit/i, name: 'Kusunoki Masashige' },
-      { pattern: /kusunoki/i, name: 'Kusunoki Masashige' },
-      { pattern: /masashig/i, name: 'Kusunoki Masashige' },  // Partial OCR match
       { pattern: /kamakura.*warlord/i, name: 'Minamoto no Yoshitsune' },
       { pattern: /lady\s*six\s*sky/i, name: 'Wak Chanil Ajaw' },
       { pattern: /lady\s*(of\s*(the\s*)?)?mercians/i, name: 'Aethelflaed' },
-      { pattern: /aethelfla?e?d/i, name: 'Aethelflaed' },
-      { pattern: /athelfla?e?d/i, name: 'Aethelflaed' },
-      { pattern: /thelfl/i, name: 'Aethelflaed' },  // Partial OCR match
       { pattern: /king\s*(of\s*)?wei/i, name: 'Cao Cao' },
-      { pattern: /spirit\s*(of\s*(the\s*)?)?steppe/i, name: 'Genghis Khan' },
       { pattern: /saint\s*(of\s*)?war/i, name: 'Guan Yu' },
       { pattern: /the\s*lionheart/i, name: 'Richard I' },
       { pattern: /king\s*(of\s*)?joseon/i, name: 'Yi Seong-Gye' },
+      
+      // DIRECT NAME PATTERNS (less specific)
+      { pattern: /kusunoki\s*masashig/i, name: 'Kusunoki Masashige' },
+      { pattern: /kusunoki/i, name: 'Kusunoki Masashige' },
+      { pattern: /masashig/i, name: 'Kusunoki Masashige' },
+      { pattern: /charles\s*martel/i, name: 'Charles Martel' },
+      { pattern: /arles\s*mart/i, name: 'Charles Martel' },
+      { pattern: /bjorn\s*ironside/i, name: 'Björn Ironside' },
+      { pattern: /thutmose/i, name: 'Thutmose III' },
+      { pattern: /aethelfla?e?d/i, name: 'Aethelflaed' },
+      { pattern: /athelfla?e?d/i, name: 'Aethelflaed' },
+      { pattern: /thelfl/i, name: 'Aethelflaed' },
     ];
     
     for (const { pattern, name } of titlePatterns) {
@@ -507,38 +504,10 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
         }
       }
 
-      // FALLBACK: Try image hash matching if OCR failed
-      if (!matchedCommander && imageData) {
-        const img = new Image();
-        img.src = image.src;
-        await new Promise(resolve => { img.onload = resolve; });
-        
-        // Compute hashes from the image
-        const phash = computePerceptualHash(imageData, img.width, img.height);
-        const ahash = computeAverageHash(imageData, img.width, img.height);
-        const dhash = computeDifferenceHash(imageData, img.width, img.height);
-        
-        console.log(`[Hash Debug] Computed hashes - pHash: ${phash.substring(0, 16)}...`);
-        
-        const hashMatch = findCommanderByHash(phash, ahash, dhash);
-        if (hashMatch) {
-          console.log(`[Hash Match] ${hashMatch.commander.name} (score: ${hashMatch.score.toFixed(1)}, confidence: ${(hashMatch.confidence * 100).toFixed(1)}%)`);
-          
-          // Only use hash match if confidence is high enough
-          if (hashMatch.confidence > 0.3) {
-            matchedCommander = commanders.find(c => 
-              c.name.toLowerCase() === hashMatch.commander.name.toLowerCase()
-            ) || null;
-            
-            if (matchedCommander) {
-              console.log(`[OCR Match] Image hash match: ${matchedCommander.name}`);
-            }
-          }
-        }
-      }
-
+      // Hash matching disabled - template images don't match full screenshots well
+      // TODO: Implement proper template matching by extracting commander region from screenshot
       if (!matchedCommander) {
-        console.log(`[OCR Debug] No match found. Full text:`, fullText);
+        console.log(`[OCR Debug] No match found. Full text:`, fullText.substring(0, 200));
       }
 
       setImages(prev => prev.map((img, i) => 
