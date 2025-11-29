@@ -462,24 +462,32 @@ commanderReferences.forEach(c => {
 export function findByTitle(text: string): CommanderReference | null {
   const normalized = text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim();
   
+  // First pass: exact full title match
   for (const commander of commanderReferences) {
     const titleNorm = commander.title.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim();
     
-    // Check for title match
     if (normalized.includes(titleNorm)) {
       return commander;
     }
+  }
+  
+  // Second pass: require ALL significant words (not just 2)
+  for (const commander of commanderReferences) {
+    const titleNorm = commander.title.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim();
+    const titleWords = titleNorm.split(/\s+/).filter(w => w.length >= 3);
     
-    // Check for partial title match (at least 2 significant words)
-    const titleWords = titleNorm.split(/\s+/).filter(w => w.length >= 4);
-    const matchedWords = titleWords.filter(word => normalized.includes(word));
-    if (titleWords.length >= 2 && matchedWords.length >= 2) {
-      return commander;
-    }
-    
-    // Single distinctive word match
-    if (titleWords.some(word => word.length >= 6 && normalized.includes(word))) {
-      return commander;
+    // For short titles (1-2 words), require all words
+    // For longer titles (3+ words), require at least 80%
+    if (titleWords.length <= 2) {
+      const allMatch = titleWords.every(word => normalized.includes(word));
+      if (allMatch) {
+        return commander;
+      }
+    } else {
+      const matchedWords = titleWords.filter(word => normalized.includes(word));
+      if (matchedWords.length >= Math.ceil(titleWords.length * 0.8)) {
+        return commander;
+      }
     }
   }
   
