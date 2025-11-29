@@ -329,27 +329,32 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
   };
 
   const countStars = (imageData: ImageData, width: number, height: number): number => {
+    // Scan region for stars (adjust these if star positions are different)
     const startX = Math.floor(width * 0.55);
     const endX = Math.floor(width * 0.85);
     const startY = Math.floor(height * 0.20);
     const endY = Math.floor(height * 0.35);
-    
+
+    console.log(`[Star Detection] Scanning region: X(${startX}-${endX}) Y(${startY}-${endY}) from ${width}x${height}px image`);
+
     let goldPixelClusters = 0;
-    
+    let totalGoldPixels = 0;
+
     for (let y = startY; y < endY; y += 3) {
       let inGoldRegion = false;
       let rowClusters = 0;
-      
+
       for (let x = startX; x < endX; x++) {
         const i = (y * width + x) * 4;
         const r = imageData.data[i];
         const g = imageData.data[i + 1];
         const b = imageData.data[i + 2];
-        
+
         const isGold = r > 180 && g > 140 && g < 220 && b < 100 && r > g;
         const isBrightYellow = r > 200 && g > 180 && b < 120 && r > b * 2;
-        
+
         if (isGold || isBrightYellow) {
+          totalGoldPixels++;
           if (!inGoldRegion) {
             inGoldRegion = true;
             rowClusters++;
@@ -358,13 +363,16 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
           inGoldRegion = false;
         }
       }
-      
+
       if (rowClusters > goldPixelClusters) {
         goldPixelClusters = rowClusters;
       }
     }
-    
-    return Math.max(1, Math.min(5, goldPixelClusters));
+
+    const detectedStars = Math.max(1, Math.min(5, goldPixelClusters));
+    console.log(`[Star Detection] Found ${goldPixelClusters} clusters (${totalGoldPixels} gold pixels) → detected ${detectedStars} stars`);
+
+    return detectedStars;
   };
 
   const extractLevelFromRegion = (text: string): number => {

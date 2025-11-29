@@ -102,8 +102,8 @@ const KNOWN_SYNERGIES: Record<string, { partners: string[]; reason: string; tier
   // Infantry Pairings
   'Sun Tzu': {
     partners: ['Charles Martel', 'Guan Yu', 'Harald Sigurdsson', 'Richard I', 'Scipio Africanus', 'Yi Seong-Gye', 'Alexander the Great', 'Björn Ironside', 'Eulji Mundeok', 'Mehmed II'],
-    reason: 'AOE monster with skill damage buff, rage restoration, versatile pairing',
-    tier: 'A'
+    reason: 'AOE monster with skill damage buff, rage restoration, S-tier epic for Sunset Canyon',
+    tier: 'S'
   },
   'Charles Martel': {
     partners: ['Sun Tzu', 'Richard I', 'Scipio Africanus', 'Joan of Arc', 'Eulji Mundeok', 'Björn Ironside', 'Harald Sigurdsson'],
@@ -122,8 +122,8 @@ const KNOWN_SYNERGIES: Record<string, { partners: string[]; reason: string; tier
   },
   'Björn Ironside': {
     partners: ['Sun Tzu', 'Eulji Mundeok', 'Charles Martel', 'Scipio Africanus'],
-    reason: 'Strong infantry AOE with attack debuffs',
-    tier: 'B'
+    reason: 'Best epic infantry commander with skill damage boost, excellent early-mid game for Canyon',
+    tier: 'A'
   },
   'Eulji Mundeok': {
     partners: ['Sun Tzu', 'Björn Ironside', 'Osman I', 'Charles Martel'],
@@ -213,8 +213,8 @@ const KNOWN_SYNERGIES: Record<string, { partners: string[]; reason: string; tier
   },
   'Joan of Arc': {
     partners: ['Charles Martel', 'Scipio Africanus', 'Boudica', 'Sun Tzu', 'Mulan'],
-    reason: 'Versatile buffer for all troop types, strong support',
-    tier: 'A'
+    reason: 'Outstanding Sunset Canyon support, most used epic between KVK1-KVK3, versatile buffer',
+    tier: 'S'
   },
   'Boudica': {
     partners: ['Lohar', 'Aethelflaed', 'Sun Tzu', 'Joan of Arc'],
@@ -249,9 +249,9 @@ const KNOWN_SYNERGIES: Record<string, { partners: string[]; reason: string; tier
     tier: 'A'
   },
   'William I': {
-    partners: ['Charles Martel', 'Richard I'],
-    reason: 'Massive defense + rage boost, performs well in Canyon',
-    tier: 'A'
+    partners: ['Charles Martel', 'Richard I', 'Guan Yu'],
+    reason: 'Perfect for Sunset Canyon with massive defense + rage boost, S-tier Canyon specialist',
+    tier: 'S'
   },
 };
 
