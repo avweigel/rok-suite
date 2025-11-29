@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Shield, Swords, ArrowLeft, Settings, Castle, Users, Scan, Plus, Loader2, Trophy } from 'lucide-react';
+import { Shield, Swords, ArrowLeft, Settings, Castle, Users, Scan, Plus, Loader2, Trophy, Edit2 } from 'lucide-react';
 import Link from 'next/link';
 import { AddCommanderModal } from '@/components/sunset-canyon/AddCommanderModal';
+import { EditCommanderModal } from '@/components/sunset-canyon/EditCommanderModal';
 import { ScreenshotScanner } from '@/components/sunset-canyon/ScreenshotScanner';
 import { useSunsetCanyonStore } from '@/lib/sunset-canyon/store';
-import { Commander } from '@/lib/sunset-canyon/commanders';
+import { Commander, UserCommander } from '@/lib/sunset-canyon/commanders';
 import { optimizeDefense, OptimizedFormation } from '@/lib/sunset-canyon/optimizer';
 
 type TabType = 'defense' | 'offense';
@@ -17,6 +18,7 @@ export default function SunsetCanyonPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [showAddCommander, setShowAddCommander] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [editingCommander, setEditingCommander] = useState<UserCommander | null>(null);
 
   const {
     cityHallLevel,
@@ -24,6 +26,7 @@ export default function SunsetCanyonPage() {
     userCommanders,
     addUserCommander,
     removeUserCommander,
+    updateUserCommander,
   } = useSunsetCanyonStore();
 
   useEffect(() => {
@@ -48,6 +51,11 @@ export default function SunsetCanyonPage() {
       addUserCommander(commander, level, skillLevels, stars);
     });
     setShowScanner(false);
+  };
+
+  const handleEditCommander = (uniqueId: string, level: number, skillLevels: number[], stars: number) => {
+    updateUserCommander(uniqueId, { level, skillLevels, stars });
+    setEditingCommander(null);
   };
 
   return (
@@ -205,7 +213,7 @@ export default function SunsetCanyonPage() {
                 <div
                   key={cmd.uniqueId}
                   className={`group relative px-3 py-2 rounded-lg text-sm ${
-                    cmd.rarity === 'legendary' 
+                    cmd.rarity === 'legendary'
                       ? 'bg-yellow-900/30 text-yellow-500 border border-yellow-600/30'
                       : 'bg-purple-900/30 text-purple-400 border border-purple-600/30'
                   }`}
@@ -215,12 +223,22 @@ export default function SunsetCanyonPage() {
                     <span className="text-xs opacity-70">Lv.{cmd.level}</span>
                     <span className="text-xs opacity-70">{'★'.repeat(cmd.stars)}</span>
                   </div>
-                  <button
-                    onClick={() => removeUserCommander(cmd.uniqueId)}
-                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                  >
-                    ×
-                  </button>
+                  <div className="absolute -top-1 -right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => setEditingCommander(cmd)}
+                      className="w-5 h-5 rounded-full bg-amber-600 text-white text-xs flex items-center justify-center hover:bg-amber-500 transition-colors"
+                      title="Edit commander"
+                    >
+                      <Edit2 className="w-2.5 h-2.5" />
+                    </button>
+                    <button
+                      onClick={() => removeUserCommander(cmd.uniqueId)}
+                      className="w-5 h-5 rounded-full bg-red-600 text-white text-xs flex items-center justify-center hover:bg-red-500 transition-colors"
+                      title="Remove commander"
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -247,6 +265,14 @@ export default function SunsetCanyonPage() {
         <ScreenshotScanner
           onImport={handleScanImport}
           onClose={() => setShowScanner(false)}
+        />
+      )}
+
+      {editingCommander && (
+        <EditCommanderModal
+          commander={editingCommander}
+          onSave={handleEditCommander}
+          onClose={() => setEditingCommander(null)}
         />
       )}
     </div>

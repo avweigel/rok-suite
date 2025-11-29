@@ -368,23 +368,44 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
   };
 
   const extractLevelFromRegion = (text: string): number => {
+    // Try multiple patterns in order of reliability
     const levelPatterns = [
-      /level\s*(\d{1,2})/i,
-      /lv\.?\s*(\d{1,2})/i,
-      /lvl\.?\s*(\d{1,2})/i,
-      /(\d{1,2})\s*\/\s*\d{2}/,
+      // "Level 45", "Level: 45"
+      /level[\s:]*(\d{1,2})/i,
+      // "Lv 45", "Lv. 45", "Lv: 45"
+      /lv[\s.:]*(\d{1,2})/i,
+      // "Lvl 45", "Lvl. 45"
+      /lvl[\s.]*(\d{1,2})/i,
+      // "45 / 60" (level out of max)
+      /(\d{1,2})\s*[/\\]\s*60/,
+      // Standalone 2-digit number between 1-60 near start of text
+      /^.{0,50}?\b([1-5]?[0-9])\b/,
     ];
-    
+
     for (const pattern of levelPatterns) {
       const match = text.match(pattern);
       if (match) {
         const level = parseInt(match[1]);
         if (level >= 1 && level <= 60) {
+          console.log(`[Level Extract] Found level ${level} using pattern: ${pattern.source}`);
           return level;
         }
       }
     }
-    
+
+    // Look for ANY standalone number between 1-60 as fallback
+    const numbers = text.match(/\b([1-5]?\d)\b/g);
+    if (numbers) {
+      for (const numStr of numbers) {
+        const num = parseInt(numStr);
+        if (num >= 1 && num <= 60) {
+          console.log(`[Level Extract] Using fallback number: ${num}`);
+          return num;
+        }
+      }
+    }
+
+    console.log(`[Level Extract] No level found, defaulting to 60`);
     return 60;
   };
 
