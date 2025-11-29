@@ -11,6 +11,12 @@ import {
   findByAltName,
   CommanderReference 
 } from '@/lib/sunset-canyon/commander-reference';
+import {
+  computeAverageHash,
+  computeDifferenceHash,
+  computePerceptualHash,
+  findCommanderByHash,
+} from '@/lib/sunset-canyon/commander-hashes';
 
 interface DetectedCommander {
   name: string;
@@ -427,8 +433,35 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
         }
       }
 
-      // If no match found after all OCR strategies, don't guess
-      // User can add manually - better than wrong match
+      // FALLBACK: Try image hash matching if OCR failed
+      if (!matchedCommander && imageData) {
+        const img = new Image();
+        img.src = image.src;
+        await new Promise(resolve => { img.onload = resolve; });
+        
+        // Compute hashes from the image
+        const phash = computePerceptualHash(imageData, img.width, img.height);
+        const ahash = computeAverageHash(imageData, img.width, img.height);
+        const dhash = computeDifferenceHash(imageData, img.width, img.height);
+        
+        console.log(`[Hash Debug] Computed hashes - pHash: ${phash.substring(0, 16)}...`);
+        
+        const hashMatch = findCommanderByHash(phash, ahash, dhash);
+        if (hashMatch) {
+          console.log(`[Hash Match] ${hashMatch.commander.name} (score: ${hashMatch.score.toFixed(1)}, confidence: ${(hashMatch.confidence * 100).toFixed(1)}%)`);
+          
+          // Only use hash match if confidence is high enough
+          if (hashMatch.confidence > 0.3) {
+            matchedCommander = commanders.find(c => 
+              c.name.toLowerCase() === hashMatch.commander.name.toLowerCase()
+            ) || null;
+            
+            if (matchedCommander) {
+              console.log(`[OCR Match] Image hash match: ${matchedCommander.name}`);
+            }
+          }
+        }
+      }
 
       if (!matchedCommander) {
         console.log(`[OCR Debug] No match found. Full text:`, fullText);
