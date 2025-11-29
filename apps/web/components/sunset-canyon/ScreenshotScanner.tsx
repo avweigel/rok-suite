@@ -288,6 +288,10 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
       { pattern: /aethelfla?e?d/i, name: 'Aethelflaed' },
       { pattern: /athelfla?e?d/i, name: 'Aethelflaed' },
       { pattern: /thelfl/i, name: 'Aethelflaed' },
+      
+      // SPECIALTY-BASED PATTERNS (when OCR completely fails on name)
+      // Only use when the specialty combo is unique or nearly unique
+      // Charles Martel: Infantry/Garrison/Defense (shared with Richard I, but Richard has "Lionheart")
     ];
     
     for (const { pattern, name } of titlePatterns) {
@@ -297,6 +301,22 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
           console.log(`[OCR Match] Problem pattern match (${pattern}): ${commander.name}`);
           return commander;
         }
+      }
+    }
+    
+    // ===== STRATEGY 8: SPECIALTY-BASED FALLBACK =====
+    // When OCR completely fails on name/title, use specialty combos
+    const hasInfantry = /infantry/i.test(normalizedText);
+    const hasGarrison = /garrison/i.test(normalizedText);
+    const hasDefense = /defense/i.test(normalizedText);
+    const hasLionheart = /lionheart/i.test(normalizedText);
+    
+    // Infantry + Garrison + Defense without Lionheart = Charles Martel
+    if (hasInfantry && hasGarrison && hasDefense && !hasLionheart) {
+      const commander = commanders.find(c => c.name === 'Charles Martel');
+      if (commander) {
+        console.log(`[OCR Match] Specialty fallback (Infantry+Garrison+Defense): Charles Martel`);
+        return commander;
       }
     }
     
