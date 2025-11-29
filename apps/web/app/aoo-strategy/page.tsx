@@ -136,7 +136,7 @@ const ALLIANCE_ROSTER = [
 ].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 
 export default function AooStrategyPage() {
-    const [activeTab, setActiveTab] = useState<'map' | 'roster' | 'lookup'>('map');
+    const [activeTab, setActiveTab] = useState<'map' | 'roster' | 'lookup'>('lookup');
     const [players, setPlayers] = useState<Player[]>([]);
     const [substitutes, setSubstitutes] = useState<Player[]>([]);
     const [teams, setTeams] = useState<TeamInfo[]>(DEFAULT_TEAMS);
@@ -361,9 +361,18 @@ export default function AooStrategyPage() {
             <header className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'} border-b sticky top-0 z-40`}>
                 <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
                     <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Ark of Osiris</h1>
-                            <p className={`text-sm ${theme.textMuted}`}>30v30 Strategy Planner</p>
+                        <div className="flex items-center gap-3">
+                            <a 
+                                href="/"
+                                className={`p-2 rounded-lg ${theme.button} hover:opacity-80 transition-opacity`}
+                                title="Back to Home"
+                            >
+                                ←
+                            </a>
+                            <div>
+                                <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Ark of Osiris</h1>
+                                <p className={`text-sm ${theme.textMuted}`}>30v30 Strategy Planner</p>
+                            </div>
                         </div>
                         <div className="flex items-center gap-3">
                             <button onClick={toggleTheme} className={`p-2 rounded-lg ${theme.button}`}>
@@ -379,8 +388,16 @@ export default function AooStrategyPage() {
                         </div>
                     </div>
 
-                    {/* Tabs */}
+                    {/* Tabs - Find My Role first */}
                     <div className="flex gap-1 mt-4">
+                        <button
+                            onClick={() => setActiveTab('lookup')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                activeTab === 'lookup' ? theme.tabActive : theme.tabInactive
+                            }`}
+                        >
+                            🔍 Find My Role
+                        </button>
                         <button
                             onClick={() => setActiveTab('map')}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -396,14 +413,6 @@ export default function AooStrategyPage() {
                             }`}
                         >
                             👥 Zone Roster
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('lookup')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                activeTab === 'lookup' ? theme.tabActive : theme.tabInactive
-                            }`}
-                        >
-                            🔍 Find My Role
                         </button>
                     </div>
                 </div>
