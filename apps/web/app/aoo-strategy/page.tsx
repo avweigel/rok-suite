@@ -735,6 +735,58 @@ export default function AooStrategyPage() {
                         </div>
                     </section>
 
+                    {/* Quick Copy Messages - ALWAYS VISIBLE */}
+                    <section className={`${theme.card} border-4 border-emerald-500 rounded-xl p-4 mb-6`}>
+                        <h2 className="text-lg font-bold text-center mb-1">💬 Quick Copy Messages</h2>
+                        <p className={`text-xs ${theme.textMuted} text-center mb-3`}>Click to copy for in-game chat</p>
+                        <div className="grid md:grid-cols-2 gap-2">
+                            <div
+                                onClick={() => {
+                                    const text = `⚔️ AOO IN 30 MIN ⚔️\n✓ Clear hospital NOW\n✓ Use 25% troop buff\n✓ Check zone: rok-suite.vercel.app/aoo-strategy`;
+                                    navigator.clipboard.writeText(text);
+                                    alert('Copied to clipboard!');
+                                }}
+                                className={`p-3 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border border-emerald-500/30 transition-colors`}
+                            >
+                                <div className="text-xs font-semibold text-emerald-500 mb-1">📋 Pre-Battle</div>
+                                <div className={`text-[10px] ${theme.textMuted}`}>Clear hospital, buffs, zones</div>
+                            </div>
+                            <div
+                                onClick={() => {
+                                    const text = `🏃 PHASE 1 - RUSH!\n🔵 Zone 1 → Obelisk LEFT\n🟣 Zone 3 → Obelisk UPPER\n🏃 CONQUER = T1 CAV!`;
+                                    navigator.clipboard.writeText(text);
+                                    alert('Copied to clipboard!');
+                                }}
+                                className={`p-3 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border border-yellow-500/30 transition-colors`}
+                            >
+                                <div className="text-xs font-semibold text-yellow-500 mb-1">🏃 Phase 1</div>
+                                <div className={`text-[10px] ${theme.textMuted}`}>Rush to obelisks</div>
+                            </div>
+                            <div
+                                onClick={() => {
+                                    const text = `📍 PHASE 2 - SECURE!\n⚡ TELEPORT 1ST - TP NOW!\n⏱️ TELEPORT 2ND - WAIT\n🏃 Conquer Iset (T1 cav)`;
+                                    navigator.clipboard.writeText(text);
+                                    alert('Copied to clipboard!');
+                                }}
+                                className={`p-3 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border border-yellow-600/30 transition-colors`}
+                            >
+                                <div className="text-xs font-semibold text-yellow-600 mb-1">📍 Phase 2</div>
+                                <div className={`text-[10px] ${theme.textMuted}`}>Teleport & secure</div>
+                            </div>
+                            <div
+                                onClick={() => {
+                                    const text = `🚨 FILL RALLIES NOW!\n⚔️ Rally on [building name]\nNeed ALL zones!`;
+                                    navigator.clipboard.writeText(text);
+                                    alert('Copied to clipboard!');
+                                }}
+                                className={`p-3 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border border-red-500/30 transition-colors`}
+                            >
+                                <div className="text-xs font-semibold text-red-500 mb-1">🚨 Emergency</div>
+                                <div className={`text-[10px] ${theme.textMuted}`}>Fill rallies call</div>
+                            </div>
+                        </div>
+                    </section>
+
                     {/* Player Lookup */}
                     <section className={`${theme.card} border rounded-xl p-6`}>
                         <h2 className={`text-xl font-semibold mb-4 text-center`}>🔍 Find Your Role</h2>
@@ -1300,6 +1352,119 @@ export default function AooStrategyPage() {
                                     <li>✓ Stay in safe territory</li>
                                     <li>✓ Can earn 13,000+ points!</li>
                                 </ul>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* In-Game Chat Messages - COPY/PASTE READY */}
+                    <section className={`${theme.card} border-4 border-emerald-500 rounded-xl p-6 mb-6`}>
+                        <h2 className="text-2xl font-bold text-center mb-2">💬 Copy for In-Game Chat</h2>
+                        <p className={`text-center ${theme.textMuted} mb-6 text-sm`}>Click any message to copy it</p>
+
+                        <div className="space-y-4 max-w-3xl mx-auto">
+                            {/* Pre-Battle Message */}
+                            <div>
+                                <div className={`text-sm font-semibold mb-2 ${theme.text}`}>📋 BEFORE BATTLE (send 30 mins before):</div>
+                                <div
+                                    onClick={(e) => {
+                                        const text = e.currentTarget.textContent || '';
+                                        navigator.clipboard.writeText(text);
+                                        alert('Copied to clipboard!');
+                                    }}
+                                    className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border-2 border-emerald-500/30 transition-colors`}
+                                >
+                                    <div className={`font-mono text-sm ${theme.text} whitespace-pre-line`}>
+{`⚔️ AOO BATTLE IN 30 MIN ⚔️
+✓ Clear hospital NOW
+✓ Use 25% troop expansion buff
+✓ Check your zone: rok-suite.vercel.app/aoo-strategy
+ZONE 1 (Left) • ZONE 2 (Ark) • ZONE 3 (Right)`}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Quick Strategy Message */}
+                            <div>
+                                <div className={`text-sm font-semibold mb-2 ${theme.text}`}>🎯 STRATEGY REMINDER (send 10 mins before):</div>
+                                <div
+                                    onClick={(e) => {
+                                        const text = e.currentTarget.textContent || '';
+                                        navigator.clipboard.writeText(text);
+                                        alert('Copied to clipboard!');
+                                    }}
+                                    className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border-2 border-emerald-500/30 transition-colors`}
+                                >
+                                    <div className={`font-mono text-sm ${theme.text} whitespace-pre-line`}>
+{`📍 REMEMBER YOUR ROLE:
+🎯 Rally Leader - Start rallies
+⚡ Teleport 1st - TP immediately
+⏱️ Teleport 2nd - WAIT for call
+🛡️ Garrison - Stay in buildings
+🏃 Conquer - T1 CAV ONLY (fastest!)
+🌾 Farm - Fill rallies, then gather`}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Phase 1 Start */}
+                            <div>
+                                <div className={`text-sm font-semibold mb-2 ${theme.text}`}>🏃 AT START (0:00):</div>
+                                <div
+                                    onClick={(e) => {
+                                        const text = e.currentTarget.textContent || '';
+                                        navigator.clipboard.writeText(text);
+                                        alert('Copied to clipboard!');
+                                    }}
+                                    className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border-2 border-yellow-500/50 transition-colors`}
+                                >
+                                    <div className={`font-mono text-sm ${theme.text} whitespace-pre-line`}>
+{`🏃 PHASE 1 - RUSH!
+🔵 Zone 1 → Obelisk LEFT
+🟣 Zone 3 → Obelisk UPPER
+🟠 Zone 2 → Support both
+🏃 CONQUER = T1 CAV - BE FIRST!`}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Phase 2 Teleport */}
+                            <div>
+                                <div className={`text-sm font-semibold mb-2 ${theme.text}`}>📍 AFTER OBELISK (~5:00):</div>
+                                <div
+                                    onClick={(e) => {
+                                        const text = e.currentTarget.textContent || '';
+                                        navigator.clipboard.writeText(text);
+                                        alert('Copied to clipboard!');
+                                    }}
+                                    className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border-2 border-yellow-500/50 transition-colors`}
+                                >
+                                    <div className={`font-mono text-sm ${theme.text} whitespace-pre-line`}>
+{`📍 PHASE 2 - SECURE!
+⚡ TELEPORT 1ST - TP NOW! (don't wait)
+⏱️ TELEPORT 2ND - WAIT for my call
+🏃 Conquer Iset Outposts (T1 cav)
+🛡️ Garrison - Stay in buildings`}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Emergency Reminder */}
+                            <div>
+                                <div className={`text-sm font-semibold mb-2 ${theme.text}`}>⚠️ DURING BATTLE (as needed):</div>
+                                <div
+                                    onClick={(e) => {
+                                        const text = e.currentTarget.textContent || '';
+                                        navigator.clipboard.writeText(text);
+                                        alert('Copied to clipboard!');
+                                    }}
+                                    className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border-2 border-red-500/50 transition-colors`}
+                                >
+                                    <div className={`font-mono text-sm ${theme.text} whitespace-pre-line`}>
+{`🚨 FILL RALLIES NOW!
+⚔️ Rally on [building name]
+Need ALL zones to support!`}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </section>
