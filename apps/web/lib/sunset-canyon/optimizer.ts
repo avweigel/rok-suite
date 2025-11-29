@@ -17,99 +17,241 @@ export interface OptimizedFormation {
   reasoning: string[];
 }
 
-// Known good commander pairings from Rise of Kingdoms meta
-// Based on research from ROK guides, Reddit, and community wikis
-const KNOWN_SYNERGIES: Record<string, { partners: string[]; reason: string }> = {
+// Known good commander pairings from Rise of Kingdoms meta (2025)
+// Based on research from ROK guides, wikis, and community resources
+// Sources: riseofkingdomsguides.com, rok.guide, allclash.com, techgamesnews.com
+const KNOWN_SYNERGIES: Record<string, { partners: string[]; reason: string; tier?: 'S' | 'A' | 'B' }> = {
+  // ===== TOP-TIER LEGENDARY PAIRINGS (2025 Meta) =====
+
+  // Cavalry - Top Tier
+  'Alexander Nevsky': {
+    partners: ['Joan of Arc Prime', 'Xiang Yu', 'Attila', 'Takeda Shingen'],
+    reason: 'Top cavalry commander, extreme damage + tanking, works vs all troop types',
+    tier: 'S'
+  },
+  'Xiang Yu': {
+    partners: ['Alexander Nevsky', 'Saladin', 'Cao Cao'],
+    reason: 'Extreme damage with fast skill cycle, crushing performance with Nevsky',
+    tier: 'S'
+  },
+  'Attila': {
+    partners: ['Takeda Shingen', 'Alexander Nevsky'],
+    reason: 'Strongest rally pairing, devastating garrison damage',
+    tier: 'S'
+  },
+  'Takeda Shingen': {
+    partners: ['Attila', 'Alexander Nevsky'],
+    reason: 'Perfect rally pair with Attila, strong cavalry synergy',
+    tier: 'S'
+  },
+
+  // Infantry - Top Tier
+  'Guan Yu': {
+    partners: ['Sun Tzu', 'Alexander the Great', 'Richard I', 'Harald Sigurdsson'],
+    reason: 'Massive AOE damage + silence, rapid rage regeneration, infantry powerhouse',
+    tier: 'S'
+  },
+  'Harald Sigurdsson': {
+    partners: ['Guan Yu', 'Sun Tzu', 'Charles Martel'],
+    reason: 'Top infantry with damage + buff combo, stronger vs multiple enemies',
+    tier: 'S'
+  },
+  'Scipio Prime': {
+    partners: ['Liu Che', 'Sun Tzu'],
+    reason: 'Exceptional infantry synergy with Liu Che, excellent for open-field',
+    tier: 'S'
+  },
+  'Liu Che': {
+    partners: ['Scipio Prime', 'Sun Tzu'],
+    reason: 'Perfect pair with Scipio Prime, strong infantry buffs',
+    tier: 'S'
+  },
+
+  // Archer - Top Tier
+  'Hermann Prime': {
+    partners: ['Ashurbanipal', 'Yi Seong-Gye'],
+    reason: 'Highest archer damage output, poison mechanic devastating vs garrison',
+    tier: 'S'
+  },
+  'Ashurbanipal': {
+    partners: ['Hermann Prime', 'Yi Seong-Gye', 'Ramesses II'],
+    reason: 'Massive damage output with Hermann, top archer pair',
+    tier: 'S'
+  },
+  'Ramesses II': {
+    partners: ['Ashurbanipal', 'Yi Seong-Gye'],
+    reason: 'Debuff damage specialist, continuous damage + defense reduction',
+    tier: 'S'
+  },
+
+  // ===== A-TIER LEGENDARY PAIRINGS =====
+
+  'Joan of Arc Prime': {
+    partners: ['Alexander Nevsky', 'Mulan'],
+    reason: 'Amazing support combo, legendary 5-5-1-1 pair with Mulan',
+    tier: 'A'
+  },
+  'Mulan': {
+    partners: ['Joan of Arc Prime', 'Joan of Arc'],
+    reason: 'Legendary support pair, maximum buffing when paired with Joan',
+    tier: 'A'
+  },
+
+  // ===== EPIC/ELITE COMMANDERS =====
+
   // Infantry Pairings
-  'Sun Tzu': { 
-    partners: ['Charles Martel', 'Björn Ironside', 'Eulji Mundeok', 'Richard I', 'Scipio Africanus', 'Yi Seong-Gye', 'Guan Yu', 'Alexander the Great'],
-    reason: 'AOE nuker with skill damage buff'
+  'Sun Tzu': {
+    partners: ['Charles Martel', 'Guan Yu', 'Harald Sigurdsson', 'Richard I', 'Scipio Africanus', 'Yi Seong-Gye', 'Alexander the Great', 'Björn Ironside', 'Eulji Mundeok', 'Mehmed II'],
+    reason: 'AOE monster with skill damage buff, rage restoration, versatile pairing',
+    tier: 'A'
   },
   'Charles Martel': {
-    partners: ['Sun Tzu', 'Richard I', 'Scipio Africanus', 'Joan of Arc', 'Eulji Mundeok', 'Björn Ironside'],
-    reason: 'Tank with shield, great for front line'
+    partners: ['Sun Tzu', 'Richard I', 'Scipio Africanus', 'Joan of Arc', 'Eulji Mundeok', 'Björn Ironside', 'Harald Sigurdsson'],
+    reason: 'Best epic tank with shield absorption, perfect for front line',
+    tier: 'A'
+  },
+  'Richard I': {
+    partners: ['Charles Martel', 'Sun Tzu', 'Scipio Africanus', 'Yi Seong-Gye', 'Guan Yu'],
+    reason: 'Best tank in RoK with healing + damage reduction, front line anchor',
+    tier: 'S'
+  },
+  'Scipio Africanus': {
+    partners: ['Sun Tzu', 'Charles Martel', 'Björn Ironside', 'Joan of Arc', 'Richard I'],
+    reason: 'Healing + troop capacity boost, versatile infantry support',
+    tier: 'A'
   },
   'Björn Ironside': {
     partners: ['Sun Tzu', 'Eulji Mundeok', 'Charles Martel', 'Scipio Africanus'],
-    reason: 'Strong infantry AOE and debuffs'
+    reason: 'Strong infantry AOE with attack debuffs',
+    tier: 'B'
   },
   'Eulji Mundeok': {
     partners: ['Sun Tzu', 'Björn Ironside', 'Osman I', 'Charles Martel'],
-    reason: 'Infantry defense debuffer'
+    reason: 'Infantry defense debuffer, weakens enemy front line',
+    tier: 'B'
   },
-  'Richard I': {
-    partners: ['Charles Martel', 'Sun Tzu', 'Scipio Africanus', 'Yi Seong-Gye'],
-    reason: 'Best tank in the game with healing'
+  'Alexander the Great': {
+    partners: ['Guan Yu', 'Sun Tzu', 'Richard I'],
+    reason: 'Strong infantry commander with shield and damage',
+    tier: 'A'
   },
-  'Scipio Africanus': {
-    partners: ['Sun Tzu', 'Charles Martel', 'Björn Ironside', 'Joan of Arc'],
-    reason: 'Healing and troop capacity boost'
-  },
-  
-  // Cavalry Pairings
+
+  // Cavalry Pairings (Note: Cavalry weaker in Sunset Canyon)
   'Cao Cao': {
-    partners: ['Minamoto no Yoshitsune', 'Pelagius', 'Belisarius', 'Baibars', 'Osman I'],
-    reason: 'Fast cavalry with mobility and damage'
+    partners: ['Minamoto no Yoshitsune', 'Pelagius', 'Belisarius', 'Baibars', 'Osman I', 'Tomoe Gozen', 'Genghis Khan'],
+    reason: 'Fast cavalry with mobility and damage, pairs with healer Tomoe',
+    tier: 'A'
   },
   'Minamoto no Yoshitsune': {
-    partners: ['Cao Cao', 'Pelagius', 'Baibars', 'Osman I'],
-    reason: 'High single-target cavalry damage'
-  },
-  'Baibars': {
-    partners: ['Osman I', 'Cao Cao', 'Sun Tzu', 'Aethelflaed', 'Saladin', 'Minamoto no Yoshitsune'],
-    reason: 'AOE cavalry damage, hits 5 targets'
-  },
-  'Osman I': {
-    partners: ['Baibars', 'Eulji Mundeok', 'Cao Cao', 'Minamoto no Yoshitsune'],
-    reason: 'Troop capacity boost and conquering'
-  },
-  'Saladin': {
-    partners: ['Baibars', 'Cao Cao', 'Minamoto no Yoshitsune'],
-    reason: 'Strong cavalry commander'
-  },
-  
-  // Archer Pairings
-  'Yi Seong-Gye': {
-    partners: ['Sun Tzu', 'Aethelflaed', 'Kusunoki Masashige', 'Mehmed II', 'Richard I'],
-    reason: 'Best AOE damage, skill damage boost'
-  },
-  'Kusunoki Masashige': {
-    partners: ['Sun Tzu', 'Yi Seong-Gye', 'Aethelflaed', 'Hermann'],
-    reason: 'Archer AOE and garrison defense'
-  },
-  
-  // Leadership/Mixed Pairings
-  'Aethelflaed': {
-    partners: ['Yi Seong-Gye', 'Sun Tzu', 'Lohar', 'Boudica', 'Baibars'],
-    reason: 'Debuffer, pairs with any troop type'
-  },
-  'Boudica': {
-    partners: ['Lohar', 'Aethelflaed', 'Sun Tzu', 'Joan of Arc'],
-    reason: 'Rage engine and healing'
-  },
-  'Lohar': {
-    partners: ['Boudica', 'Aethelflaed', 'Joan of Arc'],
-    reason: 'High level early, healing support'
-  },
-  'Joan of Arc': {
-    partners: ['Charles Martel', 'Scipio Africanus', 'Boudica', 'Sun Tzu'],
-    reason: 'Versatile buffer and gathering'
-  },
-  'Mehmed II': {
-    partners: ['Yi Seong-Gye', 'Sun Tzu', 'Aethelflaed'],
-    reason: 'Conquering specialist with AOE'
-  },
-  'Thutmose III': {
-    partners: ['Yi Seong-Gye', 'Kusunoki Masashige', 'Aethelflaed'],
-    reason: 'Archer support commander'
-  },
-  'Wak Chanil Ajaw': {
-    partners: ['Aethelflaed', 'Boudica', 'Lohar'],
-    reason: 'Integration and gathering specialist'
+    partners: ['Cao Cao', 'Pelagius', 'Baibars', 'Osman I', 'Genghis Khan'],
+    reason: 'High single-target cavalry damage, excellent for eliminations',
+    tier: 'A'
   },
   'Genghis Khan': {
     partners: ['Cao Cao', 'Minamoto no Yoshitsune', 'Baibars'],
-    reason: 'Cavalry nuker with high skill damage'
+    reason: 'Cavalry nuker with high skill damage',
+    tier: 'A'
+  },
+  'Baibars': {
+    partners: ['Osman I', 'Cao Cao', 'Sun Tzu', 'Aethelflaed', 'Saladin', 'Minamoto no Yoshitsune'],
+    reason: 'AOE cavalry damage hitting 5 targets, excellent for Sunset Canyon',
+    tier: 'A'
+  },
+  'Saladin': {
+    partners: ['Baibars', 'Cao Cao', 'Minamoto no Yoshitsune', 'Xiang Yu'],
+    reason: 'Strong cavalry commander, exceptional when paired with Baibars',
+    tier: 'A'
+  },
+  'Osman I': {
+    partners: ['Baibars', 'Eulji Mundeok', 'Cao Cao', 'Minamoto no Yoshitsune'],
+    reason: 'Troop capacity boost, good for cavalry marches',
+    tier: 'B'
+  },
+  'Pelagius': {
+    partners: ['Minamoto no Yoshitsune', 'Cao Cao'],
+    reason: 'Incredible single target cavalry damage with strong stats',
+    tier: 'B'
+  },
+  'Belisarius': {
+    partners: ['Cao Cao', 'Baibars'],
+    reason: 'Fast cavalry with march speed, good for mobility',
+    tier: 'B'
+  },
+  'Tomoe Gozen': {
+    partners: ['Cao Cao'],
+    reason: 'Cavalry healer, excellent damage dealer + heal synergy',
+    tier: 'B'
+  },
+
+  // Archer Pairings
+  'Yi Seong-Gye': {
+    partners: ['Sun Tzu', 'Aethelflaed', 'Kusunoki Masashige', 'Mehmed II', 'Richard I', 'Hermann Prime', 'Ramesses II'],
+    reason: 'Best epic AOE damage, skill damage boost, backline powerhouse',
+    tier: 'S'
+  },
+  'Kusunoki Masashige': {
+    partners: ['Sun Tzu', 'Yi Seong-Gye', 'Aethelflaed', 'Hermann'],
+    reason: 'Archer AOE with garrison defense, strong in Canyon',
+    tier: 'A'
+  },
+  'Thutmose III': {
+    partners: ['Yi Seong-Gye', 'Kusunoki Masashige', 'Aethelflaed'],
+    reason: 'Archer support commander with skill damage buffs',
+    tier: 'B'
+  },
+  'Hermann': {
+    partners: ['Kusunoki Masashige', 'Yi Seong-Gye'],
+    reason: 'Strong archer garrison commander',
+    tier: 'B'
+  },
+
+  // Leadership/Mixed/Support Pairings
+  'Aethelflaed': {
+    partners: ['Yi Seong-Gye', 'Sun Tzu', 'Lohar', 'Boudica', 'Baibars', 'Kusunoki Masashige'],
+    reason: 'Universal debuffer, pairs with any troop type, reduces enemy damage',
+    tier: 'A'
+  },
+  'Joan of Arc': {
+    partners: ['Charles Martel', 'Scipio Africanus', 'Boudica', 'Sun Tzu', 'Mulan'],
+    reason: 'Versatile buffer for all troop types, strong support',
+    tier: 'A'
+  },
+  'Boudica': {
+    partners: ['Lohar', 'Aethelflaed', 'Sun Tzu', 'Joan of Arc'],
+    reason: 'Rage engine with healing, sustain support',
+    tier: 'B'
+  },
+  'Lohar': {
+    partners: ['Boudica', 'Aethelflaed', 'Joan of Arc'],
+    reason: 'Easy to max level, healing support for barbarians and Canyon',
+    tier: 'B'
+  },
+  'Mehmed II': {
+    partners: ['Yi Seong-Gye', 'Sun Tzu', 'Aethelflaed'],
+    reason: 'Conquering specialist with AOE, versatile mixed commander',
+    tier: 'A'
+  },
+  'Wak Chanil Ajaw': {
+    partners: ['Aethelflaed', 'Boudica', 'Lohar'],
+    reason: 'Integration and gathering specialist, support role',
+    tier: 'B'
+  },
+
+  // Garrison Defense Specialists
+  'El Cid': {
+    partners: ['Hermann', 'Yi Seong-Gye'],
+    reason: 'Reduces incoming damage in prolonged battles, garrison specialist',
+    tier: 'A'
+  },
+  'Bertrand': {
+    partners: ['Alexander Nevsky'],
+    reason: 'Strong garrison due to synergy with Nevsky',
+    tier: 'A'
+  },
+  'William I': {
+    partners: ['Charles Martel', 'Richard I'],
+    reason: 'Massive defense + rage boost, performs well in Canyon',
+    tier: 'A'
   },
 };
 
@@ -135,54 +277,89 @@ function getEffectivePower(commander: UserCommander): number {
 // Score how well two commanders pair together - based on actual game meta
 function getPairingScore(primary: UserCommander, secondary: UserCommander): number {
   let score = 0;
-  
+
   // Check for known synergies first (most important!)
   const knownSynergy = KNOWN_SYNERGIES[primary.name];
   if (knownSynergy && knownSynergy.partners.includes(secondary.name)) {
-    score += 100; // Big bonus for known good pairings
+    // Tier-based bonuses: S-tier pairs get highest bonus
+    const tierBonus = knownSynergy.tier === 'S' ? 150 : knownSynergy.tier === 'A' ? 120 : 100;
+    score += tierBonus;
   }
-  
+
   // Reverse check - secondary's synergies
   const reverseSynergy = KNOWN_SYNERGIES[secondary.name];
   if (reverseSynergy && reverseSynergy.partners.includes(primary.name)) {
-    score += 50; // Smaller bonus for reverse match
+    const tierBonus = reverseSynergy.tier === 'S' ? 75 : reverseSynergy.tier === 'A' ? 60 : 50;
+    score += tierBonus;
   }
-  
-  // Same troop type bonus (synergy)
-  if (primary.troopType === secondary.troopType) {
-    score += 30;
+
+  // Same troop type bonus (synergy) - stronger bonus for matching types
+  if (primary.troopType === secondary.troopType && primary.troopType !== 'mixed') {
+    score += 40; // Increased from 30
   }
-  
+
   // Mixed troop type commanders pair well with anyone
   if (primary.troopType === 'mixed' || secondary.troopType === 'mixed') {
-    score += 15;
+    score += 20; // Increased from 15
   }
-  
-  // Role complementarity
+
+  // Role complementarity - enhanced for better team composition
   const primaryRole = getCommanderRole(primary);
   const secondaryRole = getCommanderRole(secondary);
-  
+
   // Tank + Nuker is great for front line
   if ((primaryRole === 'tank' && secondaryRole === 'nuker') ||
       (primaryRole === 'nuker' && secondaryRole === 'tank')) {
-    score += 25;
+    score += 35; // Increased from 25
   }
-  
+
   // Support + Nuker for damage boost
   if ((primaryRole === 'support' && secondaryRole === 'nuker') ||
       (primaryRole === 'nuker' && secondaryRole === 'support')) {
-    score += 20;
+    score += 30; // Increased from 20
   }
-  
+
+  // Tank + Support (sustain combo)
+  if ((primaryRole === 'tank' && secondaryRole === 'support') ||
+      (primaryRole === 'support' && secondaryRole === 'tank')) {
+    score += 25;
+  }
+
+  // Penalty for cavalry in Sunset Canyon (faces many counters)
+  if (primary.troopType === 'cavalry' || secondary.troopType === 'cavalry') {
+    score -= 15; // Cavalry is weaker in Canyon (Charles Martel, Richard, Sun Tzu counter it)
+  }
+
+  // Bonus for infantry (stronger in Canyon)
+  if (primary.troopType === 'infantry' && secondary.troopType === 'infantry') {
+    score += 15;
+  }
+
+  // Bonus for archers in back row (will be positioned there)
+  if (primary.troopType === 'archer' || secondary.troopType === 'archer') {
+    score += 10; // Archers excel in backline AOE
+  }
+
   // CRITICAL: Factor in commander power (level + skills + stars)
   // Secondary commander power matters a lot!
   const secondaryPower = getEffectivePower(secondary);
-  score += secondaryPower / 50; // Scale down but still significant
-  
+  score += secondaryPower / 40; // Increased weight from /50
+
   // Primary should also be strong
   const primaryPower = getEffectivePower(primary);
-  score += primaryPower / 100;
-  
+  score += primaryPower / 80; // Increased weight from /100
+
+  // Bonus for legendary rarity pairs
+  if (primary.rarity === 'legendary' && secondary.rarity === 'legendary') {
+    score += 20;
+  }
+
+  // Bonus for mixed legendary + epic
+  if ((primary.rarity === 'legendary' && secondary.rarity === 'epic') ||
+      (primary.rarity === 'epic' && secondary.rarity === 'legendary')) {
+    score += 10;
+  }
+
   return score;
 }
 
@@ -310,29 +487,38 @@ function assignPositions(
     frontScore: getFrontRowScore(army.primary) + (army.secondary ? getFrontRowScore(army.secondary) * 0.3 : 0),
     backScore: getBackRowScore(army.primary) + (army.secondary ? getBackRowScore(army.secondary) * 0.3 : 0),
   }));
-  
+
   // Sort by difference (most "tanky" first)
   scoredArmies.sort((a, b) => (b.frontScore - b.backScore) - (a.frontScore - a.backScore));
-  
+
   const positioned: OptimizedArmy[] = [];
-  
-  // Typical formation: 2-3 front, 2-3 back, spread across slots
+
+  // Sunset Canyon optimal formation: 2-3 tanks front, 2-3 AOE/damage back
+  // Research shows: balanced front line with full back coverage works best
   // Front row slots: 0, 1, 2, 3
   // Back row slots: 0, 1, 2, 3 (displayed as 4-7 in UI)
-  
-  const frontSlots = [1, 2]; // Center front (slots 1 and 2)
-  const backSlots = [0, 1, 2, 3]; // Full back coverage
-  
+
+  // Strategy: Put 2 strongest tanks in center front, fill back with AOE damage
+  const frontSlots = [1, 2, 0]; // Center first (1, 2), then slot 0 if needed
+  const backSlots = [0, 1, 2, 3]; // Full back row coverage
+
   let frontIndex = 0;
   let backIndex = 0;
-  
+
+  // Count how many clear tanks we have
+  const tankCount = scoredArmies.filter(a => a.frontScore > a.backScore + 20).length;
+
+  // Decide front line size: 2-3 based on available tanks
+  const targetFrontSize = Math.min(3, Math.max(2, tankCount));
+
   for (let i = 0; i < scoredArmies.length; i++) {
     const army = scoredArmies[i];
     const troopPower = calculateTroopPower(army.primary, army.secondary, cityHallLevel);
-    
-    // First 2 go to front (or more if they're clearly tanks)
-    if (i < 2 || (army.frontScore > army.backScore && frontIndex < frontSlots.length)) {
-      if (frontIndex < frontSlots.length) {
+
+    // Place tanks in front (up to targetFrontSize)
+    if (frontIndex < targetFrontSize && frontIndex < frontSlots.length) {
+      // Strongly prefer tanks for front, but fill to target size
+      if (i < targetFrontSize || army.frontScore > army.backScore) {
         positioned.push({
           primary: army.primary,
           secondary: army.secondary,
@@ -343,8 +529,8 @@ function assignPositions(
         continue;
       }
     }
-    
-    // Rest go to back
+
+    // Rest go to back row for AOE damage
     if (backIndex < backSlots.length) {
       positioned.push({
         primary: army.primary,
@@ -355,7 +541,7 @@ function assignPositions(
       backIndex++;
     }
   }
-  
+
   return positioned;
 }
 
@@ -373,24 +559,47 @@ export function calculateTroopPower(
   cityHallLevel: number
 ): number {
   // Base troop count formula: (commander level + city hall level) * multiplier
-  // At CH23 with level 60 commander: (60 + 23) * ~1000 = ~83,000 troops
+  // At CH25 with level 60 commander: (60 + 25) * ~1000 = ~85,000 troops
   const baseMultiplier = 1000;
   const primaryTroops = (primary.level + cityHallLevel) * baseMultiplier;
-  
-  // Secondary commander adds ~10% bonus to troop effectiveness
-  const secondaryBonus = secondary ? 0.1 * (secondary.level / 60) : 0;
-  
-  // Skill levels add bonus (max skills add ~15% more power)
-  const primarySkillBonus = primary.skillLevels.reduce((a, b) => a + b, 0) / 20 * 0.15;
-  const secondarySkillBonus = secondary 
-    ? secondary.skillLevels.reduce((a, b) => a + b, 0) / 20 * 0.05 
+
+  // Secondary commander adds bonus based on level and synergy
+  let secondaryBonus = 0;
+  if (secondary) {
+    // Base secondary bonus: 10-15% based on level
+    secondaryBonus = 0.1 * (secondary.level / 60);
+
+    // Synergy bonus: check if this is a known good pairing
+    const knownSynergy = KNOWN_SYNERGIES[primary.name];
+    if (knownSynergy && knownSynergy.partners.includes(secondary.name)) {
+      // S-tier synergies get bigger bonus
+      const synergyBonus = knownSynergy.tier === 'S' ? 0.08 : knownSynergy.tier === 'A' ? 0.05 : 0.03;
+      secondaryBonus += synergyBonus;
+    }
+
+    // Same troop type bonus (talent trees synergize better)
+    if (primary.troopType === secondary.troopType && primary.troopType !== 'mixed') {
+      secondaryBonus += 0.05;
+    }
+  }
+
+  // Skill levels add bonus (max skills add ~20% more power)
+  const primarySkillBonus = primary.skillLevels.reduce((a, b) => a + b, 0) / 20 * 0.20; // Increased from 0.15
+  const secondarySkillBonus = secondary
+    ? secondary.skillLevels.reduce((a, b) => a + b, 0) / 20 * 0.08  // Increased from 0.05
     : 0;
-  
-  // Star level bonus (5 stars = full power, 4 stars = 90%, etc)
+
+  // Star level bonus (5 stars = full power, lower stars are weaker)
   const starBonus = (primary.stars || 5) / 5;
-  
-  const totalPower = primaryTroops * (1 + secondaryBonus + primarySkillBonus + secondarySkillBonus) * starBonus;
-  
+
+  // Rarity power multiplier (legendaries are inherently stronger)
+  const rarityMultiplier = primary.rarity === 'legendary' ? 1.15 : primary.rarity === 'epic' ? 1.05 : 1.0;
+
+  // Commander stats contribute to overall power
+  const statBonus = (primary.baseStats.attack + primary.baseStats.defense + primary.baseStats.health) / 10000;
+
+  const totalPower = primaryTroops * (1 + secondaryBonus + primarySkillBonus + secondarySkillBonus + statBonus) * starBonus * rarityMultiplier;
+
   return Math.round(totalPower);
 }
 
@@ -464,42 +673,88 @@ export async function optimizeDefense(
     });
   }
   
-  onProgress?.(50, 'Running battle simulations...');
-  
-  // For now, estimate win rates based on formation quality
-  // (Full simulation against meta attackers will be added later)
+  onProgress?.(50, 'Analyzing formation effectiveness...');
+
+  // Evaluate formation quality based on meta synergies and composition
   for (let i = 0; i < candidateFormations.length; i++) {
     const formation = candidateFormations[i];
-    
+
     // Calculate a quality score based on:
-    // - Total commander levels
-    // - Skill levels
-    // - Role coverage
-    // - Troop type diversity
-    
+    // - Commander synergies and meta pairings
+    // - Total commander levels and skills
+    // - Role coverage (tanks, nukers, support)
+    // - Troop type diversity and Canyon effectiveness
+
     let qualityScore = 0;
     const troopTypes = new Set<string>();
     const roles = new Set<string>();
-    
+    let synergyCount = 0;
+    let sTierCount = 0;
+    const insights: string[] = [];
+
     for (const army of formation.armies) {
+      // Commander power contribution
       qualityScore += army.primary.level * 2;
       qualityScore += army.primary.skillLevels.reduce((a, b) => a + b, 0) * 3;
+
       if (army.secondary) {
-        qualityScore += army.secondary.level;
-        qualityScore += army.secondary.skillLevels.reduce((a, b) => a + b, 0) * 1.5;
+        qualityScore += army.secondary.level * 1.5;
+        qualityScore += army.secondary.skillLevels.reduce((a, b) => a + b, 0) * 2;
+
+        // Check for known synergies
+        const knownSynergy = KNOWN_SYNERGIES[army.primary.name];
+        if (knownSynergy && knownSynergy.partners.includes(army.secondary.name)) {
+          synergyCount++;
+          if (knownSynergy.tier === 'S') {
+            sTierCount++;
+            qualityScore += 50; // Big bonus for S-tier pairs
+          } else if (knownSynergy.tier === 'A') {
+            qualityScore += 30;
+          } else {
+            qualityScore += 15;
+          }
+        }
       }
-      
+
       troopTypes.add(army.primary.troopType);
       roles.add(getCommanderRole(army.primary));
+
+      // Rarity bonus
+      if (army.primary.rarity === 'legendary') qualityScore += 10;
+      if (army.secondary?.rarity === 'legendary') qualityScore += 5;
     }
-    
-    // Bonus for diversity
-    qualityScore += troopTypes.size * 10;
-    qualityScore += roles.size * 15;
-    
-    // Normalize to a percentage (rough estimate)
-    formation.winRate = Math.min(85, Math.max(35, 40 + qualityScore / 20));
-    
+
+    // Composition bonuses
+    qualityScore += troopTypes.size * 12; // Diversity is good
+    qualityScore += roles.size * 18; // Role coverage is important
+
+    // Build reasoning insights
+    if (sTierCount > 0) {
+      insights.push(`${sTierCount} S-tier meta pairing${sTierCount > 1 ? 's' : ''}`);
+    }
+    if (synergyCount >= 4) {
+      insights.push('Excellent commander synergy across all armies');
+    } else if (synergyCount >= 3) {
+      insights.push('Strong commander synergies');
+    }
+
+    const frontArmies = formation.armies.filter(a => a.position.row === 'front');
+    const backArmies = formation.armies.filter(a => a.position.row === 'back');
+
+    if (frontArmies.length >= 2 && frontArmies.length <= 3) {
+      insights.push('Optimal front-line coverage');
+    }
+    if (backArmies.length >= 2) {
+      insights.push('Strong back-line AOE potential');
+    }
+
+    // Update formation reasoning with insights
+    formation.reasoning = [...formation.reasoning, ...insights];
+
+    // Normalize to a win rate percentage (35-90%)
+    // Higher quality scores = higher win rates
+    formation.winRate = Math.min(90, Math.max(35, 40 + qualityScore / 18));
+
     onProgress?.(50 + (i + 1) * 15, `Evaluated formation ${i + 1}/${candidateFormations.length}`);
   }
   
