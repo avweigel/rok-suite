@@ -430,6 +430,7 @@ export default function AooStrategyPage() {
                     initialAssignments={mapAssignments}
                     onSave={handleMapSave}
                     isEditor={isEditor}
+                    players={players}
                 />
             )}
 
@@ -802,12 +803,79 @@ export default function AooStrategyPage() {
                                                     <li>🛡️ <strong>Garrison:</strong> Use infantry commanders. Stay in buildings to defend!</li>
                                                 )}
                                                 {foundPlayer.tags.includes('Farm') && (
-                                                    <li>🌾 <strong>Farm:</strong> Gather constantly! Can earn 13,000+ points for the team.</li>
+                                                    <>
+                                                        <li>🌾 <strong>Farm:</strong> Gather constantly from start to finish!</li>
+                                                        <li>📍 <strong>Where:</strong> Start near your zone&apos;s obelisk, move to resource nodes near captured buildings</li>
+                                                        <li>💰 <strong>Points:</strong> Can earn 13,000+ points - almost as much as 4 Ark captures!</li>
+                                                        <li>⚠️ <strong>Safety:</strong> Stay in friendly territory, avoid enemy marches</li>
+                                                    </>
                                                 )}
                                                 {foundPlayer.tags.includes('Conquer') && (
                                                     <li>🏃 <strong>Conquer:</strong> Use T1 cavalry for speed. Capture undefended buildings fast!</li>
                                                 )}
                                             </ul>
+                                        </div>
+
+                                        {/* March Deployment Guide */}
+                                        <div className={`mt-4 p-4 rounded-lg ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
+                                            <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>🎖️ March Deployment</h4>
+                                            <div className={`space-y-3 text-sm ${theme.text}`}>
+                                                <div className={`p-2 rounded ${darkMode ? 'bg-zinc-800' : 'bg-gray-50'}`}>
+                                                    <p className="font-medium mb-1">Recommended: 3 Marches</p>
+                                                    <ul className={`text-xs ${theme.textMuted} space-y-1`}>
+                                                        <li>• <strong>March 1:</strong> In a building (garrison/obelisk)</li>
+                                                        <li>• <strong>March 2:</strong> In another building or rally</li>
+                                                        <li>• <strong>March 3:</strong> Mobile - support rallies or Ark</li>
+                                                    </ul>
+                                                </div>
+                                                {foundPlayer.tags.includes('Rally Leader') && (
+                                                    <div className={`p-2 rounded border-l-2 border-red-500 ${darkMode ? 'bg-red-900/20' : 'bg-red-50'}`}>
+                                                        <p className="font-medium text-red-500">Rally Leader Marches:</p>
+                                                        <ul className={`text-xs ${theme.textMuted}`}>
+                                                            <li>• Lead rally with your strongest march</li>
+                                                            <li>• Keep 1-2 marches for garrison backup</li>
+                                                        </ul>
+                                                    </div>
+                                                )}
+                                                {foundPlayer.tags.includes('Garrison') && (
+                                                    <div className={`p-2 rounded border-l-2 border-orange-500 ${darkMode ? 'bg-orange-900/20' : 'bg-orange-50'}`}>
+                                                        <p className="font-medium text-orange-500">Garrison Marches:</p>
+                                                        <ul className={`text-xs ${theme.textMuted}`}>
+                                                            <li>• Keep marches IN buildings at all times</li>
+                                                            <li>• Use infantry for better defense</li>
+                                                            <li>• Switch buildings as we capture more</li>
+                                                        </ul>
+                                                    </div>
+                                                )}
+                                                {foundPlayer.tags.includes('Conquer') && (
+                                                    <div className={`p-2 rounded border-l-2 border-purple-500 ${darkMode ? 'bg-purple-900/20' : 'bg-purple-50'}`}>
+                                                        <p className="font-medium text-purple-500">Conquer Marches:</p>
+                                                        <ul className={`text-xs ${theme.textMuted}`}>
+                                                            <li>• March 1: T1 cavalry (fastest) for captures</li>
+                                                            <li>• March 2-3: Support or fill rallies</li>
+                                                        </ul>
+                                                    </div>
+                                                )}
+                                                {foundPlayer.tags.includes('Farm') && (
+                                                    <div className={`p-2 rounded border-l-2 border-yellow-500 ${darkMode ? 'bg-yellow-900/20' : 'bg-yellow-50'}`}>
+                                                        <p className="font-medium text-yellow-600">Farmer Marches:</p>
+                                                        <ul className={`text-xs ${theme.textMuted}`}>
+                                                            <li>• All 5 marches gathering resources</li>
+                                                            <li>• Spread across multiple nodes</li>
+                                                            <li>• Don&apos;t return home - go node to node</li>
+                                                        </ul>
+                                                    </div>
+                                                )}
+                                                {(foundPlayer.tags.includes('Teleport 1st') || foundPlayer.tags.includes('Teleport 2nd')) && (
+                                                    <div className={`p-2 rounded border-l-2 border-blue-500 ${darkMode ? 'bg-blue-900/20' : 'bg-blue-50'}`}>
+                                                        <p className="font-medium text-blue-500">Teleport Marches:</p>
+                                                        <ul className={`text-xs ${theme.textMuted}`}>
+                                                            <li>• Before teleport: All troops in city OR in buildings</li>
+                                                            <li>• After teleport: Fill rallies &amp; garrison buildings</li>
+                                                        </ul>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 );

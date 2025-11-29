@@ -12,8 +12,8 @@
     {"id": 10, "name": "Zdrawee", "team": 1, "tags": ["Garrison"], "power": 7044077, "assignments": {"phase1": "Fill rally Obelisk 2", "phase2": "Garrison Obelisk 2", "phase3": "Garrison Shrine of Life 2", "phase4": "Garrison Desert Altar 2"}},
     {"id": 11, "name": "aubs", "team": 1, "tags": ["Conquer"], "power": 7027928, "assignments": {"phase1": "T1 Cav → Obelisk 2", "phase2": "Conquer Outpost of Iset 2", "phase3": "Conquer Desert Altar 2", "phase4": "Conquer Obelisk 4"}},
     {"id": 12, "name": "Buby", "team": 1, "tags": ["Conquer"], "power": 6830766, "assignments": {"phase1": "T1 Cav → Obelisk 2", "phase2": "Conquer Sky Altar 2", "phase3": "Conquer Shrine of War 1", "phase4": "Conquer Seth Outpost 3"}},
-    {"id": 13, "name": "Cain", "team": 1, "tags": ["Farm"], "power": 5904444, "assignments": {"phase1": "Gather resources", "phase2": "Gather resources", "phase3": "Gather resources", "phase4": "Gather resources"}},
-    {"id": 14, "name": "AlakD", "team": 1, "tags": ["Farm"], "power": 5344479, "assignments": {"phase1": "Gather resources", "phase2": "Gather resources", "phase3": "Gather resources", "phase4": "Gather resources"}},
+    {"id": 13, "name": "Cain", "team": 1, "tags": ["Farm"], "power": 5904444, "assignments": {"phase1": "Gather near Obelisk 2", "phase2": "Gather left side resources", "phase3": "Gather near Sky Altar 2", "phase4": "Gather any available resources"}},
+    {"id": 14, "name": "AlakD", "team": 1, "tags": ["Farm"], "power": 5344479, "assignments": {"phase1": "Gather near Obelisk 2", "phase2": "Gather left side resources", "phase3": "Gather near Shrine of Life 2", "phase4": "Gather any available resources"}},
     
     {"id": 15, "name": "Fluffy", "team": 2, "tags": ["Rally Leader"], "power": 50693872, "assignments": {"phase1": "Support Obelisk 1", "phase2": "Position center", "phase3": "Lead Ark escort", "phase4": "Rally Seth Outpost 1"}},
     {"id": 16, "name": "Sysstm", "team": 2, "tags": ["Rally Leader"], "power": 40782106, "assignments": {"phase1": "Support Obelisk 2", "phase2": "Position center", "phase3": "Grab Ark, escort", "phase4": "Support weak lane"}},
@@ -30,8 +30,8 @@
     {"id": 26, "name": "Zetma", "team": 3, "tags": ["Garrison"], "power": 7007776, "assignments": {"phase1": "Fill rally Obelisk 1", "phase2": "Garrison Outpost of Iset 3", "phase3": "Garrison Desert Altar 1", "phase4": "Garrison Obelisk 3"}},
     {"id": 27, "name": "Bryan", "team": 3, "tags": ["Conquer"], "power": 6817555, "assignments": {"phase1": "T1 Cav → Obelisk 1", "phase2": "Conquer Outpost of Iset 1", "phase3": "Conquer Desert Altar 1", "phase4": "Conquer Obelisk 3"}},
     {"id": 28, "name": "MrOren", "team": 3, "tags": ["Conquer"], "power": 6414288, "assignments": {"phase1": "T1 Cav → Obelisk 1", "phase2": "Conquer Shrine of Life 1", "phase3": "Conquer Shrine of War 2", "phase4": "Conquer Seth Outpost 2"}},
-    {"id": 29, "name": "Monke", "team": 3, "tags": ["Farm"], "power": 5910567, "assignments": {"phase1": "Gather resources", "phase2": "Gather resources", "phase3": "Gather resources", "phase4": "Gather resources"}},
-    {"id": 30, "name": "Crus8r", "team": 3, "tags": ["Farm"], "power": 5753284, "assignments": {"phase1": "Gather resources", "phase2": "Gather resources", "phase3": "Gather resources", "phase4": "Gather resources"}}
+    {"id": 29, "name": "Monke", "team": 3, "tags": ["Farm"], "power": 5910567, "assignments": {"phase1": "Gather near Obelisk 1", "phase2": "Gather right side resources", "phase3": "Gather near Desert Altar 1", "phase4": "Gather any available resources"}},
+    {"id": 30, "name": "Crus8r", "team": 3, "tags": ["Farm"], "power": 5753284, "assignments": {"phase1": "Gather near Obelisk 1", "phase2": "Gather right side resources", "phase3": "Gather near Sky Altar 1", "phase4": "Gather any available resources"}}
   ],
   "teams": [
     {"name": "Zone 1", "description": "Lower (Left Side)"},

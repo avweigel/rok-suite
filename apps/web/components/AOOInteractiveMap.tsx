@@ -20,10 +20,27 @@ interface Assignment {
 
 export type MapAssignments = Record<string, Assignment>;
 
+interface PlayerAssignments {
+  phase1: string;
+  phase2: string;
+  phase3: string;
+  phase4: string;
+}
+
+interface Player {
+  id: number;
+  name: string;
+  team: number;
+  tags: string[];
+  power?: number;
+  assignments?: PlayerAssignments;
+}
+
 interface Props {
   initialAssignments?: MapAssignments;
   onSave?: (assignments: MapAssignments) => void;
   isEditor?: boolean;
+  players?: Player[];
 }
 
 // All buildings on the map with positions (percentages based on new map)
@@ -79,7 +96,7 @@ const getDefaultAssignments = (): MapAssignments => {
   return initial;
 };
 
-export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor = true }: Props) {
+export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor = true, players = [] }: Props) {
   const [isDark, setIsDark] = useState(true);
   const [assignments, setAssignments] = useState<MapAssignments>(() => {
     return initialAssignments || getDefaultAssignments();
@@ -199,8 +216,8 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
       <div className="max-w-[1600px] mx-auto p-4">
         <div className="flex flex-col lg:flex-row gap-4">
           
-          {/* Left Panel - Zone Filter & Assignment */}
-          <div className="lg:w-72 space-y-4">
+          {/* Left Panel - Zone Filter & Assignment (hidden on mobile, shown on desktop) */}
+          <div className="hidden lg:block lg:w-72 space-y-4">
             {/* Filter by Zone */}
             <div className={`${theme.bgSecondary} rounded-xl p-4 border ${theme.border}`}>
               <h3 className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted} mb-3`}>
@@ -253,7 +270,8 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                       {teamBuildings.map((building) => (
                         <div 
                           key={building.id}
-                          className={`flex items-center gap-2 px-2 py-1.5 rounded ${theme.bgTertiary}`}
+                          className={`flex items-center gap-2 px-2 py-1.5 rounded ${theme.bgTertiary} cursor-pointer hover:opacity-80`}
+                          onClick={() => setSelectedBuilding(building)}
                         >
                           {isEditor ? (
                             <input
@@ -261,6 +279,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                               min="1"
                               value={assignments[building.id]?.order || 1}
                               onChange={(e) => setOrder(building.id, parseInt(e.target.value) || 1)}
+                              onClick={(e) => e.stopPropagation()}
                               className="w-8 h-6 rounded text-center text-xs font-bold text-white border-0 focus:ring-2 focus:ring-white"
                               style={{ backgroundColor: teamColors[team].bg }}
                             />
@@ -276,14 +295,14 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                           {isEditor && (
                             <div className="flex gap-1">
                               <button
-                                onClick={() => setOrder(building.id, (assignments[building.id]?.order || 1) - 1)}
+                                onClick={(e) => { e.stopPropagation(); setOrder(building.id, (assignments[building.id]?.order || 1) - 1); }}
                                 disabled={(assignments[building.id]?.order || 1) <= 1}
                                 className={`text-xs px-1 ${(assignments[building.id]?.order || 1) <= 1 ? 'opacity-30' : 'hover:opacity-70'} ${theme.textSecondary}`}
                               >
                                 ▲
                               </button>
                               <button
-                                onClick={() => setOrder(building.id, (assignments[building.id]?.order || 1) + 1)}
+                                onClick={(e) => { e.stopPropagation(); setOrder(building.id, (assignments[building.id]?.order || 1) + 1); }}
                                 className={`text-xs px-1 hover:opacity-70 ${theme.textSecondary}`}
                               >
                                 ▼
@@ -299,8 +318,8 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
             })}
           </div>
 
-          {/* Map */}
-          <div className="flex-1">
+          {/* Center - Map (shown first on mobile) */}
+          <div className="flex-1 order-first lg:order-none">
             <div className={`${theme.bgSecondary} rounded-xl overflow-hidden border ${theme.border}`}>
               <div className="relative w-full" style={{ aspectRatio: '1275 / 891' }}>
                 {/* Map Background */}
@@ -441,56 +460,147 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
           </div>
 
           {/* Right Panel - Selected Building */}
-          <div className="lg:w-64">
+          <div className="lg:w-72">
             {selectedBuilding ? (
               <div className={`${theme.bgSecondary} rounded-xl p-4 border ${theme.border}`}>
-                <h3 className={`font-semibold ${theme.text} mb-3`}>{selectedBuilding.name}</h3>
+                <div className="flex items-center gap-2 mb-3">
+                  {assignments[selectedBuilding.id]?.team && (
+                    <div 
+                      className="w-4 h-4 rounded-full"
+                      style={{ backgroundColor: teamColors[assignments[selectedBuilding.id].team!].bg }}
+                    />
+                  )}
+                  <h3 className={`font-semibold ${theme.text}`}>{selectedBuilding.name}</h3>
+                </div>
                 
-                {isEditor ? (
+                {assignments[selectedBuilding.id]?.team ? (
+                  <div className="space-y-3">
+                    {/* Zone & Phase info */}
+                    <div className={`p-2 rounded-lg ${theme.bgTertiary}`}>
+                      <div className="flex justify-between items-center">
+                        <span className={`text-sm ${theme.textMuted}`}>Assigned to:</span>
+                        <span 
+                          className="text-sm font-bold px-2 py-0.5 rounded"
+                          style={{ backgroundColor: teamColors[assignments[selectedBuilding.id].team!].bg, color: 'white' }}
+                        >
+                          {teamColors[assignments[selectedBuilding.id].team!].name}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center mt-1">
+                        <span className={`text-sm ${theme.textMuted}`}>Phase:</span>
+                        <span className={`text-sm font-bold ${theme.text}`}>
+                          {assignments[selectedBuilding.id].order || 1}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Player Assignments for this building */}
+                    {players.length > 0 && (() => {
+                      const buildingName = selectedBuilding.name;
+                      const shortName = selectedBuilding.shortName;
+                      const assignedTeam = assignments[selectedBuilding.id]?.team;
+                      
+                      // Find players assigned to this building
+                      const getPlayersForRole = (role: string) => {
+                        return players.filter(p => {
+                          if (p.team !== assignedTeam) return false;
+                          if (!p.assignments) return false;
+                          const allAssignments = Object.values(p.assignments).join(' ');
+                          return allAssignments.toLowerCase().includes(buildingName.toLowerCase()) ||
+                                 allAssignments.toLowerCase().includes(shortName.toLowerCase());
+                        }).filter(p => p.tags.includes(role));
+                      };
+
+                      const conquerors = getPlayersForRole('Conquer');
+                      const garrisons = getPlayersForRole('Garrison');
+                      const rallyLeaders = getPlayersForRole('Rally Leader');
+                      const allAssigned = [...new Set([...conquerors, ...garrisons, ...rallyLeaders])];
+
+                      if (allAssigned.length === 0) {
+                        return (
+                          <p className={`text-xs ${theme.textMuted}`}>No specific player assignments</p>
+                        );
+                      }
+
+                      return (
+                        <div className="space-y-2">
+                          <h4 className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                            Assigned Players
+                          </h4>
+                          
+                          {rallyLeaders.length > 0 && (
+                            <div className={`p-2 rounded ${theme.bgTertiary}`}>
+                              <div className="flex items-center gap-1 mb-1">
+                                <span className="text-red-500">🎯</span>
+                                <span className={`text-xs font-medium ${theme.textMuted}`}>Rally Leader</span>
+                              </div>
+                              {rallyLeaders.map(p => (
+                                <div key={p.id} className={`text-sm ${theme.text}`}>{p.name}</div>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {conquerors.length > 0 && (
+                            <div className={`p-2 rounded ${theme.bgTertiary}`}>
+                              <div className="flex items-center gap-1 mb-1">
+                                <span className="text-purple-500">🏃</span>
+                                <span className={`text-xs font-medium ${theme.textMuted}`}>Conquer (T1 Cav)</span>
+                              </div>
+                              {conquerors.map(p => (
+                                <div key={p.id} className={`text-sm ${theme.text}`}>{p.name}</div>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {garrisons.length > 0 && (
+                            <div className={`p-2 rounded ${theme.bgTertiary}`}>
+                              <div className="flex items-center gap-1 mb-1">
+                                <span className="text-orange-500">🛡️</span>
+                                <span className={`text-xs font-medium ${theme.textMuted}`}>Garrison</span>
+                              </div>
+                              {garrisons.map(p => (
+                                <div key={p.id} className={`text-sm ${theme.text}`}>{p.name}</div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {isEditor && (
+                      <button
+                        onClick={() => assignTeam(selectedBuilding.id, null)}
+                        className={`w-full px-3 py-2 rounded-lg text-sm ${theme.textSecondary} hover:opacity-70 border ${theme.border}`}
+                      >
+                        Remove Assignment
+                      </button>
+                    )}
+                  </div>
+                ) : isEditor ? (
                   <>
                     <p className={`text-sm ${theme.textMuted} mb-4`}>Assign to a zone:</p>
-                    
                     <div className="space-y-2">
-                      {[1, 2, 3].map(team => {
-                        const isAssigned = assignments[selectedBuilding.id]?.team === team;
-                        return (
-                          <button
-                            key={team}
-                            onClick={() => assignTeam(selectedBuilding.id, isAssigned ? null : team as TeamNumber)}
-                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                              isAssigned ? 'ring-2 ring-white' : ''
-                            }`}
-                            style={{ 
-                              backgroundColor: isAssigned ? teamColors[team].bg : isDark ? '#27272a' : '#f1f5f9',
-                              color: isAssigned ? 'white' : isDark ? 'white' : '#1e293b'
-                            }}
-                          >
-                            <div 
-                              className="w-5 h-5 rounded-full"
-                              style={{ backgroundColor: teamColors[team].bg }}
-                            />
-                            <span className="font-medium">{teamColors[team].name}</span>
-                            {isAssigned && <span className="ml-auto">✓</span>}
-                          </button>
-                        );
-                      })}
-                      
-                      {assignments[selectedBuilding.id]?.team && (
+                      {[1, 2, 3].map(team => (
                         <button
-                          onClick={() => assignTeam(selectedBuilding.id, null)}
-                          className={`w-full px-3 py-2 rounded-lg text-sm ${theme.textSecondary} hover:opacity-70`}
+                          key={team}
+                          onClick={() => assignTeam(selectedBuilding.id, team as TeamNumber)}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all`}
+                          style={{ 
+                            backgroundColor: isDark ? '#27272a' : '#f1f5f9',
+                            color: isDark ? 'white' : '#1e293b'
+                          }}
                         >
-                          Remove Assignment
+                          <div 
+                            className="w-5 h-5 rounded-full"
+                            style={{ backgroundColor: teamColors[team].bg }}
+                          />
+                          <span className="font-medium">{teamColors[team].name}</span>
                         </button>
-                      )}
+                      ))}
                     </div>
                   </>
                 ) : (
-                  <p className={`text-sm ${theme.textMuted}`}>
-                    {assignments[selectedBuilding.id]?.team 
-                      ? `Assigned to Zone ${assignments[selectedBuilding.id].team}`
-                      : 'Not assigned'}
-                  </p>
+                  <p className={`text-sm ${theme.textMuted}`}>Not assigned to any zone</p>
                 )}
               </div>
             ) : (
@@ -500,6 +610,33 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 </p>
               </div>
             )}
+            
+            {/* Mobile Zone Filter */}
+            <div className={`lg:hidden mt-4 ${theme.bgSecondary} rounded-xl p-4 border ${theme.border}`}>
+              <h3 className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted} mb-3`}>
+                Filter Zone
+              </h3>
+              <div className="grid grid-cols-4 gap-2">
+                <button
+                  onClick={() => setFilterTeam('all')}
+                  className={`px-2 py-2 rounded-lg text-xs font-medium transition-all ${
+                    filterTeam === 'all' ? 'bg-emerald-600 text-white' : `${theme.bgTertiary} ${theme.text}`
+                  }`}
+                >
+                  All
+                </button>
+                {[1, 2, 3].map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setFilterTeam(t as TeamNumber)}
+                    className={`px-2 py-2 rounded-lg text-xs font-medium transition-all`}
+                    style={filterTeam === t ? { backgroundColor: teamColors[t].bg, color: 'white' } : {}}
+                  >
+                    Z{t}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
