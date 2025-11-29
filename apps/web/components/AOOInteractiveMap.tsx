@@ -340,20 +340,20 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   <span>ENEMY</span>
                 </div>
 
-                {/* RUSH indicators - small arrows pointing to obelisks */}
-                {/* Obelisk in upper area */}
+                {/* RUSH indicators showing which zone goes where */}
+                {/* Zone 3 rushes Obelisk 1 (upper) */}
                 <div
-                  className="absolute px-1.5 py-0.5 rounded bg-yellow-500/90 text-black text-[10px] font-bold shadow"
+                  className="absolute px-1.5 py-0.5 rounded bg-purple-600 text-white text-[10px] font-bold shadow"
                   style={{ left: '50%', top: '5%', transform: 'translate(-50%, 0)', zIndex: 15 }}
                 >
-                  RUSH ↓
+                  Z3 RUSH ↓
                 </div>
-                {/* Obelisk on left side */}
+                {/* Zone 1 rushes Obelisk 2 (left) */}
                 <div
-                  className="absolute px-1.5 py-0.5 rounded bg-yellow-500/90 text-black text-[10px] font-bold shadow"
-                  style={{ left: '3%', top: '40%', transform: 'translate(0, -50%)', zIndex: 15 }}
+                  className="absolute px-1.5 py-0.5 rounded bg-blue-600 text-white text-[10px] font-bold shadow"
+                  style={{ left: '2%', top: '40%', transform: 'translate(0, -50%)', zIndex: 15 }}
                 >
-                  RUSH →
+                  Z1 RUSH →
                 </div>
 
                 {/* Building Markers */}
@@ -407,26 +407,35 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
             </div>
 
             {/* Map Legend */}
-            <div className={`mt-3 p-3 rounded-lg ${theme.bgTertiary} flex flex-wrap gap-4 text-xs`}>
-              <div className="flex items-center gap-1.5">
-                <span className="px-2 py-0.5 rounded bg-emerald-600 text-white font-bold">⚔️ START</span>
-                <span className={theme.textMuted}>Your spawn</span>
+            <div className={`mt-3 p-3 rounded-lg ${theme.bgTertiary} text-xs`}>
+              <div className="flex flex-wrap gap-4 mb-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="px-2 py-0.5 rounded bg-emerald-600 text-white font-bold">⚔️ START</span>
+                  <span className={theme.textMuted}>Your spawn</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="px-2 py-0.5 rounded bg-red-600 text-white font-bold">☠️ ENEMY</span>
+                  <span className={theme.textMuted}>Enemy spawn</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded bg-blue-500/50 border border-blue-500"></span>
+                  <span className={theme.textMuted}>Zone 1 (Lower)</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded bg-orange-500/50 border border-orange-500"></span>
+                  <span className={theme.textMuted}>Zone 2 (Middle)</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded bg-purple-500/50 border border-purple-500"></span>
+                  <span className={theme.textMuted}>Zone 3 (Upper)</span>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="px-2 py-0.5 rounded bg-red-600 text-white font-bold">☠️ ENEMY</span>
-                <span className={theme.textMuted}>Enemy spawn</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded bg-blue-500/50 border border-blue-500"></span>
-                <span className={theme.textMuted}>Zone 1 (Lower)</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded bg-orange-500/50 border border-orange-500"></span>
-                <span className={theme.textMuted}>Zone 2 (Middle)</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded bg-purple-500/50 border border-purple-500"></span>
-                <span className={theme.textMuted}>Zone 3 (Upper)</span>
+              <div className={`flex flex-wrap gap-3 pt-2 border-t ${theme.border}`}>
+                <span className={`${theme.textMuted} font-medium`}>Phases:</span>
+                <span className={theme.textMuted}><strong>1</strong> = Rush (Obelisks)</span>
+                <span className={theme.textMuted}><strong>2</strong> = Secure (Outposts)</span>
+                <span className={theme.textMuted}><strong>3</strong> = Expand (Shrines/Altars/Ark)</span>
+                <span className={theme.textMuted}><strong>4</strong> = Contest (Enemy territory)</span>
               </div>
             </div>
           </div>
