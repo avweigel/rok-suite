@@ -238,66 +238,65 @@ export function QuickAddCommander({ onAdd, onClose, existingCommanderIds = [] }:
             </div>
           </div>
 
-          {/* Skills - with +/- buttons */}
+          {/* Skills - tap to cycle, mobile friendly */}
           <div>
-            <label className="block text-sm font-medium text-stone-300 mb-1.5">
-              Skills <span className="text-stone-500 font-normal">(0 = not unlocked)</span>
+            <label className="block text-sm font-medium text-stone-300 mb-2">
+              Skills <span className="text-stone-500 font-normal">(tap to change, 0 = locked)</span>
             </label>
-            <div className="flex justify-center gap-4">
+            <div className="grid grid-cols-4 gap-2">
               {skills.map((skill, i) => (
-                <div key={i} className="flex flex-col items-center gap-1">
-                  <button
-                    onClick={() => updateSkill(i, skill + 1)}
-                    className="w-12 h-8 rounded-t-xl bg-stone-700 hover:bg-green-600 text-stone-400 hover:text-white text-lg font-bold transition-all hover:scale-105 active:scale-95"
-                  >
-                    +
-                  </button>
-                  <div className={`w-12 h-12 flex items-center justify-center text-2xl font-bold rounded-lg transition-all ${
+                <button
+                  key={i}
+                  onClick={() => updateSkill(i, skill >= 5 ? 0 : skill + 1)}
+                  className={`relative flex flex-col items-center py-3 rounded-xl border-2 transition-all active:scale-95 ${
                     skill === 5
-                      ? 'bg-yellow-500/30 text-yellow-500 ring-2 ring-yellow-500/50'
+                      ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-500'
                       : skill === 0
-                      ? 'bg-stone-800 text-stone-600'
-                      : 'bg-stone-700 text-stone-200'
-                  }`}>
-                    {skill}
+                      ? 'bg-stone-800 border-stone-700 text-stone-500'
+                      : 'bg-stone-700 border-stone-600 text-stone-200 hover:border-stone-500'
+                  }`}
+                >
+                  <span className="text-2xl font-bold">{skill}</span>
+                  <span className="text-[10px] text-stone-500 mt-1">Skill {i + 1}</span>
+                  {/* Progress dots */}
+                  <div className="flex gap-0.5 mt-1">
+                    {[1, 2, 3, 4, 5].map((dot) => (
+                      <div
+                        key={dot}
+                        className={`w-1.5 h-1.5 rounded-full transition-all ${
+                          dot <= skill ? 'bg-current' : 'bg-stone-600'
+                        }`}
+                      />
+                    ))}
                   </div>
-                  <button
-                    onClick={() => updateSkill(i, skill - 1)}
-                    className="w-12 h-8 rounded-b-xl bg-stone-700 hover:bg-red-600 text-stone-400 hover:text-white text-lg font-bold transition-all hover:scale-105 active:scale-95"
-                  >
-                    −
-                  </button>
-                  <span className="text-xs text-stone-500 mt-1">
-                    Skill {i + 1}
-                  </span>
-                </div>
+                </button>
               ))}
             </div>
             {/* Quick skill presets */}
-            <div className="flex gap-2 mt-4 justify-center">
+            <div className="flex flex-wrap gap-2 mt-3 justify-center">
               <button
                 onClick={() => setSkills([5, 5, 5, 5])}
-                className="px-3 py-1.5 text-xs rounded-lg bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30 transition-all"
+                className="px-3 py-1.5 text-xs rounded-lg bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30 active:scale-95 transition-all"
               >
-                Max 5/5/5/5
+                Max
               </button>
               <button
                 onClick={() => setSkills([5, 5, 1, 1])}
-                className="px-3 py-1.5 text-xs rounded-lg bg-stone-700 text-stone-400 hover:bg-stone-600 transition-all"
+                className="px-3 py-1.5 text-xs rounded-lg bg-stone-700 text-stone-400 hover:bg-stone-600 active:scale-95 transition-all"
               >
-                5/5/1/1
+                5511
               </button>
               <button
                 onClick={() => setSkills([5, 1, 1, 1])}
-                className="px-3 py-1.5 text-xs rounded-lg bg-stone-700 text-stone-400 hover:bg-stone-600 transition-all"
+                className="px-3 py-1.5 text-xs rounded-lg bg-stone-700 text-stone-400 hover:bg-stone-600 active:scale-95 transition-all"
               >
-                5/1/1/1
+                5111
               </button>
               <button
                 onClick={() => setSkills([1, 0, 0, 0])}
-                className="px-3 py-1.5 text-xs rounded-lg bg-stone-700 text-stone-400 hover:bg-stone-600 transition-all"
+                className="px-3 py-1.5 text-xs rounded-lg bg-stone-700 text-stone-400 hover:bg-stone-600 active:scale-95 transition-all"
               >
-                New 1/0/0/0
+                New
               </button>
             </div>
           </div>

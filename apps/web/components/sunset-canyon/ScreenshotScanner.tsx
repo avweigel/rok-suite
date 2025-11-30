@@ -553,47 +553,32 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
                     </div>
                   </div>
 
-                  {/* Skills - with +/- buttons */}
+                  {/* Skills - tap to cycle */}
                   <div className="flex-1">
                     <label className="text-xs text-stone-500 block mb-1">
-                      Skills <span className="text-stone-600">(0 = locked)</span>
+                      Skills <span className="text-stone-600">(tap to change)</span>
                     </label>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1.5">
                       {[0, 1, 2, 3].map((skillIdx) => (
-                        <div key={skillIdx} className="flex flex-col items-center gap-0.5">
-                          <button
-                            onClick={() => {
-                              const newSkills = [...currentCommander.skillLevels];
-                              newSkills[skillIdx] = Math.min(5, (newSkills[skillIdx] ?? 0) + 1);
-                              updateCurrentCommander('skillLevels', newSkills);
-                            }}
-                            className="w-8 h-6 rounded-t-lg bg-stone-700 hover:bg-green-600 text-stone-400 hover:text-white text-xs font-bold transition-all hover:scale-105 active:scale-95"
-                          >
-                            +
-                          </button>
-                          <div className={`w-8 h-8 flex items-center justify-center text-lg font-bold rounded transition-all ${
+                        <button
+                          key={skillIdx}
+                          onClick={() => {
+                            const newSkills = [...currentCommander.skillLevels];
+                            const current = newSkills[skillIdx] ?? 0;
+                            newSkills[skillIdx] = current >= 5 ? 0 : current + 1;
+                            updateCurrentCommander('skillLevels', newSkills);
+                          }}
+                          className={`flex-1 flex flex-col items-center py-2 rounded-lg border transition-all active:scale-95 ${
                             currentCommander.skillLevels[skillIdx] === 5
-                              ? 'bg-yellow-500/30 text-yellow-500 ring-2 ring-yellow-500/50'
+                              ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-500'
                               : currentCommander.skillLevels[skillIdx] === 0
-                              ? 'bg-stone-800 text-stone-600'
-                              : 'bg-stone-700 text-stone-200'
-                          }`}>
-                            {currentCommander.skillLevels[skillIdx] ?? 0}
-                          </div>
-                          <button
-                            onClick={() => {
-                              const newSkills = [...currentCommander.skillLevels];
-                              newSkills[skillIdx] = Math.max(0, (newSkills[skillIdx] ?? 0) - 1);
-                              updateCurrentCommander('skillLevels', newSkills);
-                            }}
-                            className="w-8 h-6 rounded-b-lg bg-stone-700 hover:bg-red-600 text-stone-400 hover:text-white text-xs font-bold transition-all hover:scale-105 active:scale-95"
-                          >
-                            −
-                          </button>
-                          <span className="text-[10px] text-stone-500 mt-0.5">
-                            {skillIdx + 1}
-                          </span>
-                        </div>
+                              ? 'bg-stone-800 border-stone-700 text-stone-500'
+                              : 'bg-stone-700 border-stone-600 text-stone-200'
+                          }`}
+                        >
+                          <span className="text-lg font-bold">{currentCommander.skillLevels[skillIdx] ?? 0}</span>
+                          <span className="text-[9px] text-stone-500">{skillIdx + 1}</span>
+                        </button>
                       ))}
                     </div>
                   </div>
