@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Shield, ArrowLeft, Settings, Castle, Users, Scan, Plus, Loader2, Trophy, Edit2, Download, Copy, Check, ChevronDown, ChevronUp, Target } from 'lucide-react';
+import { Shield, ArrowLeft, Settings, Castle, Users, Scan, Plus, Loader2, Trophy, Edit2, Download, Copy, Check, ChevronDown, ChevronUp, Target, Cloud, CloudOff } from 'lucide-react';
 import Link from 'next/link';
 import { AddCommanderModal } from '@/components/sunset-canyon/AddCommanderModal';
 import { EditCommanderModal } from '@/components/sunset-canyon/EditCommanderModal';
 import { ScreenshotScanner } from '@/components/sunset-canyon/ScreenshotScanner';
-import { useSunsetCanyonStore } from '@/lib/sunset-canyon/store';
+import { UserMenu } from '@/components/auth/UserMenu';
+import { useCommanders } from '@/lib/supabase/use-commanders';
+import { useAuth } from '@/lib/supabase/auth-context';
 import { Commander, UserCommander } from '@/lib/sunset-canyon/commanders';
 import { optimizeDefense, OptimizedFormation } from '@/lib/sunset-canyon/optimizer';
 import { preloadedCommanders } from '@/lib/sunset-canyon/preloadedCommanders';
@@ -26,21 +28,23 @@ export default function SunsetCanyonPage() {
   const [copied, setCopied] = useState(false);
   const [showCounterEnemy, setShowCounterEnemy] = useState(false);
 
+  const { user } = useAuth();
   const {
+    commanders: userCommanders,
+    loading: commandersLoading,
     cityHallLevel,
     setCityHallLevel,
-    userCommanders,
-    addUserCommander,
-    removeUserCommander,
-    updateUserCommander,
+    addCommander: addUserCommander,
+    updateCommander: updateUserCommander,
+    removeCommander: removeUserCommander,
     clearAllCommanders,
-  } = useSunsetCanyonStore();
+  } = useCommanders();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
+  if (!mounted || commandersLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-stone-900 to-stone-950 flex items-center justify-center">
         <div className="w-16 h-16 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
@@ -48,20 +52,20 @@ export default function SunsetCanyonPage() {
     );
   }
 
-  const handleAddCommander = (commander: Commander, level: number, skillLevels: number[], stars: number) => {
-    addUserCommander(commander, level, skillLevels, stars);
+  const handleAddCommander = async (commander: Commander, level: number, skillLevels: number[], stars: number) => {
+    await addUserCommander(commander, level, skillLevels, stars);
     setShowAddCommander(false);
   };
 
-  const handleScanImport = (commanders: { commander: Commander; level: number; skillLevels: number[]; stars: number }[]) => {
-    commanders.forEach(({ commander, level, skillLevels, stars }) => {
-      addUserCommander(commander, level, skillLevels, stars);
-    });
+  const handleScanImport = async (commanders: { commander: Commander; level: number; skillLevels: number[]; stars: number }[]) => {
+    for (const { commander, level, skillLevels, stars } of commanders) {
+      await addUserCommander(commander, level, skillLevels, stars);
+    }
     setShowScanner(false);
   };
 
-  const handleEditCommander = (uniqueId: string, level: number, skillLevels: number[], stars: number) => {
-    updateUserCommander(uniqueId, { level, skillLevels, stars });
+  const handleEditCommander = async (uniqueId: string, level: number, skillLevels: number[], stars: number) => {
+    await updateUserCommander(uniqueId, { level, skillLevels, stars });
     setEditingCommander(null);
   };
 
@@ -76,7 +80,7 @@ export default function SunsetCanyonPage() {
         setLoadingPreloaded(false);
         return;
       }
-      clearAllCommanders();
+      await clearAllCommanders();
     }
 
     for (const cmd of preloadedCommanders) {
@@ -173,13 +177,32 @@ export default function SunsetCanyonPage() {
               </div>
             </div>
 
-            <button
-              onClick={() => setShowSettings(!showSettings)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-stone-700 hover:border-amber-600 transition-colors"
-            >
-              <Settings className="w-4 h-4 text-stone-400" />
-              <span className="text-sm text-stone-400">Settings</span>
-            </button>
+            <div className="flex items-center gap-3">
+              {/* Sync status indicator */}
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-stone-800">
+                {user ? (
+                  <>
+                    <Cloud className="w-3.5 h-3.5 text-green-400" />
+                    <span className="text-xs text-green-400">Synced</span>
+                  </>
+                ) : (
+                  <>
+                    <CloudOff className="w-3.5 h-3.5 text-stone-500" />
+                    <span className="text-xs text-stone-500">Local</span>
+                  </>
+                )}
+              </div>
+
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-stone-700 hover:border-amber-600 transition-colors"
+              >
+                <Settings className="w-4 h-4 text-stone-400" />
+                <span className="text-sm text-stone-400 hidden sm:inline">Settings</span>
+              </button>
+
+              <UserMenu />
+            </div>
           </div>
         </div>
       </header>
