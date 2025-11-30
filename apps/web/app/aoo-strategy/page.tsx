@@ -3,10 +3,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
-import type { MapAssignments } from '@/components/AOOInteractiveMap';
+import type { MapAssignments, Player, Team, StrategyData as ImportedStrategyData } from '@/lib/aoo-strategy/types';
+import { defaultStrategyData } from '@/lib/aoo-strategy/strategy-data';
 
 // Dynamic import to avoid SSR issues with the map
-const AOOInteractiveMap = dynamic(() => import('@/components/AOOInteractiveMap'), {
+const AOOInteractiveMap = dynamic(() => import('@/components/aoo-strategy/AOOInteractiveMap'), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center min-h-[400px]">
@@ -15,35 +16,11 @@ const AOOInteractiveMap = dynamic(() => import('@/components/AOOInteractiveMap')
   ),
 });
 
-interface PlayerAssignments {
-    phase1: string;
-    phase2: string;
-    phase3: string;
-    phase4: string;
-}
+// Use TeamInfo as an alias for Team for backward compatibility
+type TeamInfo = Team;
 
-interface Player {
-    id: number;
-    name: string;
-    team: number; // 0 = substitute, 1-3 = zones
-    tags: string[];
-    power?: number;
-    assignments?: PlayerAssignments;
-}
-
-interface TeamInfo {
-    name: string;
-    description: string;
-}
-
-interface StrategyData {
-    players: Player[];
-    teams: TeamInfo[];
-    mapImage: string | null;
-    notes: string;
-    mapAssignments?: MapAssignments;
-    substitutes?: Player[];
-}
+// Use imported StrategyData type
+type StrategyData = ImportedStrategyData;
 
 const DEFAULT_TEAMS: TeamInfo[] = [
     { name: 'Zone 1', description: 'Ark' },
@@ -866,7 +843,7 @@ export default function AooStrategyPage() {
                                             <div className="relative w-full rounded-lg overflow-hidden" style={{ aspectRatio: '1275 / 891' }}>
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img
-                                                    src="/aoo-map.jpg"
+                                                    src="/aoo-strategy/aoo-map.jpg"
                                                     alt="AOO Map"
                                                     className="absolute inset-0 w-full h-full object-cover"
                                                     style={{ opacity: darkMode ? 0.6 : 0.8 }}

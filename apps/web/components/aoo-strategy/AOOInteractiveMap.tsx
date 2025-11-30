@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Moon, Sun, RotateCcw } from 'lucide-react';
+import type { Player, MapAssignments, MapAssignment } from '@/lib/aoo-strategy/types';
 
 type TeamNumber = 1 | 2 | 3 | null;
 
@@ -13,35 +14,15 @@ interface Building {
   y: number;
 }
 
-interface Assignment {
-  team: TeamNumber;
-  order: number | null;
-}
-
-export type MapAssignments = Record<string, Assignment>;
-
-interface PlayerAssignments {
-  phase1: string;
-  phase2: string;
-  phase3: string;
-  phase4: string;
-}
-
-interface Player {
-  id: number;
-  name: string;
-  team: number;
-  tags: string[];
-  power?: number;
-  assignments?: PlayerAssignments;
-}
-
 interface Props {
   initialAssignments?: MapAssignments;
   onSave?: (assignments: MapAssignments) => void;
   isEditor?: boolean;
   players?: Player[];
 }
+
+// Re-export for backward compatibility
+export type { MapAssignments };
 
 // All buildings on the map with positions (percentages based on new map)
 const buildings: Building[] = [
