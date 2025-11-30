@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { AddCommanderModal } from '@/components/sunset-canyon/AddCommanderModal';
 import { EditCommanderModal } from '@/components/sunset-canyon/EditCommanderModal';
 import { ScreenshotScanner } from '@/components/sunset-canyon/ScreenshotScanner';
+import { QuickAddCommander } from '@/components/sunset-canyon/QuickAddCommander';
 import { UserMenu } from '@/components/auth/UserMenu';
 import { useCommanders } from '@/lib/supabase/use-commanders';
 import { useAuth } from '@/lib/supabase/auth-context';
@@ -17,6 +18,7 @@ export default function SunsetCanyonPage() {
   const [mounted, setMounted] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAddCommander, setShowAddCommander] = useState(false);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [editingCommander, setEditingCommander] = useState<UserCommander | null>(null);
   const [loadingPreloaded, setLoadingPreloaded] = useState(false);
@@ -264,7 +266,7 @@ export default function SunsetCanyonPage() {
                 {loadingPreloaded ? 'Loading...' : 'Load Roster'}
               </button>
               <button
-                onClick={() => setShowAddCommander(true)}
+                onClick={() => setShowQuickAdd(true)}
                 className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-600 to-amber-700 text-stone-900 text-sm font-semibold hover:from-amber-500 hover:to-amber-600 transition-all flex items-center gap-1"
               >
                 <Plus className="w-3 h-3" />
@@ -682,6 +684,14 @@ export default function SunsetCanyonPage() {
           commander={editingCommander}
           onSave={handleEditCommander}
           onClose={() => setEditingCommander(null)}
+        />
+      )}
+
+      {showQuickAdd && (
+        <QuickAddCommander
+          onAdd={handleAddCommander}
+          onClose={() => setShowQuickAdd(false)}
+          existingCommanderIds={userCommanders.map(c => c.id)}
         />
       )}
     </div>

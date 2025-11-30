@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Upload, Scan, Check, X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Trash2, Images } from 'lucide-react';
+import { Upload, Scan, Check, X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Trash2, Images, Edit2 } from 'lucide-react';
 import { createWorker } from 'tesseract.js';
 import { Commander, fetchCommanders } from '@/lib/sunset-canyon/commanders';
-import { 
-  commanderReferences, 
-  findByTitle, 
-  findBySpecialties, 
+import { CommanderDropdown } from './CommanderDropdown';
+import {
+  commanderReferences,
+  findByTitle,
+  findBySpecialties,
   findByAltName,
-  CommanderReference 
+  CommanderReference
 } from '@/lib/sunset-canyon/commander-reference';
 
 interface DetectedCommander {
@@ -863,44 +864,65 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
               <h3 className="text-sm font-semibold text-amber-500 uppercase tracking-wider">
                 Detected Commanders ({detected.length})
               </h3>
-              <p className="text-xs text-stone-400">Click to select/deselect. Edit values if needed.</p>
-              
+              <p className="text-xs text-stone-400">
+                Review and correct if needed. Use dropdown to fix wrong detections.
+              </p>
+
               {detected.map((d, i) => (
                 <div
                   key={i}
                   className={`p-3 rounded-lg border transition-all ${
                     selected.has(i)
-                      ? 'bg-green-900/20 border-green-500/50'
+                      ? d.matchedCommander
+                        ? 'bg-green-900/20 border-green-500/50'
+                        : 'bg-yellow-900/20 border-yellow-500/50'
                       : 'bg-stone-800/50 border-stone-700'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 mb-3">
                     <button
                       onClick={() => toggleSelection(i)}
-                      className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                      className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
                         selected.has(i) ? 'bg-green-500 text-white' : 'bg-stone-700 text-stone-500'
                       }`}
                     >
                       {selected.has(i) && <Check className="w-4 h-4" />}
                     </button>
-                    
+
+                    {/* Commander Dropdown */}
                     <div className="flex-1">
-                      <p className={`font-semibold ${
-                        d.matchedCommander?.rarity === 'legendary' ? 'text-yellow-500' : 'text-purple-400'
-                      }`}>
-                        {d.name}
-                      </p>
+                      <CommanderDropdown
+                        commanders={commanders}
+                        value={d.matchedCommander}
+                        onChange={(cmd) => {
+                          setDetected(prev => prev.map((det, idx) =>
+                            idx === i
+                              ? {
+                                  ...det,
+                                  matchedCommander: cmd,
+                                  name: cmd?.name || det.name,
+                                }
+                              : det
+                          ));
+                          // Auto-select when a commander is chosen
+                          if (cmd && !selected.has(i)) {
+                            setSelected(prev => new Set([...prev, i]));
+                          }
+                        }}
+                        placeholder={d.name || 'Select commander...'}
+                      />
                     </div>
-                    
+
                     <button
                       onClick={() => setCurrentImageIndex(d.imageIndex)}
-                      className="text-xs text-stone-500 hover:text-amber-500"
+                      className="text-xs text-stone-500 hover:text-amber-500 flex-shrink-0"
                     >
                       img #{d.imageIndex + 1}
                     </button>
                   </div>
-                  
-                  <div className="grid grid-cols-3 gap-2 mt-3">
+
+                  {/* Stats row */}
+                  <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="text-xs text-stone-500">Level</label>
                       <input
@@ -909,7 +931,7 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
                         max="60"
                         value={d.level}
                         onChange={(e) => updateDetected(i, 'level', parseInt(e.target.value) || 1)}
-                        className="w-full px-2 py-1 rounded bg-stone-700 border border-stone-600 text-stone-200 text-sm"
+                        className="w-full px-2 py-1.5 rounded bg-stone-700 border border-stone-600 text-stone-200 text-sm focus:border-amber-500 focus:outline-none"
                       />
                     </div>
                     <div>
@@ -920,24 +942,35 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
                         max="5"
                         value={d.stars}
                         onChange={(e) => updateDetected(i, 'stars', parseInt(e.target.value) || 1)}
-                        className="w-full px-2 py-1 rounded bg-stone-700 border border-stone-600 text-stone-200 text-sm"
+                        className="w-full px-2 py-1.5 rounded bg-stone-700 border border-stone-600 text-stone-200 text-sm focus:border-amber-500 focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="text-xs text-stone-500">Skills</label>
+                      <label className="text-xs text-stone-500">Skills <span className="text-stone-600">(0=locked)</span></label>
                       <input
                         type="text"
                         value={d.skillLevels.join('/')}
                         onChange={(e) => {
-                          const parts = e.target.value.split('/').map(s => parseInt(s) || 1);
-                          while (parts.length < 4) parts.push(1);
-                          updateDetected(i, 'skillLevels', parts.slice(0, 4).map(n => Math.min(5, Math.max(1, n))));
+                          const parts = e.target.value.split('/').map(s => {
+                            const num = parseInt(s);
+                            return isNaN(num) ? 0 : num;
+                          });
+                          while (parts.length < 4) parts.push(0);
+                          updateDetected(i, 'skillLevels', parts.slice(0, 4).map(n => Math.min(5, Math.max(0, n))));
                         }}
                         placeholder="5/5/5/5"
-                        className="w-full px-2 py-1 rounded bg-stone-700 border border-stone-600 text-stone-200 text-sm"
+                        className="w-full px-2 py-1.5 rounded bg-stone-700 border border-stone-600 text-stone-200 text-sm focus:border-amber-500 focus:outline-none"
                       />
                     </div>
                   </div>
+
+                  {/* Warning if no commander matched */}
+                  {!d.matchedCommander && (
+                    <p className="text-xs text-yellow-500 mt-2 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      Select a commander from the dropdown above
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
