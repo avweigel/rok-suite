@@ -550,15 +550,44 @@ function DefenseTab() {
               <Trophy className="w-5 h-5" />
               Your Optimal Defense (Castle Level {cityHallLevel})
             </h3>
-            {/* Total Power */}
-            <div className="text-right">
-              <div className="text-xs text-stone-500 uppercase">Total Power</div>
-              <div className="text-2xl font-bold text-amber-500">
-                {selectedFormation.totalPower?.toLocaleString() || 'N/A'}
+            {/* Win Rate & Power */}
+            <div className="flex gap-6">
+              <div className="text-right">
+                <div className="text-xs text-stone-500 uppercase">Est. Win Rate</div>
+                <div className={`text-2xl font-bold ${
+                  selectedFormation.winRate >= 70 ? 'text-green-400' :
+                  selectedFormation.winRate >= 55 ? 'text-amber-400' :
+                  'text-red-400'
+                }`}>
+                  {Math.round(selectedFormation.winRate)}%
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-stone-500 uppercase">Total Power</div>
+                <div className="text-2xl font-bold text-amber-500">
+                  {selectedFormation.totalPower?.toLocaleString() || 'N/A'}
+                </div>
               </div>
             </div>
           </div>
-          
+
+          {/* Win Rate Bar */}
+          <div className="mb-4">
+            <div className="h-3 bg-stone-700 rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-all duration-500 ${
+                  selectedFormation.winRate >= 70 ? 'bg-gradient-to-r from-green-600 to-green-400' :
+                  selectedFormation.winRate >= 55 ? 'bg-gradient-to-r from-amber-600 to-amber-400' :
+                  'bg-gradient-to-r from-red-600 to-red-400'
+                }`}
+                style={{ width: `${selectedFormation.winRate}%` }}
+              />
+            </div>
+            <p className="text-xs text-stone-500 mt-1">
+              Note: Attackers can see your defense and counter it, so ~80% is the practical max for any defense.
+            </p>
+          </div>
+
           {/* Formation selector tabs */}
           {optimizedFormations.length > 1 && (
             <div className="flex gap-2 mb-6">
@@ -572,12 +601,12 @@ function DefenseTab() {
                       : 'bg-stone-700 text-stone-300 hover:bg-stone-600'
                   }`}
                 >
-                  Formation {index + 1}
+                  Option {index + 1} ({Math.round(formation.winRate)}%)
                 </button>
               ))}
             </div>
           )}
-          
+
           {/* Army List */}
           <div className="mb-6">
             <h4 className="text-sm font-semibold text-amber-500 uppercase tracking-wider mb-3">
@@ -587,9 +616,17 @@ function DefenseTab() {
               {selectedFormation.armies.map((army, index) => (
                 <div
                   key={index}
-                  className="p-3 rounded-lg bg-stone-800/50 border border-stone-700 flex items-center gap-4"
+                  className={`p-3 rounded-lg border flex items-center gap-4 ${
+                    army.position.row === 'front'
+                      ? 'bg-blue-900/20 border-blue-600/30'
+                      : 'bg-amber-900/20 border-amber-600/30'
+                  }`}
                 >
-                  <div className="w-8 h-8 rounded-full bg-amber-600 text-stone-900 font-bold flex items-center justify-center">
+                  <div className={`w-8 h-8 rounded-full font-bold flex items-center justify-center ${
+                    army.position.row === 'front'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-amber-600 text-stone-900'
+                  }`}>
                     {index + 1}
                   </div>
                   <div className="flex-1">
@@ -599,8 +636,18 @@ function DefenseTab() {
                         <span className="text-stone-400 font-normal"> + {army.secondary.name}</span>
                       )}
                     </div>
-                    <div className="text-xs text-stone-500">
-                      {army.position.row === 'front' ? 'Front Row' : 'Back Row'} • Slot {army.position.slot + 1}
+                    <div className="text-xs text-stone-500 flex items-center gap-2">
+                      <span className={army.position.row === 'front' ? 'text-blue-400' : 'text-amber-400'}>
+                        {army.position.row === 'front' ? '🛡️ Front Row' : '⚔️ Back Row'}
+                      </span>
+                      <span>•</span>
+                      <span>Position {army.position.slot + 1}</span>
+                      {(army.position.slot === 1 || army.position.slot === 2) && (
+                        <>
+                          <span>•</span>
+                          <span className="text-green-400">Center</span>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className={`px-2 py-1 rounded text-xs font-semibold ${
@@ -687,11 +734,37 @@ function DefenseTab() {
             </div>
           </div>
 
-          {/* Strategy Explanation */}
-          <div className="mt-4 p-3 rounded-lg bg-stone-800/30 border border-stone-700">
-            <div className="text-sm text-stone-400">
-              <strong className="text-stone-300">Strategy:</strong> {selectedFormation.reasoning.join(' • ')}
+          {/* Strategy Insights */}
+          <div className="mt-4 p-4 rounded-lg bg-stone-800/30 border border-stone-700">
+            <h4 className="text-sm font-semibold text-amber-500 uppercase tracking-wider mb-3">
+              Formation Analysis
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {selectedFormation.reasoning.map((reason, index) => (
+                <span
+                  key={index}
+                  className={`px-3 py-1 rounded-full text-sm ${
+                    reason.includes('⚠️')
+                      ? 'bg-red-900/30 text-red-300 border border-red-600/30'
+                      : reason.includes('S-tier') || reason.includes('Excellent')
+                      ? 'bg-green-900/30 text-green-300 border border-green-600/30'
+                      : 'bg-stone-700/50 text-stone-300 border border-stone-600/30'
+                  }`}
+                >
+                  {reason}
+                </span>
+              ))}
             </div>
+          </div>
+
+          {/* Canyon Tips */}
+          <div className="mt-4 p-4 rounded-lg bg-blue-900/20 border border-blue-600/20">
+            <h4 className="text-sm font-semibold text-blue-400 mb-2">Pro Tips</h4>
+            <ul className="text-xs text-stone-400 space-y-1">
+              <li>• <strong>Timing:</strong> Do Canyon at 23:55 UTC daily (23:50 on Sundays) - attackers can&apos;t reach you!</li>
+              <li>• <strong>Defense limit:</strong> Attackers see your setup and can counter, so focus on versatile compositions</li>
+              <li>• <strong>Update troops:</strong> When commanders level up, manually update your defense dispatch troop counts</li>
+            </ul>
           </div>
         </div>
       )}
