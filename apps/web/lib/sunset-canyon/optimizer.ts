@@ -437,130 +437,202 @@ function getCommanderRole(commander: UserCommander): 'tank' | 'nuker' | 'support
 }
 
 // Calculate effective power of a commander (level + skills + stars)
+// This is the REAL combat effectiveness - a level 10 commander is essentially useless
 function getEffectivePower(commander: UserCommander): number {
-  const levelPower = commander.level * 100;
-  const skillPower = commander.skillLevels.reduce((a, b) => a + b, 0) * 50;
-  const starPower = (commander.stars || 1) * 200;
-  const rarityBonus = commander.rarity === 'legendary' ? 500 : commander.rarity === 'epic' ? 300 : 100;
-  
+  // Level is the most important factor - exponentially more important at higher levels
+  // A level 60 commander is roughly 6x more effective than level 10, not just 6x
+  const levelPower = commander.level * commander.level * 2; // Quadratic scaling!
+
+  // Skills matter a lot - each maxed skill is a significant power boost
+  const totalSkills = commander.skillLevels.reduce((a, b) => a + b, 0);
+  const maxPossibleSkills = commander.skillLevels.length * 5;
+  const skillRatio = totalSkills / maxPossibleSkills; // 0-1 scale
+  const skillPower = totalSkills * 100 * (1 + skillRatio); // Bonus for more complete skills
+
+  // Stars affect troop capacity and stats significantly
+  const starPower = (commander.stars || 1) * 400;
+
+  // Rarity bonus - but not as important as actual level/skills
+  const rarityBonus = commander.rarity === 'legendary' ? 300 : commander.rarity === 'epic' ? 150 : 50;
+
   return levelPower + skillPower + starPower + rarityBonus;
+}
+
+// Check if a commander meets minimum viability threshold for Canyon
+// Under-leveled commanders with incomplete skills are essentially dead weight
+function isCommanderViable(commander: UserCommander): boolean {
+  // Minimum level 25 to be useful at all
+  if (commander.level < 25) return false;
+
+  // Must have at least first skill at level 3+
+  if (commander.skillLevels[0] < 3) return false;
+
+  // Stars matter - 1 star commanders are too weak
+  if ((commander.stars || 1) < 2) return false;
+
+  return true;
+}
+
+// Get a power penalty for under-leveled commanders
+// This makes sure meta synergies don't override basic combat effectiveness
+function getViabilityPenalty(commander: UserCommander): number {
+  let penalty = 0;
+
+  // Heavy penalty for very low level (under 30)
+  if (commander.level < 30) {
+    penalty += (30 - commander.level) * 20; // -20 per level below 30
+  }
+
+  // Penalty for incomplete first skill
+  if (commander.skillLevels[0] < 5) {
+    penalty += (5 - commander.skillLevels[0]) * 30;
+  }
+
+  // Penalty for low stars
+  if ((commander.stars || 1) < 4) {
+    penalty += (4 - (commander.stars || 1)) * 50;
+  }
+
+  return penalty;
 }
 
 // Score how well two commanders pair together - based on actual game meta
 // Enhanced with Canyon-specific bonuses from research
+// CRITICAL: Commander power (level/skills) is weighted MORE than synergy bonuses
+// A level 10 meta commander loses to a level 50 non-meta commander every time
 function getPairingScore(primary: UserCommander, secondary: UserCommander): number {
   let score = 0;
 
-  // Check for known synergies first (most important!)
+  // ============================================
+  // STEP 1: COMMANDER POWER IS THE FOUNDATION
+  // A high-level commander with good skills beats low-level meta picks
+  // ============================================
+
+  const primaryPower = getEffectivePower(primary);
+  const secondaryPower = getEffectivePower(secondary);
+
+  // Commander power is the PRIMARY factor (not synergy!)
+  // Scale: level 50 commander ~ 5000 power -> contributes ~500 to score
+  // Scale: level 10 commander ~ 200 power -> contributes ~20 to score
+  score += primaryPower / 10;  // Primary commander power (major weight)
+  score += secondaryPower / 15; // Secondary commander power (significant weight)
+
+  // Apply viability penalties - under-leveled commanders get heavily penalized
+  // This prevents meta synergies from overriding basic combat effectiveness
+  score -= getViabilityPenalty(primary);
+  score -= getViabilityPenalty(secondary) * 0.7; // Slightly less penalty for secondary
+
+  // Non-viable commanders get a massive penalty that synergy can't overcome
+  if (!isCommanderViable(primary)) {
+    score -= 500; // Essentially removes them from consideration
+  }
+  if (!isCommanderViable(secondary)) {
+    score -= 300;
+  }
+
+  // ============================================
+  // STEP 2: SYNERGY BONUSES (secondary to power)
+  // Good synergies boost already-strong commanders
+  // ============================================
+
   const knownSynergy = KNOWN_SYNERGIES[primary.name];
   if (knownSynergy && knownSynergy.partners.includes(secondary.name)) {
     // Tier-based bonuses: S-tier pairs get highest bonus
-    const tierBonus = knownSynergy.tier === 'S' ? 150 : knownSynergy.tier === 'A' ? 120 : 100;
+    // But these are now smaller relative to power
+    const tierBonus = knownSynergy.tier === 'S' ? 80 : knownSynergy.tier === 'A' ? 60 : 40;
     score += tierBonus;
 
-    // Add Canyon-specific bonus from synergy data
+    // Add Canyon-specific bonus from synergy data (reduced)
     if (knownSynergy.canyonBonus) {
-      score += knownSynergy.canyonBonus;
+      score += knownSynergy.canyonBonus * 0.5;
     }
   }
 
   // Reverse check - secondary's synergies
   const reverseSynergy = KNOWN_SYNERGIES[secondary.name];
   if (reverseSynergy && reverseSynergy.partners.includes(primary.name)) {
-    const tierBonus = reverseSynergy.tier === 'S' ? 75 : reverseSynergy.tier === 'A' ? 60 : 50;
+    const tierBonus = reverseSynergy.tier === 'S' ? 40 : reverseSynergy.tier === 'A' ? 30 : 20;
     score += tierBonus;
 
-    // Add Canyon bonus for secondary
+    // Add Canyon bonus for secondary (reduced)
     if (reverseSynergy.canyonBonus) {
-      score += reverseSynergy.canyonBonus * 0.5; // Half weight for secondary
+      score += reverseSynergy.canyonBonus * 0.25;
     }
   }
 
-  // Canyon bonus for commanders even without specific pairing
+  // Canyon bonus for commanders even without specific pairing (small)
   if (knownSynergy?.canyonBonus && knownSynergy.canyonBonus > 0) {
-    score += knownSynergy.canyonBonus * 0.3; // Base Canyon value
+    score += knownSynergy.canyonBonus * 0.15;
   }
   if (reverseSynergy?.canyonBonus && reverseSynergy.canyonBonus > 0) {
-    score += reverseSynergy.canyonBonus * 0.2;
+    score += reverseSynergy.canyonBonus * 0.1;
   }
 
+  // ============================================
+  // STEP 3: AOE AND TROOP TYPE BONUSES
+  // ============================================
+
   // AOE bonus - critical for Canyon where you face 5 armies
-  // "Commanders that use area skills work really well in Canyon"
   const primaryAoe = knownSynergy?.aoeTargets || 1;
   const secondaryAoe = reverseSynergy?.aoeTargets || 1;
-  if (primaryAoe >= 5) score += 40;  // 5-target AOE is huge
-  else if (primaryAoe >= 3) score += 20;
-  if (secondaryAoe >= 5) score += 25;
-  else if (secondaryAoe >= 3) score += 12;
+  if (primaryAoe >= 5) score += 25;
+  else if (primaryAoe >= 3) score += 12;
+  if (secondaryAoe >= 5) score += 15;
+  else if (secondaryAoe >= 3) score += 8;
 
-  // Same troop type bonus (synergy) - stronger bonus for matching types
+  // Same troop type bonus (synergy)
   if (primary.troopType === secondary.troopType && primary.troopType !== 'mixed') {
-    score += 40;
+    score += 30;
   }
 
   // Mixed troop type commanders pair well with anyone
   if (primary.troopType === 'mixed' || secondary.troopType === 'mixed') {
-    score += 25;
+    score += 20;
   }
 
-  // Role complementarity - enhanced for better team composition
+  // Role complementarity
   const primaryRole = getCommanderRole(primary);
   const secondaryRole = getCommanderRole(secondary);
 
-  // Tank + Nuker is great for front line
   if ((primaryRole === 'tank' && secondaryRole === 'nuker') ||
       (primaryRole === 'nuker' && secondaryRole === 'tank')) {
-    score += 35;
-  }
-
-  // Support + Nuker for damage boost
-  if ((primaryRole === 'support' && secondaryRole === 'nuker') ||
-      (primaryRole === 'nuker' && secondaryRole === 'support')) {
-    score += 30;
-  }
-
-  // Tank + Support (sustain combo)
-  if ((primaryRole === 'tank' && secondaryRole === 'support') ||
-      (primaryRole === 'support' && secondaryRole === 'tank')) {
     score += 25;
   }
-
-  // CAVALRY PENALTY - "Cavalry is not great in Sunset Canyon"
-  // "You will face Charles Martel, Richard, Sun Tzu a lot and they beat cavalry easily"
-  if (primary.troopType === 'cavalry' && secondary.troopType === 'cavalry') {
-    score -= 30; // Double cavalry is especially bad
-  } else if (primary.troopType === 'cavalry' || secondary.troopType === 'cavalry') {
-    score -= 15; // Single cavalry still penalized
+  if ((primaryRole === 'support' && secondaryRole === 'nuker') ||
+      (primaryRole === 'nuker' && secondaryRole === 'support')) {
+    score += 20;
+  }
+  if ((primaryRole === 'tank' && secondaryRole === 'support') ||
+      (primaryRole === 'support' && secondaryRole === 'tank')) {
+    score += 15;
   }
 
-  // INFANTRY BONUS - Infantry dominates Canyon
+  // CAVALRY PENALTY
+  if (primary.troopType === 'cavalry' && secondary.troopType === 'cavalry') {
+    score -= 25;
+  } else if (primary.troopType === 'cavalry' || secondary.troopType === 'cavalry') {
+    score -= 12;
+  }
+
+  // INFANTRY BONUS
   if (primary.troopType === 'infantry' && secondary.troopType === 'infantry') {
-    score += 25; // Pure infantry is very strong
+    score += 20;
   } else if (primary.troopType === 'infantry' || secondary.troopType === 'infantry') {
-    score += 10;
+    score += 8;
   }
 
   // Archer bonus for backline AOE potential
   if (primary.troopType === 'archer' || secondary.troopType === 'archer') {
-    score += 15; // Archers excel in backline AOE
+    score += 10;
   }
 
-  // CRITICAL: Factor in commander power (level + skills + stars)
-  const secondaryPower = getEffectivePower(secondary);
-  score += secondaryPower / 35; // Increased weight - secondary matters!
-
-  const primaryPower = getEffectivePower(primary);
-  score += primaryPower / 70;
-
-  // Bonus for legendary rarity pairs
+  // Small bonus for legendary rarity pairs (but not overriding power)
   if (primary.rarity === 'legendary' && secondary.rarity === 'legendary') {
-    score += 25;
+    score += 15;
   }
-
-  // Bonus for mixed legendary + epic (common effective combo)
   if ((primary.rarity === 'legendary' && secondary.rarity === 'epic') ||
       (primary.rarity === 'epic' && secondary.rarity === 'legendary')) {
-    score += 15;
+    score += 8;
   }
 
   return score;
@@ -619,13 +691,21 @@ function getBackRowScore(commander: UserCommander): number {
 // Generate all possible pairings of commanders
 function generatePairings(commanders: UserCommander[], requirePairs: boolean = false): Array<{ primary: UserCommander; secondary: UserCommander | undefined; score: number }> {
   const pairings: Array<{ primary: UserCommander; secondary: UserCommander | undefined; score: number }> = [];
-  
+
+  // Filter to only viable commanders first (level 25+, decent skills, 2+ stars)
+  // This prevents low-level commanders from even being considered
+  const viableCommanders = commanders.filter(c => isCommanderViable(c));
+
+  // If we don't have enough viable commanders, fall back to all commanders
+  // but still sort by power to prefer better ones
+  const commandersToUse = viableCommanders.length >= 10 ? viableCommanders : commanders;
+
   // Sort commanders by effective power first - best commanders as primary
-  const sortedCommanders = [...commanders].sort((a, b) => getEffectivePower(b) - getEffectivePower(a));
-  
+  const sortedCommanders = [...commandersToUse].sort((a, b) => getEffectivePower(b) - getEffectivePower(a));
+
   for (let i = 0; i < sortedCommanders.length; i++) {
     const primary = sortedCommanders[i];
-    
+
     // Solo option (no secondary) - only if we don't have enough for full pairs
     if (!requirePairs) {
       pairings.push({
@@ -634,7 +714,7 @@ function generatePairings(commanders: UserCommander[], requirePairs: boolean = f
         score: getEffectivePower(primary) - 500 // Heavy penalty for solo
       });
     }
-    
+
     // Pair with each other commander
     for (let j = 0; j < sortedCommanders.length; j++) {
       if (i === j) continue;
@@ -643,7 +723,7 @@ function generatePairings(commanders: UserCommander[], requirePairs: boolean = f
       pairings.push({ primary, secondary, score });
     }
   }
-  
+
   // Sort by score descending
   return pairings.sort((a, b) => b.score - a.score);
 }
@@ -1005,9 +1085,25 @@ export async function optimizeDefense(
     const pairingDetails: string[] = [];
 
     for (const army of formation.armies) {
-      // Commander power contribution
-      qualityScore += army.primary.level * 2;
-      qualityScore += army.primary.skillLevels.reduce((a, b) => a + b, 0) * 3;
+      // Commander power contribution - HEAVILY weighted toward level and skills
+      // A level 50 commander is worth much more than a level 10
+      qualityScore += army.primary.level * 5; // 5 points per level
+      qualityScore += army.primary.skillLevels.reduce((a, b) => a + b, 0) * 8; // 8 points per skill level
+
+      // Bonus for high-level commanders (40+)
+      if (army.primary.level >= 40) {
+        qualityScore += 50;
+      } else if (army.primary.level >= 30) {
+        qualityScore += 20;
+      }
+
+      // Penalty for under-leveled commanders
+      if (army.primary.level < 25) {
+        qualityScore -= 100; // Significant penalty
+        insights.push(`⚠️ ${army.primary.name} is under-leveled (${army.primary.level})`);
+      } else if (army.primary.level < 35) {
+        qualityScore -= 30;
+      }
 
       // Track troop types for Canyon effectiveness
       if (army.primary.troopType === 'cavalry') cavalryCount++;
@@ -1028,8 +1124,21 @@ export async function optimizeDefense(
       }
 
       if (army.secondary) {
-        qualityScore += army.secondary.level * 1.5;
-        qualityScore += army.secondary.skillLevels.reduce((a, b) => a + b, 0) * 2;
+        qualityScore += army.secondary.level * 3; // 3 points per level for secondary
+        qualityScore += army.secondary.skillLevels.reduce((a, b) => a + b, 0) * 5;
+
+        // Bonus for high-level secondary
+        if (army.secondary.level >= 40) {
+          qualityScore += 30;
+        } else if (army.secondary.level >= 30) {
+          qualityScore += 10;
+        }
+
+        // Penalty for under-leveled secondary
+        if (army.secondary.level < 25) {
+          qualityScore -= 60;
+          insights.push(`⚠️ ${army.secondary.name} is under-leveled (${army.secondary.level})`);
+        }
 
         if (army.secondary.troopType === 'cavalry') cavalryCount++;
         if (army.secondary.troopType === 'infantry') infantryCount++;
@@ -1039,18 +1148,18 @@ export async function optimizeDefense(
           totalAoeTargets += secondarySynergy.aoeTargets * 0.5;
         }
 
-        // Check for known synergies
+        // Check for known synergies - bonus is smaller relative to commander power
         if (primarySynergy && primarySynergy.partners.includes(army.secondary.name)) {
           synergyCount++;
           if (primarySynergy.tier === 'S') {
             sTierCount++;
-            qualityScore += 60; // Big bonus for S-tier Canyon pairs
+            qualityScore += 40; // Reduced from 60 - synergy matters less than power
             pairingDetails.push(`${army.primary.name} + ${army.secondary.name} (S-tier)`);
           } else if (primarySynergy.tier === 'A') {
-            qualityScore += 35;
+            qualityScore += 25; // Reduced from 35
             pairingDetails.push(`${army.primary.name} + ${army.secondary.name} (A-tier)`);
           } else {
-            qualityScore += 18;
+            qualityScore += 12;
           }
         }
       }
