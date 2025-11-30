@@ -307,8 +307,31 @@ export default function SunsetCanyonPage() {
           )}
         </div>
 
-        {/* Optimize Button & Progress */}
-        <div className="mb-6">
+        {/* Castle Level & Optimize Button */}
+        <div className="mb-6 p-4 rounded-xl bg-gradient-to-br from-stone-800/90 to-stone-900/80 border border-amber-600/20">
+          <div className="flex items-center gap-6 mb-4">
+            <div className="flex items-center gap-3">
+              <Castle className="w-5 h-5 text-amber-500" />
+              <span className="text-sm font-semibold text-stone-300">Castle Level</span>
+            </div>
+            <div className="flex items-center gap-3 flex-1">
+              <input
+                type="range"
+                min="1"
+                max="25"
+                value={cityHallLevel}
+                onChange={(e) => setCityHallLevel(parseInt(e.target.value))}
+                className="flex-1 max-w-[200px] accent-amber-500"
+              />
+              <div className="w-10 text-center">
+                <span className="text-xl font-bold text-amber-500">{cityHallLevel}</span>
+              </div>
+            </div>
+            <div className="text-xs text-stone-500">
+              {cityHallLevel >= 22 ? '5 armies' : cityHallLevel >= 17 ? '4 armies' : '3 armies'}
+            </div>
+          </div>
+
           {isOptimizing ? (
             <div className="p-4 rounded-xl bg-gradient-to-br from-blue-900/20 to-stone-900/80 border border-blue-600/20">
               <div className="flex items-center gap-3 mb-2">
