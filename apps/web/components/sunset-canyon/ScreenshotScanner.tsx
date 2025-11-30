@@ -589,32 +589,33 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
                 </div>
               </div>
 
-              {/* Action buttons */}
+              {/* Action buttons - Fun and satisfying */}
               <div className="flex gap-3">
                 <button
                   onClick={goToPrev}
                   disabled={currentVerifyIndex === 0}
-                  className="px-4 py-2.5 rounded-lg border border-stone-600 text-stone-400 hover:bg-stone-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                  className="group px-4 py-3 rounded-xl border-2 border-stone-600 text-stone-400 hover:border-stone-500 hover:bg-stone-700/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <ChevronLeft className="w-4 h-4" />
-                  Back
+                  <ChevronLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+                  <span className="font-medium">Back</span>
                 </button>
 
                 <button
                   onClick={skipCurrent}
-                  className="px-4 py-2.5 rounded-lg border border-stone-600 text-stone-400 hover:bg-stone-700 transition-colors flex items-center gap-2"
+                  className="group px-5 py-3 rounded-xl border-2 border-orange-500/30 bg-orange-500/10 text-orange-400 hover:border-orange-500/50 hover:bg-orange-500/20 transition-all duration-200 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <SkipForward className="w-4 h-4" />
-                  Skip
+                  <SkipForward className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
+                  <span className="font-medium">Skip</span>
                 </button>
 
                 <button
                   onClick={acceptCurrent}
                   disabled={!currentCommander.matchedCommander}
-                  className="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:from-green-500 hover:to-green-600 transition-all flex items-center justify-center gap-2"
+                  className="group flex-1 px-6 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-lg shadow-lg shadow-green-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none hover:from-green-400 hover:to-emerald-500 hover:shadow-green-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-3"
                 >
-                  <Check className="w-4 h-4" />
-                  {isLastOne ? 'Accept & Finish' : 'Accept & Next'}
+                  <Check className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                  <span>{isLastOne ? 'Accept & Finish!' : 'Accept'}</span>
+                  {!isLastOne && <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
                 </button>
               </div>
             </div>
