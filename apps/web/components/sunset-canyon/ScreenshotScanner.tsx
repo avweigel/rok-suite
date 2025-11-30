@@ -536,12 +536,12 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
                   {/* Stars */}
                   <div>
                     <label className="text-xs text-stone-500 block mb-1">Stars</label>
-                    <div className="flex gap-1">
-                      {[1, 2, 3, 4, 5].map((s) => (
+                    <div className="flex gap-0.5">
+                      {[1, 2, 3, 4, 5, 6].map((s) => (
                         <button
                           key={s}
                           onClick={() => updateCurrentCommander('stars', s)}
-                          className={`w-8 h-8 rounded-lg text-lg transition-all ${
+                          className={`w-7 h-8 rounded-lg text-base transition-all hover:scale-110 active:scale-95 ${
                             s <= currentCommander.stars
                               ? 'bg-yellow-500/30 text-yellow-500'
                               : 'bg-stone-700 text-stone-600 hover:bg-stone-600'
@@ -553,33 +553,44 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
                     </div>
                   </div>
 
-                  {/* Skills */}
+                  {/* Skills - with +/- buttons */}
                   <div className="flex-1">
                     <label className="text-xs text-stone-500 block mb-1">
                       Skills <span className="text-stone-600">(0 = locked)</span>
                     </label>
-                    <div className="flex gap-1.5">
+                    <div className="flex gap-2">
                       {[0, 1, 2, 3].map((skillIdx) => (
-                        <div key={skillIdx} className="relative flex-1">
-                          <input
-                            type="number"
-                            min="0"
-                            max="5"
-                            value={currentCommander.skillLevels[skillIdx] ?? 0}
-                            onChange={(e) => {
+                        <div key={skillIdx} className="flex flex-col items-center gap-0.5">
+                          <button
+                            onClick={() => {
                               const newSkills = [...currentCommander.skillLevels];
-                              newSkills[skillIdx] = Math.min(5, Math.max(0, parseInt(e.target.value) || 0));
+                              newSkills[skillIdx] = Math.min(5, (newSkills[skillIdx] ?? 0) + 1);
                               updateCurrentCommander('skillLevels', newSkills);
                             }}
-                            className={`w-full px-2 py-2 rounded-lg border text-center focus:outline-none focus:border-amber-500 ${
-                              currentCommander.skillLevels[skillIdx] === 5
-                                ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-500'
-                                : currentCommander.skillLevels[skillIdx] === 0
-                                ? 'bg-stone-800 border-stone-700 text-stone-500'
-                                : 'bg-stone-700 border-stone-600 text-stone-200'
-                            }`}
-                          />
-                          <span className="absolute -top-1 -right-1 text-[10px] text-stone-500 bg-stone-800 px-1 rounded">
+                            className="w-8 h-6 rounded-t-lg bg-stone-700 hover:bg-green-600 text-stone-400 hover:text-white text-xs font-bold transition-all hover:scale-105 active:scale-95"
+                          >
+                            +
+                          </button>
+                          <div className={`w-8 h-8 flex items-center justify-center text-lg font-bold rounded transition-all ${
+                            currentCommander.skillLevels[skillIdx] === 5
+                              ? 'bg-yellow-500/30 text-yellow-500 ring-2 ring-yellow-500/50'
+                              : currentCommander.skillLevels[skillIdx] === 0
+                              ? 'bg-stone-800 text-stone-600'
+                              : 'bg-stone-700 text-stone-200'
+                          }`}>
+                            {currentCommander.skillLevels[skillIdx] ?? 0}
+                          </div>
+                          <button
+                            onClick={() => {
+                              const newSkills = [...currentCommander.skillLevels];
+                              newSkills[skillIdx] = Math.max(0, (newSkills[skillIdx] ?? 0) - 1);
+                              updateCurrentCommander('skillLevels', newSkills);
+                            }}
+                            className="w-8 h-6 rounded-b-lg bg-stone-700 hover:bg-red-600 text-stone-400 hover:text-white text-xs font-bold transition-all hover:scale-105 active:scale-95"
+                          >
+                            −
+                          </button>
+                          <span className="text-[10px] text-stone-500 mt-0.5">
                             {skillIdx + 1}
                           </span>
                         </div>
