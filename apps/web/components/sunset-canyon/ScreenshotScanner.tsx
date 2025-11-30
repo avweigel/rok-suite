@@ -518,33 +518,35 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
                   )}
                 </div>
 
-                {/* Stats row */}
-                <div className="flex items-end gap-4">
-                  {/* Level */}
-                  <div className="w-20">
+                {/* Row 1: Level & Stars */}
+                <div className="flex gap-3 mb-3">
+                  {/* Level - dropdown style */}
+                  <div className="flex-1">
                     <label className="text-xs text-stone-500 block mb-1">Level</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="60"
+                    <select
                       value={currentCommander.level}
-                      onChange={(e) => updateCurrentCommander('level', parseInt(e.target.value) || 1)}
-                      className="w-full px-3 py-2 rounded-lg bg-stone-700 border border-stone-600 text-stone-200 text-center focus:border-amber-500 focus:outline-none"
-                    />
+                      onChange={(e) => updateCurrentCommander('level', parseInt(e.target.value))}
+                      className="w-full px-3 py-2.5 rounded-lg bg-stone-700 border border-stone-600 text-stone-200 focus:border-amber-500 focus:outline-none appearance-none cursor-pointer"
+                      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2378716c'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', backgroundSize: '20px' }}
+                    >
+                      {[60, 50, 40, 37, 30, 27, 20, 10, 1].map((lvl) => (
+                        <option key={lvl} value={lvl}>Lv. {lvl}</option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Stars */}
-                  <div>
+                  <div className="flex-1">
                     <label className="text-xs text-stone-500 block mb-1">Stars</label>
-                    <div className="flex gap-0.5">
+                    <div className="flex gap-1">
                       {[1, 2, 3, 4, 5, 6].map((s) => (
                         <button
                           key={s}
                           onClick={() => updateCurrentCommander('stars', s)}
-                          className={`w-7 h-8 rounded-lg text-base transition-all hover:scale-110 active:scale-95 ${
+                          className={`flex-1 h-10 rounded-lg text-lg transition-all active:scale-95 ${
                             s <= currentCommander.stars
                               ? 'bg-yellow-500/30 text-yellow-500'
-                              : 'bg-stone-700 text-stone-600 hover:bg-stone-600'
+                              : 'bg-stone-700 text-stone-600'
                           }`}
                         >
                           ★
@@ -552,35 +554,35 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
                       ))}
                     </div>
                   </div>
+                </div>
 
-                  {/* Skills - tap to cycle */}
-                  <div className="flex-1">
-                    <label className="text-xs text-stone-500 block mb-1">
-                      Skills <span className="text-stone-600">(tap to change)</span>
-                    </label>
-                    <div className="flex gap-1.5">
-                      {[0, 1, 2, 3].map((skillIdx) => (
-                        <button
-                          key={skillIdx}
-                          onClick={() => {
-                            const newSkills = [...currentCommander.skillLevels];
-                            const current = newSkills[skillIdx] ?? 0;
-                            newSkills[skillIdx] = current >= 5 ? 0 : current + 1;
-                            updateCurrentCommander('skillLevels', newSkills);
-                          }}
-                          className={`flex-1 flex flex-col items-center py-2 rounded-lg border transition-all active:scale-95 ${
-                            currentCommander.skillLevels[skillIdx] === 5
-                              ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-500'
-                              : currentCommander.skillLevels[skillIdx] === 0
-                              ? 'bg-stone-800 border-stone-700 text-stone-500'
-                              : 'bg-stone-700 border-stone-600 text-stone-200'
-                          }`}
-                        >
-                          <span className="text-lg font-bold">{currentCommander.skillLevels[skillIdx] ?? 0}</span>
-                          <span className="text-[9px] text-stone-500">{skillIdx + 1}</span>
-                        </button>
-                      ))}
-                    </div>
+                {/* Row 2: Skills - full width */}
+                <div>
+                  <label className="text-xs text-stone-500 block mb-1">
+                    Skills <span className="text-stone-600">(tap to cycle 0-5)</span>
+                  </label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[0, 1, 2, 3].map((skillIdx) => (
+                      <button
+                        key={skillIdx}
+                        onClick={() => {
+                          const newSkills = [...currentCommander.skillLevels];
+                          const current = newSkills[skillIdx] ?? 0;
+                          newSkills[skillIdx] = current >= 5 ? 0 : current + 1;
+                          updateCurrentCommander('skillLevels', newSkills);
+                        }}
+                        className={`flex flex-col items-center py-3 rounded-xl border-2 transition-all active:scale-95 ${
+                          currentCommander.skillLevels[skillIdx] === 5
+                            ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-500'
+                            : currentCommander.skillLevels[skillIdx] === 0
+                            ? 'bg-stone-800 border-stone-700 text-stone-500'
+                            : 'bg-stone-700 border-stone-600 text-stone-200'
+                        }`}
+                      >
+                        <span className="text-2xl font-bold">{currentCommander.skillLevels[skillIdx] ?? 0}</span>
+                        <span className="text-[10px] text-stone-500 mt-0.5">Skill {skillIdx + 1}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>

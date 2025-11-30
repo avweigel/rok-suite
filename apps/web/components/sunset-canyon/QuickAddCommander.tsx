@@ -201,22 +201,24 @@ export function QuickAddCommander({ onAdd, onClose, existingCommanderIds = [] }:
             </div>
           )}
 
-          {/* Level and Stars */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
+          {/* Level and Stars - side by side */}
+          <div className="flex gap-3">
+            <div className="w-28">
               <label className="block text-sm font-medium text-stone-300 mb-1.5">
                 Level
               </label>
-              <input
-                type="number"
-                min="1"
-                max="60"
+              <select
                 value={level}
-                onChange={(e) => setLevel(Math.max(1, Math.min(60, parseInt(e.target.value) || 1)))}
-                className="w-full px-3 py-2.5 rounded-lg bg-stone-700 border border-stone-600 text-stone-200 focus:outline-none focus:border-amber-500"
-              />
+                onChange={(e) => setLevel(parseInt(e.target.value))}
+                className="w-full px-3 py-2.5 rounded-lg bg-stone-700 border border-stone-600 text-stone-200 focus:outline-none focus:border-amber-500 appearance-none cursor-pointer"
+                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2378716c'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', backgroundSize: '20px' }}
+              >
+                {[60, 50, 40, 37, 30, 27, 20, 10, 1].map((lvl) => (
+                  <option key={lvl} value={lvl}>Lv. {lvl}</option>
+                ))}
+              </select>
             </div>
-            <div>
+            <div className="flex-1">
               <label className="block text-sm font-medium text-stone-300 mb-1.5">
                 Stars
               </label>
@@ -225,10 +227,10 @@ export function QuickAddCommander({ onAdd, onClose, existingCommanderIds = [] }:
                   <button
                     key={s}
                     onClick={() => setStars(s)}
-                    className={`flex-1 py-2.5 rounded-lg text-lg transition-all hover:scale-105 active:scale-95 ${
+                    className={`flex-1 h-10 rounded-lg text-lg transition-all active:scale-95 ${
                       s <= stars
                         ? 'bg-yellow-500/30 text-yellow-500'
-                        : 'bg-stone-700 text-stone-600 hover:bg-stone-600'
+                        : 'bg-stone-700 text-stone-600'
                     }`}
                   >
                     ★
