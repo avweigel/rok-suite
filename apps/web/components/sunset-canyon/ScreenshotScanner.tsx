@@ -858,20 +858,22 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
             </div>
           )}
 
-          {/* Detected commanders */}
+          {/* Detected commanders - Side by side proofreading */}
           {detected.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-amber-500 uppercase tracking-wider">
-                Detected Commanders ({detected.length})
-              </h3>
-              <p className="text-xs text-stone-400">
-                Review and correct if needed. Use dropdown to fix wrong detections.
-              </p>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-amber-500 uppercase tracking-wider">
+                  Detected Commanders ({detected.length})
+                </h3>
+                <p className="text-xs text-stone-400">
+                  Review and correct detections
+                </p>
+              </div>
 
               {detected.map((d, i) => (
                 <div
                   key={i}
-                  className={`p-3 rounded-lg border transition-all ${
+                  className={`rounded-lg border transition-all overflow-hidden ${
                     selected.has(i)
                       ? d.matchedCommander
                         ? 'bg-green-900/20 border-green-500/50'
@@ -879,98 +881,155 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
                       : 'bg-stone-800/50 border-stone-700'
                   }`}
                 >
-                  <div className="flex items-center gap-3 mb-3">
-                    <button
-                      onClick={() => toggleSelection(i)}
-                      className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        selected.has(i) ? 'bg-green-500 text-white' : 'bg-stone-700 text-stone-500'
-                      }`}
-                    >
-                      {selected.has(i) && <Check className="w-4 h-4" />}
-                    </button>
-
-                    {/* Commander Dropdown */}
-                    <div className="flex-1">
-                      <CommanderDropdown
-                        commanders={commanders}
-                        value={d.matchedCommander}
-                        onChange={(cmd) => {
-                          setDetected(prev => prev.map((det, idx) =>
-                            idx === i
-                              ? {
-                                  ...det,
-                                  matchedCommander: cmd,
-                                  name: cmd?.name || det.name,
-                                }
-                              : det
-                          ));
-                          // Auto-select when a commander is chosen
-                          if (cmd && !selected.has(i)) {
-                            setSelected(prev => new Set([...prev, i]));
-                          }
-                        }}
-                        placeholder={d.name || 'Select commander...'}
-                      />
+                  {/* Side by side: Image preview | Form */}
+                  <div className="flex">
+                    {/* Left: Image thumbnail */}
+                    <div className="w-24 flex-shrink-0 bg-stone-900/50 p-2">
+                      {images[d.imageIndex] && (
+                        <img
+                          src={images[d.imageIndex].src}
+                          alt={`Screenshot ${d.imageIndex + 1}`}
+                          className="w-full h-auto rounded cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => setCurrentImageIndex(d.imageIndex)}
+                        />
+                      )}
+                      <p className="text-[10px] text-stone-500 text-center mt-1">
+                        #{d.imageIndex + 1}
+                      </p>
                     </div>
 
-                    <button
-                      onClick={() => setCurrentImageIndex(d.imageIndex)}
-                      className="text-xs text-stone-500 hover:text-amber-500 flex-shrink-0"
-                    >
-                      img #{d.imageIndex + 1}
-                    </button>
+                    {/* Right: Form */}
+                    <div className="flex-1 p-3">
+                      {/* Header row with checkbox and commander dropdown */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <button
+                          onClick={() => toggleSelection(i)}
+                          className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 ${
+                            selected.has(i) ? 'bg-green-500 text-white' : 'bg-stone-700 text-stone-500'
+                          }`}
+                        >
+                          {selected.has(i) && <Check className="w-3 h-3" />}
+                        </button>
+
+                        <div className="flex-1">
+                          <CommanderDropdown
+                            commanders={commanders}
+                            value={d.matchedCommander}
+                            onChange={(cmd) => {
+                              setDetected(prev => prev.map((det, idx) =>
+                                idx === i
+                                  ? {
+                                      ...det,
+                                      matchedCommander: cmd,
+                                      name: cmd?.name || det.name,
+                                    }
+                                  : det
+                              ));
+                              if (cmd && !selected.has(i)) {
+                                setSelected(prev => new Set([...prev, i]));
+                              }
+                            }}
+                            placeholder={d.name || 'Select commander...'}
+                          />
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            setDetected(prev => prev.filter((_, idx) => idx !== i));
+                            setSelected(prev => {
+                              const newSet = new Set<number>();
+                              prev.forEach(idx => {
+                                if (idx < i) newSet.add(idx);
+                                else if (idx > i) newSet.add(idx - 1);
+                              });
+                              return newSet;
+                            });
+                          }}
+                          className="p-1 rounded hover:bg-red-900/30 text-stone-500 hover:text-red-400 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Stats row */}
+                      <div className="flex items-end gap-3">
+                        {/* Level */}
+                        <div className="w-16">
+                          <label className="text-[10px] text-stone-500 block mb-0.5">Level</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="60"
+                            value={d.level}
+                            onChange={(e) => updateDetected(i, 'level', parseInt(e.target.value) || 1)}
+                            className="w-full px-2 py-1 rounded bg-stone-700 border border-stone-600 text-stone-200 text-sm focus:border-amber-500 focus:outline-none text-center"
+                          />
+                        </div>
+
+                        {/* Stars - clickable */}
+                        <div>
+                          <label className="text-[10px] text-stone-500 block mb-0.5">Stars</label>
+                          <div className="flex gap-0.5">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <button
+                                key={s}
+                                onClick={() => updateDetected(i, 'stars', s)}
+                                className={`w-6 h-6 rounded text-sm transition-all ${
+                                  s <= d.stars
+                                    ? 'bg-yellow-500/30 text-yellow-500'
+                                    : 'bg-stone-700 text-stone-600 hover:bg-stone-600'
+                                }`}
+                              >
+                                ★
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Skills - individual inputs */}
+                        <div className="flex-1">
+                          <label className="text-[10px] text-stone-500 block mb-0.5">
+                            Skills <span className="text-stone-600">(0=locked)</span>
+                          </label>
+                          <div className="flex gap-1">
+                            {[0, 1, 2, 3].map((skillIdx) => (
+                              <div key={skillIdx} className="relative">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="5"
+                                  value={d.skillLevels[skillIdx] ?? 0}
+                                  onChange={(e) => {
+                                    const newSkills = [...d.skillLevels];
+                                    newSkills[skillIdx] = Math.min(5, Math.max(0, parseInt(e.target.value) || 0));
+                                    updateDetected(i, 'skillLevels', newSkills);
+                                  }}
+                                  className={`w-9 px-1 py-1 rounded border text-center text-sm focus:outline-none focus:border-amber-500 ${
+                                    d.skillLevels[skillIdx] === 5
+                                      ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-500'
+                                      : d.skillLevels[skillIdx] === 0
+                                      ? 'bg-stone-800 border-stone-700 text-stone-500'
+                                      : 'bg-stone-700 border-stone-600 text-stone-200'
+                                  }`}
+                                />
+                                <span className="absolute -top-1.5 -right-0.5 text-[8px] text-stone-500 bg-stone-800 px-0.5 rounded">
+                                  {skillIdx + 1}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Warning if no commander matched */}
+                      {!d.matchedCommander && (
+                        <p className="text-xs text-yellow-500 mt-2 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          Select a commander from dropdown
+                        </p>
+                      )}
+                    </div>
                   </div>
-
-                  {/* Stats row */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <label className="text-xs text-stone-500">Level</label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="60"
-                        value={d.level}
-                        onChange={(e) => updateDetected(i, 'level', parseInt(e.target.value) || 1)}
-                        className="w-full px-2 py-1.5 rounded bg-stone-700 border border-stone-600 text-stone-200 text-sm focus:border-amber-500 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-stone-500">Stars</label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="5"
-                        value={d.stars}
-                        onChange={(e) => updateDetected(i, 'stars', parseInt(e.target.value) || 1)}
-                        className="w-full px-2 py-1.5 rounded bg-stone-700 border border-stone-600 text-stone-200 text-sm focus:border-amber-500 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-stone-500">Skills <span className="text-stone-600">(0=locked)</span></label>
-                      <input
-                        type="text"
-                        value={d.skillLevels.join('/')}
-                        onChange={(e) => {
-                          const parts = e.target.value.split('/').map(s => {
-                            const num = parseInt(s);
-                            return isNaN(num) ? 0 : num;
-                          });
-                          while (parts.length < 4) parts.push(0);
-                          updateDetected(i, 'skillLevels', parts.slice(0, 4).map(n => Math.min(5, Math.max(0, n))));
-                        }}
-                        placeholder="5/5/5/5"
-                        className="w-full px-2 py-1.5 rounded bg-stone-700 border border-stone-600 text-stone-200 text-sm focus:border-amber-500 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Warning if no commander matched */}
-                  {!d.matchedCommander && (
-                    <p className="text-xs text-yellow-500 mt-2 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      Select a commander from the dropdown above
-                    </p>
-                  )}
                 </div>
               ))}
             </div>

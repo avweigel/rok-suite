@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Shield, ArrowLeft, Settings, Castle, Users, Scan, Plus, Loader2, Trophy, Edit2, Download, Copy, Check, ChevronDown, ChevronUp, Target, Cloud, CloudOff } from 'lucide-react';
+import { Shield, ArrowLeft, Settings, Castle, Users, Scan, Plus, Loader2, Trophy, Edit2, Download, Copy, Check, ChevronDown, ChevronUp, Target, Cloud, CloudOff, X } from 'lucide-react';
 import Link from 'next/link';
 import { AddCommanderModal } from '@/components/sunset-canyon/AddCommanderModal';
 import { EditCommanderModal } from '@/components/sunset-canyon/EditCommanderModal';
@@ -279,6 +279,19 @@ export default function SunsetCanyonPage() {
                 <Scan className="w-3 h-3" />
                 Scan
               </button>
+              {userCommanders.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (confirm('Clear all commanders from your roster?')) {
+                      clearAllCommanders();
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-red-600/50 text-red-400 text-sm hover:bg-red-600/10 transition-all flex items-center gap-1"
+                >
+                  <X className="w-3 h-3" />
+                  Clear
+                </button>
+              )}
             </div>
           </div>
 
