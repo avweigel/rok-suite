@@ -59,6 +59,7 @@ interface SunsetCanyonState {
   runMultipleSimulations: (iterations: number) => void;
   importCommanders: (commanders: UserCommander[]) => void;
   exportCommanders: () => UserCommander[];
+  clearAllCommanders: () => void;
 }
 
 function indexToPosition(index: number): { row: 'front' | 'back'; slot: number } {
@@ -259,6 +260,9 @@ export const useSunsetCanyonStore = create<SunsetCanyonState>((set, get) => ({
     }));
   },
 
+  clearAllCommanders: () => {
+    set(() => ({ userCommanders: [] }));
+  },
   exportCommanders: () => {
     return get().userCommanders;
   },

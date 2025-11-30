@@ -187,7 +187,7 @@ export default function AooStrategyPage() {
             teams: updatedData.teams ?? teams,
             mapImage: updatedData.mapImage ?? mapImage,
             notes: updatedData.notes ?? notes,
-            mapAssignments: updatedData.mapAssignments ?? mapAssignments,
+            mapAssignments: updatedData.mapAssignments ?? mapAssignments ?? {},
             substitutes: updatedData.substitutes ?? substitutes,
         };
         try {
@@ -231,7 +231,7 @@ export default function AooStrategyPage() {
             alert('Player already assigned!');
             return;
         }
-        const newPlayer: Player = { id: Date.now(), name: name.trim(), team: newPlayerTeam, tags: newPlayerTags };
+        const newPlayer: Player = { id: Date.now(), name: name.trim(), team: newPlayerTeam, tags: newPlayerTags, power: 0, assignments: { phase1: "", phase2: "", phase3: "", phase4: "" } };
         
         if (newPlayerTeam === 0) {
             // Add to substitutes
@@ -606,7 +606,7 @@ export default function AooStrategyPage() {
                                         if (e.key === 'Enter') {
                                             const input = e.target as HTMLInputElement;
                                             if (input.value.trim()) {
-                                                const newSub: Player = { id: Date.now(), name: input.value.trim(), team: 0, tags: [] };
+                                                const newSub: Player = { id: Date.now(), name: input.value.trim(), team: 0, tags: [], power: 0, assignments: { phase1: "", phase2: "", phase3: "", phase4: "" } };
                                                 const updatedSubs = [...substitutes, newSub];
                                                 setSubstitutes(updatedSubs);
                                                 saveData({ substitutes: updatedSubs });

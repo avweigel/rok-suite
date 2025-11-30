@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Shield, Swords, ArrowLeft, Settings, Castle, Users, Scan, Plus, Loader2, Trophy, Edit2 } from 'lucide-react';
+import { Shield, Swords, ArrowLeft, Settings, Castle, Users, Scan, Plus, Loader2, Trophy, Edit2, Download } from 'lucide-react';
 import Link from 'next/link';
 import { AddCommanderModal } from '@/components/sunset-canyon/AddCommanderModal';
 import { EditCommanderModal } from '@/components/sunset-canyon/EditCommanderModal';
@@ -9,6 +9,7 @@ import { ScreenshotScanner } from '@/components/sunset-canyon/ScreenshotScanner'
 import { useSunsetCanyonStore } from '@/lib/sunset-canyon/store';
 import { Commander, UserCommander } from '@/lib/sunset-canyon/commanders';
 import { optimizeDefense, OptimizedFormation } from '@/lib/sunset-canyon/optimizer';
+import { preloadedCommanders } from '@/lib/sunset-canyon/preloadedCommanders';
 
 type TabType = 'defense' | 'offense';
 
@@ -19,6 +20,7 @@ export default function SunsetCanyonPage() {
   const [showAddCommander, setShowAddCommander] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [editingCommander, setEditingCommander] = useState<UserCommander | null>(null);
+  const [loadingPreloaded, setLoadingPreloaded] = useState(false);
 
   const {
     cityHallLevel,
@@ -27,6 +29,7 @@ export default function SunsetCanyonPage() {
     addUserCommander,
     removeUserCommander,
     updateUserCommander,
+    clearAllCommanders,
   } = useSunsetCanyonStore();
 
   useEffect(() => {
@@ -56,6 +59,44 @@ export default function SunsetCanyonPage() {
   const handleEditCommander = (uniqueId: string, level: number, skillLevels: number[], stars: number) => {
     updateUserCommander(uniqueId, { level, skillLevels, stars });
     setEditingCommander(null);
+  };
+
+  // Load preloaded commanders
+  const handleLoadPreloaded = async () => {
+    setLoadingPreloaded(true);
+    
+    // Clear existing commanders first (optional - remove this line if you want to add to existing)
+    if (userCommanders.length > 0) {
+      const confirmClear = window.confirm(
+        `You have ${userCommanders.length} commanders. Replace them with preloaded data (17 commanders)?`
+      );
+      if (!confirmClear) {
+        setLoadingPreloaded(false);
+        return;
+      }
+      clearAllCommanders();
+    }
+
+    // Add each preloaded commander with a small delay for visual feedback
+    for (const cmd of preloadedCommanders) {
+      // Convert preloaded format to the Commander format expected by addUserCommander
+      const commanderData: Commander = {
+        id: cmd.id,
+        name: cmd.name,
+        rarity: cmd.rarity,
+        role: [],
+        troopType: (['Infantry', 'Cavalry', 'Archer'].includes(cmd.types[0]) ? cmd.types[0].toLowerCase() : 'mixed') as 'infantry' | 'cavalry' | 'archer' | 'mixed',
+        baseStats: { attack: 0, defense: 0, health: 0, marchSpeed: 0 },
+        skills: [],
+        synergies: [],
+      };
+      addUserCommander(commanderData, cmd.level, cmd.skills, cmd.stars);
+      
+      // Small delay for visual feedback
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    
+    setLoadingPreloaded(false);
   };
 
   return (
@@ -182,6 +223,20 @@ export default function SunsetCanyonPage() {
               Your Commander Roster ({userCommanders.length})
             </h3>
             <div className="flex gap-2">
+              {/* NEW: Load Preloaded Button */}
+              <button
+                onClick={handleLoadPreloaded}
+                disabled={loadingPreloaded}
+                className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-green-600 to-green-700 text-white text-sm font-semibold hover:from-green-500 hover:to-green-600 transition-all flex items-center gap-1 disabled:opacity-50"
+                title="Load your preloaded commander roster"
+              >
+                {loadingPreloaded ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Download className="w-3 h-3" />
+                )}
+                {loadingPreloaded ? 'Loading...' : 'Load My Roster'}
+              </button>
               <button
                 onClick={() => setShowAddCommander(true)}
                 className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-600 to-amber-700 text-stone-900 text-sm font-semibold hover:from-amber-500 hover:to-amber-600 transition-all flex items-center gap-1"
@@ -203,9 +258,22 @@ export default function SunsetCanyonPage() {
             <div className="text-center py-8">
               <Users className="w-12 h-12 text-stone-600 mx-auto mb-3" />
               <p className="text-stone-400 mb-2">No commanders added yet</p>
-              <p className="text-sm text-stone-500">
+              <p className="text-sm text-stone-500 mb-4">
                 Add your commanders by scanning screenshots or adding manually
               </p>
+              {/* Prominent preload button when empty */}
+              <button
+                onClick={handleLoadPreloaded}
+                disabled={loadingPreloaded}
+                className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold hover:from-green-500 hover:to-green-600 transition-all flex items-center gap-2 mx-auto disabled:opacity-50"
+              >
+                {loadingPreloaded ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Download className="w-5 h-5" />
+                )}
+                {loadingPreloaded ? 'Loading Commanders...' : 'Load My Preloaded Roster (17 Commanders)'}
+              </button>
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
@@ -498,101 +566,44 @@ function DefenseTab() {
                 <button
                   key={index}
                   onClick={() => setSelectedFormationIndex(index)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                     selectedFormationIndex === index
                       ? 'bg-green-600 text-white'
                       : 'bg-stone-700 text-stone-300 hover:bg-stone-600'
                   }`}
                 >
-                  <div className="text-sm">Option {index + 1}</div>
-                  <div className="text-xs opacity-80">{formation.reasoning[0]}</div>
+                  Formation {index + 1}
                 </button>
               ))}
             </div>
           )}
-
-          {/* 5 Pairs Display */}
+          
+          {/* Army List */}
           <div className="mb-6">
             <h4 className="text-sm font-semibold text-amber-500 uppercase tracking-wider mb-3">
-              Your 5 Commander Pairs
+              Your 5 Armies
             </h4>
             <div className="grid gap-3">
               {selectedFormation.armies.map((army, index) => (
-                <div 
+                <div
                   key={index}
-                  className={`flex items-center gap-4 p-4 rounded-lg ${
-                    army.position.row === 'front' 
-                      ? 'bg-gradient-to-r from-blue-900/30 to-stone-800 border border-blue-600/20' 
-                      : 'bg-gradient-to-r from-amber-900/20 to-stone-800 border border-amber-600/20'
-                  }`}
+                  className="p-3 rounded-lg bg-stone-800/50 border border-stone-700 flex items-center gap-4"
                 >
-                  {/* Position Badge */}
-                  <div className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center ${
-                    army.position.row === 'front' 
-                      ? 'bg-blue-600 text-white' 
-                      : 'bg-amber-600 text-stone-900'
-                  }`}>
-                    <span className="text-xs font-medium">
-                      {army.position.row === 'front' ? 'FRONT' : 'BACK'}
-                    </span>
-                    <span className="text-lg font-bold">{army.position.slot + 1}</span>
+                  <div className="w-8 h-8 rounded-full bg-amber-600 text-stone-900 font-bold flex items-center justify-center">
+                    {index + 1}
                   </div>
-                  
-                  {/* Pair Number */}
-                  <div className="text-2xl font-bold text-stone-600">
-                    #{index + 1}
-                  </div>
-                  
-                  {/* Commanders */}
                   <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      {/* Primary */}
-                      <div className="flex-1">
-                        <div className="text-xs text-stone-500 uppercase">Primary</div>
-                        <div className={`font-semibold ${
-                          army.primary.rarity === 'legendary' ? 'text-yellow-500' : 'text-purple-400'
-                        }`}>
-                          {army.primary.name}
-                        </div>
-                        <div className="text-xs text-stone-500">
-                          Lv.{army.primary.level} • {army.primary.troopType}
-                        </div>
-                      </div>
-                      
-                      {/* Plus sign */}
-                      <div className="text-2xl text-stone-600">+</div>
-                      
-                      {/* Secondary */}
-                      <div className="flex-1">
-                        <div className="text-xs text-stone-500 uppercase">Secondary</div>
-                        {army.secondary ? (
-                          <>
-                            <div className={`font-semibold ${
-                              army.secondary.rarity === 'legendary' ? 'text-yellow-500' : 'text-purple-400'
-                            }`}>
-                              {army.secondary.name}
-                            </div>
-                            <div className="text-xs text-stone-500">
-                              Lv.{army.secondary.level}
-                            </div>
-                          </>
-                        ) : (
-                          <div className="text-stone-500 italic">None (solo)</div>
-                        )}
-                      </div>
+                    <div className="font-semibold text-stone-200">
+                      {army.primary.name}
+                      {army.secondary && (
+                        <span className="text-stone-400 font-normal"> + {army.secondary.name}</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-stone-500">
+                      {army.position.row === 'front' ? 'Front Row' : 'Back Row'} • Slot {army.position.slot + 1}
                     </div>
                   </div>
-                  
-                  {/* Troop Power */}
-                  <div className="text-right mr-2">
-                    <div className="text-xs text-stone-500">Power</div>
-                    <div className="text-lg font-bold text-green-400">
-                      {army.troopPower?.toLocaleString() || '-'}
-                    </div>
-                  </div>
-                  
-                  {/* Troop Type Badge */}
-                  <div className={`px-3 py-1 rounded-lg text-sm font-medium ${
+                  <div className={`px-2 py-1 rounded text-xs font-semibold ${
                     army.primary.troopType === 'infantry' ? 'bg-blue-900/50 text-blue-300' :
                     army.primary.troopType === 'cavalry' ? 'bg-red-900/50 text-red-300' :
                     army.primary.troopType === 'archer' ? 'bg-green-900/50 text-green-300' :

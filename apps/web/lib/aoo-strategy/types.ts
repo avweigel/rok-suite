@@ -10,8 +10,8 @@ export interface Player {
   name: string;
   team: number;
   tags: string[];
-  power: number;
-  assignments: PlayerAssignments;
+  power?: number;
+  assignments?: PlayerAssignments;
 }
 
 export interface Team {

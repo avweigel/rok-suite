@@ -72,7 +72,7 @@ const teamColors: Record<number, { bg: string; text: string; name: string }> = {
 const getDefaultAssignments = (): MapAssignments => {
   const initial: MapAssignments = {};
   buildings.forEach(b => {
-    initial[b.id] = { team: null, order: null };
+    initial[b.id] = { team: 0, order: 0 };
   });
   return initial;
 };
@@ -114,7 +114,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
     
     const newAssignments = { ...assignments };
     if (team === null) {
-      newAssignments[buildingId] = { team: null, order: null };
+      newAssignments[buildingId] = { team: 0, order: 0 };
     } else {
       // Get next order number for this team
       const teamBuildings = Object.entries(assignments)
