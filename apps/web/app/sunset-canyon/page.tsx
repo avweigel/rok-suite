@@ -68,7 +68,7 @@ export default function SunsetCanyonPage() {
     // Clear existing commanders first (optional - remove this line if you want to add to existing)
     if (userCommanders.length > 0) {
       const confirmClear = window.confirm(
-        `You have ${userCommanders.length} commanders. Replace them with preloaded data (17 commanders)?`
+        `You have ${userCommanders.length} commanders. Replace them with preloaded data (${preloadedCommanders.length} commanders)?`
       );
       if (!confirmClear) {
         setLoadingPreloaded(false);
@@ -272,7 +272,7 @@ export default function SunsetCanyonPage() {
                 ) : (
                   <Download className="w-5 h-5" />
                 )}
-                {loadingPreloaded ? 'Loading Commanders...' : 'Load My Preloaded Roster (17 Commanders)'}
+                {loadingPreloaded ? 'Loading Commanders...' : `Load My Preloaded Roster (${preloadedCommanders.length} Commanders)`}
               </button>
             </div>
           ) : (

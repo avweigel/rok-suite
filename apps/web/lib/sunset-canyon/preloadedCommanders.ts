@@ -117,32 +117,6 @@ export const preloadedCommanders: Commander[] = [
     unitCapacity: 152000
   },
   {
-    id: "hermann",
-    name: "Hermann",
-    title: "Guardian of Germania",
-    rarity: "epic",
-    types: ["Archer", "Skill"],
-    level: 44,
-    maxLevel: 50,
-    stars: 4,
-    skills: [5, 5, 5, 5],
-    power: 48000,
-    unitCapacity: 155000
-  },
-  {
-    id: "pelagius",
-    name: "Pelagius",
-    title: "Founder of Asturias",
-    rarity: "epic",
-    types: ["Cavalry", "Conquering", "Skill"],
-    level: 45,
-    maxLevel: 50,
-    stars: 4,
-    skills: [5, 5, 5, 5],
-    power: 50000,
-    unitCapacity: 156000
-  },
-  {
     id: "mehmed-ii",
     name: "Mehmed II",
     title: "Conqueror of Istanbul",
