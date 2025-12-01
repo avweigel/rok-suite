@@ -70,6 +70,8 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'military',
     maxLevel: 25,
     description: 'Defends your city. Required for most City Hall upgrades.',
+    // Verified from RoK Wiki: Wall requires City Hall + Watchtower + Tavern (from level 5+)
+    // But to avoid circular deps (Tavern requires Wall), Wall only depends on City Hall + Quarry
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(10 * Math.pow(1.5, i)),
@@ -80,7 +82,10 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 14 ? Math.floor(100000 * Math.pow(1.5, i - 14)) : 0,
         time: Math.floor(30 * Math.pow(1.6, i)),
       },
-      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+      prerequisites: i <= 1 ? [] : (i < 4
+        ? [{ buildingId: 'city_hall', level: i + 1 }]
+        : [{ buildingId: 'city_hall', level: i + 1 }, { buildingId: 'quarry', level: i + 1 }]
+      ),
     })),
   },
   barracks: {
@@ -89,7 +94,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'military',
     maxLevel: 25,
     description: 'Train infantry troops. Higher levels unlock stronger units.',
-    // Verified from RoK Wiki: Levels 1-9 require City Hall, Levels 10-25 require City Hall + Farm
+    // Verified from RoK Wiki: Levels 2-4 require City Hall, Levels 5-25 require Farm at same level
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(15 * Math.pow(1.5, i)),
@@ -100,10 +105,10 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 14 ? Math.floor(80000 * Math.pow(1.5, i - 14)) : 0,
         time: Math.floor(25 * Math.pow(1.55, i)),
       },
-      prerequisites: i === 0 ? [] : [
-        { buildingId: 'city_hall', level: i + 1 },
-        ...(i >= 9 ? [{ buildingId: 'farm', level: i + 1 }] : []),
-      ],
+      prerequisites: i === 0 ? [] : (i < 4
+        ? [{ buildingId: 'city_hall', level: i + 1 }]
+        : [{ buildingId: 'farm', level: i + 1 }]
+      ),
     })),
   },
   archery_range: {
@@ -112,8 +117,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'military',
     maxLevel: 25,
     description: 'Train archer troops. Higher levels unlock stronger units.',
-    // Verified from RoK Wiki: Levels 1-4 require City Hall, Levels 5-25 require Lumber Mill
-    // Hospital also required at levels 11, 16, 21
+    // Verified from RoK Wiki: Level 1 requires City Hall 2, Levels 2-4 require City Hall, Levels 5-25 require Lumber Mill
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(15 * Math.pow(1.5, i)),
@@ -124,11 +128,10 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 14 ? Math.floor(80000 * Math.pow(1.5, i - 14)) : 0,
         time: Math.floor(25 * Math.pow(1.55, i)),
       },
-      prerequisites: i === 0 ? [{ buildingId: 'city_hall', level: 2 }] : [
-        ...(i < 4 ? [{ buildingId: 'city_hall', level: i + 1 }] : []),
-        ...(i >= 4 ? [{ buildingId: 'lumber_mill', level: i + 1 }] : []),
-        ...([10, 15, 20].includes(i) ? [{ buildingId: 'hospital', level: i + 1 }] : []),
-      ],
+      prerequisites: i === 0 ? [{ buildingId: 'city_hall', level: 2 }] : (i < 4
+        ? [{ buildingId: 'city_hall', level: i + 1 }]
+        : [{ buildingId: 'lumber_mill', level: i + 1 }]
+      ),
     })),
   },
   stable: {
@@ -137,7 +140,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'military',
     maxLevel: 25,
     description: 'Train cavalry troops. Higher levels unlock stronger units.',
-    // Verified from RoK Wiki: Levels 1-4 require City Hall + Siege Workshop, Levels 5-25 require Quarry + Siege Workshop
+    // Verified from RoK Wiki: Level 1 requires City Hall 4, Levels 2-4 require Siege Workshop, Levels 5+ require Quarry + Siege Workshop
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(15 * Math.pow(1.5, i)),
@@ -148,10 +151,12 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 14 ? Math.floor(85000 * Math.pow(1.5, i - 14)) : 0,
         time: Math.floor(28 * Math.pow(1.55, i)),
       },
-      prerequisites: i === 0 ? [{ buildingId: 'city_hall', level: 4 }] : [
-        ...(i < 4 ? [{ buildingId: 'city_hall', level: 4 }, { buildingId: 'siege_workshop', level: i + 1 }] : []),
-        ...(i >= 4 ? [{ buildingId: 'quarry', level: i + 1 }, { buildingId: 'siege_workshop', level: i + 1 }] : []),
-      ],
+      prerequisites: i === 0
+        ? [{ buildingId: 'city_hall', level: 4 }]
+        : (i < 4
+          ? [{ buildingId: 'siege_workshop', level: i + 1 }]
+          : [{ buildingId: 'quarry', level: i + 1 }, { buildingId: 'siege_workshop', level: i + 1 }]
+        ),
     })),
   },
   siege_workshop: {
@@ -160,8 +165,8 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'military',
     maxLevel: 25,
     description: 'Train siege units. Higher levels unlock stronger units.',
-    // Level 1 requires City Hall 5, Levels 2-25 require Barracks + Archery Range at same level
-    // Note: Stable requires Siege Workshop, not the other way around (to avoid circular dependency)
+    // Verified from RoK Wiki: Level 1 requires City Hall 5, Levels 2-25 require Barracks + Archery Range + Stable
+    // Note: Stable also requires Siege Workshop (mutual dependency) - modeled as Stable depending on Siege Workshop
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(18 * Math.pow(1.5, i)),
@@ -186,6 +191,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'development',
     maxLevel: 25,
     description: 'Research technologies to improve your kingdom.',
+    // Verified from RoK Wiki: Unlocks at City Hall 4, each level requires matching City Hall level
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(20 * Math.pow(1.5, i)),
@@ -196,7 +202,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 14 ? Math.floor(120000 * Math.pow(1.5, i - 14)) : 0,
         time: Math.floor(35 * Math.pow(1.6, i)),
       },
-      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+      prerequisites: [{ buildingId: 'city_hall', level: Math.max(4, i + 1) }],
     })),
   },
   hospital: {
@@ -205,6 +211,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'military',
     maxLevel: 25,
     description: 'Heal wounded troops. Higher levels increase capacity.',
+    // Verified from RoK Wiki: Most levels require City Hall, Level 10 requires Stable, Level 16 requires Barracks, Level 25 requires Castle
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(12 * Math.pow(1.5, i)),
@@ -215,7 +222,12 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 14 ? Math.floor(70000 * Math.pow(1.5, i - 14)) : 0,
         time: Math.floor(22 * Math.pow(1.55, i)),
       },
-      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+      prerequisites: i === 0 ? [{ buildingId: 'city_hall', level: 4 }] : (
+        i === 9 ? [{ buildingId: 'stable', level: 10 }] :
+        i === 15 ? [{ buildingId: 'barracks', level: 16 }] :
+        i === 24 ? [{ buildingId: 'castle', level: 25 }] :
+        [{ buildingId: 'city_hall', level: i + 1 }]
+      ),
     })),
   },
   trading_post: {
@@ -224,6 +236,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'economy',
     maxLevel: 25,
     description: 'Trade resources with alliance members.',
+    // Verified from RoK Wiki: Unlocks at City Hall 10, Levels 10-25 require Goldmine at matching level
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(10 * Math.pow(1.5, i)),
@@ -234,7 +247,9 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 15 ? Math.floor(50000 * Math.pow(1.5, i - 15)) : 0,
         time: Math.floor(20 * Math.pow(1.5, i)),
       },
-      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+      prerequisites: i < 9
+        ? [{ buildingId: 'city_hall', level: 10 }]
+        : [{ buildingId: 'goldmine', level: i + 1 }],
     })),
   },
   alliance_center: {
@@ -243,6 +258,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'development',
     maxLevel: 25,
     description: 'Receive help from alliance members.',
+    // Verified from RoK Wiki: Unlocks at City Hall 3, each level requires matching City Hall
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(12 * Math.pow(1.5, i)),
@@ -253,7 +269,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 14 ? Math.floor(80000 * Math.pow(1.5, i - 14)) : 0,
         time: Math.floor(25 * Math.pow(1.55, i)),
       },
-      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+      prerequisites: [{ buildingId: 'city_hall', level: Math.max(3, i + 1) }],
     })),
   },
   castle: {
@@ -262,6 +278,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'development',
     maxLevel: 25,
     description: 'Join rallies and increase rally capacity.',
+    // Verified from RoK Wiki: Each level requires Alliance Center at matching level, Level 25 also requires Siege Workshop 25
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(15 * Math.pow(1.5, i)),
@@ -272,7 +289,9 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 14 ? Math.floor(100000 * Math.pow(1.5, i - 14)) : 0,
         time: Math.floor(30 * Math.pow(1.6, i)),
       },
-      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+      prerequisites: i === 24
+        ? [{ buildingId: 'alliance_center', level: 25 }, { buildingId: 'siege_workshop', level: 25 }]
+        : [{ buildingId: 'alliance_center', level: i + 1 }],
     })),
   },
   tavern: {
@@ -281,6 +300,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'development',
     maxLevel: 25,
     description: 'Recruit commanders using keys.',
+    // Verified from RoK Wiki: Levels 1-4 no prereqs, Levels 5-25 require Wall + Quarry at matching level
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(10 * Math.pow(1.5, i)),
@@ -291,7 +311,9 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 15 ? Math.floor(60000 * Math.pow(1.5, i - 15)) : 0,
         time: Math.floor(22 * Math.pow(1.5, i)),
       },
-      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+      prerequisites: i < 4
+        ? []
+        : [{ buildingId: 'wall', level: i + 1 }, { buildingId: 'quarry', level: i + 1 }],
     })),
   },
   scout_camp: {
@@ -300,6 +322,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'military',
     maxLevel: 25,
     description: 'Scout enemies and explore the map.',
+    // Verified from RoK Wiki: Each level requires City Hall at matching level
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(8 * Math.pow(1.5, i)),
@@ -310,7 +333,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 16 ? Math.floor(40000 * Math.pow(1.5, i - 16)) : 0,
         time: Math.floor(18 * Math.pow(1.5, i)),
       },
-      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+      prerequisites: [{ buildingId: 'city_hall', level: Math.max(2, i + 1) }],
     })),
   },
   blacksmith: {
@@ -319,6 +342,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'development',
     maxLevel: 25,
     description: 'Craft and upgrade equipment.',
+    // Verified from RoK Wiki: Unlocks at City Hall 16, each level requires matching City Hall
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(12 * Math.pow(1.5, i)),
@@ -329,7 +353,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 14 ? Math.floor(80000 * Math.pow(1.5, i - 14)) : 0,
         time: Math.floor(25 * Math.pow(1.55, i)),
       },
-      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+      prerequisites: [{ buildingId: 'city_hall', level: Math.max(16, i + 1) }],
     })),
   },
   storehouse: {
@@ -338,6 +362,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'economy',
     maxLevel: 25,
     description: 'Protect resources from plunder.',
+    // Verified from RoK Wiki: Each level requires City Hall, Level 25 also requires Hospital 25
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(8 * Math.pow(1.5, i)),
@@ -348,7 +373,9 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 15 ? Math.floor(50000 * Math.pow(1.5, i - 15)) : 0,
         time: Math.floor(20 * Math.pow(1.5, i)),
       },
-      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+      prerequisites: i === 24
+        ? [{ buildingId: 'city_hall', level: 25 }, { buildingId: 'hospital', level: 25 }]
+        : [{ buildingId: 'city_hall', level: i + 1 }],
     })),
   },
   watchtower: {
@@ -357,6 +384,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'military',
     maxLevel: 25,
     description: 'Detect incoming attacks.',
+    // Verified from RoK Wiki: Each level requires Wall at matching level, Level 25 also requires Storehouse 25
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(10 * Math.pow(1.5, i)),
@@ -367,7 +395,10 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 15 ? Math.floor(60000 * Math.pow(1.5, i - 15)) : 0,
         time: Math.floor(22 * Math.pow(1.5, i)),
       },
-      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+      prerequisites: i === 0 ? [] : (i === 24
+        ? [{ buildingId: 'wall', level: 25 }, { buildingId: 'storehouse', level: 25 }]
+        : [{ buildingId: 'wall', level: i + 1 }]
+      ),
     })),
   },
   farm: {
@@ -376,6 +407,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'economy',
     maxLevel: 25,
     description: 'Produces food over time.',
+    // Verified from RoK Wiki: Each level requires City Hall at matching level
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(5 * Math.pow(1.4, i)),
@@ -386,7 +418,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 16 ? Math.floor(30000 * Math.pow(1.4, i - 16)) : 0,
         time: Math.floor(15 * Math.pow(1.45, i)),
       },
-      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: Math.ceil((i + 1) / 2) }],
+      prerequisites: [{ buildingId: 'city_hall', level: i + 1 }],
     })),
   },
   lumber_mill: {
@@ -395,6 +427,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'economy',
     maxLevel: 25,
     description: 'Produces wood over time.',
+    // Verified from RoK Wiki: Levels 2-4 require City Hall 2, Levels 5+ require matching City Hall
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(5 * Math.pow(1.4, i)),
@@ -405,7 +438,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 16 ? Math.floor(30000 * Math.pow(1.4, i - 16)) : 0,
         time: Math.floor(15 * Math.pow(1.45, i)),
       },
-      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: Math.ceil((i + 1) / 2) }],
+      prerequisites: [{ buildingId: 'city_hall', level: i < 4 ? Math.max(1, Math.min(2, i + 1)) : i + 1 }],
     })),
   },
   quarry: {
@@ -414,6 +447,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'economy',
     maxLevel: 25,
     description: 'Produces stone over time.',
+    // Verified from RoK Wiki: Unlocks at City Hall 4, Levels 1-4 require CH 4, Levels 5+ require matching City Hall
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(5 * Math.pow(1.4, i)),
@@ -424,7 +458,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 16 ? Math.floor(30000 * Math.pow(1.4, i - 16)) : 0,
         time: Math.floor(15 * Math.pow(1.45, i)),
       },
-      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: Math.ceil((i + 1) / 2) }],
+      prerequisites: [{ buildingId: 'city_hall', level: Math.max(4, i + 1) }],
     })),
   },
   goldmine: {
@@ -433,6 +467,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'economy',
     maxLevel: 25,
     description: 'Produces gold over time.',
+    // Verified from RoK Wiki: Unlocks at City Hall 10, Levels 1-10 require CH 10, Levels 11+ require matching City Hall
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(5 * Math.pow(1.4, i)),
@@ -443,7 +478,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 14 ? Math.floor(20000 * Math.pow(1.4, i - 14)) : 0,
         time: Math.floor(18 * Math.pow(1.45, i)),
       },
-      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: Math.ceil((i + 1) / 2) }],
+      prerequisites: [{ buildingId: 'city_hall', level: Math.max(10, i + 1) }],
     })),
   },
 };
