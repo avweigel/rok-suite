@@ -21,24 +21,24 @@ In Rise of Kingdoms, two commanders lead each army:
 
 | Primary | Secondary | Why It Works |
 |---------|-----------|--------------|
-| **Guan Yu** | **Leonidas** | Guan's silence enables Leonidas's 50% skill damage boost. "One of the strongest marches in RoK" |
+| **Guan Yu** | **Leonidas** | Guan's silence enables Leonidas's 50% skill damage boost. "One of the strongest marches in RoK" [^1] |
 | **Sun Tzu** | **Charles Martel** | Sun Tzu adds damage + rage to Martel's tankiness. 30% skill damage boost |
 | **Sun Tzu** | **Richard I** | Best AOE duo - hit 5 targets while Richard's heals maintain troop count |
-| **Charles Martel** | **Richard I** | "Best infantry march for open-field and garrison defense" - pure tank |
-| **Constantine I** | **Wu Zetian** | "Best all-around defensive pairing" - counters nukers, massive damage reduction |
+| **Charles Martel** | **Richard I** | "Best infantry march for open-field and garrison defense" [^2] - pure tank |
+| **Constantine I** | **Wu Zetian** | "Best all-around defensive pairing" [^3] - counters nukers, massive damage reduction |
 
 ### Archer/Mixed Pairings
 
 | Primary | Secondary | Why It Works |
 |---------|-----------|--------------|
-| **Aethelflaed** | **Yi Seong-Gye** | Top F2P combo - 30% stat debuff + 5-target AOE devastation |
-| **Yi Seong-Gye** | **Sun Tzu** | "Craziest AOE combination" - both hit 5 targets |
+| **Aethelflaed** | **Yi Seong-Gye** | Top F2P combo - 30% stat debuff + 5-target AOE devastation [^4] |
+| **Yi Seong-Gye** | **Sun Tzu** | "Craziest AOE combination" [^5] - both hit 5 targets |
 | **Artemisia I** | **Yi Seong-Gye** | Archer AOE synergy - 50% more skill damage together |
 | **Artemisia I** | **Ramesses II** | Tanky archer pair with defense tree + debuff damage |
 
 ### Cavalry (Use Cautiously)
 
-> "Cavalry is not great in Sunset Canyon because you will face Charles Martel, Richard, Sun Tzu, etc. a lot and those guys can beat cavalry with ease."
+> "Cavalry is not great in Sunset Canyon because you will face Charles Martel, Richard, Sun Tzu, etc. a lot and those guys can beat cavalry with ease." — [ROK.guide](https://www.rok.guide/best-sunset-canyon-commanders/)
 
 | Primary | Secondary | Why It Works |
 |---------|-----------|--------------|
@@ -91,6 +91,51 @@ Richard heals → High troop count → More damage output
 Constantine reduces damage → Survives longer → More skill cycles
 ```
 
+### Talent Tree Synergies (NEW)
+
+The optimizer now considers talent tree compatibility. Each commander has primary talent trees that affect pairing effectiveness:
+
+| Tree Type | Benefits | Example Commanders |
+|-----------|----------|-------------------|
+| **Infantry** | Troop-specific buffs (infantry) | Guan Yu, Charles Martel, Richard I |
+| **Cavalry** | Troop-specific buffs (cavalry) | Attila, Takeda, Cao Cao |
+| **Archer** | Troop-specific buffs (archer) | YSG, Hermann Prime, Ramesses II |
+| **Leadership** | Buffs ALL troop types | Constantine I, Theodora, Joan |
+| **Integration** | Mixed troop bonuses | Joan of Arc, Aethelflaed, Mulan |
+| **Garrison** | Defense bonuses | Charles Martel, Richard I, YSG |
+| **Skill** | Skill damage amplification | Sun Tzu, Guan Yu, YSG |
+
+**Best Talent Tree Combinations:**
+
+| Primary Tree | Secondary Tree | Bonus | Example |
+|--------------|----------------|-------|---------|
+| Infantry + Infantry | +25 | Focused specialization | Guan Yu + Richard I |
+| Leadership + Any | +15 | Versatile buffing | Constantine + anyone |
+| Garrison + Garrison | +20 | Strong Canyon defense | Charles Martel + Richard I |
+| Skill + Skill | +15 | Synergized skill damage | YSG + Sun Tzu |
+
+### Skill Effect Combinations (NEW)
+
+The optimizer scores commanders based on complementary skill effects:
+
+| Effect Combo | Bonus | Why It Works |
+|--------------|-------|--------------|
+| **Debuff + AOE Damage** | +20 | Reduced stats mean all AOE hits harder |
+| **Defense Reduction + AOE** | +15 | Devastating combo for Canyon multi-target |
+| **Silence + Damage** | +15 | Enemy can't skill while you damage |
+| **Heal + Shield** | +15 | Maximum sustain for front line |
+| **Double AOE** | +20 | Both commanders hit 5 targets |
+| **Rage Boost + Any** | +10 | Faster skill cycling |
+
+**Formation-Level Coverage:**
+
+A "well-rounded" formation should have:
+- ✅ **Debuff effects**: Attack/defense reduction (Aethelflaed, Ramesses)
+- ✅ **Damage effects**: AOE, damage boost, DOT (YSG, Sun Tzu)
+- ✅ **Sustain effects**: Healing, shields (Richard, Charles Martel)
+
+Formations with all three categories get +30 bonus: "Full combat coverage"
+
 ### Troop Type Matching
 
 | Troop Type | Strength | Weakness |
@@ -108,8 +153,8 @@ Constantine reduces damage → Survives longer → More skill cycles
 
 | Commander | Role | AOE | Why |
 |-----------|------|-----|-----|
-| **Richard I** | Tank | 1 | "Best tank in RoK" - healing + damage reduction |
-| **Constantine I** | Tank | 1 | "Must-use for canyons" - damage reduction |
+| **Richard I** | Tank | 1 | "Best tank in RoK" [^7] - healing + damage reduction |
+| **Constantine I** | Tank | 1 | "Must-use for canyons" [^8] - damage reduction |
 | **Charles Martel** | Tank | 1 | Shield absorption, counters cavalry |
 | **Sun Tzu** | AOE | 5 | Best epic - 5-target AOE, rage restoration |
 | **Yi Seong-Gye** | AOE | 5 | Fan-shaped arrow hits 5 targets |
@@ -150,8 +195,8 @@ Constantine reduces damage → Survives longer → More skill cycles
 
 If you're free-to-play, focus on:
 
-1. **Sun Tzu** (Epic) - "Best epic commander, first to expertise"
-2. **Joan of Arc** (Epic) - "Outstanding Canyon support"
+1. **Sun Tzu** (Epic) - "Best epic commander, first to expertise" [^9]
+2. **Joan of Arc** (Epic) - "Outstanding Canyon support" [^10]
 3. **Aethelflaed** (Legendary) - FREE from Canyon shop
 4. **Charles Martel** (Legendary) - First legendary tank
 5. **Yi Seong-Gye** (Legendary) - Worth the investment for AOE
@@ -168,3 +213,23 @@ Front: Charles Martel   |  Richard I     |  [Tank]
 - [ROK.guide Best Pairings](https://www.rok.guide/best-commander-pairings/)
 - [RiseOfKingdomsGuides Pairings 2025](https://riseofkingdomsguides.com/guides/commander-pairings/)
 - [Rise of Kingdoms Fandom Wiki](https://riseofkingdoms.fandom.com/)
+
+## References
+
+[^1]: ROK.guide. "Best Commander Pairings." https://www.rok.guide/best-commander-pairings/
+
+[^2]: AllClash. "Best Infantry Pairings." https://www.allclash.com/best-infantry-commander-pairings/
+
+[^3]: RiseOfKingdomsGuides. "Constantine I Guide." https://riseofkingdomsguides.com/commanders/constantine/
+
+[^4]: RiseOfKingdomsGuides. "Aethelflaed Guide - Best Pairings." https://riseofkingdomsguides.com/commanders/aethelflaed/
+
+[^5]: AllClash. "Yi Seong-Gye Best Pairings." https://www.allclash.com/yi-seong-gye/
+
+[^7]: AllClash. "Richard I Guide." https://www.allclash.com/richard-i/
+
+[^8]: RiseOfKingdomsGuides. "Constantine I Guide." https://riseofkingdomsguides.com/commanders/constantine/
+
+[^9]: AllClash. "Sun Tzu Guide - Best Epic Commander." https://www.allclash.com/sun-tzu/
+
+[^10]: ROK.guide. "Joan of Arc Guide." https://www.rok.guide/commanders/joan-of-arc/

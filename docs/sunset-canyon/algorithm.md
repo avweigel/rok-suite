@@ -77,14 +77,14 @@ function getEffectivePower(commander) {
 
 ## Step 3: Pairing Score Calculation
 
-The pairing score determines how well two commanders work together:
+The pairing score determines how well two commanders work together. This now includes **talent tree synergies** and **skill effect combinations**, modeling the game's "Quick Deploy" optimization logic.
 
 ```javascript
 function getPairingScore(primary, secondary) {
   let score = 0;
 
   // ═══════════════════════════════════════════════
-  // COMMANDER POWER (Primary Factor ~60%)
+  // STEP 1: COMMANDER POWER (Primary Factor ~50%)
   // ═══════════════════════════════════════════════
   score += primaryPower / 10;      // ~500 for max
   score += secondaryPower / 15;    // ~330 for max
@@ -92,7 +92,7 @@ function getPairingScore(primary, secondary) {
   score -= viabilityPenalty(secondary) × 0.7;
 
   // ═══════════════════════════════════════════════
-  // SYNERGY BONUSES (~20%)
+  // STEP 2: META SYNERGY BONUSES (~15%)
   // ═══════════════════════════════════════════════
   if (knownSynergy.partners.includes(secondary)) {
     score += tierBonus;  // S: +80, A: +60, B: +40
@@ -100,7 +100,14 @@ function getPairingScore(primary, secondary) {
   }
 
   // ═══════════════════════════════════════════════
-  // AOE & TROOP TYPE (~15%)
+  // STEP 3: TALENT TREE & SKILL EFFECT SYNERGIES (NEW ~15%)
+  // Models "Quick Deploy" well-rounded optimization
+  // ═══════════════════════════════════════════════
+  score += getTalentTreeSynergyBonus(primary, secondary);
+  score += getSkillEffectSynergyBonus(primary, secondary);
+
+  // ═══════════════════════════════════════════════
+  // STEP 4: AOE & TROOP TYPE (~15%)
   // ═══════════════════════════════════════════════
   if (primaryAOE >= 5) score += 25;
   if (primaryAOE >= 3) score += 12;
@@ -109,7 +116,7 @@ function getPairingScore(primary, secondary) {
   if (sameType && type !== 'mixed') score += 30;
 
   // ═══════════════════════════════════════════════
-  // ROLE COMPLEMENTARITY (~5%)
+  // STEP 5: ROLE COMPLEMENTARITY (~5%)
   // ═══════════════════════════════════════════════
   if (tank + nuker) score += 25;
   if (nuker + support) score += 20;
@@ -124,6 +131,32 @@ function getPairingScore(primary, secondary) {
   return score;
 }
 ```
+
+### Talent Tree Synergy Bonuses
+
+Commanders with matching or complementary talent trees get bonuses:
+
+| Condition | Bonus | Reason |
+|-----------|-------|--------|
+| Same troop tree (infantry+infantry) | +25 | Focused specialization |
+| Leadership primary + specialized secondary | +15 | Versatile commander buffs specialist |
+| Support secondary + specialized primary | +10 | Support enhances damage dealer |
+| Both garrison | +20 | Strong for Canyon defense |
+| Both skill tree | +15 | Synergized skill damage |
+
+### Skill Effect Synergy Bonuses
+
+Certain skill combinations are more effective together:
+
+| Combination | Bonus | Example |
+|-------------|-------|---------|
+| Debuff + Damage | +20 | Aethelflaed (debuff) + YSG (AOE damage) |
+| Defense reduction + AOE | +15 | Ramesses (def reduction) + Sun Tzu (AOE) |
+| Silence + Damage | +15 | Guan Yu (silence) + any damage dealer |
+| Heal + Shield | +15 | Richard I (heal) + Charles Martel (shield) |
+| Any Rage boost | +10 | Sun Tzu, Joan, etc. enable faster cycling |
+| Double AOE | +20 | YSG + Sun Tzu both hit 5 targets |
+| DOT + Debuff | +10 | Hermann Prime (poison) + Aethelflaed |
 
 ## Step 4: Army Selection
 
@@ -168,7 +201,7 @@ if (aoeTargets >= 5) backScore += 40;
 
 The optimizer enforces **2-3 tanks** based on research:
 
-> "If you use 1 tank and 4 backline, all enemies focus the tank and it dies fast."
+> "If you use 1 tank and 4 backline, all enemies focus the tank and it dies fast." — [RiseOfKingdomsGuides](https://riseofkingdomsguides.com/guides/sunset-canyon/)
 
 ```javascript
 const tankCount = armies.filter(a => frontScore > backScore + 15).length;
@@ -177,7 +210,9 @@ const targetFrontSize = Math.min(3, Math.max(2, tankCount));
 
 ## Step 6: Formation Quality Evaluation
 
-The final quality score considers:
+The final quality score considers raw commander stats, meta synergies, AND formation-level diversity. This models the game's "Quick Deploy" which optimizes for "well-rounded" configurations.
+
+### Base Scoring
 
 | Factor | Weight | Details |
 |--------|--------|---------|
@@ -190,6 +225,36 @@ The final quality score considers:
 | Tank Structure | +20 pts | 2-3 tanks = optimal |
 | AOE Positioning | +15 pts | AOE in center back |
 
+### Talent Tree Diversity Bonus (NEW)
+
+The optimizer now rewards formations with diverse talent trees, modeling the game's "Armed to the Teeth" bonus system:
+
+| Factor | Bonus | Insight Message |
+|--------|-------|-----------------|
+| 3+ Troop Types | +35 | "Troop diversity bonus (+3% damage)" |
+| 6+ Talent Trees | +30 | "Excellent talent diversity" |
+| 4+ Talent Trees | +15 | - |
+| Has Leadership | +20 | "Leadership commander boosts all troops" |
+| Has Integration | +15 | - |
+| Has Garrison | +15 | "Garrison specialist for defense" |
+
+### Skill Effect Coverage Bonus (NEW)
+
+Formations with complementary skill effects score higher:
+
+| Factor | Bonus | Insight Message |
+|--------|-------|-----------------|
+| 6+ Skill Effect Types | +25 | "Comprehensive skill coverage" |
+| 4+ Skill Effect Types | +10 | - |
+| Debuff + Damage + Sustain | +30 | "Full combat coverage (debuff + damage + sustain)" |
+
+**Why this matters:**
+
+The game's "Quick Deploy" doesn't just pick the most powerful commanders - it creates well-rounded formations that cover:
+- **Debuff**: Attack/defense reduction, silences (Aethelflaed, Ramesses)
+- **Damage**: AOE damage, damage boosts, DOT (YSG, Sun Tzu, Hermann Prime)
+- **Sustain**: Healing, shields (Richard I, Charles Martel, Constantine)
+
 ### Win Rate Calculation
 
 ```javascript
@@ -200,7 +265,7 @@ winRate = clamp(30, 82, 35 + qualityScore / 15);
 ```
 
 **Why 82% max?**
-> "You are much weaker when defending than attacking because people can counter your defense."
+> "You are much weaker when defending than attacking because people can counter your defense." — [AllClash](https://www.allclash.com/sunset-canyon-defense-guide/)
 
 ## Multiple Formation Strategies
 
@@ -214,21 +279,53 @@ Each is scored independently, and the best ones are presented to the user.
 
 ## Data Sources
 
-The `KNOWN_SYNERGIES` database contains 100+ commanders with:
+The `KNOWN_SYNERGIES` database contains 40+ commanders with comprehensive data:
 
 ```typescript
-{
+interface CommanderSynergy {
   partners: string[];      // Known good pairings
   reason: string;          // Why they work together
   tier: 'S' | 'A' | 'B';  // Meta tier rating
   canyonBonus: number;     // Canyon-specific modifier (-15 to +50)
   aoeTargets: number;      // 1-5 targets
   preferredRow: 'front' | 'back' | 'center';
+
+  // NEW: Talent tree specializations
+  talentTrees: TalentTree[];  // e.g., ['infantry', 'skill', 'garrison']
+
+  // NEW: Skill effect types
+  skillEffects: SkillEffectType[];  // e.g., ['aoe_damage', 'silence', 'rage_boost']
 }
 ```
 
-Sources:
+### Talent Tree Types
+
+```typescript
+type TalentTree =
+  | 'infantry' | 'cavalry' | 'archer'      // Troop specializations
+  | 'leadership' | 'integration'            // Versatile/mixed troop trees
+  | 'garrison' | 'defense'                  // Defensive trees
+  | 'skill' | 'attack'                      // Damage trees
+  | 'support' | 'peacekeeping' | 'mobility' // Utility trees
+  | 'conquering' | 'versatility';           // Special trees
+```
+
+### Skill Effect Types
+
+```typescript
+type SkillEffectType =
+  | 'aoe_damage' | 'damage_boost' | 'dot'   // Damage effects
+  | 'debuff' | 'defense_reduction' | 'attack_reduction'  // Debuffs
+  | 'heal' | 'shield'                        // Sustain effects
+  | 'silence' | 'slow' | 'rage_boost';       // Control/utility
+```
+
+### Research Sources
+
 - [AllClash](https://www.allclash.com/)
 - [ROK.guide](https://www.rok.guide/)
 - [RiseOfKingdomsGuides.com](https://riseofkingdomsguides.com/)
 - [Rise of Kingdoms Fandom Wiki](https://riseofkingdoms.fandom.com/)
+- Reddit r/RiseofKingdoms community discussions
+- In-game Path of Vengeance "Quick Deploy" behavior analysis
+

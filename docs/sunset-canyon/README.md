@@ -41,13 +41,13 @@ Front Row:  [ Tank ] [ Tank ]  [ Tank ]    [ --- ]
             slot 0   slot 1     slot 2      slot 3
 ```
 
-- **2-3 tanks in front** - "Don't use just 1 tank - all enemies focus it and it dies fast"
-- **AOE in back center** - "Place YSG in center position to hit as many armies as possible"
-- **Avoid cavalry** - "Cavalry weak in Canyon because you face Charles Martel, Richard, Sun Tzu"
+- **2-3 tanks in front** - "Don't use just 1 tank - all enemies focus it and it dies fast" — [RiseOfKingdomsGuides](https://riseofkingdomsguides.com/guides/sunset-canyon/)
+- **AOE in back center** - "Place YSG in center position to hit as many armies as possible" — [AllClash](https://www.allclash.com/yi-seong-gye/)
+- **Avoid cavalry** - "Cavalry weak in Canyon because you face Charles Martel, Richard, Sun Tzu" — [ROK.guide](https://www.rok.guide/best-sunset-canyon-commanders/)
 
 ### Attacker Advantage
 
-> "You are much weaker when defending than attacking because people can counter your defense."
+> "You are much weaker when defending than attacking because people can counter your defense." — [AllClash](https://www.allclash.com/sunset-canyon-defense-guide/)
 
 This is why even optimal defenses cap at ~80% estimated win rate. Focus on making your defense as robust as possible against common attack strategies.
 

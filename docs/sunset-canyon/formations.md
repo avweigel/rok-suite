@@ -38,7 +38,7 @@ This makes **commander investment** the most important factor.
 
 ### The 2-3 Tank Rule
 
-> "If you use 1 tank and 4 backline armies, all enemies focus the tank and it dies fast."
+> "If you use 1 tank and 4 backline armies, all enemies focus the tank and it dies fast." — [RiseOfKingdomsGuides](https://riseofkingdomsguides.com/guides/sunset-canyon/)
 
 **Recommended:** 2-3 tanks in front row
 
@@ -79,7 +79,7 @@ Front Row:
 - AOE skills hit more targets from center
 - YSG's fan-shaped arrow maximizes coverage here
 
-> "Place YSG in center position to make sure he really hits as many armies as possible with his primary skill."
+> "Place YSG in center position to make sure he really hits as many armies as possible with his primary skill." — [AllClash](https://www.allclash.com/yi-seong-gye/)
 
 ## Recommended Formations
 
@@ -118,7 +118,7 @@ Use when: You have excellent back-row commanders and want fast elimination.
 
 ### Best: Infantry Core
 
-> "Infantry units are a top choice for Sunset Canyon due to their resilience and ability to hold their ground."
+> "Infantry units are a top choice for Sunset Canyon due to their resilience and ability to hold their ground." — [RiseOfKingdomsGuides](https://riseofkingdomsguides.com/guides/sunset-canyon/)
 
 Infantry dominates Canyon because:
 - Counters cavalry (common attacker choice)
@@ -127,7 +127,7 @@ Infantry dominates Canyon because:
 
 ### Avoid: Cavalry Heavy
 
-> "Cavalry is not great in Sunset Canyon because you will face Charles Martel, Richard, Sun Tzu, etc. a lot."
+> "Cavalry is not great in Sunset Canyon because you will face Charles Martel, Richard, Sun Tzu, etc. a lot." — [ROK.guide](https://www.rok.guide/best-sunset-canyon-commanders/)
 
 Cavalry struggles because:
 - Countered by infantry (60%+ of defenses)
@@ -144,7 +144,7 @@ Baibars is the **one cavalry commander** viable in Canyon:
 
 ### Daily Optimization
 
-> "Do Sunset Canyons at 23:55 UTC every day. If it's Sunday, do it at 23:50 UTC."
+> "Do Sunset Canyons at 23:55 UTC every day. If it's Sunday, do it at 23:50 UTC." — [ROK.guide](https://www.rok.guide/sunset-canyon-tips/)
 
 **Why late timing?**
 - Fewer players online to attack you
@@ -153,7 +153,7 @@ Baibars is the **one cavalry commander** viable in Canyon:
 
 ### Defense Maintenance
 
-> "Keep a check on your defense now and then. You have to manually put the updated dispatches whenever your commanders level up."
+> "Keep a check on your defense now and then. You have to manually put the updated dispatches whenever your commanders level up." — [ROK.guide](https://www.rok.guide/sunset-canyon-tips/)
 
 **Update your defense when:**
 - Commanders level up (significant power increase)
@@ -165,7 +165,7 @@ Baibars is the **one cavalry commander** viable in Canyon:
 
 ### Attacker Advantage
 
-> "You are much weaker when defending than attacking because people can counter your defense."
+> "You are much weaker when defending than attacking because people can counter your defense." — [AllClash](https://www.allclash.com/sunset-canyon-defense-guide/)
 
 Attackers can:
 1. See your full formation

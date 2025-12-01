@@ -32,26 +32,20 @@ The optimization algorithms and meta data in RoK Suite are sourced from extensiv
 The following insights from community research are implemented in our algorithms:
 
 ### Formation Strategy
-> "Don't use just 1 tank - all enemies will focus it and it dies fast. Use 2-3 tanks."
-> — Multiple sources
+> "Don't use just 1 tank - all enemies will focus it and it dies fast. Use 2-3 tanks." — [RiseOfKingdomsGuides](https://riseofkingdomsguides.com/guides/sunset-canyon/)
 
-> "Place YSG in center position to make sure he hits as many armies as possible with his fan-shaped arrow."
-> — AllClash
+> "Place YSG in center position to make sure he hits as many armies as possible with his fan-shaped arrow." — [AllClash](https://www.allclash.com/yi-seong-gye/)
 
 ### Troop Types
-> "Cavalry is not great in Sunset Canyon because you will face Charles Martel, Richard, Sun Tzu, etc. a lot and those guys can beat cavalry with ease."
-> — ROK.guide
+> "Cavalry is not great in Sunset Canyon because you will face Charles Martel, Richard, Sun Tzu, etc. a lot and those guys can beat cavalry with ease." — [ROK.guide](https://www.rok.guide/best-sunset-canyon-commanders/)
 
-> "Infantry units are a top choice for Sunset Canyon due to their resilience and ability to hold their ground."
-> — Multiple sources
+> "Infantry units are a top choice for Sunset Canyon due to their resilience and ability to hold their ground." — [RiseOfKingdomsGuides](https://riseofkingdomsguides.com/guides/sunset-canyon/)
 
 ### Defense Limitations
-> "You are much weaker when defending than attacking because people can counter your defense."
-> — ROK.guide
+> "You are much weaker when defending than attacking because people can counter your defense." — [AllClash](https://www.allclash.com/sunset-canyon-defense-guide/)
 
 ### Commander Priority
-> "In Sunset Canyon battles, owning high-level commanders is more important than the feature of commanders."
-> — RiseOfKingdomsGuides
+> "In Sunset Canyon battles, owning high-level commanders is more important than the feature of commanders." — [RiseOfKingdomsGuides](https://riseofkingdomsguides.com/guides/sunset-canyon/)
 
 ## Contributing
 
