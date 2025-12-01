@@ -10,9 +10,19 @@
   * [Commander Pairings](sunset-canyon/pairings.md)
   * [Formation Strategy](sunset-canyon/formations.md)
 
-* **Other Features**
-  * [Ark of Osiris](aoo-strategy.md)
-  * [Upgrade Calculator](upgrade-calculator.md)
+* **Ark of Osiris**
+  * [Overview](aoo-strategy/README.md)
+  * [Battle Phases](aoo-strategy/phases.md)
+  * [Team Roles](aoo-strategy/roles.md)
+  * [Map Guide](aoo-strategy/map.md)
+  * [Editor Guide](aoo-strategy/editor.md)
+
+* **Upgrade Calculator**
+  * [Overview](upgrade-calculator/README.md)
+  * [Dependency System](upgrade-calculator/dependencies.md)
+  * [Buildings Reference](upgrade-calculator/buildings.md)
+  * [Resource Planning](upgrade-calculator/resources.md)
+  * [Graph Navigation](upgrade-calculator/graph.md)
 
 * **Resources**
   * [Sources & Credits](sources.md)
