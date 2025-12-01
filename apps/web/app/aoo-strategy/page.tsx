@@ -641,7 +641,7 @@ export default function AooStrategyPage() {
                     </section>
 
                     <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
-                        <p className={`text-xs ${theme.textMuted}`}>Angmar Alliance • Rise of Kingdoms</p>
+                        <p className={`text-xs ${theme.textMuted}`}>Angmar • Rise of Kingdoms</p>
                     </footer>
                 </div>
             )}
@@ -1107,7 +1107,7 @@ Follow leader's calls`}
                     </section>
 
                     <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
-                        <p className={`text-xs ${theme.textMuted}`}>Angmar Alliance • Rise of Kingdoms</p>
+                        <p className={`text-xs ${theme.textMuted}`}>Angmar • Rise of Kingdoms</p>
                     </footer>
                 </div>
             )}
@@ -1485,7 +1485,7 @@ Need ALL zones to support!`}
                     </section>
 
                     <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
-                        <p className={`text-xs ${theme.textMuted}`}>Angmar Alliance • Rise of Kingdoms</p>
+                        <p className={`text-xs ${theme.textMuted}`}>Angmar • Rise of Kingdoms</p>
                     </footer>
                 </div>
             )}

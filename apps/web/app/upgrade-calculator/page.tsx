@@ -10,20 +10,18 @@ import {
   ChevronDown,
   ChevronRight,
   Check,
-  X,
+  AlertTriangle,
   Wheat,
   TreePine,
   Mountain,
   Coins,
   Zap,
   Info,
-  Building2,
   GitBranch,
 } from 'lucide-react';
 import { UserMenu } from '@/components/auth/UserMenu';
 import {
   BUILDINGS_DATA,
-  BUILDINGS,
   VIP_CONSTRUCTION_BONUS,
   formatTime,
   formatNumber,
@@ -32,39 +30,10 @@ import {
   calculateSpeedups,
   getFullUpgradePath,
   calculatePathResources,
-  groupUpgradesByBuilding,
   buildDependencyTree,
   type CurrentBuildingLevels,
   type DependencyNode,
-  type BuildingUpgradeGroup,
 } from '@/lib/upgrade-calculator/buildings';
-
-interface CurrentResources {
-  food: number;
-  wood: number;
-  stone: number;
-  gold: number;
-}
-
-// Key buildings to show in the input form
-const KEY_BUILDINGS = [
-  'city_hall',
-  'wall',
-  'barracks',
-  'archery_range',
-  'stable',
-  'siege_workshop',
-  'academy',
-  'hospital',
-  'castle',
-  'alliance_center',
-  'tavern',
-  'blacksmith',
-  'scout_camp',
-  'storehouse',
-  'trading_post',
-  'watchtower',
-];
 
 // Dependency Tree Node Component
 function DependencyTreeNode({
@@ -133,32 +102,14 @@ export default function UpgradeCalculator() {
   const [darkMode, setDarkMode] = useState(true);
   const [targetCityHall, setTargetCityHall] = useState(15);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [showResources, setShowResources] = useState(false);
-  const [showBuildingLevels, setShowBuildingLevels] = useState(true);
   const [showTree, setShowTree] = useState(false);
   const [vipLevel, setVipLevel] = useState(10);
   const [constructionBonus, setConstructionBonus] = useState(0);
-  const [currentLevels, setCurrentLevels] = useState<CurrentBuildingLevels>({
-    city_hall: 10,
-    wall: 10,
-    barracks: 10,
-    archery_range: 10,
-    stable: 10,
-    siege_workshop: 10,
-    academy: 10,
-    hospital: 10,
-    castle: 10,
-  });
-  const [currentResources, setCurrentResources] = useState<CurrentResources>({
-    food: 0,
-    wood: 0,
-    stone: 0,
-    gold: 0,
-  });
+  const [currentLevels, setCurrentLevels] = useState<CurrentBuildingLevels>({});
 
   // Load saved state from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('upgrade-calculator-state-v2');
+    const saved = localStorage.getItem('upgrade-calculator-state-v3');
     if (saved) {
       try {
         const state = JSON.parse(saved);
@@ -166,7 +117,6 @@ export default function UpgradeCalculator() {
         if (state.vipLevel !== undefined) setVipLevel(state.vipLevel);
         if (state.constructionBonus !== undefined) setConstructionBonus(state.constructionBonus);
         if (state.currentLevels) setCurrentLevels(state.currentLevels);
-        if (state.currentResources) setCurrentResources(state.currentResources);
       } catch {
         // ignore parse errors
       }
@@ -177,45 +127,122 @@ export default function UpgradeCalculator() {
 
   // Save state to localStorage
   useEffect(() => {
-    localStorage.setItem('upgrade-calculator-state-v2', JSON.stringify({
+    localStorage.setItem('upgrade-calculator-state-v3', JSON.stringify({
       targetCityHall,
       vipLevel,
       constructionBonus,
       currentLevels,
-      currentResources,
     }));
-  }, [targetCityHall, vipLevel, constructionBonus, currentLevels, currentResources]);
+  }, [targetCityHall, vipLevel, constructionBonus, currentLevels]);
 
-  // Get current City Hall level
-  const currentCityHall = currentLevels.city_hall || 1;
+  // Get the City Hall prerequisites for the target level
+  const cityHallPrereqs = useMemo(() => {
+    const chData = BUILDINGS_DATA.city_hall;
+    const targetLevelData = chData.levels.find(l => l.level === targetCityHall);
+    return targetLevelData?.prerequisites || [];
+  }, [targetCityHall]);
 
-  // Calculate full upgrade path including all dependencies
+  // Get all required buildings and their required levels (recursively)
+  const requiredBuildings = useMemo(() => {
+    // Start from the City Hall prerequisites and work backwards
+    const requirements: { buildingId: string; requiredLevel: number; reason: string }[] = [];
+    const processed = new Set<string>();
+
+    function addRequirements(buildingId: string, level: number, reason: string) {
+      const key = `${buildingId}:${level}`;
+      if (processed.has(key)) return;
+      processed.add(key);
+
+      // Check if we already have a higher level requirement
+      const existing = requirements.find(r => r.buildingId === buildingId);
+      if (existing) {
+        if (level > existing.requiredLevel) {
+          existing.requiredLevel = level;
+          existing.reason = reason;
+        }
+        return;
+      }
+
+      requirements.push({ buildingId, requiredLevel: level, reason });
+
+      // Get prerequisites for this building at this level
+      const building = BUILDINGS_DATA[buildingId];
+      if (building) {
+        for (let lvl = 1; lvl <= level; lvl++) {
+          const levelData = building.levels.find(l => l.level === lvl);
+          if (levelData) {
+            for (const prereq of levelData.prerequisites) {
+              addRequirements(
+                prereq.buildingId,
+                prereq.level,
+                `Required for ${building.name} ${lvl}`
+              );
+            }
+          }
+        }
+      }
+    }
+
+    // Add direct City Hall prerequisites
+    for (const prereq of cityHallPrereqs) {
+      addRequirements(prereq.buildingId, prereq.level, `Required for City Hall ${targetCityHall}`);
+    }
+
+    // Sort by importance: City Hall requirements first, then dependencies
+    return requirements.sort((a, b) => {
+      // Direct CH requirements first
+      const aIsDirect = cityHallPrereqs.some(p => p.buildingId === a.buildingId);
+      const bIsDirect = cityHallPrereqs.some(p => p.buildingId === b.buildingId);
+      if (aIsDirect && !bIsDirect) return -1;
+      if (!aIsDirect && bIsDirect) return 1;
+      return a.buildingId.localeCompare(b.buildingId);
+    });
+  }, [cityHallPrereqs, targetCityHall]);
+
+  // Calculate what still needs upgrading
+  const upgradesNeeded = useMemo(() => {
+    return requiredBuildings.map(req => {
+      const currentLevel = currentLevels[req.buildingId] || 0;
+      const needsUpgrade = currentLevel < req.requiredLevel;
+      return {
+        ...req,
+        currentLevel,
+        needsUpgrade,
+        levelsNeeded: Math.max(0, req.requiredLevel - currentLevel),
+      };
+    }).filter(u => u.needsUpgrade);
+  }, [requiredBuildings, currentLevels]);
+
+  // Check if City Hall itself needs upgrade
+  const currentCityHallLevel = currentLevels.city_hall || 0;
+  const cityHallNeedsUpgrade = currentCityHallLevel < targetCityHall;
+
+  // Build current levels for path calculation
+  const effectiveCurrentLevels = useMemo(() => {
+    const levels: CurrentBuildingLevels = { ...currentLevels };
+    // Ensure we have entries for all required buildings
+    for (const req of requiredBuildings) {
+      if (levels[req.buildingId] === undefined) {
+        levels[req.buildingId] = 0;
+      }
+    }
+    return levels;
+  }, [currentLevels, requiredBuildings]);
+
+  // Calculate full upgrade path
   const upgradePath = useMemo(() => {
-    return getFullUpgradePath(targetCityHall, currentLevels);
-  }, [targetCityHall, currentLevels]);
-
-  // Group upgrades by building
-  const upgradeGroups = useMemo(() => {
-    return groupUpgradesByBuilding(upgradePath);
-  }, [upgradePath]);
-
-  // Build dependency tree for visualization
-  const dependencyTree = useMemo(() => {
-    return buildDependencyTree('city_hall', targetCityHall, currentLevels);
-  }, [targetCityHall, currentLevels]);
+    return getFullUpgradePath(targetCityHall, effectiveCurrentLevels);
+  }, [targetCityHall, effectiveCurrentLevels]);
 
   // Calculate total resources
   const totalResources = useMemo(() => {
     return calculatePathResources(upgradePath);
   }, [upgradePath]);
 
-  // Calculate resource deficits
-  const resourceDeficits = useMemo(() => ({
-    food: Math.max(0, totalResources.food - currentResources.food),
-    wood: Math.max(0, totalResources.wood - currentResources.wood),
-    stone: Math.max(0, totalResources.stone - currentResources.stone),
-    gold: Math.max(0, totalResources.gold - currentResources.gold),
-  }), [totalResources, currentResources]);
+  // Build dependency tree for visualization
+  const dependencyTree = useMemo(() => {
+    return buildDependencyTree('city_hall', targetCityHall, effectiveCurrentLevels);
+  }, [targetCityHall, effectiveCurrentLevels]);
 
   // Calculate effective speed bonus
   const effectiveSpeedBonus = useMemo(() => {
@@ -258,13 +285,15 @@ export default function UpgradeCalculator() {
     }));
   };
 
-  // Category colors for buildings
+  // Category colors
   const categoryColors: Record<string, string> = {
     military: 'border-red-500/30 bg-red-500/5',
     economy: 'border-green-500/30 bg-green-500/5',
     development: 'border-blue-500/30 bg-blue-500/5',
     other: 'border-gray-500/30 bg-gray-500/5',
   };
+
+  const allRequirementsMet = upgradesNeeded.length === 0 && !cityHallNeedsUpgrade;
 
   return (
     <div className={`min-h-screen ${theme.bg} ${theme.text} transition-colors duration-200`}>
@@ -296,206 +325,309 @@ export default function UpgradeCalculator() {
           </div>
         </header>
 
-        {/* Current Building Levels */}
-        <section className={`${theme.card} border rounded-xl overflow-hidden mb-4`}>
-          <button
-            onClick={() => setShowBuildingLevels(!showBuildingLevels)}
-            className={`w-full p-4 flex items-center justify-between ${darkMode ? 'hover:bg-zinc-800' : 'hover:bg-gray-50'} transition-colors`}
-          >
-            <div className="flex items-center gap-2">
-              <Building2 className={`w-5 h-5 ${theme.textAccent}`} />
-              <span className="font-semibold">Your Current Buildings</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
-                CH {currentCityHall}
-              </span>
-            </div>
-            <ChevronDown className={`w-5 h-5 transition-transform ${showBuildingLevels ? 'rotate-180' : ''}`} />
-          </button>
-
-          {showBuildingLevels && (
-            <div className={`p-4 border-t ${theme.border}`}>
-              <p className={`text-sm ${theme.textMuted} mb-4`}>
-                Enter your current building levels to calculate the full upgrade path.
-              </p>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {KEY_BUILDINGS.map((buildingId) => {
-                  const building = BUILDINGS_DATA[buildingId];
-                  if (!building) return null;
-                  const colorClass = categoryColors[building.category];
-
-                  return (
-                    <div key={buildingId} className={`p-2 rounded-lg border ${colorClass}`}>
-                      <label className={`block text-xs font-medium ${theme.textMuted} mb-1 truncate`}>
-                        {building.name}
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="25"
-                        value={currentLevels[buildingId] || 0}
-                        onChange={(e) => updateBuildingLevel(buildingId, parseInt(e.target.value) || 0)}
-                        className={`w-full px-2 py-1.5 rounded border ${theme.input} text-sm text-center`}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className={`mt-4 flex gap-2 flex-wrap`}>
-                <button
-                  onClick={() => {
-                    const newLevels: CurrentBuildingLevels = {};
-                    KEY_BUILDINGS.forEach(id => { newLevels[id] = currentCityHall; });
-                    setCurrentLevels(newLevels);
-                  }}
-                  className={`px-3 py-1.5 text-xs rounded-lg ${theme.button}`}
-                >
-                  Set all to CH {currentCityHall}
-                </button>
-                <button
-                  onClick={() => {
-                    const newLevels: CurrentBuildingLevels = {};
-                    KEY_BUILDINGS.forEach(id => { newLevels[id] = 0; });
-                    setCurrentLevels(newLevels);
-                  }}
-                  className={`px-3 py-1.5 text-xs rounded-lg ${theme.button}`}
-                >
-                  Reset all to 0
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
-
-        {/* Target City Hall */}
+        {/* Step 1: Select Target City Hall */}
         <section className={`${theme.card} border rounded-xl p-4 md:p-6 mb-4`}>
           <div className="flex items-center gap-3 mb-4">
-            <Castle className={`w-6 h-6 ${theme.textAccent}`} />
-            <h2 className="text-lg font-semibold">Target</h2>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className={`px-4 py-2 rounded-lg ${theme.cardInner}`}>
-              <span className={`text-sm ${theme.textMuted}`}>From</span>
-              <div className="text-xl font-bold">CH {currentCityHall}</div>
+            <div className={`w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm`}>
+              1
             </div>
-
-            <ChevronRight className={`w-6 h-6 ${theme.textMuted}`} />
-
-            <div className="flex-1">
-              <label className={`block text-xs font-medium ${theme.textMuted} mb-1`}>
-                Target Level
-              </label>
-              <select
-                value={targetCityHall}
-                onChange={(e) => setTargetCityHall(Number(e.target.value))}
-                className={`w-full px-3 py-2.5 rounded-lg border ${theme.input} text-base`}
-              >
-                {Array.from({ length: 25 - currentCityHall }, (_, i) => currentCityHall + i + 1).map((level) => (
-                  <option key={level} value={level}>
-                    City Hall {level}
-                  </option>
-                ))}
-              </select>
+            <div className="flex items-center gap-2">
+              <Castle className={`w-5 h-5 ${theme.textAccent}`} />
+              <h2 className="text-lg font-semibold">Target City Hall Level</h2>
             </div>
           </div>
 
-          {/* Quick select */}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {[currentCityHall + 1, currentCityHall + 5, 25]
-              .filter(l => l > currentCityHall && l <= 25)
-              .map(level => (
+          <div className="flex flex-wrap items-center gap-4">
+            <select
+              value={targetCityHall}
+              onChange={(e) => setTargetCityHall(Number(e.target.value))}
+              className={`flex-1 min-w-[200px] px-4 py-3 rounded-lg border ${theme.input} text-lg font-semibold`}
+            >
+              {Array.from({ length: 24 }, (_, i) => i + 2).map((level) => (
+                <option key={level} value={level}>
+                  City Hall {level}
+                </option>
+              ))}
+            </select>
+
+            {/* Quick select */}
+            <div className="flex flex-wrap gap-2">
+              {[15, 20, 22, 24, 25].map(level => (
                 <button
                   key={level}
                   onClick={() => setTargetCityHall(level)}
-                  className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                  className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
                     targetCityHall === level ? 'bg-blue-600 text-white' : theme.button
                   }`}
                 >
                   CH {level}
                 </button>
               ))}
+            </div>
           </div>
         </section>
 
-        {/* Resource Summary */}
+        {/* Step 2: Building Requirements */}
         <section className={`${theme.card} border rounded-xl p-4 md:p-6 mb-4`}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">Total Resources Needed</h2>
-            <span className={`text-sm ${theme.textMuted}`}>
-              {upgradePath.length} upgrades
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-            <div className={`p-3 rounded-lg ${theme.cardInner}`}>
-              <div className="flex items-center gap-2 mb-1">
-                <Wheat className="w-4 h-4 text-green-500" />
-                <span className={`text-xs ${theme.textMuted}`}>Food</span>
-              </div>
-              <div className="text-lg font-bold text-green-500">{formatNumber(totalResources.food)}</div>
-              <div className={`text-xs ${theme.textMuted}`}>{formatNumberFull(totalResources.food)}</div>
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm`}>
+              2
             </div>
-            <div className={`p-3 rounded-lg ${theme.cardInner}`}>
-              <div className="flex items-center gap-2 mb-1">
-                <TreePine className="w-4 h-4 text-amber-500" />
-                <span className={`text-xs ${theme.textMuted}`}>Wood</span>
-              </div>
-              <div className="text-lg font-bold text-amber-500">{formatNumber(totalResources.wood)}</div>
-              <div className={`text-xs ${theme.textMuted}`}>{formatNumberFull(totalResources.wood)}</div>
-            </div>
-            <div className={`p-3 rounded-lg ${theme.cardInner}`}>
-              <div className="flex items-center gap-2 mb-1">
-                <Mountain className="w-4 h-4 text-stone-400" />
-                <span className={`text-xs ${theme.textMuted}`}>Stone</span>
-              </div>
-              <div className="text-lg font-bold text-stone-400">{formatNumber(totalResources.stone)}</div>
-              <div className={`text-xs ${theme.textMuted}`}>{formatNumberFull(totalResources.stone)}</div>
-            </div>
-            <div className={`p-3 rounded-lg ${theme.cardInner}`}>
-              <div className="flex items-center gap-2 mb-1">
-                <Coins className="w-4 h-4 text-yellow-500" />
-                <span className={`text-xs ${theme.textMuted}`}>Gold</span>
-              </div>
-              <div className="text-lg font-bold text-yellow-500">{formatNumber(totalResources.gold)}</div>
-              <div className={`text-xs ${theme.textMuted}`}>{formatNumberFull(totalResources.gold)}</div>
+            <div>
+              <h2 className="text-lg font-semibold">Building Requirements for CH {targetCityHall}</h2>
+              <p className={`text-sm ${theme.textMuted}`}>
+                Enter your current level for each building
+              </p>
             </div>
           </div>
 
-          {/* Time summary */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className={`p-3 rounded-lg ${theme.cardInner} flex items-center gap-3`}>
-              <Clock className={`w-5 h-5 ${theme.textAccent}`} />
+          {/* City Hall current level */}
+          <div className={`p-4 rounded-lg border-2 ${categoryColors.development} mb-4`}>
+            <div className="flex items-center justify-between gap-4">
               <div className="flex-1">
-                <div className={`text-xs ${theme.textMuted}`}>Total Build Time</div>
-                <div className="text-lg font-bold">{formatTime(adjustedTime)}</div>
-                {effectiveSpeedBonus > 0 && (
-                  <div className={`text-xs ${theme.textMuted}`}>
-                    <span className="line-through">{formatTime(totalResources.time)}</span>
-                    <span className="text-green-500 ml-2">-{effectiveSpeedBonus}%</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className={`p-3 rounded-lg ${theme.cardInner} flex items-center gap-3`}>
-              <Package className={`w-5 h-5 ${theme.textAccent}`} />
-              <div className="flex-1">
-                <div className={`text-xs ${theme.textMuted}`}>Speedups Needed</div>
-                <div className="text-lg font-bold">
-                  {speedups.days > 0 && <span>{speedups.days}d </span>}
-                  {speedups.hours}h {speedups.minutes}m
-                </div>
+                <div className="font-semibold text-blue-400">City Hall</div>
                 <div className={`text-xs ${theme.textMuted}`}>
-                  ~{Math.ceil(speedups.totalHours)} hours total
+                  Target: Level {targetCityHall}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-sm ${theme.textMuted}`}>Current:</span>
+                <input
+                  type="number"
+                  min="0"
+                  max={targetCityHall - 1}
+                  value={currentLevels.city_hall || 0}
+                  onChange={(e) => updateBuildingLevel('city_hall', parseInt(e.target.value) || 0)}
+                  className={`w-20 px-3 py-2 rounded-lg border ${theme.input} text-center font-semibold`}
+                />
+              </div>
+              {!cityHallNeedsUpgrade ? (
+                <Check className="w-5 h-5 text-green-500" />
+              ) : (
+                <span className={`text-sm font-medium ${theme.textAccent}`}>
+                  +{targetCityHall - (currentLevels.city_hall || 0)} levels
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Direct prerequisites (required for CH upgrade) */}
+          {cityHallPrereqs.length > 0 && (
+            <div className="mb-4">
+              <h3 className={`text-sm font-semibold ${theme.textMuted} mb-2 uppercase tracking-wider`}>
+                Direct Requirements for CH {targetCityHall}
+              </h3>
+              <div className="space-y-2">
+                {cityHallPrereqs.map(prereq => {
+                  const building = BUILDINGS_DATA[prereq.buildingId];
+                  if (!building) return null;
+                  const currentLevel = currentLevels[prereq.buildingId] || 0;
+                  const isMet = currentLevel >= prereq.level;
+                  const colorClass = categoryColors[building.category];
+
+                  return (
+                    <div
+                      key={prereq.buildingId}
+                      className={`p-3 rounded-lg border ${colorClass} flex items-center justify-between gap-4`}
+                    >
+                      <div className="flex-1">
+                        <div className="font-medium">{building.name}</div>
+                        <div className={`text-xs ${theme.textMuted}`}>
+                          Required: Level {prereq.level}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm ${theme.textMuted}`}>Current:</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="25"
+                          value={currentLevel}
+                          onChange={(e) => updateBuildingLevel(prereq.buildingId, parseInt(e.target.value) || 0)}
+                          className={`w-16 px-2 py-1.5 rounded border ${theme.input} text-center text-sm`}
+                        />
+                      </div>
+                      {isMet ? (
+                        <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
+                      ) : (
+                        <span className={`text-sm font-medium text-amber-500 flex-shrink-0`}>
+                          +{prereq.level - currentLevel}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Dependency chain (prerequisites of prerequisites) */}
+          {requiredBuildings.filter(r => !cityHallPrereqs.some(p => p.buildingId === r.buildingId)).length > 0 && (
+            <div>
+              <h3 className={`text-sm font-semibold ${theme.textMuted} mb-2 uppercase tracking-wider`}>
+                Dependency Chain (Prerequisites of Prerequisites)
+              </h3>
+              <div className="space-y-2">
+                {requiredBuildings
+                  .filter(r => !cityHallPrereqs.some(p => p.buildingId === r.buildingId))
+                  .map(req => {
+                    const building = BUILDINGS_DATA[req.buildingId];
+                    if (!building) return null;
+                    const currentLevel = currentLevels[req.buildingId] || 0;
+                    const isMet = currentLevel >= req.requiredLevel;
+                    const colorClass = categoryColors[building.category];
+
+                    return (
+                      <div
+                        key={req.buildingId}
+                        className={`p-3 rounded-lg border ${colorClass} flex items-center justify-between gap-4`}
+                      >
+                        <div className="flex-1">
+                          <div className="font-medium">{building.name}</div>
+                          <div className={`text-xs ${theme.textMuted}`}>
+                            {req.reason} • Need Level {req.requiredLevel}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm ${theme.textMuted}`}>Current:</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max="25"
+                            value={currentLevel}
+                            onChange={(e) => updateBuildingLevel(req.buildingId, parseInt(e.target.value) || 0)}
+                            className={`w-16 px-2 py-1.5 rounded border ${theme.input} text-center text-sm`}
+                          />
+                        </div>
+                        {isMet ? (
+                          <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
+                        ) : (
+                          <span className={`text-sm font-medium text-amber-500 flex-shrink-0`}>
+                            +{req.requiredLevel - currentLevel}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Step 3: Summary */}
+        <section className={`${theme.card} border rounded-xl p-4 md:p-6 mb-4`}>
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm`}>
+              3
+            </div>
+            <h2 className="text-lg font-semibold">Upgrade Summary</h2>
+          </div>
+
+          {allRequirementsMet ? (
+            <div className={`p-4 rounded-lg ${darkMode ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50 border border-green-200'}`}>
+              <div className="flex items-center gap-3">
+                <Check className="w-6 h-6 text-green-500" />
+                <div>
+                  <div className="font-semibold text-green-500">All requirements met!</div>
+                  <div className={`text-sm ${theme.textMuted}`}>
+                    You can upgrade to City Hall {targetCityHall}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <>
+              {/* Still needed */}
+              <div className={`p-4 rounded-lg mb-4 ${darkMode ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-amber-50 border border-amber-200'}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="w-5 h-5 text-amber-500" />
+                  <span className="font-semibold text-amber-500">
+                    {upgradePath.length} upgrades needed
+                  </span>
+                </div>
+                <div className={`text-sm ${theme.textMuted}`}>
+                  {upgradesNeeded.length > 0 && (
+                    <span>
+                      Buildings to upgrade: {upgradesNeeded.map(u => {
+                        const b = BUILDINGS_DATA[u.buildingId];
+                        return `${b?.name || u.buildingId} (+${u.levelsNeeded})`;
+                      }).join(', ')}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Resource Summary */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <div className={`p-3 rounded-lg ${theme.cardInner}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Wheat className="w-4 h-4 text-green-500" />
+                    <span className={`text-xs ${theme.textMuted}`}>Food</span>
+                  </div>
+                  <div className="text-lg font-bold text-green-500">{formatNumber(totalResources.food)}</div>
+                  <div className={`text-xs ${theme.textMuted}`}>{formatNumberFull(totalResources.food)}</div>
+                </div>
+                <div className={`p-3 rounded-lg ${theme.cardInner}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <TreePine className="w-4 h-4 text-amber-500" />
+                    <span className={`text-xs ${theme.textMuted}`}>Wood</span>
+                  </div>
+                  <div className="text-lg font-bold text-amber-500">{formatNumber(totalResources.wood)}</div>
+                  <div className={`text-xs ${theme.textMuted}`}>{formatNumberFull(totalResources.wood)}</div>
+                </div>
+                <div className={`p-3 rounded-lg ${theme.cardInner}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Mountain className="w-4 h-4 text-stone-400" />
+                    <span className={`text-xs ${theme.textMuted}`}>Stone</span>
+                  </div>
+                  <div className="text-lg font-bold text-stone-400">{formatNumber(totalResources.stone)}</div>
+                  <div className={`text-xs ${theme.textMuted}`}>{formatNumberFull(totalResources.stone)}</div>
+                </div>
+                <div className={`p-3 rounded-lg ${theme.cardInner}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Coins className="w-4 h-4 text-yellow-500" />
+                    <span className={`text-xs ${theme.textMuted}`}>Gold</span>
+                  </div>
+                  <div className="text-lg font-bold text-yellow-500">{formatNumber(totalResources.gold)}</div>
+                  <div className={`text-xs ${theme.textMuted}`}>{formatNumberFull(totalResources.gold)}</div>
+                </div>
+              </div>
+
+              {/* Time summary */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className={`p-3 rounded-lg ${theme.cardInner} flex items-center gap-3`}>
+                  <Clock className={`w-5 h-5 ${theme.textAccent}`} />
+                  <div className="flex-1">
+                    <div className={`text-xs ${theme.textMuted}`}>Total Build Time</div>
+                    <div className="text-lg font-bold">{formatTime(adjustedTime)}</div>
+                    {effectiveSpeedBonus > 0 && (
+                      <div className={`text-xs ${theme.textMuted}`}>
+                        <span className="line-through">{formatTime(totalResources.time)}</span>
+                        <span className="text-green-500 ml-2">-{effectiveSpeedBonus}%</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className={`p-3 rounded-lg ${theme.cardInner} flex items-center gap-3`}>
+                  <Package className={`w-5 h-5 ${theme.textAccent}`} />
+                  <div className="flex-1">
+                    <div className={`text-xs ${theme.textMuted}`}>Speedups Needed</div>
+                    <div className="text-lg font-bold">
+                      {speedups.days > 0 && <span>{speedups.days}d </span>}
+                      {speedups.hours}h {speedups.minutes}m
+                    </div>
+                    <div className={`text-xs ${theme.textMuted}`}>
+                      ~{Math.ceil(speedups.totalHours)} hours total
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </section>
 
         {/* Dependency Tree Visualization */}
-        {dependencyTree && (
+        {dependencyTree && upgradePath.length > 0 && (
           <section className={`${theme.card} border rounded-xl overflow-hidden mb-4`}>
             <button
               onClick={() => setShowTree(!showTree)}
@@ -504,9 +636,6 @@ export default function UpgradeCalculator() {
               <div className="flex items-center gap-2">
                 <GitBranch className={`w-5 h-5 ${theme.textAccent}`} />
                 <span className="font-semibold">Dependency Tree</span>
-                <span className={`text-xs ${theme.textMuted}`}>
-                  ({upgradeGroups.length} buildings)
-                </span>
               </div>
               <ChevronDown className={`w-5 h-5 transition-transform ${showTree ? 'rotate-180' : ''}`} />
             </button>
@@ -514,138 +643,13 @@ export default function UpgradeCalculator() {
             {showTree && (
               <div className={`p-4 border-t ${theme.border}`}>
                 <p className={`text-sm ${theme.textMuted} mb-4`}>
-                  This shows the full chain of building upgrades needed. Click to expand/collapse.
+                  Visual breakdown of what needs to be upgraded and why. Click to expand.
                 </p>
                 <DependencyTreeNode node={dependencyTree} theme={theme} />
               </div>
             )}
           </section>
         )}
-
-        {/* Upgrade Summary by Building */}
-        <section className={`${theme.card} border rounded-xl p-4 md:p-6 mb-4`}>
-          <h2 className="text-lg font-semibold mb-4">Upgrades by Building</h2>
-
-          <div className="space-y-2">
-            {upgradeGroups.map((group) => {
-              const colorClass = categoryColors[group.category];
-              const adjTime = applySpeedBonus(group.totalResources.time, effectiveSpeedBonus);
-
-              return (
-                <div
-                  key={group.buildingId}
-                  className={`p-3 rounded-lg border ${colorClass} flex flex-col md:flex-row md:items-center justify-between gap-2`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`px-2 py-1 rounded text-xs font-medium ${
-                      group.buildingId === 'city_hall' ? 'bg-blue-600 text-white' : theme.cardInner
-                    }`}>
-                      {group.fromLevel} → {group.toLevel}
-                    </div>
-                    <div>
-                      <div className="font-medium">{group.buildingName}</div>
-                      <div className={`text-xs ${theme.textMuted}`}>
-                        {group.steps.length} upgrade{group.steps.length !== 1 ? 's' : ''}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                    {group.totalResources.food > 0 && (
-                      <span className="text-green-500">{formatNumber(group.totalResources.food)}</span>
-                    )}
-                    {group.totalResources.wood > 0 && (
-                      <span className="text-amber-500">{formatNumber(group.totalResources.wood)}</span>
-                    )}
-                    {group.totalResources.stone > 0 && (
-                      <span className="text-stone-400">{formatNumber(group.totalResources.stone)}</span>
-                    )}
-                    {group.totalResources.gold > 0 && (
-                      <span className="text-yellow-500">{formatNumber(group.totalResources.gold)}</span>
-                    )}
-                    <span className={theme.textMuted}>{formatTime(adjTime)}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Your Resources - Collapsible */}
-        <section className={`${theme.card} border rounded-xl overflow-hidden mb-4`}>
-          <button
-            onClick={() => setShowResources(!showResources)}
-            className={`w-full p-4 flex items-center justify-between ${darkMode ? 'hover:bg-zinc-800' : 'hover:bg-gray-50'} transition-colors`}
-          >
-            <div className="flex items-center gap-2">
-              <span className="font-semibold">Your Current Resources</span>
-            </div>
-            <ChevronDown className={`w-5 h-5 transition-transform ${showResources ? 'rotate-180' : ''}`} />
-          </button>
-
-          {showResources && (
-            <div className={`p-4 border-t ${theme.border}`}>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                {[
-                  { key: 'food', label: 'Food', icon: Wheat, color: 'text-green-500' },
-                  { key: 'wood', label: 'Wood', icon: TreePine, color: 'text-amber-500' },
-                  { key: 'stone', label: 'Stone', icon: Mountain, color: 'text-stone-400' },
-                  { key: 'gold', label: 'Gold', icon: Coins, color: 'text-yellow-500' },
-                ].map(({ key, label, icon: Icon, color }) => (
-                  <div key={key}>
-                    <label className={`flex items-center gap-1 text-xs font-medium ${theme.textMuted} mb-1`}>
-                      <Icon className={`w-3 h-3 ${color}`} />
-                      {label}
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={currentResources[key as keyof CurrentResources] || ''}
-                      onChange={(e) => setCurrentResources(prev => ({
-                        ...prev,
-                        [key]: Math.max(0, parseInt(e.target.value) || 0),
-                      }))}
-                      placeholder="0"
-                      className={`w-full px-3 py-2 rounded-lg border ${theme.input} text-sm`}
-                    />
-                  </div>
-                ))}
-              </div>
-
-              {(resourceDeficits.food > 0 || resourceDeficits.wood > 0 || resourceDeficits.stone > 0 || resourceDeficits.gold > 0) && (
-                <div className={`p-3 rounded-lg ${darkMode ? 'bg-red-500/10 border border-red-500/20' : 'bg-red-50 border border-red-200'}`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <X className="w-4 h-4 text-red-500" />
-                    <span className="text-sm font-medium text-red-500">Still Needed</span>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                    {resourceDeficits.food > 0 && (
-                      <div><span className="text-green-500">Food:</span> {formatNumber(resourceDeficits.food)}</div>
-                    )}
-                    {resourceDeficits.wood > 0 && (
-                      <div><span className="text-amber-500">Wood:</span> {formatNumber(resourceDeficits.wood)}</div>
-                    )}
-                    {resourceDeficits.stone > 0 && (
-                      <div><span className="text-stone-400">Stone:</span> {formatNumber(resourceDeficits.stone)}</div>
-                    )}
-                    {resourceDeficits.gold > 0 && (
-                      <div><span className="text-yellow-500">Gold:</span> {formatNumber(resourceDeficits.gold)}</div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {resourceDeficits.food === 0 && resourceDeficits.wood === 0 && resourceDeficits.stone === 0 && resourceDeficits.gold === 0 && (currentResources.food > 0 || currentResources.wood > 0) && (
-                <div className={`p-3 rounded-lg ${darkMode ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50 border border-green-200'}`}>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-green-500" />
-                    <span className="text-sm font-medium text-green-500">You have enough resources!</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </section>
 
         {/* Speed Bonuses */}
         <section className={`${theme.card} border rounded-xl overflow-hidden mb-4`}>
@@ -714,7 +718,7 @@ export default function UpgradeCalculator() {
         {/* Footer */}
         <footer className={`pt-6 border-t ${theme.border} text-center`}>
           <p className={`text-xs ${theme.textMuted}`}>
-            Angmar Alliance • Rise of Kingdoms
+            Angmar • Rise of Kingdoms
           </p>
         </footer>
       </div>

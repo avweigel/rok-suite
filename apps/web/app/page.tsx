@@ -35,7 +35,7 @@ export default function Home() {
         {/* Header */}
         <header className={`flex items-center justify-between mb-12 pb-4 border-b ${theme.border}`}>
           <div>
-            <h1 className="text-xl font-semibold tracking-tight">Angmar Alliance</h1>
+            <h1 className="text-xl font-semibold tracking-tight">Angmar Nazgul Guards</h1>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -58,7 +58,7 @@ export default function Home() {
             Strategy Tools & Battle Planning
           </p>
           <p className={`text-sm ${theme.textAccent}`}>
-            Angmar Legion
+            Angmar Nazgul Guards
           </p>
         </section>
 
@@ -132,51 +132,13 @@ export default function Home() {
               </div>
             </Link>
 
-            {/* Placeholder for future tools */}
-            <div className={`${theme.card} border rounded-xl p-6 opacity-50`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-lg font-semibold mb-1">
-                    KvK Planner
-                  </h4>
-                  <p className={`text-sm ${theme.textMuted}`}>
-                    Coming soon
-                  </p>
-                </div>
-                <div className={theme.textMuted}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <div className={`${theme.card} border rounded-xl p-6 opacity-50`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-lg font-semibold mb-1">
-                    Rally Calculator
-                  </h4>
-                  <p className={`text-sm ${theme.textMuted}`}>
-                    Coming soon
-                  </p>
-                </div>
-                <div className={theme.textMuted}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                </div>
-              </div>
-            </div>
           </div>
         </section>
 
         {/* Footer */}
         <footer className={`pt-8 border-t ${theme.border} text-center`}>
           <p className={`text-xs ${theme.textMuted}`}>
-            Angmar Alliance • Rise of Kingdoms
+            Angmar Nazgul Guards • Rise of Kingdoms
           </p>
         </footer>
       </div>
