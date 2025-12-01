@@ -36,6 +36,28 @@ import {
   type DependencyNode,
 } from '@/lib/upgrade-calculator/buildings';
 
+// Get minimum building levels required for a given CH level
+// (what you would have needed to reach that CH)
+function getMinBuildingLevelsForCH(chLevel: number): CurrentBuildingLevels {
+  const levels: CurrentBuildingLevels = {};
+  const chData = BUILDINGS_DATA.city_hall;
+
+  // Go through all CH levels up to the current one and collect max required levels
+  for (let level = 1; level <= chLevel; level++) {
+    const levelData = chData.levels.find(l => l.level === level);
+    if (levelData) {
+      for (const prereq of levelData.prerequisites) {
+        const current = levels[prereq.buildingId] || 0;
+        if (prereq.level > current) {
+          levels[prereq.buildingId] = prereq.level;
+        }
+      }
+    }
+  }
+
+  return levels;
+}
+
 // Dependency Tree Node Component
 function DependencyTreeNode({
   node,
@@ -111,7 +133,7 @@ export default function UpgradeCalculator() {
 
   // Load saved state from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('upgrade-calculator-state-v4');
+    const saved = localStorage.getItem('upgrade-calculator-state-v5');
     if (saved) {
       try {
         const state = JSON.parse(saved);
@@ -119,10 +141,19 @@ export default function UpgradeCalculator() {
         if (state.targetCityHall) setTargetCityHall(state.targetCityHall);
         if (state.vipLevel !== undefined) setVipLevel(state.vipLevel);
         if (state.constructionBonus !== undefined) setConstructionBonus(state.constructionBonus);
-        if (state.currentLevels) setCurrentLevels(state.currentLevels);
+        if (state.currentLevels && Object.keys(state.currentLevels).length > 0) {
+          setCurrentLevels(state.currentLevels);
+        } else {
+          // Set defaults based on current CH
+          setCurrentLevels(getMinBuildingLevelsForCH(state.currentCityHall || 23));
+        }
       } catch {
-        // ignore parse errors
+        // Set defaults on error
+        setCurrentLevels(getMinBuildingLevelsForCH(23));
       }
+    } else {
+      // No saved state, set defaults
+      setCurrentLevels(getMinBuildingLevelsForCH(23));
     }
     const savedTheme = localStorage.getItem('aoo-theme');
     if (savedTheme) setDarkMode(savedTheme === 'dark');
@@ -130,7 +161,7 @@ export default function UpgradeCalculator() {
 
   // Save state to localStorage
   useEffect(() => {
-    localStorage.setItem('upgrade-calculator-state-v4', JSON.stringify({
+    localStorage.setItem('upgrade-calculator-state-v5', JSON.stringify({
       currentCityHall,
       targetCityHall,
       vipLevel,
@@ -145,6 +176,16 @@ export default function UpgradeCalculator() {
       setTargetCityHall(Math.min(25, currentCityHall + 1));
     }
   }, [currentCityHall, targetCityHall]);
+
+  // Auto-set building levels based on current CH requirements
+  // (what you would have needed to reach current CH)
+  const setDefaultBuildingLevels = (chLevel: number) => {
+    const minLevels = getMinBuildingLevelsForCH(chLevel);
+    setCurrentLevels(minLevels);
+  };
+
+  // When current CH changes, offer to reset building levels
+  const [hasManuallyEdited, setHasManuallyEdited] = useState(false);
 
   // Get the City Hall prerequisites for the target level
   const cityHallPrereqs = useMemo(() => {
@@ -388,6 +429,7 @@ export default function UpgradeCalculator() {
                 onClick={() => {
                   setCurrentCityHall(current);
                   setTargetCityHall(target);
+                  setDefaultBuildingLevels(current);
                 }}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                   currentCityHall === current && targetCityHall === target
@@ -404,73 +446,137 @@ export default function UpgradeCalculator() {
         {/* Building Requirements */}
         <section className={`${theme.card} border rounded-xl p-4 md:p-6 mb-4`}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">
-              Requirements for CH {targetCityHall}
-            </h2>
-            {allPrereqsMet ? (
-              <span className="flex items-center gap-1 text-sm text-emerald-500">
-                <Check className="w-4 h-4" /> Ready to upgrade!
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 text-sm text-amber-500">
-                <AlertTriangle className="w-4 h-4" /> Buildings needed
-              </span>
-            )}
+            <div>
+              <h2 className="text-lg font-semibold">
+                Requirements for CH {targetCityHall}
+              </h2>
+              <p className={`text-sm ${theme.textMuted}`}>
+                Adjust your current building levels
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {allPrereqsMet ? (
+                <span className="flex items-center gap-1 text-sm text-emerald-500">
+                  <Check className="w-4 h-4" /> Ready!
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-sm text-amber-500">
+                  <AlertTriangle className="w-4 h-4" /> Needs work
+                </span>
+              )}
+              <button
+                onClick={() => setDefaultBuildingLevels(currentCityHall)}
+                className={`px-3 py-1.5 text-xs rounded-lg ${theme.button}`}
+                title="Reset building levels to minimum for current CH"
+              >
+                Reset defaults
+              </button>
+            </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {prereqStatus.map(prereq => {
               const building = BUILDINGS_DATA[prereq.buildingId];
               if (!building) return null;
-              const colorClass = categoryColors[building.category];
+
+              // Calculate slider progress percentage
+              const progressPercent = Math.min(100, (prereq.currentLevel / prereq.level) * 100);
 
               return (
                 <div
                   key={prereq.buildingId}
-                  className={`p-4 rounded-xl border-2 ${prereq.isMet ? 'border-emerald-500/50 bg-emerald-500/5' : colorClass}`}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    prereq.isMet
+                      ? 'border-emerald-500/50 bg-emerald-500/5'
+                      : 'border-amber-500/30 bg-amber-500/5'
+                  }`}
                 >
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">{building.name}</span>
-                        {prereq.isMet && <Check className="w-5 h-5 text-emerald-500" />}
-                      </div>
-                      <div className={`text-sm ${theme.textMuted}`}>
-                        Required: Level {prereq.level}
-                      </div>
+                  {/* Header row */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">{building.name}</span>
+                      {prereq.isMet && <Check className="w-5 h-5 text-emerald-500" />}
                     </div>
-
                     <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => updateBuildingLevel(prereq.buildingId, prereq.currentLevel - 1)}
-                        className={`w-10 h-10 rounded-lg ${theme.button} text-xl font-bold`}
-                      >
-                        −
-                      </button>
-                      <div className="w-16 text-center">
-                        <div className={`text-2xl font-bold ${prereq.isMet ? 'text-emerald-500' : theme.textAccent}`}>
-                          {prereq.currentLevel}
-                        </div>
-                        <div className={`text-xs ${theme.textMuted}`}>Current</div>
-                      </div>
-                      <button
-                        onClick={() => updateBuildingLevel(prereq.buildingId, prereq.currentLevel + 1)}
-                        className={`w-10 h-10 rounded-lg ${theme.button} text-xl font-bold`}
-                      >
-                        +
-                      </button>
+                      <span className={`text-2xl font-bold ${prereq.isMet ? 'text-emerald-500' : theme.textAccent}`}>
+                        {prereq.currentLevel}
+                      </span>
+                      <span className={`text-lg ${theme.textMuted}`}>/</span>
+                      <span className={`text-lg font-medium ${prereq.isMet ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {prereq.level}
+                      </span>
                     </div>
                   </div>
 
+                  {/* Slider */}
+                  <div className="relative">
+                    {/* Progress bar background */}
+                    <div className="absolute inset-0 h-3 rounded-full bg-zinc-700 pointer-events-none" />
+                    {/* Progress fill */}
+                    <div
+                      className={`absolute h-3 rounded-full pointer-events-none transition-all ${
+                        prereq.isMet ? 'bg-emerald-500' : 'bg-amber-500'
+                      }`}
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                    {/* Required level marker */}
+                    <div
+                      className="absolute top-0 w-1 h-3 bg-white/50 pointer-events-none"
+                      style={{ left: `${(prereq.level / 25) * 100}%` }}
+                    />
+                    {/* Actual slider */}
+                    <input
+                      type="range"
+                      min="0"
+                      max="25"
+                      value={prereq.currentLevel}
+                      onChange={(e) => updateBuildingLevel(prereq.buildingId, Number(e.target.value))}
+                      className={`w-full h-3 rounded-full appearance-none cursor-pointer bg-transparent relative z-10
+                        [&::-webkit-slider-thumb]:appearance-none
+                        [&::-webkit-slider-thumb]:w-6
+                        [&::-webkit-slider-thumb]:h-6
+                        [&::-webkit-slider-thumb]:rounded-full
+                        [&::-webkit-slider-thumb]:bg-white
+                        [&::-webkit-slider-thumb]:shadow-lg
+                        [&::-webkit-slider-thumb]:cursor-pointer
+                        [&::-webkit-slider-thumb]:border-2
+                        ${prereq.isMet
+                          ? '[&::-webkit-slider-thumb]:border-emerald-500'
+                          : '[&::-webkit-slider-thumb]:border-amber-500'
+                        }
+                        [&::-moz-range-thumb]:w-6
+                        [&::-moz-range-thumb]:h-6
+                        [&::-moz-range-thumb]:rounded-full
+                        [&::-moz-range-thumb]:bg-white
+                        [&::-moz-range-thumb]:shadow-lg
+                        [&::-moz-range-thumb]:cursor-pointer
+                        [&::-moz-range-thumb]:border-2
+                        ${prereq.isMet
+                          ? '[&::-moz-range-thumb]:border-emerald-500'
+                          : '[&::-moz-range-thumb]:border-amber-500'
+                        }`}
+                    />
+                  </div>
+
+                  {/* Level labels */}
+                  <div className="flex justify-between text-xs text-zinc-500 mt-1">
+                    <span>0</span>
+                    <span>5</span>
+                    <span>10</span>
+                    <span>15</span>
+                    <span>20</span>
+                    <span>25</span>
+                  </div>
+
+                  {/* Status message */}
                   {!prereq.isMet && (
-                    <div className="mt-3 pt-3 border-t border-zinc-700">
-                      <div className={`text-sm text-amber-500`}>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-sm text-amber-400">
                         Need {prereq.levelsNeeded} more level{prereq.levelsNeeded > 1 ? 's' : ''}
-                      </div>
-                      {/* Quick fill button */}
+                      </span>
                       <button
                         onClick={() => updateBuildingLevel(prereq.buildingId, prereq.level)}
-                        className="mt-2 px-3 py-1 text-xs rounded-lg bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 transition-colors"
+                        className="px-3 py-1 text-xs rounded-lg bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 transition-colors"
                       >
                         Set to {prereq.level}
                       </button>
