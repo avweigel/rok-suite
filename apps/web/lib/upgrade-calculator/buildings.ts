@@ -89,6 +89,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'military',
     maxLevel: 25,
     description: 'Train infantry troops. Higher levels unlock stronger units.',
+    // Verified from RoK Wiki: Levels 1-9 require City Hall, Levels 10-25 require City Hall + Farm
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(15 * Math.pow(1.5, i)),
@@ -99,10 +100,9 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 14 ? Math.floor(80000 * Math.pow(1.5, i - 14)) : 0,
         time: Math.floor(25 * Math.pow(1.55, i)),
       },
-      // Barracks requires City Hall + Farm (from level 5+)
       prerequisites: i === 0 ? [] : [
-        { buildingId: 'city_hall', level: i },
-        ...(i >= 4 ? [{ buildingId: 'farm', level: i + 1 }] : []),
+        { buildingId: 'city_hall', level: i + 1 },
+        ...(i >= 9 ? [{ buildingId: 'farm', level: i + 1 }] : []),
       ],
     })),
   },
@@ -112,6 +112,8 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'military',
     maxLevel: 25,
     description: 'Train archer troops. Higher levels unlock stronger units.',
+    // Verified from RoK Wiki: Levels 1-4 require City Hall, Levels 5-25 require Lumber Mill
+    // Hospital also required at levels 11, 16, 21
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(15 * Math.pow(1.5, i)),
@@ -122,10 +124,10 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 14 ? Math.floor(80000 * Math.pow(1.5, i - 14)) : 0,
         time: Math.floor(25 * Math.pow(1.55, i)),
       },
-      // Archery Range requires City Hall + Lumber Mill (from level 5+)
-      prerequisites: i === 0 ? [] : [
-        { buildingId: 'city_hall', level: Math.max(1, i) },
+      prerequisites: i === 0 ? [{ buildingId: 'city_hall', level: 2 }] : [
+        ...(i < 4 ? [{ buildingId: 'city_hall', level: i + 1 }] : []),
         ...(i >= 4 ? [{ buildingId: 'lumber_mill', level: i + 1 }] : []),
+        ...([10, 15, 20].includes(i) ? [{ buildingId: 'hospital', level: i + 1 }] : []),
       ],
     })),
   },
@@ -135,6 +137,7 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'military',
     maxLevel: 25,
     description: 'Train cavalry troops. Higher levels unlock stronger units.',
+    // Verified from RoK Wiki: Levels 1-4 require City Hall + Siege Workshop, Levels 5-25 require Quarry + Siege Workshop
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(15 * Math.pow(1.5, i)),
@@ -145,10 +148,9 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 14 ? Math.floor(85000 * Math.pow(1.5, i - 14)) : 0,
         time: Math.floor(28 * Math.pow(1.55, i)),
       },
-      // Stable requires City Hall + Quarry (from level 6+)
-      prerequisites: i === 0 ? [] : [
-        { buildingId: 'city_hall', level: Math.max(1, i) },
-        ...(i >= 5 ? [{ buildingId: 'quarry', level: i + 1 }] : []),
+      prerequisites: i === 0 ? [{ buildingId: 'city_hall', level: 4 }] : [
+        ...(i < 4 ? [{ buildingId: 'city_hall', level: 4 }, { buildingId: 'siege_workshop', level: i + 1 }] : []),
+        ...(i >= 4 ? [{ buildingId: 'quarry', level: i + 1 }, { buildingId: 'siege_workshop', level: i + 1 }] : []),
       ],
     })),
   },
@@ -158,6 +160,8 @@ export const BUILDINGS_DATA: Record<string, Building> = {
     category: 'military',
     maxLevel: 25,
     description: 'Train siege units. Higher levels unlock stronger units.',
+    // Level 1 requires City Hall 5, Levels 2-25 require Barracks + Archery Range at same level
+    // Note: Stable requires Siege Workshop, not the other way around (to avoid circular dependency)
     levels: Array.from({ length: 25 }, (_, i) => ({
       level: i + 1,
       power: Math.floor(18 * Math.pow(1.5, i)),
@@ -168,13 +172,12 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 14 ? Math.floor(90000 * Math.pow(1.5, i - 14)) : 0,
         time: Math.floor(30 * Math.pow(1.55, i)),
       },
-      // Siege Workshop requires Barracks + Archery Range + Stable (all at same level)
-      prerequisites: i === 0 ? [] : [
-        { buildingId: 'city_hall', level: Math.max(1, i) },
-        { buildingId: 'barracks', level: i + 1 },
-        { buildingId: 'archery_range', level: i + 1 },
-        { buildingId: 'stable', level: i + 1 },
-      ],
+      prerequisites: i === 0
+        ? [{ buildingId: 'city_hall', level: 5 }]
+        : [
+            { buildingId: 'barracks', level: i + 1 },
+            { buildingId: 'archery_range', level: i + 1 },
+          ],
     })),
   },
   academy: {
