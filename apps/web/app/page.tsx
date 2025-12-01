@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { UserMenu } from '@/components/auth/UserMenu';
 
 export default function Home() {
   const [darkMode, setDarkMode] = useState(true);
@@ -36,13 +37,16 @@ export default function Home() {
           <div>
             <h1 className="text-xl font-semibold tracking-tight">Angmar Alliance</h1>
           </div>
-          <button
-            onClick={toggleTheme}
-            className={`p-2 rounded-lg ${theme.button} transition-colors`}
-            title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {darkMode ? '☀️' : '🌙'}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleTheme}
+              className={`p-2 rounded-lg ${theme.button} transition-colors`}
+              title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {darkMode ? '☀️' : '🌙'}
+            </button>
+            <UserMenu />
+          </div>
         </header>
 
         {/* Hero */}
@@ -99,6 +103,27 @@ export default function Home() {
                     </p>
                   </div>
                   <div className={`${theme.textMuted} group-hover:text-amber-400 transition-colors`}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </Link>
+
+            {/* Upgrade Calculator Card */}
+            <Link href="/upgrade-calculator">
+              <div className={`${theme.card} border rounded-xl p-6 transition-all hover:border-blue-500/50 cursor-pointer group`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-lg font-semibold mb-1 group-hover:text-blue-400 transition-colors">
+                      Upgrade Calculator
+                    </h4>
+                    <p className={`text-sm ${theme.textMuted}`}>
+                      Plan your path from one City Hall to the next with optimal resources
+                    </p>
+                  </div>
+                  <div className={`${theme.textMuted} group-hover:text-blue-400 transition-colors`}>
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M5 12h14M12 5l7 7-7 7" />
                     </svg>

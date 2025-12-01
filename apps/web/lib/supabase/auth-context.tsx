@@ -42,19 +42,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase.auth]);
 
   const signInWithDiscord = async () => {
+    const currentPath = window.location.pathname;
     await supabase.auth.signInWithOAuth({
       provider: 'discord',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(currentPath)}`,
       },
     });
   };
 
   const signInWithGoogle = async () => {
+    const currentPath = window.location.pathname;
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(currentPath)}`,
       },
     });
   };
