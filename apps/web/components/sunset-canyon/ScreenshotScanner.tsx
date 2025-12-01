@@ -520,19 +520,20 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
 
                 {/* Row 1: Level & Stars */}
                 <div className="flex gap-3 mb-3">
-                  {/* Level - dropdown style */}
+                  {/* Level - number input */}
                   <div className="flex-1">
-                    <label className="text-xs text-stone-500 block mb-1">Level</label>
-                    <select
+                    <label className="text-xs text-stone-500 block mb-1">Level (1-60)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="60"
                       value={currentCommander.level}
-                      onChange={(e) => updateCurrentCommander('level', parseInt(e.target.value))}
-                      className="w-full px-3 py-2.5 rounded-lg bg-stone-700 border border-stone-600 text-stone-200 focus:border-amber-500 focus:outline-none appearance-none cursor-pointer"
-                      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2378716c'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', backgroundSize: '20px' }}
-                    >
-                      {[60, 50, 40, 37, 30, 27, 20, 10, 1].map((lvl) => (
-                        <option key={lvl} value={lvl}>Lv. {lvl}</option>
-                      ))}
-                    </select>
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 1;
+                        updateCurrentCommander('level', Math.max(1, Math.min(60, val)));
+                      }}
+                      className="w-full px-3 py-2.5 rounded-lg bg-stone-700 border border-stone-600 text-stone-200 focus:border-amber-500 focus:outline-none"
+                    />
                   </div>
 
                   {/* Stars */}
