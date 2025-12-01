@@ -18,7 +18,10 @@ import {
   Info,
   RotateCcw,
   ArrowRight,
+  Network,
+  List,
 } from 'lucide-react';
+import { DependencyGraph } from '@/components/upgrade-calculator/DependencyGraph';
 import { UserMenu } from '@/components/auth/UserMenu';
 import {
   BUILDINGS_DATA,
@@ -237,6 +240,7 @@ export default function UpgradeCalculator() {
   const [vipLevel, setVipLevel] = useState(10);
   const [constructionBonus, setConstructionBonus] = useState(0);
   const [currentLevels, setCurrentLevels] = useState<CurrentBuildingLevels>({});
+  const [viewMode, setViewMode] = useState<'graph' | 'list'>('graph');
 
   // Load saved state from localStorage
   useEffect(() => {
@@ -524,7 +528,7 @@ export default function UpgradeCalculator() {
           </div>
         </section>
 
-        {/* Building Requirements Tree */}
+        {/* Building Requirements */}
         <section className={`${theme.card} border rounded-xl p-4 md:p-6 mb-4`}>
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -535,33 +539,64 @@ export default function UpgradeCalculator() {
                 {allRequirementsMet ? (
                   <span className="text-emerald-500">All requirements met! Ready to upgrade.</span>
                 ) : (
-                  <span>Tap buildings to adjust your current levels</span>
+                  <span>{viewMode === 'graph' ? 'Click nodes to edit levels' : 'Tap buildings to adjust levels'}</span>
                 )}
               </p>
             </div>
-            <button
-              onClick={() => resetToDefaults(currentCityHall)}
-              className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg ${theme.button}`}
-              title="Reset to minimum levels for current CH"
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span className="hidden md:inline">Reset</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {/* View toggle */}
+              <div className="flex rounded-lg overflow-hidden border border-zinc-700">
+                <button
+                  onClick={() => setViewMode('graph')}
+                  className={`p-2 transition-colors ${viewMode === 'graph' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}
+                  title="Graph view"
+                >
+                  <Network className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}
+                  title="List view"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
+              <button
+                onClick={() => resetToDefaults(currentCityHall)}
+                className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg ${theme.button}`}
+                title="Reset to minimum levels for current CH"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span className="hidden md:inline">Reset</span>
+              </button>
+            </div>
           </div>
 
-          {/* Interactive Tree */}
-          <div className="space-y-1">
-            {targetPrereqs.map((prereq) => (
-              <BuildingRow
-                key={prereq.buildingId}
-                buildingId={prereq.buildingId}
-                requiredLevel={prereq.level}
-                currentLevels={currentLevels}
-                onLevelChange={updateBuildingLevel}
-                depth={0}
-              />
-            ))}
-          </div>
+          {/* Graph View */}
+          {viewMode === 'graph' && (
+            <DependencyGraph
+              requirements={fullRequirements}
+              currentLevels={currentLevels}
+              onLevelChange={updateBuildingLevel}
+              targetCityHall={targetCityHall}
+            />
+          )}
+
+          {/* List View */}
+          {viewMode === 'list' && (
+            <div className="space-y-1">
+              {targetPrereqs.map((prereq) => (
+                <BuildingRow
+                  key={prereq.buildingId}
+                  buildingId={prereq.buildingId}
+                  requiredLevel={prereq.level}
+                  currentLevels={currentLevels}
+                  onLevelChange={updateBuildingLevel}
+                  depth={0}
+                />
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Resource Summary */}
