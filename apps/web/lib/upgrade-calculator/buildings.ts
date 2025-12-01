@@ -99,7 +99,11 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 14 ? Math.floor(80000 * Math.pow(1.5, i - 14)) : 0,
         time: Math.floor(25 * Math.pow(1.55, i)),
       },
-      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+      // Barracks requires City Hall + Farm (from level 5+)
+      prerequisites: i === 0 ? [] : [
+        { buildingId: 'city_hall', level: i },
+        ...(i >= 4 ? [{ buildingId: 'farm', level: i + 1 }] : []),
+      ],
     })),
   },
   archery_range: {
@@ -118,9 +122,10 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 14 ? Math.floor(80000 * Math.pow(1.5, i - 14)) : 0,
         time: Math.floor(25 * Math.pow(1.55, i)),
       },
+      // Archery Range requires City Hall + Lumber Mill (from level 5+)
       prerequisites: i === 0 ? [] : [
         { buildingId: 'city_hall', level: Math.max(1, i) },
-        { buildingId: 'barracks', level: i + 1 },
+        ...(i >= 4 ? [{ buildingId: 'lumber_mill', level: i + 1 }] : []),
       ],
     })),
   },
@@ -140,9 +145,10 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 14 ? Math.floor(85000 * Math.pow(1.5, i - 14)) : 0,
         time: Math.floor(28 * Math.pow(1.55, i)),
       },
+      // Stable requires City Hall + Quarry (from level 6+)
       prerequisites: i === 0 ? [] : [
         { buildingId: 'city_hall', level: Math.max(1, i) },
-        { buildingId: 'archery_range', level: i + 1 },
+        ...(i >= 5 ? [{ buildingId: 'quarry', level: i + 1 }] : []),
       ],
     })),
   },
@@ -162,8 +168,11 @@ export const BUILDINGS_DATA: Record<string, Building> = {
         gold: i >= 14 ? Math.floor(90000 * Math.pow(1.5, i - 14)) : 0,
         time: Math.floor(30 * Math.pow(1.55, i)),
       },
+      // Siege Workshop requires Barracks + Archery Range + Stable (all at same level)
       prerequisites: i === 0 ? [] : [
         { buildingId: 'city_hall', level: Math.max(1, i) },
+        { buildingId: 'barracks', level: i + 1 },
+        { buildingId: 'archery_range', level: i + 1 },
         { buildingId: 'stable', level: i + 1 },
       ],
     })),

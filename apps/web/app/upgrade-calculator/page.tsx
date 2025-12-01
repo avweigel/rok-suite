@@ -76,31 +76,59 @@ function getMinBuildingLevelsForCH(chLevel: number): CurrentBuildingLevels {
   return levels;
 }
 
-// Interactive Dependency Node Component
-function DependencyNode({
+// Category styling
+const CATEGORY_STYLES = {
+  military: {
+    bg: 'bg-red-500/8',
+    border: 'border-red-500/30',
+    borderHover: 'hover:border-red-500/50',
+    text: 'text-red-400',
+    icon: 'text-red-400',
+  },
+  economy: {
+    bg: 'bg-emerald-500/8',
+    border: 'border-emerald-500/30',
+    borderHover: 'hover:border-emerald-500/50',
+    text: 'text-emerald-400',
+    icon: 'text-emerald-400',
+  },
+  development: {
+    bg: 'bg-blue-500/8',
+    border: 'border-blue-500/30',
+    borderHover: 'hover:border-blue-500/50',
+    text: 'text-blue-400',
+    icon: 'text-blue-400',
+  },
+  other: {
+    bg: 'bg-zinc-500/8',
+    border: 'border-zinc-500/30',
+    borderHover: 'hover:border-zinc-500/50',
+    text: 'text-zinc-400',
+    icon: 'text-zinc-400',
+  },
+};
+
+// Compact building row for the tree
+function BuildingRow({
   buildingId,
   requiredLevel,
   currentLevels,
   onLevelChange,
-  theme,
   depth = 0,
-  isLast = false,
 }: {
   buildingId: string;
   requiredLevel: number;
   currentLevels: CurrentBuildingLevels;
   onLevelChange: (buildingId: string, level: number) => void;
-  theme: Record<string, string>;
   depth?: number;
-  isLast?: boolean;
 }) {
   const currentLevel = currentLevels[buildingId] || 0;
-  const [expanded, setExpanded] = useState(depth < 3);
+  const [expanded, setExpanded] = useState(true);
   const building = BUILDINGS_DATA[buildingId];
   if (!building) return null;
 
   const isMet = currentLevel >= requiredLevel;
-  const levelsNeeded = Math.max(0, requiredLevel - currentLevel);
+  const style = CATEGORY_STYLES[building.category] || CATEGORY_STYLES.other;
 
   // Get prerequisites for this building at the required level
   const prerequisites: { buildingId: string; level: number }[] = [];
@@ -122,139 +150,83 @@ function DependencyNode({
 
   const hasChildren = prerequisites.length > 0;
 
-  // Category colors
-  const categoryBg: Record<string, string> = {
-    military: 'bg-red-500/10 border-red-500/40 hover:border-red-500/60',
-    economy: 'bg-green-500/10 border-green-500/40 hover:border-green-500/60',
-    development: 'bg-blue-500/10 border-blue-500/40 hover:border-blue-500/60',
-    other: 'bg-gray-500/10 border-gray-500/40 hover:border-gray-500/60',
-  };
-
-  const categoryText: Record<string, string> = {
-    military: 'text-red-400',
-    economy: 'text-green-400',
-    development: 'text-blue-400',
-    other: 'text-gray-400',
-  };
-
   return (
-    <div className={`${depth > 0 ? 'ml-4 md:ml-6' : ''}`}>
-      {/* Connection line for nested items */}
-      {depth > 0 && (
-        <div className="flex items-stretch">
-          <div className={`w-4 md:w-6 flex-shrink-0 relative`}>
-            <div className={`absolute left-0 top-0 bottom-1/2 w-px ${isLast ? '' : 'border-l-2'} border-zinc-600`} />
-            <div className="absolute left-0 top-1/2 w-full h-px border-t-2 border-zinc-600" />
-            {!isLast && <div className="absolute left-0 top-1/2 bottom-0 w-px border-l-2 border-zinc-600" />}
-          </div>
-          <div className="flex-1 min-w-0">
-            <NodeContent />
-          </div>
+    <div className={depth > 0 ? 'pl-4 md:pl-6 border-l-2 border-zinc-700/50' : ''}>
+      <div
+        className={`
+          flex items-center gap-2 p-2.5 rounded-lg mb-1.5 transition-all cursor-pointer
+          ${isMet ? 'bg-emerald-500/10 border border-emerald-500/30' : `${style.bg} border ${style.border} ${style.borderHover}`}
+        `}
+        onClick={() => hasChildren && setExpanded(!expanded)}
+      >
+        {/* Expand indicator */}
+        {hasChildren ? (
+          <ChevronRight className={`w-4 h-4 text-zinc-500 transition-transform flex-shrink-0 ${expanded ? 'rotate-90' : ''}`} />
+        ) : (
+          <div className="w-4 flex-shrink-0" />
+        )}
+
+        {/* Building info */}
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          <span className={`font-medium text-sm ${isMet ? 'text-emerald-400' : style.text}`}>
+            {building.name}
+          </span>
+          {isMet && <Check className="w-3.5 h-3.5 text-emerald-500" />}
         </div>
-      )}
-      {depth === 0 && <NodeContent />}
-    </div>
-  );
 
-  function NodeContent() {
-    return (
-      <div className="mb-2">
-        <div
-          className={`p-3 md:p-4 rounded-xl border-2 transition-all ${
-            isMet
-              ? 'border-emerald-500/50 bg-emerald-500/5'
-              : categoryBg[building.category]
-          }`}
-        >
-          {/* Main row */}
-          <div className="flex items-center gap-2 md:gap-3">
-            {/* Expand/collapse button */}
-            {hasChildren && (
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className={`p-1 rounded ${theme.button}`}
-              >
-                <ChevronRight
-                  className={`w-4 h-4 transition-transform ${expanded ? 'rotate-90' : ''}`}
-                />
-              </button>
-            )}
-            {!hasChildren && <div className="w-6" />}
-
-            {/* Building name */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={`font-semibold ${categoryText[building.category]}`}>
-                  {building.name}
-                </span>
-                {isMet && <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
-              </div>
-              {!isMet && (
-                <div className="text-xs text-amber-400 mt-0.5">
-                  Need +{levelsNeeded} level{levelsNeeded > 1 ? 's' : ''}
-                </div>
-              )}
-            </div>
-
-            {/* Level controls */}
-            <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
-              <button
-                onClick={() => onLevelChange(buildingId, currentLevel - 1)}
-                disabled={currentLevel <= 0}
-                className={`w-8 h-8 rounded-lg ${theme.button} text-lg font-bold disabled:opacity-30`}
-              >
-                −
-              </button>
-              <div className="w-12 md:w-14 text-center">
-                <div className={`text-xl md:text-2xl font-bold ${isMet ? 'text-emerald-500' : 'text-amber-400'}`}>
-                  {currentLevel}
-                </div>
-              </div>
-              <button
-                onClick={() => onLevelChange(buildingId, currentLevel + 1)}
-                disabled={currentLevel >= 25}
-                className={`w-8 h-8 rounded-lg ${theme.button} text-lg font-bold disabled:opacity-30`}
-              >
-                +
-              </button>
-              <div className="hidden md:block text-zinc-500 px-2">/</div>
-              <div className={`hidden md:block w-8 text-center font-medium ${isMet ? 'text-emerald-400' : 'text-amber-400'}`}>
-                {requiredLevel}
-              </div>
-            </div>
+        {/* Level display and controls */}
+        <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
+          <button
+            onClick={() => onLevelChange(buildingId, currentLevel - 1)}
+            disabled={currentLevel <= 0}
+            className="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            -
+          </button>
+          <div className="w-14 text-center">
+            <span className={`text-base font-bold ${isMet ? 'text-emerald-400' : 'text-amber-400'}`}>
+              {currentLevel}
+            </span>
+            <span className="text-zinc-600 mx-1">/</span>
+            <span className={`text-sm ${isMet ? 'text-emerald-500/70' : 'text-amber-500/70'}`}>
+              {requiredLevel}
+            </span>
           </div>
-
-          {/* Quick set button for unmet requirements */}
+          <button
+            onClick={() => onLevelChange(buildingId, currentLevel + 1)}
+            disabled={currentLevel >= 25}
+            className="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            +
+          </button>
           {!isMet && (
             <button
               onClick={() => onLevelChange(buildingId, requiredLevel)}
-              className="mt-2 px-3 py-1 text-xs rounded-lg bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 transition-colors"
+              className="ml-1 px-2 py-1 text-[10px] font-medium rounded bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 transition-colors"
             >
-              Set to {requiredLevel}
+              Set
             </button>
           )}
         </div>
-
-        {/* Child prerequisites */}
-        {expanded && hasChildren && (
-          <div className="mt-1">
-            {prerequisites.map((prereq, idx) => (
-              <DependencyNode
-                key={prereq.buildingId}
-                buildingId={prereq.buildingId}
-                requiredLevel={prereq.level}
-                currentLevels={currentLevels}
-                onLevelChange={onLevelChange}
-                theme={theme}
-                depth={depth + 1}
-                isLast={idx === prerequisites.length - 1}
-              />
-            ))}
-          </div>
-        )}
       </div>
-    );
-  }
+
+      {/* Children */}
+      {expanded && hasChildren && (
+        <div className="mt-1">
+          {prerequisites.map((prereq) => (
+            <BuildingRow
+              key={prereq.buildingId}
+              buildingId={prereq.buildingId}
+              requiredLevel={prereq.level}
+              currentLevels={currentLevels}
+              onLevelChange={onLevelChange}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function UpgradeCalculator() {
@@ -578,17 +550,15 @@ export default function UpgradeCalculator() {
           </div>
 
           {/* Interactive Tree */}
-          <div className="space-y-2">
-            {targetPrereqs.map((prereq, idx) => (
-              <DependencyNode
+          <div className="space-y-1">
+            {targetPrereqs.map((prereq) => (
+              <BuildingRow
                 key={prereq.buildingId}
                 buildingId={prereq.buildingId}
                 requiredLevel={prereq.level}
                 currentLevels={currentLevels}
                 onLevelChange={updateBuildingLevel}
-                theme={theme}
                 depth={0}
-                isLast={idx === targetPrereqs.length - 1}
               />
             ))}
           </div>
