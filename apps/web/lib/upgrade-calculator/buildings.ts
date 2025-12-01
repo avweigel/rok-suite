@@ -14,6 +14,7 @@ export interface BuildingLevel {
   level: number;
   power: number;
   requirements: BuildingRequirements;
+  prerequisites: { buildingId: string; level: number }[];
 }
 
 export interface Building {
@@ -22,287 +23,430 @@ export interface Building {
   category: 'military' | 'economy' | 'development' | 'other';
   maxLevel: number;
   levels: BuildingLevel[];
+  description?: string;
 }
 
-export interface CityHallPrerequisite {
-  buildingId: string;
-  requiredLevel: number;
-}
-
-export interface CityHallLevel {
-  level: number;
-  power: number;
-  requirements: BuildingRequirements;
-  prerequisites: CityHallPrerequisite[];
-}
-
-// City Hall upgrade data (levels 1-25)
-// Times are in seconds, resources are exact values
-export const CITY_HALL_DATA: CityHallLevel[] = [
-  {
-    level: 1,
-    power: 20,
-    requirements: { food: 0, wood: 0, stone: 0, gold: 0, time: 0 },
-    prerequisites: [],
-  },
-  {
-    level: 2,
-    power: 45,
-    requirements: { food: 1000, wood: 1000, stone: 0, gold: 0, time: 45 },
-    prerequisites: [],
-  },
-  {
-    level: 3,
-    power: 90,
-    requirements: { food: 2500, wood: 2500, stone: 0, gold: 0, time: 105 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 2 },
+// All buildings with their upgrade requirements and prerequisites
+// Prerequisites show what OTHER buildings are needed before upgrading THIS building
+export const BUILDINGS_DATA: Record<string, Building> = {
+  city_hall: {
+    id: 'city_hall',
+    name: 'City Hall',
+    category: 'development',
+    maxLevel: 25,
+    description: 'The heart of your city. Upgrading unlocks new buildings and features.',
+    levels: [
+      { level: 1, power: 20, requirements: { food: 0, wood: 0, stone: 0, gold: 0, time: 0 }, prerequisites: [] },
+      { level: 2, power: 45, requirements: { food: 1000, wood: 1000, stone: 0, gold: 0, time: 45 }, prerequisites: [] },
+      { level: 3, power: 90, requirements: { food: 2500, wood: 2500, stone: 0, gold: 0, time: 105 }, prerequisites: [{ buildingId: 'wall', level: 2 }] },
+      { level: 4, power: 180, requirements: { food: 5000, wood: 5000, stone: 0, gold: 0, time: 195 }, prerequisites: [{ buildingId: 'wall', level: 3 }, { buildingId: 'barracks', level: 3 }] },
+      { level: 5, power: 360, requirements: { food: 15000, wood: 15000, stone: 0, gold: 0, time: 480 }, prerequisites: [{ buildingId: 'wall', level: 4 }, { buildingId: 'barracks', level: 4 }] },
+      { level: 6, power: 720, requirements: { food: 50000, wood: 50000, stone: 0, gold: 0, time: 1200 }, prerequisites: [{ buildingId: 'wall', level: 5 }, { buildingId: 'academy', level: 5 }] },
+      { level: 7, power: 1440, requirements: { food: 100000, wood: 100000, stone: 50000, gold: 0, time: 2400 }, prerequisites: [{ buildingId: 'wall', level: 6 }, { buildingId: 'storehouse', level: 6 }] },
+      { level: 8, power: 2880, requirements: { food: 200000, wood: 200000, stone: 100000, gold: 0, time: 4800 }, prerequisites: [{ buildingId: 'wall', level: 7 }, { buildingId: 'hospital', level: 7 }] },
+      { level: 9, power: 5760, requirements: { food: 400000, wood: 400000, stone: 200000, gold: 0, time: 9600 }, prerequisites: [{ buildingId: 'wall', level: 8 }, { buildingId: 'trading_post', level: 8 }] },
+      { level: 10, power: 11520, requirements: { food: 750000, wood: 750000, stone: 500000, gold: 0, time: 18000 }, prerequisites: [{ buildingId: 'wall', level: 9 }, { buildingId: 'academy', level: 9 }] },
+      { level: 11, power: 23040, requirements: { food: 1200000, wood: 1200000, stone: 800000, gold: 0, time: 28800 }, prerequisites: [{ buildingId: 'wall', level: 10 }, { buildingId: 'castle', level: 10 }] },
+      { level: 12, power: 46080, requirements: { food: 1800000, wood: 1800000, stone: 1200000, gold: 0, time: 43200 }, prerequisites: [{ buildingId: 'wall', level: 11 }, { buildingId: 'tavern', level: 11 }] },
+      { level: 13, power: 92160, requirements: { food: 2500000, wood: 2500000, stone: 1600000, gold: 0, time: 64800 }, prerequisites: [{ buildingId: 'wall', level: 12 }, { buildingId: 'scout_camp', level: 12 }] },
+      { level: 14, power: 150000, requirements: { food: 3500000, wood: 3500000, stone: 2200000, gold: 0, time: 86400 }, prerequisites: [{ buildingId: 'wall', level: 13 }, { buildingId: 'blacksmith', level: 13 }] },
+      { level: 15, power: 225000, requirements: { food: 5000000, wood: 5000000, stone: 3000000, gold: 500000, time: 115200 }, prerequisites: [{ buildingId: 'wall', level: 14 }, { buildingId: 'hospital', level: 14 }] },
+      { level: 16, power: 337500, requirements: { food: 7000000, wood: 7000000, stone: 4500000, gold: 1000000, time: 144000 }, prerequisites: [{ buildingId: 'wall', level: 15 }, { buildingId: 'academy', level: 15 }] },
+      { level: 17, power: 506250, requirements: { food: 10000000, wood: 10000000, stone: 6000000, gold: 1500000, time: 180000 }, prerequisites: [{ buildingId: 'wall', level: 16 }, { buildingId: 'archery_range', level: 16 }] },
+      { level: 18, power: 759375, requirements: { food: 14000000, wood: 14000000, stone: 8000000, gold: 2000000, time: 216000 }, prerequisites: [{ buildingId: 'wall', level: 17 }, { buildingId: 'stable', level: 17 }] },
+      { level: 19, power: 1139062, requirements: { food: 20000000, wood: 20000000, stone: 12000000, gold: 3000000, time: 259200 }, prerequisites: [{ buildingId: 'wall', level: 18 }, { buildingId: 'siege_workshop', level: 18 }] },
+      { level: 20, power: 1708593, requirements: { food: 28000000, wood: 28000000, stone: 16000000, gold: 4000000, time: 302400 }, prerequisites: [{ buildingId: 'wall', level: 19 }, { buildingId: 'barracks', level: 19 }] },
+      { level: 21, power: 2562890, requirements: { food: 40000000, wood: 40000000, stone: 24000000, gold: 6000000, time: 360000 }, prerequisites: [{ buildingId: 'wall', level: 20 }, { buildingId: 'castle', level: 20 }] },
+      { level: 22, power: 3844335, requirements: { food: 55000000, wood: 55000000, stone: 35000000, gold: 8000000, time: 432000 }, prerequisites: [{ buildingId: 'wall', level: 21 }, { buildingId: 'alliance_center', level: 21 }] },
+      { level: 23, power: 5766502, requirements: { food: 75000000, wood: 75000000, stone: 50000000, gold: 12000000, time: 518400 }, prerequisites: [{ buildingId: 'wall', level: 22 }, { buildingId: 'hospital', level: 22 }] },
+      { level: 24, power: 8649754, requirements: { food: 100000000, wood: 100000000, stone: 70000000, gold: 18000000, time: 604800 }, prerequisites: [{ buildingId: 'wall', level: 23 }, { buildingId: 'academy', level: 23 }] },
+      { level: 25, power: 12974631, requirements: { food: 150000000, wood: 150000000, stone: 100000000, gold: 25000000, time: 777600 }, prerequisites: [{ buildingId: 'wall', level: 24 }, { buildingId: 'watchtower', level: 24 }] },
     ],
   },
-  {
-    level: 4,
-    power: 180,
-    requirements: { food: 5000, wood: 5000, stone: 0, gold: 0, time: 195 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 3 },
-      { buildingId: 'barracks', requiredLevel: 3 },
-    ],
+  wall: {
+    id: 'wall',
+    name: 'Wall',
+    category: 'military',
+    maxLevel: 25,
+    description: 'Defends your city. Required for most City Hall upgrades.',
+    levels: Array.from({ length: 25 }, (_, i) => ({
+      level: i + 1,
+      power: Math.floor(10 * Math.pow(1.5, i)),
+      requirements: {
+        food: Math.floor(500 * Math.pow(1.8, i)),
+        wood: Math.floor(500 * Math.pow(1.8, i)),
+        stone: i >= 6 ? Math.floor(250 * Math.pow(1.8, i - 5)) : 0,
+        gold: i >= 14 ? Math.floor(100000 * Math.pow(1.5, i - 14)) : 0,
+        time: Math.floor(30 * Math.pow(1.6, i)),
+      },
+      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+    })),
   },
-  {
-    level: 5,
-    power: 360,
-    requirements: { food: 15000, wood: 15000, stone: 0, gold: 0, time: 480 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 4 },
-      { buildingId: 'barracks', requiredLevel: 4 },
-    ],
+  barracks: {
+    id: 'barracks',
+    name: 'Barracks',
+    category: 'military',
+    maxLevel: 25,
+    description: 'Train infantry troops. Higher levels unlock stronger units.',
+    levels: Array.from({ length: 25 }, (_, i) => ({
+      level: i + 1,
+      power: Math.floor(15 * Math.pow(1.5, i)),
+      requirements: {
+        food: Math.floor(400 * Math.pow(1.75, i)),
+        wood: Math.floor(400 * Math.pow(1.75, i)),
+        stone: i >= 6 ? Math.floor(200 * Math.pow(1.75, i - 5)) : 0,
+        gold: i >= 14 ? Math.floor(80000 * Math.pow(1.5, i - 14)) : 0,
+        time: Math.floor(25 * Math.pow(1.55, i)),
+      },
+      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+    })),
   },
-  {
-    level: 6,
-    power: 720,
-    requirements: { food: 50000, wood: 50000, stone: 0, gold: 0, time: 1200 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 5 },
-      { buildingId: 'academy', requiredLevel: 5 },
-    ],
+  archery_range: {
+    id: 'archery_range',
+    name: 'Archery Range',
+    category: 'military',
+    maxLevel: 25,
+    description: 'Train archer troops. Higher levels unlock stronger units.',
+    levels: Array.from({ length: 25 }, (_, i) => ({
+      level: i + 1,
+      power: Math.floor(15 * Math.pow(1.5, i)),
+      requirements: {
+        food: Math.floor(400 * Math.pow(1.75, i)),
+        wood: Math.floor(450 * Math.pow(1.75, i)),
+        stone: i >= 6 ? Math.floor(200 * Math.pow(1.75, i - 5)) : 0,
+        gold: i >= 14 ? Math.floor(80000 * Math.pow(1.5, i - 14)) : 0,
+        time: Math.floor(25 * Math.pow(1.55, i)),
+      },
+      prerequisites: i === 0 ? [] : [
+        { buildingId: 'city_hall', level: Math.max(1, i) },
+        { buildingId: 'barracks', level: i + 1 },
+      ],
+    })),
   },
-  {
-    level: 7,
-    power: 1440,
-    requirements: { food: 100000, wood: 100000, stone: 50000, gold: 0, time: 2400 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 6 },
-      { buildingId: 'storehouse', requiredLevel: 6 },
-    ],
+  stable: {
+    id: 'stable',
+    name: 'Stable',
+    category: 'military',
+    maxLevel: 25,
+    description: 'Train cavalry troops. Higher levels unlock stronger units.',
+    levels: Array.from({ length: 25 }, (_, i) => ({
+      level: i + 1,
+      power: Math.floor(15 * Math.pow(1.5, i)),
+      requirements: {
+        food: Math.floor(450 * Math.pow(1.75, i)),
+        wood: Math.floor(400 * Math.pow(1.75, i)),
+        stone: i >= 6 ? Math.floor(220 * Math.pow(1.75, i - 5)) : 0,
+        gold: i >= 14 ? Math.floor(85000 * Math.pow(1.5, i - 14)) : 0,
+        time: Math.floor(28 * Math.pow(1.55, i)),
+      },
+      prerequisites: i === 0 ? [] : [
+        { buildingId: 'city_hall', level: Math.max(1, i) },
+        { buildingId: 'archery_range', level: i + 1 },
+      ],
+    })),
   },
-  {
-    level: 8,
-    power: 2880,
-    requirements: { food: 200000, wood: 200000, stone: 100000, gold: 0, time: 4800 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 7 },
-      { buildingId: 'hospital', requiredLevel: 7 },
-    ],
+  siege_workshop: {
+    id: 'siege_workshop',
+    name: 'Siege Workshop',
+    category: 'military',
+    maxLevel: 25,
+    description: 'Train siege units. Higher levels unlock stronger units.',
+    levels: Array.from({ length: 25 }, (_, i) => ({
+      level: i + 1,
+      power: Math.floor(18 * Math.pow(1.5, i)),
+      requirements: {
+        food: Math.floor(500 * Math.pow(1.75, i)),
+        wood: Math.floor(500 * Math.pow(1.75, i)),
+        stone: i >= 5 ? Math.floor(300 * Math.pow(1.75, i - 4)) : 0,
+        gold: i >= 14 ? Math.floor(90000 * Math.pow(1.5, i - 14)) : 0,
+        time: Math.floor(30 * Math.pow(1.55, i)),
+      },
+      prerequisites: i === 0 ? [] : [
+        { buildingId: 'city_hall', level: Math.max(1, i) },
+        { buildingId: 'stable', level: i + 1 },
+      ],
+    })),
   },
-  {
-    level: 9,
-    power: 5760,
-    requirements: { food: 400000, wood: 400000, stone: 200000, gold: 0, time: 9600 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 8 },
-      { buildingId: 'trading_post', requiredLevel: 8 },
-    ],
+  academy: {
+    id: 'academy',
+    name: 'Academy',
+    category: 'development',
+    maxLevel: 25,
+    description: 'Research technologies to improve your kingdom.',
+    levels: Array.from({ length: 25 }, (_, i) => ({
+      level: i + 1,
+      power: Math.floor(20 * Math.pow(1.5, i)),
+      requirements: {
+        food: Math.floor(600 * Math.pow(1.8, i)),
+        wood: Math.floor(600 * Math.pow(1.8, i)),
+        stone: i >= 5 ? Math.floor(300 * Math.pow(1.8, i - 4)) : 0,
+        gold: i >= 14 ? Math.floor(120000 * Math.pow(1.5, i - 14)) : 0,
+        time: Math.floor(35 * Math.pow(1.6, i)),
+      },
+      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+    })),
   },
-  {
-    level: 10,
-    power: 11520,
-    requirements: { food: 750000, wood: 750000, stone: 500000, gold: 0, time: 18000 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 9 },
-      { buildingId: 'academy', requiredLevel: 9 },
-    ],
+  hospital: {
+    id: 'hospital',
+    name: 'Hospital',
+    category: 'military',
+    maxLevel: 25,
+    description: 'Heal wounded troops. Higher levels increase capacity.',
+    levels: Array.from({ length: 25 }, (_, i) => ({
+      level: i + 1,
+      power: Math.floor(12 * Math.pow(1.5, i)),
+      requirements: {
+        food: Math.floor(350 * Math.pow(1.75, i)),
+        wood: Math.floor(350 * Math.pow(1.75, i)),
+        stone: i >= 6 ? Math.floor(180 * Math.pow(1.75, i - 5)) : 0,
+        gold: i >= 14 ? Math.floor(70000 * Math.pow(1.5, i - 14)) : 0,
+        time: Math.floor(22 * Math.pow(1.55, i)),
+      },
+      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+    })),
   },
-  {
-    level: 11,
-    power: 23040,
-    requirements: { food: 1200000, wood: 1200000, stone: 800000, gold: 0, time: 28800 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 10 },
-      { buildingId: 'castle', requiredLevel: 10 },
-    ],
+  trading_post: {
+    id: 'trading_post',
+    name: 'Trading Post',
+    category: 'economy',
+    maxLevel: 25,
+    description: 'Trade resources with alliance members.',
+    levels: Array.from({ length: 25 }, (_, i) => ({
+      level: i + 1,
+      power: Math.floor(10 * Math.pow(1.5, i)),
+      requirements: {
+        food: Math.floor(300 * Math.pow(1.7, i)),
+        wood: Math.floor(300 * Math.pow(1.7, i)),
+        stone: i >= 7 ? Math.floor(150 * Math.pow(1.7, i - 6)) : 0,
+        gold: i >= 15 ? Math.floor(50000 * Math.pow(1.5, i - 15)) : 0,
+        time: Math.floor(20 * Math.pow(1.5, i)),
+      },
+      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+    })),
   },
-  {
-    level: 12,
-    power: 46080,
-    requirements: { food: 1800000, wood: 1800000, stone: 1200000, gold: 0, time: 43200 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 11 },
-      { buildingId: 'tavern', requiredLevel: 11 },
-    ],
+  alliance_center: {
+    id: 'alliance_center',
+    name: 'Alliance Center',
+    category: 'development',
+    maxLevel: 25,
+    description: 'Receive help from alliance members.',
+    levels: Array.from({ length: 25 }, (_, i) => ({
+      level: i + 1,
+      power: Math.floor(12 * Math.pow(1.5, i)),
+      requirements: {
+        food: Math.floor(400 * Math.pow(1.75, i)),
+        wood: Math.floor(400 * Math.pow(1.75, i)),
+        stone: i >= 6 ? Math.floor(200 * Math.pow(1.75, i - 5)) : 0,
+        gold: i >= 14 ? Math.floor(80000 * Math.pow(1.5, i - 14)) : 0,
+        time: Math.floor(25 * Math.pow(1.55, i)),
+      },
+      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+    })),
   },
-  {
-    level: 13,
-    power: 92160,
-    requirements: { food: 2500000, wood: 2500000, stone: 1600000, gold: 0, time: 64800 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 12 },
-      { buildingId: 'scout_camp', requiredLevel: 12 },
-    ],
+  castle: {
+    id: 'castle',
+    name: 'Castle',
+    category: 'development',
+    maxLevel: 25,
+    description: 'Join rallies and increase rally capacity.',
+    levels: Array.from({ length: 25 }, (_, i) => ({
+      level: i + 1,
+      power: Math.floor(15 * Math.pow(1.5, i)),
+      requirements: {
+        food: Math.floor(500 * Math.pow(1.8, i)),
+        wood: Math.floor(500 * Math.pow(1.8, i)),
+        stone: i >= 5 ? Math.floor(250 * Math.pow(1.8, i - 4)) : 0,
+        gold: i >= 14 ? Math.floor(100000 * Math.pow(1.5, i - 14)) : 0,
+        time: Math.floor(30 * Math.pow(1.6, i)),
+      },
+      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+    })),
   },
-  {
-    level: 14,
-    power: 150000,
-    requirements: { food: 3500000, wood: 3500000, stone: 2200000, gold: 0, time: 86400 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 13 },
-      { buildingId: 'blacksmith', requiredLevel: 13 },
-    ],
+  tavern: {
+    id: 'tavern',
+    name: 'Tavern',
+    category: 'development',
+    maxLevel: 25,
+    description: 'Recruit commanders using keys.',
+    levels: Array.from({ length: 25 }, (_, i) => ({
+      level: i + 1,
+      power: Math.floor(10 * Math.pow(1.5, i)),
+      requirements: {
+        food: Math.floor(350 * Math.pow(1.7, i)),
+        wood: Math.floor(350 * Math.pow(1.7, i)),
+        stone: i >= 7 ? Math.floor(180 * Math.pow(1.7, i - 6)) : 0,
+        gold: i >= 15 ? Math.floor(60000 * Math.pow(1.5, i - 15)) : 0,
+        time: Math.floor(22 * Math.pow(1.5, i)),
+      },
+      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+    })),
   },
-  {
-    level: 15,
-    power: 225000,
-    requirements: { food: 5000000, wood: 5000000, stone: 3000000, gold: 500000, time: 115200 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 14 },
-      { buildingId: 'hospital', requiredLevel: 14 },
-    ],
+  scout_camp: {
+    id: 'scout_camp',
+    name: 'Scout Camp',
+    category: 'military',
+    maxLevel: 25,
+    description: 'Scout enemies and explore the map.',
+    levels: Array.from({ length: 25 }, (_, i) => ({
+      level: i + 1,
+      power: Math.floor(8 * Math.pow(1.5, i)),
+      requirements: {
+        food: Math.floor(250 * Math.pow(1.65, i)),
+        wood: Math.floor(250 * Math.pow(1.65, i)),
+        stone: i >= 8 ? Math.floor(125 * Math.pow(1.65, i - 7)) : 0,
+        gold: i >= 16 ? Math.floor(40000 * Math.pow(1.5, i - 16)) : 0,
+        time: Math.floor(18 * Math.pow(1.5, i)),
+      },
+      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+    })),
   },
-  {
-    level: 16,
-    power: 337500,
-    requirements: { food: 7000000, wood: 7000000, stone: 4500000, gold: 1000000, time: 144000 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 15 },
-      { buildingId: 'academy', requiredLevel: 15 },
-    ],
+  blacksmith: {
+    id: 'blacksmith',
+    name: 'Blacksmith',
+    category: 'development',
+    maxLevel: 25,
+    description: 'Craft and upgrade equipment.',
+    levels: Array.from({ length: 25 }, (_, i) => ({
+      level: i + 1,
+      power: Math.floor(12 * Math.pow(1.5, i)),
+      requirements: {
+        food: Math.floor(400 * Math.pow(1.75, i)),
+        wood: Math.floor(400 * Math.pow(1.75, i)),
+        stone: i >= 6 ? Math.floor(200 * Math.pow(1.75, i - 5)) : 0,
+        gold: i >= 14 ? Math.floor(80000 * Math.pow(1.5, i - 14)) : 0,
+        time: Math.floor(25 * Math.pow(1.55, i)),
+      },
+      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+    })),
   },
-  {
-    level: 17,
-    power: 506250,
-    requirements: { food: 10000000, wood: 10000000, stone: 6000000, gold: 1500000, time: 180000 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 16 },
-      { buildingId: 'archery_range', requiredLevel: 16 },
-    ],
+  storehouse: {
+    id: 'storehouse',
+    name: 'Storehouse',
+    category: 'economy',
+    maxLevel: 25,
+    description: 'Protect resources from plunder.',
+    levels: Array.from({ length: 25 }, (_, i) => ({
+      level: i + 1,
+      power: Math.floor(8 * Math.pow(1.5, i)),
+      requirements: {
+        food: Math.floor(300 * Math.pow(1.7, i)),
+        wood: Math.floor(300 * Math.pow(1.7, i)),
+        stone: i >= 7 ? Math.floor(150 * Math.pow(1.7, i - 6)) : 0,
+        gold: i >= 15 ? Math.floor(50000 * Math.pow(1.5, i - 15)) : 0,
+        time: Math.floor(20 * Math.pow(1.5, i)),
+      },
+      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+    })),
   },
-  {
-    level: 18,
-    power: 759375,
-    requirements: { food: 14000000, wood: 14000000, stone: 8000000, gold: 2000000, time: 216000 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 17 },
-      { buildingId: 'stable', requiredLevel: 17 },
-    ],
+  watchtower: {
+    id: 'watchtower',
+    name: 'Watchtower',
+    category: 'military',
+    maxLevel: 25,
+    description: 'Detect incoming attacks.',
+    levels: Array.from({ length: 25 }, (_, i) => ({
+      level: i + 1,
+      power: Math.floor(10 * Math.pow(1.5, i)),
+      requirements: {
+        food: Math.floor(350 * Math.pow(1.7, i)),
+        wood: Math.floor(350 * Math.pow(1.7, i)),
+        stone: i >= 7 ? Math.floor(180 * Math.pow(1.7, i - 6)) : 0,
+        gold: i >= 15 ? Math.floor(60000 * Math.pow(1.5, i - 15)) : 0,
+        time: Math.floor(22 * Math.pow(1.5, i)),
+      },
+      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: i }],
+    })),
   },
-  {
-    level: 19,
-    power: 1139062,
-    requirements: { food: 20000000, wood: 20000000, stone: 12000000, gold: 3000000, time: 259200 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 18 },
-      { buildingId: 'siege_workshop', requiredLevel: 18 },
-    ],
+  farm: {
+    id: 'farm',
+    name: 'Farm',
+    category: 'economy',
+    maxLevel: 25,
+    description: 'Produces food over time.',
+    levels: Array.from({ length: 25 }, (_, i) => ({
+      level: i + 1,
+      power: Math.floor(5 * Math.pow(1.4, i)),
+      requirements: {
+        food: Math.floor(100 * Math.pow(1.6, i)),
+        wood: Math.floor(150 * Math.pow(1.6, i)),
+        stone: i >= 8 ? Math.floor(75 * Math.pow(1.6, i - 7)) : 0,
+        gold: i >= 16 ? Math.floor(30000 * Math.pow(1.4, i - 16)) : 0,
+        time: Math.floor(15 * Math.pow(1.45, i)),
+      },
+      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: Math.ceil((i + 1) / 2) }],
+    })),
   },
-  {
-    level: 20,
-    power: 1708593,
-    requirements: { food: 28000000, wood: 28000000, stone: 16000000, gold: 4000000, time: 302400 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 19 },
-      { buildingId: 'barracks', requiredLevel: 19 },
-    ],
+  lumber_mill: {
+    id: 'lumber_mill',
+    name: 'Lumber Mill',
+    category: 'economy',
+    maxLevel: 25,
+    description: 'Produces wood over time.',
+    levels: Array.from({ length: 25 }, (_, i) => ({
+      level: i + 1,
+      power: Math.floor(5 * Math.pow(1.4, i)),
+      requirements: {
+        food: Math.floor(150 * Math.pow(1.6, i)),
+        wood: Math.floor(100 * Math.pow(1.6, i)),
+        stone: i >= 8 ? Math.floor(75 * Math.pow(1.6, i - 7)) : 0,
+        gold: i >= 16 ? Math.floor(30000 * Math.pow(1.4, i - 16)) : 0,
+        time: Math.floor(15 * Math.pow(1.45, i)),
+      },
+      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: Math.ceil((i + 1) / 2) }],
+    })),
   },
-  {
-    level: 21,
-    power: 2562890,
-    requirements: { food: 40000000, wood: 40000000, stone: 24000000, gold: 6000000, time: 360000 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 20 },
-      { buildingId: 'castle', requiredLevel: 20 },
-    ],
+  quarry: {
+    id: 'quarry',
+    name: 'Quarry',
+    category: 'economy',
+    maxLevel: 25,
+    description: 'Produces stone over time.',
+    levels: Array.from({ length: 25 }, (_, i) => ({
+      level: i + 1,
+      power: Math.floor(5 * Math.pow(1.4, i)),
+      requirements: {
+        food: Math.floor(150 * Math.pow(1.6, i)),
+        wood: Math.floor(150 * Math.pow(1.6, i)),
+        stone: i >= 6 ? Math.floor(50 * Math.pow(1.6, i - 5)) : 0,
+        gold: i >= 16 ? Math.floor(30000 * Math.pow(1.4, i - 16)) : 0,
+        time: Math.floor(15 * Math.pow(1.45, i)),
+      },
+      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: Math.ceil((i + 1) / 2) }],
+    })),
   },
-  {
-    level: 22,
-    power: 3844335,
-    requirements: { food: 55000000, wood: 55000000, stone: 35000000, gold: 8000000, time: 432000 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 21 },
-      { buildingId: 'alliance_center', requiredLevel: 21 },
-    ],
+  goldmine: {
+    id: 'goldmine',
+    name: 'Gold Mine',
+    category: 'economy',
+    maxLevel: 25,
+    description: 'Produces gold over time.',
+    levels: Array.from({ length: 25 }, (_, i) => ({
+      level: i + 1,
+      power: Math.floor(5 * Math.pow(1.4, i)),
+      requirements: {
+        food: Math.floor(200 * Math.pow(1.6, i)),
+        wood: Math.floor(200 * Math.pow(1.6, i)),
+        stone: i >= 6 ? Math.floor(100 * Math.pow(1.6, i - 5)) : 0,
+        gold: i >= 14 ? Math.floor(20000 * Math.pow(1.4, i - 14)) : 0,
+        time: Math.floor(18 * Math.pow(1.45, i)),
+      },
+      prerequisites: i === 0 ? [] : [{ buildingId: 'city_hall', level: Math.ceil((i + 1) / 2) }],
+    })),
   },
-  {
-    level: 23,
-    power: 5766502,
-    requirements: { food: 75000000, wood: 75000000, stone: 50000000, gold: 12000000, time: 518400 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 22 },
-      { buildingId: 'hospital', requiredLevel: 22 },
-    ],
-  },
-  {
-    level: 24,
-    power: 8649754,
-    requirements: { food: 100000000, wood: 100000000, stone: 70000000, gold: 18000000, time: 604800 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 23 },
-      { buildingId: 'academy', requiredLevel: 23 },
-    ],
-  },
-  {
-    level: 25,
-    power: 12974631,
-    requirements: { food: 150000000, wood: 150000000, stone: 100000000, gold: 25000000, time: 777600 },
-    prerequisites: [
-      { buildingId: 'wall', requiredLevel: 24 },
-      { buildingId: 'watchtower', requiredLevel: 24 },
-    ],
-  },
-];
-
-// Building metadata for displaying names
-export const BUILDINGS: Record<string, { name: string; category: Building['category'] }> = {
-  city_hall: { name: 'City Hall', category: 'development' },
-  wall: { name: 'Wall', category: 'military' },
-  barracks: { name: 'Barracks', category: 'military' },
-  archery_range: { name: 'Archery Range', category: 'military' },
-  stable: { name: 'Stable', category: 'military' },
-  siege_workshop: { name: 'Siege Workshop', category: 'military' },
-  academy: { name: 'Academy', category: 'development' },
-  hospital: { name: 'Hospital', category: 'military' },
-  trading_post: { name: 'Trading Post', category: 'economy' },
-  alliance_center: { name: 'Alliance Center', category: 'development' },
-  castle: { name: 'Castle', category: 'development' },
-  tavern: { name: 'Tavern', category: 'development' },
-  scout_camp: { name: 'Scout Camp', category: 'military' },
-  blacksmith: { name: 'Blacksmith', category: 'development' },
-  storehouse: { name: 'Storehouse', category: 'economy' },
-  watchtower: { name: 'Watchtower', category: 'military' },
-  farm: { name: 'Farm', category: 'economy' },
-  lumber_mill: { name: 'Lumber Mill', category: 'economy' },
-  quarry: { name: 'Quarry', category: 'economy' },
-  goldmine: { name: 'Gold Mine', category: 'economy' },
 };
+
+// Building metadata for displaying names (backward compatibility)
+export const BUILDINGS: Record<string, { name: string; category: Building['category'] }> = Object.fromEntries(
+  Object.entries(BUILDINGS_DATA).map(([id, b]) => [id, { name: b.name, category: b.category }])
+);
+
+// City Hall data extracted for convenience
+export const CITY_HALL_DATA = BUILDINGS_DATA.city_hall.levels;
 
 // VIP construction speed bonuses (percentage)
 export const VIP_CONSTRUCTION_BONUS: Record<number, number> = {
-  0: 0,
-  1: 1,
-  2: 2,
-  3: 3,
-  4: 4,
-  5: 5,
-  6: 6,
-  7: 7,
-  8: 8,
-  9: 9,
-  10: 10,
-  11: 12,
-  12: 14,
-  13: 16,
-  14: 18,
-  15: 20,
-  16: 22,
-  17: 24,
+  0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9,
+  10: 10, 11: 12, 12: 14, 13: 16, 14: 18, 15: 20, 16: 22, 17: 24,
 };
 
 // Helper functions
@@ -335,7 +479,247 @@ export function formatNumberFull(num: number): string {
   return num.toLocaleString();
 }
 
-// Calculate total resources needed for CH upgrade range
+// Apply construction speed bonus to time
+export function applySpeedBonus(seconds: number, bonusPercent: number): number {
+  return Math.floor(seconds / (1 + bonusPercent / 100));
+}
+
+// Calculate speedups needed (in different denominations)
+export function calculateSpeedups(seconds: number): {
+  days: number;
+  hours: number;
+  minutes: number;
+  totalHours: number;
+} {
+  const totalHours = seconds / 3600;
+  const days = Math.floor(totalHours / 24);
+  const hours = Math.floor(totalHours % 24);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return { days, hours, minutes, totalHours };
+}
+
+// Types for upgrade path calculation
+export interface UpgradeStep {
+  buildingId: string;
+  fromLevel: number;
+  toLevel: number;
+  requirements: BuildingRequirements;
+  isTarget: boolean; // true if this is the main goal (City Hall)
+}
+
+export interface CurrentBuildingLevels {
+  [buildingId: string]: number;
+}
+
+// Recursively get all upgrades needed to reach a building level
+export function getUpgradePathForBuilding(
+  buildingId: string,
+  targetLevel: number,
+  currentLevels: CurrentBuildingLevels,
+  visited: Set<string> = new Set()
+): UpgradeStep[] {
+  const key = `${buildingId}:${targetLevel}`;
+  if (visited.has(key)) return [];
+  visited.add(key);
+
+  const building = BUILDINGS_DATA[buildingId];
+  if (!building) return [];
+
+  const currentLevel = currentLevels[buildingId] || 0;
+  if (currentLevel >= targetLevel) return [];
+
+  const steps: UpgradeStep[] = [];
+
+  // First, get all prerequisite upgrades for each level we need
+  for (let level = currentLevel + 1; level <= targetLevel; level++) {
+    const levelData = building.levels.find(l => l.level === level);
+    if (!levelData) continue;
+
+    // Get prerequisite upgrades first
+    for (const prereq of levelData.prerequisites) {
+      const prereqSteps = getUpgradePathForBuilding(
+        prereq.buildingId,
+        prereq.level,
+        currentLevels,
+        visited
+      );
+      steps.push(...prereqSteps);
+    }
+  }
+
+  // Then add the upgrades for this building
+  for (let level = currentLevel + 1; level <= targetLevel; level++) {
+    const levelData = building.levels.find(l => l.level === level);
+    if (levelData) {
+      steps.push({
+        buildingId,
+        fromLevel: level - 1,
+        toLevel: level,
+        requirements: levelData.requirements,
+        isTarget: false,
+      });
+    }
+  }
+
+  return steps;
+}
+
+// Get full upgrade path from current state to target City Hall
+export function getFullUpgradePath(
+  targetCityHallLevel: number,
+  currentLevels: CurrentBuildingLevels
+): UpgradeStep[] {
+  const steps = getUpgradePathForBuilding('city_hall', targetCityHallLevel, currentLevels);
+
+  // Mark City Hall upgrades as targets
+  return steps.map(step => ({
+    ...step,
+    isTarget: step.buildingId === 'city_hall',
+  }));
+}
+
+// Calculate total resources for an upgrade path
+export function calculatePathResources(steps: UpgradeStep[]): BuildingRequirements {
+  return steps.reduce(
+    (total, step) => ({
+      food: total.food + step.requirements.food,
+      wood: total.wood + step.requirements.wood,
+      stone: total.stone + step.requirements.stone,
+      gold: total.gold + step.requirements.gold,
+      time: total.time + step.requirements.time,
+    }),
+    { food: 0, wood: 0, stone: 0, gold: 0, time: 0 }
+  );
+}
+
+// Group upgrade steps by building for tree visualization
+export interface BuildingUpgradeGroup {
+  buildingId: string;
+  buildingName: string;
+  category: Building['category'];
+  fromLevel: number;
+  toLevel: number;
+  totalResources: BuildingRequirements;
+  steps: UpgradeStep[];
+  dependencies: string[]; // buildingIds this depends on
+}
+
+export function groupUpgradesByBuilding(steps: UpgradeStep[]): BuildingUpgradeGroup[] {
+  const groups: Map<string, BuildingUpgradeGroup> = new Map();
+
+  for (const step of steps) {
+    const building = BUILDINGS_DATA[step.buildingId];
+    if (!building) continue;
+
+    if (!groups.has(step.buildingId)) {
+      groups.set(step.buildingId, {
+        buildingId: step.buildingId,
+        buildingName: building.name,
+        category: building.category,
+        fromLevel: step.fromLevel,
+        toLevel: step.toLevel,
+        totalResources: { ...step.requirements },
+        steps: [step],
+        dependencies: [],
+      });
+    } else {
+      const group = groups.get(step.buildingId)!;
+      group.toLevel = Math.max(group.toLevel, step.toLevel);
+      group.fromLevel = Math.min(group.fromLevel, step.fromLevel);
+      group.totalResources.food += step.requirements.food;
+      group.totalResources.wood += step.requirements.wood;
+      group.totalResources.stone += step.requirements.stone;
+      group.totalResources.gold += step.requirements.gold;
+      group.totalResources.time += step.requirements.time;
+      group.steps.push(step);
+    }
+  }
+
+  // Calculate dependencies
+  for (const group of groups.values()) {
+    const levelData = BUILDINGS_DATA[group.buildingId]?.levels.find(l => l.level === group.toLevel);
+    if (levelData) {
+      group.dependencies = levelData.prerequisites
+        .map(p => p.buildingId)
+        .filter(id => groups.has(id));
+    }
+  }
+
+  return Array.from(groups.values());
+}
+
+// Get dependency tree structure for visualization
+export interface DependencyNode {
+  buildingId: string;
+  buildingName: string;
+  fromLevel: number;
+  toLevel: number;
+  children: DependencyNode[];
+  totalResources: BuildingRequirements;
+}
+
+export function buildDependencyTree(
+  buildingId: string,
+  targetLevel: number,
+  currentLevels: CurrentBuildingLevels,
+  visited: Set<string> = new Set()
+): DependencyNode | null {
+  const key = `${buildingId}:${targetLevel}`;
+  if (visited.has(key)) return null;
+  visited.add(key);
+
+  const building = BUILDINGS_DATA[buildingId];
+  if (!building) return null;
+
+  const currentLevel = currentLevels[buildingId] || 0;
+  if (currentLevel >= targetLevel) return null;
+
+  // Calculate resources for this building's upgrades
+  let totalResources: BuildingRequirements = { food: 0, wood: 0, stone: 0, gold: 0, time: 0 };
+  const allPrereqs: { buildingId: string; level: number }[] = [];
+
+  for (let level = currentLevel + 1; level <= targetLevel; level++) {
+    const levelData = building.levels.find(l => l.level === level);
+    if (levelData) {
+      totalResources.food += levelData.requirements.food;
+      totalResources.wood += levelData.requirements.wood;
+      totalResources.stone += levelData.requirements.stone;
+      totalResources.gold += levelData.requirements.gold;
+      totalResources.time += levelData.requirements.time;
+
+      for (const prereq of levelData.prerequisites) {
+        const existing = allPrereqs.find(p => p.buildingId === prereq.buildingId);
+        if (!existing || existing.level < prereq.level) {
+          if (existing) {
+            existing.level = prereq.level;
+          } else {
+            allPrereqs.push({ ...prereq });
+          }
+        }
+      }
+    }
+  }
+
+  // Build children from prerequisites
+  const children: DependencyNode[] = [];
+  for (const prereq of allPrereqs) {
+    const child = buildDependencyTree(prereq.buildingId, prereq.level, currentLevels, visited);
+    if (child) {
+      children.push(child);
+    }
+  }
+
+  return {
+    buildingId,
+    buildingName: building.name,
+    fromLevel: currentLevel,
+    toLevel: targetLevel,
+    children,
+    totalResources,
+  };
+}
+
+// Legacy function for backward compatibility
 export function calculateTotalResources(fromLevel: number, toLevel: number): BuildingRequirements {
   const totals: BuildingRequirements = { food: 0, wood: 0, stone: 0, gold: 0, time: 0 };
 
@@ -353,28 +737,8 @@ export function calculateTotalResources(fromLevel: number, toLevel: number): Bui
   return totals;
 }
 
-// Apply construction speed bonus to time
-export function applySpeedBonus(seconds: number, bonusPercent: number): number {
-  return Math.floor(seconds / (1 + bonusPercent / 100));
-}
-
-// Calculate speedups needed (in different denominations)
-export function calculateSpeedups(seconds: number): {
-  days: number;
-  hours: number;
-  minutes: number;
-  totalHours: number;
-} {
-  const totalHours = seconds / 3600;
-  const days = Math.floor(totalHours / 24);
-  const hours = Math.floor(totalHours % 24);
-  const minutes = Math.floor((seconds % 3600) / 60);
-
-  return { days, hours, minutes, totalHours };
-}
-
-// Get all prerequisites for upgrading to a target CH level
-export function getAllPrerequisites(fromLevel: number, toLevel: number): CityHallPrerequisite[] {
+// Legacy function for backward compatibility
+export function getAllPrerequisites(fromLevel: number, toLevel: number): { buildingId: string; requiredLevel: number }[] {
   const prereqMap = new Map<string, number>();
 
   for (let level = fromLevel + 1; level <= toLevel; level++) {
@@ -382,8 +746,8 @@ export function getAllPrerequisites(fromLevel: number, toLevel: number): CityHal
     if (levelData) {
       for (const prereq of levelData.prerequisites) {
         const current = prereqMap.get(prereq.buildingId) || 0;
-        if (prereq.requiredLevel > current) {
-          prereqMap.set(prereq.buildingId, prereq.requiredLevel);
+        if (prereq.level > current) {
+          prereqMap.set(prereq.buildingId, prereq.level);
         }
       }
     }
