@@ -2,7 +2,22 @@
 
 A toolkit for **Rise of Kingdoms** strategy planning, built for the **Angmar Nazgul Guards** alliance.
 
-**Live Site:** [rok-suite.vercel.app](https://rok-suite.vercel.app) (or your deployment URL)
+<table>
+<tr>
+<td align="center" width="50%">
+
+### [Live App](https://rok-suite.vercel.app)
+Start using the tools now
+
+</td>
+<td align="center" width="50%">
+
+### [Documentation](https://avweigel.github.io/rok-suite/)
+Learn how it works
+
+</td>
+</tr>
+</table>
 
 ---
 
@@ -20,6 +35,8 @@ A toolkit for **Rise of Kingdoms** strategy planning, built for the **Angmar Naz
 - **Formation optimizer** that recommends optimal 5-commander lineups
 - **Win rate analysis** based on commander synergies and positioning
 - **Counter-enemy planning** (coming soon)
+
+> **[Read the Docs](https://avweigel.github.io/rok-suite/#/sunset-canyon/README)** — Algorithm details, commander pairings, and formation strategies.
 
 ### Upgrade Calculator (`/upgrade-calculator`)
 - **Building dependency graph** showing all prerequisites for City Hall upgrades
@@ -65,6 +82,12 @@ rok-suite/
 │   ├── shared-schema/       # JSON schemas
 │   └── shared-data/         # Commander/gear data
 └── docs/                    # Documentation
+    ├── README.md            # Documentation index
+    └── sunset-canyon/       # Canyon optimizer docs
+        ├── README.md        # Overview
+        ├── algorithm.md     # How optimization works
+        ├── pairings.md      # Commander pairings guide
+        └── formations.md    # Formation strategy guide
 ```
 
 ---
@@ -114,6 +137,19 @@ This is primarily an internal tool for Angmar Nazgul Guards, but PRs are welcome
 - Bug fixes
 - Data corrections (building requirements, commander stats)
 - New features that benefit RoK alliances
+
+---
+
+## Documentation
+
+Full documentation is available at **[avweigel.github.io/rok-suite](https://avweigel.github.io/rok-suite/)**
+
+| Guide | Description |
+|-------|-------------|
+| [Sunset Canyon Overview](https://avweigel.github.io/rok-suite/#/sunset-canyon/README) | How the optimizer works |
+| [Optimization Algorithm](https://avweigel.github.io/rok-suite/#/sunset-canyon/algorithm) | Power calculations, scoring, positioning |
+| [Commander Pairings](https://avweigel.github.io/rok-suite/#/sunset-canyon/pairings) | Meta pairings and tier list |
+| [Formation Strategy](https://avweigel.github.io/rok-suite/#/sunset-canyon/formations) | Positioning tactics |
 
 ---
 
