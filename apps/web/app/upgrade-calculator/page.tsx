@@ -737,6 +737,9 @@ export default function UpgradeCalculator() {
           <p className={`text-xs ${theme.textMuted}`}>
             Angmar • Rise of Kingdoms
           </p>
+          <p className={`text-[10px] ${theme.textMuted} mt-2 opacity-50`}>
+            🍁 Wisdom from the North (Sysstm approved) • No royal mail necessary
+          </p>
         </footer>
       </div>
     </div>

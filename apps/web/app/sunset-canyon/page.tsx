@@ -638,6 +638,7 @@ export default function SunsetCanyonPage() {
                   <li>• <strong>Timing:</strong> Do Canyon at 23:55 UTC daily (23:50 Sundays)</li>
                   <li>• <strong>Center positions</strong> (highlighted) are best for AOE commanders</li>
                   <li>• <strong>Update troop counts</strong> in-game when commanders level up</li>
+                  <li>• <strong>Enemy hunting:</strong> Some say a certain cat enthusiast can find anyone... 🐱</li>
                 </ul>
               </div>
             </div>
@@ -683,6 +684,16 @@ export default function SunsetCanyonPage() {
             </div>
           </div>
         )}
+
+        {/* Footer */}
+        <footer className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center border-t border-stone-800">
+          <p className="text-xs text-stone-500">
+            Angmar Nazgul Guards • Rise of Kingdoms
+          </p>
+          <p className="text-[10px] text-stone-600 mt-1">
+            Fueled by kebabs 🥙 • Blessed by Soutz
+          </p>
+        </footer>
       </main>
 
       {/* Modals */}

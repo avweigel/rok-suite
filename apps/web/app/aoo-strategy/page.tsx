@@ -642,6 +642,7 @@ export default function AooStrategyPage() {
 
                     <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
                         <p className={`text-xs ${theme.textMuted}`}>Angmar • Rise of Kingdoms</p>
+                        <p className={`text-[10px] ${theme.textMuted} mt-1 opacity-50`}>🥙 Kebab (BBQ) provides the snacks • Moon provides unsolicited advice</p>
                     </footer>
                 </div>
             )}
@@ -1108,6 +1109,7 @@ Follow leader's calls`}
 
                     <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
                         <p className={`text-xs ${theme.textMuted}`}>Angmar • Rise of Kingdoms</p>
+                        <p className={`text-[10px] ${theme.textMuted} mt-1 opacity-50`}>🐰 Led by Fluffy • Suntzu is charming the enemy (again)</p>
                     </footer>
                 </div>
             )}
@@ -1486,6 +1488,7 @@ Need ALL zones to support!`}
 
                     <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
                         <p className={`text-xs ${theme.textMuted}`}>Angmar • Rise of Kingdoms</p>
+                        <p className={`text-[10px] ${theme.textMuted} mt-1 opacity-50`}>🐇 Hop to it! • Don Juan sends his regards</p>
                     </footer>
                 </div>
             )}

@@ -140,6 +140,9 @@ export default function Home() {
           <p className={`text-xs ${theme.textMuted}`}>
             Angmar Nazgul Guards • Rise of Kingdoms
           </p>
+          <p className={`text-[10px] ${theme.textMuted} mt-2 opacity-50`}>
+            🐰 Fluffy approved • Not medical advice (despite what Moon claims)
+          </p>
         </footer>
       </div>
     </div>
