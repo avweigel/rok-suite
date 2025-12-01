@@ -1,41 +1,126 @@
-# 🏰 Rise of Kingdoms Strategy Suite
+# Rise of Kingdoms Strategy Suite
 
-A modular toolkit for **Rise of Kingdoms** data analysis and planning.  
-Includes tools for map optimization, battle simulations, and GPT-assisted translation and planning.
+A toolkit for **Rise of Kingdoms** strategy planning, built for the **Angmar Nazgul Guards** alliance.
 
----
-
-## 📁 Repository Structure
-
-| Path | Description |
-|------|--------------|
-| `apps/web` | Web dashboard for maps, simulations, and planning |
-| `apps/api` | REST API exposing GPT and simulation endpoints |
-| `adapters/discord-js` | Discord bot adapter (JavaScript) |
-| `adapters/discord-py` | Discord bot adapter (Python) |
-| `packages/sim-engine` | Deterministic battle and rally simulator |
-| `packages/map-optimizer` | Map and flag placement optimizer |
-| `packages/vision` | Image and OCR utilities |
-| `packages/shared-schema` | Shared JSON schemas |
-| `packages/shared-data` | Shared commander, gear, and map data |
+**Live Site:** [rok-suite.vercel.app](https://rok-suite.vercel.app) (or your deployment URL)
 
 ---
 
-## 🎯 Goals
+## Features
 
-- Keep components independent but interoperable  
-- Use shared schemas and data for consistency  
-- Support reproducible simulations and map results  
-- Provide clear, documented APIs
+### Ark of Osiris Strategy (`/aoo-strategy`)
+- **30v30 team assignments** with zone-based player allocation
+- **Interactive battle maps** with drag-and-drop positioning
+- **Copyable strategy guides** for sharing in Discord/game chat
+- **Quick reference cards** for all player roles
+
+### Sunset Canyon Simulator (`/sunset-canyon`)
+- **Commander roster management** with full stats (level, stars, skills, talents)
+- **Screenshot scanner** using OCR (Tesseract.js) to bulk-import commanders
+- **Formation optimizer** that recommends optimal 5-commander lineups
+- **Win rate analysis** based on commander synergies and positioning
+- **Counter-enemy planning** (coming soon)
+
+### Upgrade Calculator (`/upgrade-calculator`)
+- **Building dependency graph** showing all prerequisites for City Hall upgrades
+- **Interactive visualization** with pan, zoom, and click-to-edit
+- **Complete dependency tree** for all 20+ buildings from levels 1-25
+- **Resource calculator** with VIP speed bonuses
+- **Smart defaults** based on current City Hall level
 
 ---
 
-## ⚙️ Setup
+## Tech Stack
 
-Clone and initialize the repository:
+| Layer | Technology |
+|-------|------------|
+| Frontend | Next.js 16, React 19, Tailwind CSS 4 |
+| Auth | Supabase (Discord & Google OAuth) |
+| OCR | Tesseract.js |
+| State | Zustand + localStorage persistence |
+| Deployment | Vercel |
+
+---
+
+## Repository Structure
+
+```
+rok-suite/
+├── apps/
+│   ├── web/                 # Next.js web application
+│   │   ├── app/             # App router pages
+│   │   │   ├── aoo-strategy/    # Ark of Osiris planner
+│   │   │   ├── sunset-canyon/   # Canyon simulator
+│   │   │   └── upgrade-calculator/  # Building calculator
+│   │   ├── components/      # React components
+│   │   └── lib/             # Utilities and data
+│   └── api/                 # REST API (TBD)
+├── adapters/
+│   ├── discord-js/          # Discord bot (JavaScript)
+│   └── discord-py/          # Discord bot (Python)
+├── packages/
+│   ├── sim-engine/          # Battle simulator engine
+│   ├── map-optimizer/       # Map placement optimizer
+│   ├── vision/              # Image/OCR utilities
+│   ├── shared-schema/       # JSON schemas
+│   └── shared-data/         # Commander/gear data
+└── docs/                    # Documentation
+```
+
+---
+
+## Getting Started
 
 ```bash
+# Clone the repo
 git clone https://github.com/avweigel/rok-suite.git
 cd rok-suite
-git lfs install
+
+# Install dependencies
 pnpm install
+
+# Set up environment variables
+cp apps/web/.env.example apps/web/.env.local
+# Add your Supabase keys to .env.local
+
+# Run development server
+pnpm dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) to view the app.
+
+---
+
+## Environment Variables
+
+Create `apps/web/.env.local` with:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+---
+
+## Building Data Sources
+
+Building prerequisites and upgrade requirements are sourced from the [Rise of Kingdoms Fandom Wiki](https://riseofkingdoms.fandom.com/wiki/Buildings). The dependency graph handles circular dependencies (e.g., Stable ↔ Siege Workshop) by modeling one direction.
+
+---
+
+## Contributing
+
+This is primarily an internal tool for Angmar Nazgul Guards, but PRs are welcome for:
+- Bug fixes
+- Data corrections (building requirements, commander stats)
+- New features that benefit RoK alliances
+
+---
+
+## License
+
+MIT
+
+---
+
+*Built with help from Claude Code*
