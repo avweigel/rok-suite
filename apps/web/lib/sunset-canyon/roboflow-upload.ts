@@ -181,7 +181,7 @@ export async function uploadToRoboflow(
 
   // Build the upload URL
   // Roboflow Upload API: https://docs.roboflow.com/api-reference/images/upload-image
-  const uploadUrl = `https://api.roboflow.com/dataset/${project}/upload?api_key=${apiKey}&name=${encodeURIComponent(annotation.commanderName)}_${Date.now()}.jpg&split=train`;
+  const uploadUrl = `https://api.roboflow.com/dataset/${workspace}/${project}/upload?api_key=${apiKey}&name=${encodeURIComponent(annotation.commanderName)}_${Date.now()}.jpg&split=train`;
 
   try {
     const response = await fetch(uploadUrl, {
@@ -243,7 +243,7 @@ async function addAnnotations(
     })) || [],
   };
 
-  const annotateUrl = `https://api.roboflow.com/dataset/${project}/annotate/${imageId}?api_key=${apiKey}`;
+  const annotateUrl = `https://api.roboflow.com/dataset/${workspace}/${project}/annotate/${imageId}?api_key=${apiKey}`;
 
   await fetch(annotateUrl, {
     method: 'POST',
