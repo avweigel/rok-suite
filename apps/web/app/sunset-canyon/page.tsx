@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Shield, ArrowLeft, Settings, Castle, Users, Scan, Plus, Loader2, Trophy, Edit2, Download, Copy, Check, ChevronDown, ChevronUp, Target, Cloud, CloudOff, X } from 'lucide-react';
+import { Shield, ArrowLeft, Settings, Castle, Users, Scan, Plus, Loader2, Trophy, Edit2, Download, Copy, Check, ChevronDown, ChevronUp, Target, Cloud, CloudOff, X, Map } from 'lucide-react';
 import Link from 'next/link';
 import { AddCommanderModal } from '@/components/sunset-canyon/AddCommanderModal';
 import { EditCommanderModal } from '@/components/sunset-canyon/EditCommanderModal';
 import { ScreenshotScanner } from '@/components/sunset-canyon/ScreenshotScanner';
 import { QuickAddCommander } from '@/components/sunset-canyon/QuickAddCommander';
+import { MapScanner } from '@/components/sunset-canyon/MapScanner';
 import { UserMenu } from '@/components/auth/UserMenu';
 import { useCommanders } from '@/lib/supabase/use-commanders';
 import { useAuth } from '@/lib/supabase/auth-context';
@@ -20,6 +21,7 @@ export default function SunsetCanyonPage() {
   const [showAddCommander, setShowAddCommander] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [showMapScanner, setShowMapScanner] = useState(false);
   const [editingCommander, setEditingCommander] = useState<UserCommander | null>(null);
   const [loadingPreloaded, setLoadingPreloaded] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -194,6 +196,15 @@ export default function SunsetCanyonPage() {
                   </>
                 )}
               </div>
+
+              <button
+                onClick={() => setShowMapScanner(true)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-stone-700 hover:border-purple-600 transition-colors"
+                title="Screenshot Scanner - Detect game elements with AI"
+              >
+                <Map className="w-4 h-4 text-purple-400" />
+                <span className="text-sm text-purple-400 hidden sm:inline">AI Scan</span>
+              </button>
 
               <button
                 onClick={() => setShowSettings(!showSettings)}
@@ -725,6 +736,10 @@ export default function SunsetCanyonPage() {
           onClose={() => setShowQuickAdd(false)}
           existingCommanderIds={userCommanders.map(c => c.id)}
         />
+      )}
+
+      {showMapScanner && (
+        <MapScanner onClose={() => setShowMapScanner(false)} />
       )}
     </div>
   );
