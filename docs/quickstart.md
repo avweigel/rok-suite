@@ -47,7 +47,7 @@ cd rok-suite
 pnpm install
 
 # Set up environment variables
-cp apps/web/.env.example apps/web/.env.local
+cp apps/web/.env.local.example apps/web/.env.local
 # Add your Supabase keys to .env.local
 
 # Run development server

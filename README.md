@@ -53,7 +53,7 @@ Learn how it works
 |-------|------------|
 | Frontend | Next.js 16, React 19, Tailwind CSS 4 |
 | Auth | Supabase (Discord & Google OAuth) |
-| OCR | Tesseract.js |
+| OCR | Tesseract.js (text), Roboflow (vision AI) |
 | State | Zustand + localStorage persistence |
 | Deployment | Vercel |
 
@@ -103,7 +103,7 @@ cd rok-suite
 pnpm install
 
 # Set up environment variables
-cp apps/web/.env.example apps/web/.env.local
+cp apps/web/.env.local.example apps/web/.env.local
 # Add your Supabase keys to .env.local
 
 # Run development server
@@ -119,8 +119,15 @@ Open [http://localhost:3000](http://localhost:3000) to view the app.
 Create `apps/web/.env.local` with:
 
 ```env
+# Required - Supabase
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# Optional - Roboflow Vision AI (for screenshot scanning)
+NEXT_PUBLIC_ROBOFLOW_API_KEY=your_roboflow_api_key
+NEXT_PUBLIC_ROBOFLOW_WORKSPACE=your_workspace
+NEXT_PUBLIC_ROBOFLOW_WORKFLOW=your_workflow_id
+NEXT_PUBLIC_ROBOFLOW_PROJECT=your_project  # For training data uploads
 ```
 
 ---
