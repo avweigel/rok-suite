@@ -227,7 +227,7 @@ async function addAnnotations(
   annotation: TrainingAnnotation,
   config: RoboflowUploadConfig
 ): Promise<void> {
-  const { apiKey, project } = config;
+  const { apiKey, workspace, project } = config;
 
   // Roboflow annotation format
   const annotationData = {
