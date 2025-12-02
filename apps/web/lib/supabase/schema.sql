@@ -104,3 +104,36 @@ create trigger update_user_commanders_updated_at
 
 -- Indexes for performance
 create index if not exists user_commanders_user_id_idx on public.user_commanders(user_id);
+
+-- Training samples for Roboflow model training
+-- Stores metadata about images submitted for training (images stored in Roboflow)
+create table if not exists public.training_samples (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users on delete set null,
+  roboflow_image_id text,  -- ID returned from Roboflow upload
+  commander_name text not null,  -- The corrected/verified commander name
+  original_ocr_text text,  -- What the OCR originally detected
+  was_corrected boolean default false,  -- Did user need to correct the OCR?
+  image_width integer,
+  image_height integer,
+  upload_status text default 'pending' check (upload_status in ('pending', 'uploaded', 'failed')),
+  error_message text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS but allow anonymous inserts (for users who haven't signed in)
+alter table public.training_samples enable row level security;
+
+-- Anyone can insert training samples (we want to collect data from all users)
+create policy "Anyone can insert training samples"
+  on public.training_samples for insert
+  with check (true);
+
+-- Only authenticated users can view samples (optional - for admin dashboard)
+create policy "Authenticated users can view training samples"
+  on public.training_samples for select
+  using (auth.uid() is not null);
+
+-- Index for querying by status
+create index if not exists training_samples_status_idx on public.training_samples(upload_status);
+create index if not exists training_samples_created_at_idx on public.training_samples(created_at desc);

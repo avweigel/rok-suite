@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Upload, Scan, Check, X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Trash2, Images, SkipForward, ArrowRight } from 'lucide-react';
+import { Upload, Scan, Check, X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Trash2, Images, SkipForward, ArrowRight, Sparkles } from 'lucide-react';
 import { createWorker } from 'tesseract.js';
 import { Commander, fetchCommanders } from '@/lib/sunset-canyon/commanders';
 import { CommanderDropdown } from './CommanderDropdown';
@@ -11,6 +11,7 @@ import {
   findByAltName,
   CommanderReference
 } from '@/lib/sunset-canyon/commander-reference';
+import { useTrainingUpload } from '@/hooks/useTrainingUpload';
 
 interface DetectedCommander {
   name: string;
@@ -21,6 +22,8 @@ interface DetectedCommander {
   matchedCommander: Commander | null;
   imageIndex: number;
   status: 'pending' | 'accepted' | 'skipped';
+  originalOcrText?: string;  // Store original OCR text for training
+  trainingSubmitted?: boolean;  // Track if we've submitted this for training
 }
 
 interface ImageItem {
@@ -48,6 +51,9 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
   const [commanders, setCommanders] = useState<Commander[]>([]);
   const [isLoadingCommanders, setIsLoadingCommanders] = useState(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Training data collection
+  const { submitSample, successCount: trainingSamplesSubmitted } = useTrainingUpload();
 
   useEffect(() => {
     async function loadCommanders() {
@@ -219,6 +225,8 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
       matchedCommander: matched,
       imageIndex,
       status: 'pending',
+      originalOcrText: text,  // Store for training data
+      trainingSubmitted: false,
     };
   };
 
@@ -272,9 +280,43 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
     ));
   };
 
-  const acceptCurrent = () => {
+  const acceptCurrent = async () => {
+    const current = detected[currentVerifyIndex];
+
+    // Submit training sample in the background (don't block the UI)
+    if (current.matchedCommander && !current.trainingSubmitted) {
+      const imageData = images[current.imageIndex];
+      if (imageData) {
+        // Get image dimensions
+        const img = new Image();
+        img.src = imageData.src;
+        await new Promise<void>((resolve) => {
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+        });
+
+        // Check if OCR was corrected (commander was manually changed)
+        const wasCorrected = current.originalOcrText
+          ? !current.originalOcrText.toLowerCase().includes(current.matchedCommander.name.toLowerCase())
+          : false;
+
+        // Submit training sample (fire and forget - don't wait for it)
+        submitSample({
+          imageBase64: imageData.src,
+          commanderName: current.matchedCommander.name,
+          originalOcrText: current.originalOcrText,
+          wasCorrected,
+          imageWidth: img.width || undefined,
+          imageHeight: img.height || undefined,
+        }).catch(err => {
+          // Silently log errors - training data collection shouldn't interrupt user flow
+          console.warn('Training sample submission failed:', err);
+        });
+      }
+    }
+
     setDetected(prev => prev.map((d, i) =>
-      i === currentVerifyIndex ? { ...d, status: 'accepted' } : d
+      i === currentVerifyIndex ? { ...d, status: 'accepted', trainingSubmitted: true } : d
     ));
     goToNext();
   };
@@ -671,16 +713,24 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
 
           {step === 'verify' && (
             <>
-              <button
-                onClick={() => {
-                  setStep('upload');
-                  setDetected([]);
-                  setImages([]);
-                }}
-                className="px-4 py-2 rounded-lg border border-stone-600 text-stone-400 hover:bg-stone-700 transition-colors"
-              >
-                Start Over
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    setStep('upload');
+                    setDetected([]);
+                    setImages([]);
+                  }}
+                  className="px-4 py-2 rounded-lg border border-stone-600 text-stone-400 hover:bg-stone-700 transition-colors"
+                >
+                  Start Over
+                </button>
+                {trainingSamplesSubmitted > 0 && (
+                  <span className="text-xs text-stone-500 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-amber-500" />
+                    {trainingSamplesSubmitted} sample{trainingSamplesSubmitted !== 1 ? 's' : ''} for AI training
+                  </span>
+                )}
+              </div>
               <button
                 onClick={handleImport}
                 disabled={acceptedCount === 0}

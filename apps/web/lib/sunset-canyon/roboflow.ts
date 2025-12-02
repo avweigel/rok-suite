@@ -23,20 +23,11 @@ export interface RoboflowResponse {
 export interface RoboflowConfig {
   apiKey: string;
   workspace: string;   // Roboflow workspace/username
-  modelId: string;
-  modelVersion: string;
+  workflowId: string;  // Workflow ID for serverless API
 }
 
-// Default configuration - requires user to set their own workspace
-// The rise-of-kingdom model exists but requires access through a workspace
-const DEFAULT_CONFIG: Omit<RoboflowConfig, 'apiKey'> = {
-  workspace: process.env.NEXT_PUBLIC_ROBOFLOW_WORKSPACE || '',
-  modelId: process.env.NEXT_PUBLIC_ROBOFLOW_MODEL || 'rise-of-kingdom',
-  modelVersion: process.env.NEXT_PUBLIC_ROBOFLOW_VERSION || '1',
-};
-
 /**
- * Detect objects in an image using Roboflow's hosted inference API
+ * Detect objects in an image using Roboflow's Serverless Workflow API
  *
  * @param imageBase64 - Base64 encoded image (with or without data URL prefix)
  * @param config - Optional configuration overrides
@@ -47,31 +38,35 @@ export async function detectWithRoboflow(
   config?: Partial<RoboflowConfig>
 ): Promise<RoboflowResponse> {
   const apiKey = config?.apiKey || process.env.NEXT_PUBLIC_ROBOFLOW_API_KEY;
+  const workspace = config?.workspace || process.env.NEXT_PUBLIC_ROBOFLOW_WORKSPACE || '';
+  const workflowId = config?.workflowId || process.env.NEXT_PUBLIC_ROBOFLOW_WORKFLOW || '';
 
   if (!apiKey) {
     throw new Error('Roboflow API key not configured. Set NEXT_PUBLIC_ROBOFLOW_API_KEY in .env.local');
   }
 
-  const workspace = config?.workspace || DEFAULT_CONFIG.workspace;
-  const modelId = config?.modelId || DEFAULT_CONFIG.modelId;
-  const modelVersion = config?.modelVersion || DEFAULT_CONFIG.modelVersion;
-
   if (!workspace) {
     throw new Error('Roboflow workspace not configured. Set NEXT_PUBLIC_ROBOFLOW_WORKSPACE in .env.local');
   }
 
-  // Strip data URL prefix if present
-  const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+  if (!workflowId) {
+    throw new Error('Roboflow workflow not configured. Set NEXT_PUBLIC_ROBOFLOW_WORKFLOW in .env.local');
+  }
 
-  // URL format: https://detect.roboflow.com/{workspace}/{model}/{version}
-  const url = `https://detect.roboflow.com/${workspace}/${modelId}/${modelVersion}?api_key=${apiKey}`;
+  // Workflow API URL format
+  const url = `https://serverless.roboflow.com/${workspace}/workflows/${workflowId}`;
 
   const response = await fetch(url, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Type': 'application/json',
     },
-    body: base64Data,
+    body: JSON.stringify({
+      api_key: apiKey,
+      inputs: {
+        image: { type: 'base64', value: imageBase64 },
+      },
+    }),
   });
 
   if (!response.ok) {
@@ -79,7 +74,46 @@ export async function detectWithRoboflow(
     throw new Error(`Roboflow API error: ${response.status} - ${errorText}`);
   }
 
-  return response.json();
+  const result = await response.json();
+
+  // Transform workflow response to match our expected format
+  // The workflow response structure may vary - adjust as needed
+  return transformWorkflowResponse(result);
+}
+
+/**
+ * Transform Roboflow workflow response to our standard format
+ */
+function transformWorkflowResponse(result: Record<string, unknown>): RoboflowResponse {
+  // Workflow responses contain outputs from each step
+  // We need to extract predictions from the detection step
+  const outputs = result.outputs as Record<string, unknown>[] | undefined;
+
+  if (!outputs || outputs.length === 0) {
+    return { predictions: [], image: { width: 0, height: 0 }, time: 0 };
+  }
+
+  // Find predictions in outputs - structure depends on workflow configuration
+  let predictions: RoboflowPrediction[] = [];
+
+  for (const output of outputs) {
+    // Check for predictions array in various possible locations
+    if (Array.isArray(output.predictions)) {
+      predictions = output.predictions as RoboflowPrediction[];
+      break;
+    }
+    // Some workflows nest predictions differently
+    if (output.result && Array.isArray((output.result as Record<string, unknown>).predictions)) {
+      predictions = (output.result as Record<string, unknown>).predictions as RoboflowPrediction[];
+      break;
+    }
+  }
+
+  return {
+    predictions,
+    image: { width: 0, height: 0 },
+    time: 0,
+  };
 }
 
 /**
@@ -88,7 +122,8 @@ export async function detectWithRoboflow(
 export function isRoboflowConfigured(): boolean {
   return !!(
     process.env.NEXT_PUBLIC_ROBOFLOW_API_KEY &&
-    process.env.NEXT_PUBLIC_ROBOFLOW_WORKSPACE
+    process.env.NEXT_PUBLIC_ROBOFLOW_WORKSPACE &&
+    process.env.NEXT_PUBLIC_ROBOFLOW_WORKFLOW
   );
 }
 
