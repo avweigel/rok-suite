@@ -1,6 +1,42 @@
 // Roboflow Object Detection API for commander screenshot scanning
 // Uses the trained model to detect commander UI elements directly
 
+/**
+ * Compress image for Roboflow detection API (avoid 413 errors)
+ */
+async function compressForDetection(
+  base64: string,
+  quality: number = 0.7,
+  maxDimension: number = 1280
+): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxDimension || height > maxDimension) {
+        const ratio = Math.min(maxDimension / width, maxDimension / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(base64);
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+      const compressed = canvas.toDataURL('image/jpeg', quality);
+      resolve(compressed.length < base64.length ? compressed : base64);
+    };
+    img.onerror = () => resolve(base64);
+    img.src = base64;
+  });
+}
+
 export interface DetectionPrediction {
   x: number;           // Center X coordinate
   y: number;           // Center Y coordinate
@@ -56,8 +92,11 @@ export async function detectCommander(
     throw new Error('Roboflow API key not configured. Set NEXT_PUBLIC_ROBOFLOW_API_KEY');
   }
 
+  // Compress image to avoid 413 errors (max 1280px, 0.7 quality)
+  const compressed = await compressForDetection(imageBase64);
+
   // Strip data URL prefix if present
-  const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+  const base64Data = compressed.replace(/^data:image\/\w+;base64,/, '');
 
   // Use Roboflow's hosted inference API
   // https://docs.roboflow.com/deploy/hosted-api/object-detection
