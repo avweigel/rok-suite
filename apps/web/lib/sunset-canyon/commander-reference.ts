@@ -311,6 +311,33 @@ export const commanderReferences: CommanderReference[] = [
     imageUrl: 'https://static.wikia.nocookie.net/riseofkingdoms/images/t/t8/Thutmose_III.png',
     altNames: ['thutmose', 'thut'],
   },
+  {
+    id: 'pyrrhus',
+    name: 'Pyrrhus of Epirus',
+    title: 'Eagle of Epirus',
+    rarity: 'legendary',
+    specialties: ['Infantry', 'Conquering', 'Attack'],
+    imageUrl: 'https://static.wikia.nocookie.net/riseofkingdoms/images/p/p3/Pyrrhus.png',
+    altNames: ['pyrrhus', 'epirus'],
+  },
+  {
+    id: 'harald-sigurdsson',
+    name: 'Harald Sigurdsson',
+    title: 'Last Great Viking',
+    rarity: 'legendary',
+    specialties: ['Infantry', 'Conquering', 'Attack'],
+    imageUrl: 'https://static.wikia.nocookie.net/riseofkingdoms/images/h/h3/Harald_Sigurdsson.png',
+    altNames: ['harald', 'hardrada'],
+  },
+  {
+    id: 'william-i',
+    name: 'William I',
+    title: 'The Conqueror',
+    rarity: 'legendary',
+    specialties: ['Leadership', 'Conquering', 'Attack'],
+    imageUrl: 'https://static.wikia.nocookie.net/riseofkingdoms/images/w/w3/William_I.png',
+    altNames: ['william', 'conqueror', 'william the conqueror'],
+  },
 
   // ============ EPIC COMMANDERS ============
   {
