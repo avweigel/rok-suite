@@ -177,8 +177,8 @@ export async function uploadToRoboflow(
     return { success: false, error: validation.error };
   }
 
-  // Compress if needed
-  const compressed = await compressImage(imageBase64);
+  // Compress aggressively for Roboflow (max 1MB, 1280px, 0.7 quality)
+  const compressed = await compressImage(imageBase64, 0.7, 1280);
 
   // Strip data URL prefix
   const base64Data = compressed.replace(/^data:image\/\w+;base64,/, '');
