@@ -757,6 +757,15 @@ export const commanderReferences: CommanderReference[] = [
     altNames: ['scipio'],
   },
   {
+    id: 'sarka',
+    name: 'Sarka',
+    title: 'Bohemian Maiden',
+    rarity: 'epic',
+    specialties: ['Infantry', 'Garrison', 'Skill'],
+    imageUrl: 'https://static.wikia.nocookie.net/riseofkingdoms/images/s/s1/Sarka.png',
+    altNames: [],
+  },
+  {
     id: 'sun-tzu',
     name: 'Sun Tzu',
     title: 'Tactical Genius',
