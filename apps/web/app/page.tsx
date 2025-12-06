@@ -73,23 +73,28 @@ export default function Home() {
           </p>
         </section>
 
-        {/* Strategy Tools */}
-        <section className="mb-16">
+        {/* Interactive Tools */}
+        <section className="mb-12">
           <h3 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted} mb-4`}>
-            Strategy Tools
+            Interactive Tools
           </h3>
 
           <div className="grid gap-4">
-            {/* Ark of Osiris Card */}
+            {/* Ark of Osiris Planner Card */}
             <Link href="/aoo-strategy">
               <div className={`${theme.card} border rounded-xl p-6 transition-all hover:border-emerald-500/50 cursor-pointer group`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-lg font-semibold mb-1 group-hover:text-emerald-400 transition-colors">
-                      Ark of Osiris
-                    </h4>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="text-lg font-semibold group-hover:text-emerald-400 transition-colors">
+                        AoO Battle Planner
+                      </h4>
+                      <span className={`text-xs px-2 py-0.5 rounded ${darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700'}`}>
+                        Tool
+                      </span>
+                    </div>
                     <p className={`text-sm ${theme.textMuted}`}>
-                      30v30 team assignments, battle maps, and strategy notes
+                      Interactive 30v30 team assignments, drag-drop battle maps, and match planning
                     </p>
                   </div>
                   <div className={`${theme.textMuted} group-hover:text-emerald-400 transition-colors`}>
@@ -106,11 +111,16 @@ export default function Home() {
               <div className={`${theme.card} border rounded-xl p-6 transition-all hover:border-amber-500/50 cursor-pointer group`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-lg font-semibold mb-1 group-hover:text-amber-400 transition-colors">
-                      Sunset Canyon
-                    </h4>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="text-lg font-semibold group-hover:text-amber-400 transition-colors">
+                        Sunset Canyon Simulator
+                      </h4>
+                      <span className={`text-xs px-2 py-0.5 rounded ${darkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'}`}>
+                        Tool
+                      </span>
+                    </div>
                     <p className={`text-sm ${theme.textMuted}`}>
-                      Battle simulator for commander formations and win rate analysis
+                      Commander scanner, formation optimizer, and battle simulation
                     </p>
                   </div>
                   <div className={`${theme.textMuted} group-hover:text-amber-400 transition-colors`}>
@@ -127,11 +137,16 @@ export default function Home() {
               <div className={`${theme.card} border rounded-xl p-6 transition-all hover:border-blue-500/50 cursor-pointer group`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-lg font-semibold mb-1 group-hover:text-blue-400 transition-colors">
-                      Upgrade Calculator
-                    </h4>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="text-lg font-semibold group-hover:text-blue-400 transition-colors">
+                        Upgrade Calculator
+                      </h4>
+                      <span className={`text-xs px-2 py-0.5 rounded ${darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-700'}`}>
+                        Tool
+                      </span>
+                    </div>
                     <p className={`text-sm ${theme.textMuted}`}>
-                      Plan your path from one City Hall to the next with optimal resources
+                      Building dependency graph and resource planning for City Hall upgrades
                     </p>
                   </div>
                   <div className={`${theme.textMuted} group-hover:text-blue-400 transition-colors`}>
@@ -142,17 +157,31 @@ export default function Home() {
                 </div>
               </div>
             </Link>
+          </div>
+        </section>
 
+        {/* Guides & Documentation */}
+        <section className="mb-16">
+          <h3 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted} mb-4`}>
+            Guides & Documentation
+          </h3>
+
+          <div className="grid gap-4">
             {/* Strategy Guide Card */}
             <Link href="/guide">
               <div className={`${theme.card} border rounded-xl p-6 transition-all hover:border-purple-500/50 cursor-pointer group`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-lg font-semibold mb-1 group-hover:text-purple-400 transition-colors">
-                      Strategy Guide
-                    </h4>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="text-lg font-semibold group-hover:text-purple-400 transition-colors">
+                        Strategy Guide
+                      </h4>
+                      <span className={`text-xs px-2 py-0.5 rounded ${darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-700'}`}>
+                        Docs
+                      </span>
+                    </div>
                     <p className={`text-sm ${theme.textMuted}`}>
-                      Event guides, alliance protocols, and commander strategies
+                      Event strategies, alliance protocols, commander guides, and checklists
                     </p>
                   </div>
                   <div className={`${theme.textMuted} group-hover:text-purple-400 transition-colors`}>
@@ -163,7 +192,6 @@ export default function Home() {
                 </div>
               </div>
             </Link>
-
           </div>
         </section>
 
