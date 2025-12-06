@@ -15,6 +15,15 @@ export interface TrainingSample {
   wasCorrected: boolean;
   imageWidth?: number;
   imageHeight?: number;
+  starCount?: number;
+  skillCount?: number;
+  detectionBoxes?: Array<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    class: string;
+  }>;
 }
 
 export interface UseTrainingUploadReturn {
@@ -65,11 +74,20 @@ export function useTrainingUpload(): UseTrainingUploadReturn {
       // Get current user (optional - samples can be anonymous)
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Create training annotation
+      // Create training annotation with detection data
       const annotation: TrainingAnnotation = {
         commanderName: sample.commanderName,
-        // For now, we're uploading full screenshots
-        // Later we can add bounding box detection
+        starCount: sample.starCount,
+        skillCount: sample.skillCount,
+        wasCorrected: sample.wasCorrected,
+        // Convert detection boxes to normalized coordinates for Roboflow
+        boxes: sample.detectionBoxes?.map(box => ({
+          x: sample.imageWidth ? box.x / sample.imageWidth : box.x,
+          y: sample.imageHeight ? box.y / sample.imageHeight : box.y,
+          width: sample.imageWidth ? box.width / sample.imageWidth : box.width,
+          height: sample.imageHeight ? box.height / sample.imageHeight : box.height,
+          class: box.class,
+        })),
       };
 
       let roboflowImageId: string | undefined;

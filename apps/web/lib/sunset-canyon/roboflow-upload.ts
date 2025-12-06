@@ -18,6 +18,9 @@ export interface AnnotationBox {
 export interface TrainingAnnotation {
   commanderName: string;
   boxes?: AnnotationBox[];  // Optional bounding boxes for detected regions
+  starCount?: number;       // Number of stars detected
+  skillCount?: number;      // Number of skills detected
+  wasCorrected?: boolean;   // Whether user corrected the detection
 }
 
 export interface UploadResult {

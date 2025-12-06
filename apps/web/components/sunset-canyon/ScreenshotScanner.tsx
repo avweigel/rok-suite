@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Upload, Scan, Check, X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Trash2, Images, SkipForward, ArrowRight, Sparkles } from 'lucide-react';
-import { createWorker } from 'tesseract.js';
+import { Upload, Scan, Check, X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Trash2, Images, SkipForward, ArrowRight, Sparkles, Zap } from 'lucide-react';
 import { Commander, fetchCommanders } from '@/lib/sunset-canyon/commanders';
 import { CommanderDropdown } from './CommanderDropdown';
 import {
@@ -12,6 +11,11 @@ import {
   CommanderReference
 } from '@/lib/sunset-canyon/commander-reference';
 import { useTrainingUpload } from '@/hooks/useTrainingUpload';
+import {
+  extractCommanderFromScreenshot,
+  isDetectionConfigured,
+  type CommanderDetection,
+} from '@/lib/sunset-canyon/roboflow-detect';
 
 interface DetectedCommander {
   name: string;
@@ -24,6 +28,7 @@ interface DetectedCommander {
   status: 'pending' | 'accepted' | 'skipped';
   originalOcrText?: string;  // Store original OCR text for training
   trainingSubmitted?: boolean;  // Track if we've submitted this for training
+  detection?: CommanderDetection;  // Roboflow detection data for training feedback
 }
 
 interface ImageItem {
@@ -236,8 +241,8 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
     setIsProcessing(true);
     setProgress(0);
 
-    const worker = await createWorker('eng');
     const newDetected: DetectedCommander[] = [];
+    const useRoboflow = isDetectionConfigured();
 
     for (let i = 0; i < images.length; i++) {
       if (images[i].processed) continue;
@@ -246,10 +251,47 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
       setProgress(((i + 1) / images.length) * 100);
 
       try {
-        const { data: { text } } = await worker.recognize(images[i].src);
-        const info = parseCommanderInfo(text, i);
-        if (info) {
-          newDetected.push(info);
+        if (useRoboflow) {
+          // Use Roboflow for detection (bypasses OCR for full image)
+          const result = await extractCommanderFromScreenshot(images[i].src);
+
+          if (result) {
+            const info = parseCommanderInfo(result.detectedName, i);
+            if (info) {
+              // Override with Roboflow-detected values
+              info.stars = result.starCount > 0 ? Math.min(6, result.starCount) : info.stars;
+              info.skillLevels = result.skillCount > 0
+                ? Array(4).fill(0).map((_, idx) => idx < result.skillCount ? 5 : 0)
+                : info.skillLevels;
+              info.confidence = result.confidence;
+              info.detection = result.detection;
+              newDetected.push(info);
+            }
+          } else {
+            // Roboflow didn't find anything, create placeholder
+            newDetected.push({
+              name: 'Unknown Commander',
+              level: 60,
+              stars: 5,
+              skillLevels: [5, 5, 5, 5],
+              confidence: 0,
+              matchedCommander: null,
+              imageIndex: i,
+              status: 'pending',
+              originalOcrText: '',
+            });
+          }
+        } else {
+          // Fallback to Tesseract OCR if Roboflow not configured
+          const { createWorker } = await import('tesseract.js');
+          const worker = await createWorker('eng');
+          const { data: { text } } = await worker.recognize(images[i].src);
+          await worker.terminate();
+
+          const info = parseCommanderInfo(text, i);
+          if (info) {
+            newDetected.push(info);
+          }
         }
 
         setImages(prev => prev.map((img, idx) =>
@@ -263,7 +305,6 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
       }
     }
 
-    await worker.terminate();
     setDetected(newDetected);
     setIsProcessing(false);
     setProcessingIndex(null);
@@ -295,10 +336,30 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
           img.onerror = () => resolve();
         });
 
-        // Check if OCR was corrected (commander was manually changed)
+        // Check if detection was corrected (commander was manually changed)
         const wasCorrected = current.originalOcrText
           ? !current.originalOcrText.toLowerCase().includes(current.matchedCommander.name.toLowerCase())
-          : false;
+          : current.name !== current.matchedCommander.name;
+
+        // Extract detection boxes for training feedback
+        const detectionBoxes: Array<{ x: number; y: number; width: number; height: number; class: string }> = [];
+        if (current.detection) {
+          if (current.detection.portrait) {
+            detectionBoxes.push({ ...current.detection.portrait, class: 'commander-portrait' });
+          }
+          if (current.detection.nameRegion) {
+            detectionBoxes.push({ ...current.detection.nameRegion, class: 'commander-name' });
+          }
+          current.detection.stars.forEach(star => {
+            detectionBoxes.push({ ...star, class: 'star' });
+          });
+          current.detection.skills.forEach(skill => {
+            detectionBoxes.push({ ...skill, class: 'skill-icon' });
+          });
+          if (current.detection.levelBadge) {
+            detectionBoxes.push({ ...current.detection.levelBadge, class: 'level-badge' });
+          }
+        }
 
         // Submit training sample (fire and forget - don't wait for it)
         submitSample({
@@ -308,6 +369,9 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
           wasCorrected,
           imageWidth: img.width || undefined,
           imageHeight: img.height || undefined,
+          starCount: current.stars,
+          skillCount: current.skillLevels.filter(s => s > 0).length,
+          detectionBoxes: detectionBoxes.length > 0 ? detectionBoxes : undefined,
         }).catch(err => {
           // Silently log errors - training data collection shouldn't interrupt user flow
           console.warn('Training sample submission failed:', err);
@@ -477,12 +541,19 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
           {/* STEP 2: Scanning */}
           {step === 'scan' && (
             <div className="text-center py-8">
-              <Loader2 className="w-12 h-12 text-amber-500 animate-spin mx-auto mb-4" />
+              <div className="relative w-12 h-12 mx-auto mb-4">
+                <Loader2 className="w-12 h-12 text-amber-500 animate-spin" />
+                {isDetectionConfigured() && (
+                  <Zap className="w-5 h-5 text-yellow-400 absolute -top-1 -right-1 animate-pulse" />
+                )}
+              </div>
               <p className="text-stone-300 text-lg mb-2">
                 Scanning image {(processingIndex ?? 0) + 1} of {images.length}
               </p>
               <p className="text-stone-500 text-sm mb-4">
-                Reading text with OCR...
+                {isDetectionConfigured()
+                  ? 'AI detecting commander elements...'
+                  : 'Reading text with OCR...'}
               </p>
               <div className="w-64 h-2 bg-stone-700 rounded-full mx-auto overflow-hidden">
                 <div
@@ -490,6 +561,12 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
                   style={{ width: `${progress}%` }}
                 />
               </div>
+              {isDetectionConfigured() && (
+                <p className="text-xs text-amber-600/60 mt-3 flex items-center justify-center gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  Powered by Roboflow AI
+                </p>
+              )}
             </div>
           )}
 
