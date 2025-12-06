@@ -173,6 +173,7 @@ export async function uploadToRoboflow(
   // Validate image
   const validation = await validateImage(imageBase64);
   if (!validation.valid) {
+    console.error('[Roboflow] Image validation failed:', validation.error);
     return { success: false, error: validation.error };
   }
 
@@ -187,6 +188,9 @@ export async function uploadToRoboflow(
   // Note: URL uses just the project ID, not workspace/project
   const uploadUrl = `https://api.roboflow.com/dataset/${project}/upload?api_key=${apiKey}&name=${encodeURIComponent(annotation.commanderName)}_${Date.now()}.jpg&split=train`;
 
+  console.log('[Roboflow] Uploading to:', uploadUrl.replace(apiKey, 'API_KEY_HIDDEN'));
+  console.log('[Roboflow] Image size:', Math.round(base64Data.length / 1024), 'KB');
+
   try {
     const response = await fetch(uploadUrl, {
       method: 'POST',
@@ -198,6 +202,7 @@ export async function uploadToRoboflow(
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('[Roboflow] Upload response error:', response.status, errorText);
       return {
         success: false,
         error: `Upload failed: ${response.status} - ${errorText}`,
@@ -205,6 +210,7 @@ export async function uploadToRoboflow(
     }
 
     const result = await response.json();
+    console.log('[Roboflow] Upload response:', result);
 
     // If we have annotation boxes, add them
     if (annotation.boxes && annotation.boxes.length > 0 && result.id) {

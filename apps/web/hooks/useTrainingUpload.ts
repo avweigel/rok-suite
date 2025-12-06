@@ -96,20 +96,22 @@ export function useTrainingUpload(): UseTrainingUploadReturn {
 
       // Try to upload to Roboflow if configured
       if (isRoboflowUploadConfigured()) {
+        console.log('[Training] Uploading to Roboflow:', sample.commanderName);
         const result = await uploadToRoboflow(sample.imageBase64, annotation);
 
         if (result.success) {
           roboflowImageId = result.imageId;
           uploadStatus = 'uploaded';
+          console.log('[Training] Upload success:', result.imageId);
         } else {
           uploadStatus = 'failed';
           errorMessage = result.error;
-          // Don't fail the whole operation - we can still log metadata
-          console.warn('Roboflow upload failed:', result.error);
+          console.error('[Training] Roboflow upload failed:', result.error);
         }
       } else {
         // Roboflow not configured - just log metadata for now
         uploadStatus = 'pending';
+        console.warn('[Training] Roboflow not configured, skipping upload');
       }
 
       // Save metadata to Supabase
