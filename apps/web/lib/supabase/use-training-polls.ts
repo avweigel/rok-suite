@@ -25,7 +25,8 @@ export interface TrainingPoll {
 export interface TrainingPollVote {
   id: string;
   poll_id: string;
-  voter_id: string;
+  voter_id: string | null;
+  voter_name: string | null;
   available_times: string[];
   preferred_time: string | null;
   voted_at: string;
@@ -34,6 +35,7 @@ export interface TrainingPollVote {
 export interface PollWithResults extends TrainingPoll {
   total_voters: number;
   votes_by_time: Record<string, number>;
+  voters_by_time: Record<string, string[]>; // Names of voters for each time slot
   user_vote?: TrainingPollVote;
 }
 
@@ -46,8 +48,9 @@ export interface CreatePollInput {
   closes_at?: string;
 }
 
-export interface VoteInput {
+export interface AvailabilityInput {
   poll_id: string;
+  voter_name: string; // Required - either from auth or entered manually
   available_times: string[];
   preferred_time?: string;
 }
@@ -66,7 +69,7 @@ export function useTrainingPolls(status?: 'open' | 'closed' | 'cancelled') {
     setLoading(true);
 
     try {
-      // Get current user
+      // Get current user (may be null for anonymous)
       const { data: { user } } = await supabase.auth.getUser();
 
       // Build query
@@ -92,21 +95,25 @@ export function useTrainingPolls(status?: 'open' | 'closed' | 'cancelled') {
             .select('*')
             .eq('poll_id', poll.id);
 
-          // Calculate votes by time slot
+          // Calculate votes by time slot and collect voter names
           const votesByTime: Record<string, number> = {};
+          const votersByTime: Record<string, string[]> = {};
           poll.time_slots.forEach((slot: string) => {
             votesByTime[slot] = 0;
+            votersByTime[slot] = [];
           });
 
           (votes || []).forEach((vote) => {
+            const voterName = vote.voter_name || 'Anonymous';
             vote.available_times.forEach((time: string) => {
               if (votesByTime[time] !== undefined) {
                 votesByTime[time]++;
+                votersByTime[time].push(voterName);
               }
             });
           });
 
-          // Find user's vote
+          // Find user's vote (only for authenticated users)
           const userVote = user
             ? votes?.find((v) => v.voter_id === user.id)
             : undefined;
@@ -115,6 +122,7 @@ export function useTrainingPolls(status?: 'open' | 'closed' | 'cancelled') {
             ...poll,
             total_voters: votes?.length || 0,
             votes_by_time: votesByTime,
+            voters_by_time: votersByTime,
             user_vote: userVote,
           };
         })
@@ -168,16 +176,20 @@ export function useTrainingPoll(pollId: string) {
         .select('*')
         .eq('poll_id', pollId);
 
-      // Calculate votes by time
+      // Calculate votes by time and collect voter names
       const votesByTime: Record<string, number> = {};
+      const votersByTime: Record<string, string[]> = {};
       pollData.time_slots.forEach((slot: string) => {
         votesByTime[slot] = 0;
+        votersByTime[slot] = [];
       });
 
       (votes || []).forEach((vote) => {
+        const voterName = vote.voter_name || 'Anonymous';
         vote.available_times.forEach((time: string) => {
           if (votesByTime[time] !== undefined) {
             votesByTime[time]++;
+            votersByTime[time].push(voterName);
           }
         });
       });
@@ -190,6 +202,7 @@ export function useTrainingPoll(pollId: string) {
         ...pollData,
         total_voters: votes?.length || 0,
         votes_by_time: votesByTime,
+        voters_by_time: votersByTime,
         user_vote: userVote,
       });
       setError(null);
@@ -254,49 +267,74 @@ export function useCreatePoll() {
 }
 
 // =============================================================================
-// VOTE HOOK
+// SUBMIT AVAILABILITY HOOK (Supports anonymous voting)
 // =============================================================================
 
-export function useVote() {
+export function useSubmitAvailability() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const vote = useCallback(async (input: VoteInput): Promise<boolean> => {
+  const submitAvailability = useCallback(async (input: AvailabilityInput): Promise<boolean> => {
     const supabase = createClient();
     setLoading(true);
     setError(null);
 
     try {
+      if (!input.voter_name.trim()) {
+        throw new Error('Please enter your name');
+      }
+
+      if (input.available_times.length === 0) {
+        throw new Error('Please select at least one available time');
+      }
+
+      // Check if user is authenticated
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Must be logged in to vote');
 
-      // Check if user already voted (upsert)
-      const { data: existing } = await supabase
-        .from('training_poll_votes')
-        .select('id')
-        .eq('poll_id', input.poll_id)
-        .eq('voter_id', user.id)
-        .single();
-
-      if (existing) {
-        // Update existing vote
-        const { error: updateError } = await supabase
+      if (user) {
+        // Authenticated user - check for existing vote to update
+        const { data: existing } = await supabase
           .from('training_poll_votes')
-          .update({
-            available_times: input.available_times,
-            preferred_time: input.preferred_time || null,
-            voted_at: new Date().toISOString(),
-          })
-          .eq('id', existing.id);
+          .select('id')
+          .eq('poll_id', input.poll_id)
+          .eq('voter_id', user.id)
+          .single();
 
-        if (updateError) throw updateError;
+        if (existing) {
+          // Update existing vote
+          const { error: updateError } = await supabase
+            .from('training_poll_votes')
+            .update({
+              voter_name: input.voter_name,
+              available_times: input.available_times,
+              preferred_time: input.preferred_time || null,
+              voted_at: new Date().toISOString(),
+            })
+            .eq('id', existing.id);
+
+          if (updateError) throw updateError;
+        } else {
+          // Insert new vote for authenticated user
+          const { error: insertError } = await supabase
+            .from('training_poll_votes')
+            .insert({
+              poll_id: input.poll_id,
+              voter_id: user.id,
+              voter_name: input.voter_name,
+              available_times: input.available_times,
+              preferred_time: input.preferred_time || null,
+            });
+
+          if (insertError) throw insertError;
+        }
       } else {
-        // Insert new vote
+        // Anonymous user - just insert (no update capability)
         const { error: insertError } = await supabase
           .from('training_poll_votes')
           .insert({
             poll_id: input.poll_id,
-            voter_id: user.id,
+            voter_id: null,
+            voter_name: input.voter_name,
             available_times: input.available_times,
             preferred_time: input.preferred_time || null,
           });
@@ -306,7 +344,7 @@ export function useVote() {
 
       return true;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to vote';
+      const message = err instanceof Error ? err.message : 'Failed to submit availability';
       setError(message);
       return false;
     } finally {
@@ -314,14 +352,14 @@ export function useVote() {
     }
   }, []);
 
-  const removeVote = useCallback(async (pollId: string): Promise<boolean> => {
+  const removeAvailability = useCallback(async (pollId: string): Promise<boolean> => {
     const supabase = createClient();
     setLoading(true);
     setError(null);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Must be logged in');
+      if (!user) throw new Error('Must be signed in to remove your availability');
 
       const { error: deleteError } = await supabase
         .from('training_poll_votes')
@@ -333,7 +371,7 @@ export function useVote() {
 
       return true;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to remove vote';
+      const message = err instanceof Error ? err.message : 'Failed to remove availability';
       setError(message);
       return false;
     } finally {
@@ -341,7 +379,7 @@ export function useVote() {
     }
   }, []);
 
-  return { vote, removeVote, loading, error };
+  return { submitAvailability, removeAvailability, loading, error };
 }
 
 // =============================================================================

@@ -1,17 +1,18 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Clock, Plus, Check, X, Users, Calendar, ChevronDown, ChevronUp, Trash2, Lock, Unlock, Globe, MapPin, Star } from 'lucide-react';
+import { Clock, Plus, Check, X, Users, Calendar, ChevronDown, ChevronUp, Trash2, Lock, Unlock, Globe, MapPin, User, Info } from 'lucide-react';
 import {
   useTrainingPolls,
   useCreatePoll,
-  useVote,
+  useSubmitAvailability,
   useManagePoll,
   generateTimeSlots,
   type CreatePollInput,
   type PollWithResults,
 } from '@/lib/supabase/use-training-polls';
 import { useUserRole } from '@/lib/supabase/use-guide';
+import { createClient } from '@/lib/supabase/client';
 
 // =============================================================================
 // TIME UTILITIES
@@ -155,10 +156,9 @@ interface CreatePollModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreated: () => void;
-  timeDisplay: TimeDisplay;
 }
 
-function CreatePollModal({ isOpen, onClose, onCreated, timeDisplay }: CreatePollModalProps) {
+function CreatePollModal({ isOpen, onClose, onCreated }: CreatePollModalProps) {
   const { createPoll, loading, error } = useCreatePoll();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -173,6 +173,10 @@ function CreatePollModal({ isOpen, onClose, onCreated, timeDisplay }: CreatePoll
         ? prev.filter(s => s !== slot)
         : [...prev, slot]
     );
+  };
+
+  const selectAllSlots = () => {
+    setSelectedSlots(allSlots);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -204,7 +208,7 @@ function CreatePollModal({ isOpen, onClose, onCreated, timeDisplay }: CreatePoll
       <div className="fixed inset-0 bg-black/60 z-50" onClick={onClose} />
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto bg-stone-800 rounded-xl border border-stone-600 shadow-xl">
         <div className="p-4 border-b border-stone-700 flex items-center justify-between sticky top-0 bg-stone-800 z-10">
-          <h3 className="text-lg font-semibold text-emerald-400">Create Training Poll</h3>
+          <h3 className="text-lg font-semibold text-emerald-400">Create Availability Poll</h3>
           <button onClick={onClose} className="p-1 hover:bg-stone-700 rounded">
             <X className="w-5 h-5 text-stone-400" />
           </button>
@@ -245,11 +249,20 @@ function CreatePollModal({ isOpen, onClose, onCreated, timeDisplay }: CreatePoll
           </div>
 
           <div>
-            <label className="block text-sm text-stone-400 mb-2">
-              Select Time Options * <span className="text-stone-500">(pick at least 2)</span>
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm text-stone-400">
+                Select Time Options * <span className="text-stone-500">(pick at least 2)</span>
+              </label>
+              <button
+                type="button"
+                onClick={selectAllSlots}
+                className="text-xs text-emerald-400 hover:text-emerald-300"
+              >
+                Select All
+              </button>
+            </div>
             <p className="text-xs text-stone-500 mb-3">
-              Tap times that could work. Your local time is shown below UTC.
+              Choose which times to include in the poll. Members will mark their availability.
             </p>
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
               {allSlots.map(slot => {
@@ -306,74 +319,67 @@ function CreatePollModal({ isOpen, onClose, onCreated, timeDisplay }: CreatePoll
 }
 
 // =============================================================================
-// POLL CARD
+// AVAILABILITY CARD (replaces PollCard)
 // =============================================================================
 
-interface PollCardProps {
+interface AvailabilityCardProps {
   poll: PollWithResults;
   isLeader: boolean;
-  onVoteChange: () => void;
+  isAuthenticated: boolean;
+  userName: string;
+  onAvailabilityChange: () => void;
   timeDisplay: TimeDisplay;
 }
 
-function PollCard({ poll, isLeader, onVoteChange, timeDisplay }: PollCardProps) {
-  const { vote, removeVote, loading: voteLoading } = useVote();
+function AvailabilityCard({ poll, isLeader, isAuthenticated, userName, onAvailabilityChange, timeDisplay }: AvailabilityCardProps) {
+  const { submitAvailability, removeAvailability, loading: submitLoading, error: submitError } = useSubmitAvailability();
   const { closePoll, reopenPoll, deletePoll, loading: manageLoading } = useManagePoll();
   const [expanded, setExpanded] = useState(poll.status === 'open');
   const [selectedTimes, setSelectedTimes] = useState<string[]>(poll.user_vote?.available_times || []);
-  const [preferredTime, setPreferredTime] = useState<string | null>(poll.user_vote?.preferred_time || null);
+  const [voterName, setVoterName] = useState(poll.user_vote?.voter_name || userName || '');
   const [hasChanges, setHasChanges] = useState(false);
+  const [showVoters, setShowVoters] = useState<string | null>(null);
 
-  // Sync with poll data
+  // Sync with poll data when it changes
   useEffect(() => {
-    setSelectedTimes(poll.user_vote?.available_times || []);
-    setPreferredTime(poll.user_vote?.preferred_time || null);
+    if (poll.user_vote) {
+      setSelectedTimes(poll.user_vote.available_times);
+      setVoterName(poll.user_vote.voter_name || userName || '');
+    }
     setHasChanges(false);
-  }, [poll.user_vote]);
+  }, [poll.user_vote, userName]);
 
   const toggleTime = (time: string) => {
     setSelectedTimes(prev => {
       const newTimes = prev.includes(time)
         ? prev.filter(t => t !== time)
         : [...prev, time];
-
-      if (preferredTime && !newTimes.includes(preferredTime)) {
-        setPreferredTime(null);
-      }
-
       return newTimes;
     });
     setHasChanges(true);
   };
 
-  const setAsPreferred = (time: string) => {
-    if (!selectedTimes.includes(time)) return;
-    setPreferredTime(prev => prev === time ? null : time);
-    setHasChanges(true);
-  };
+  const handleSubmit = async () => {
+    if (selectedTimes.length === 0 || !voterName.trim()) return;
 
-  const handleVote = async () => {
-    if (selectedTimes.length === 0) return;
-
-    const success = await vote({
+    const success = await submitAvailability({
       poll_id: poll.id,
+      voter_name: voterName.trim(),
       available_times: selectedTimes,
-      preferred_time: preferredTime || undefined,
     });
 
     if (success) {
       setHasChanges(false);
-      onVoteChange();
+      onAvailabilityChange();
     }
   };
 
-  const handleRemoveVote = async () => {
-    const success = await removeVote(poll.id);
+  const handleRemove = async () => {
+    const success = await removeAvailability(poll.id);
     if (success) {
       setSelectedTimes([]);
-      setPreferredTime(null);
       setHasChanges(false);
-      onVoteChange();
+      onAvailabilityChange();
     }
   };
 
@@ -383,21 +389,21 @@ function PollCard({ poll, isLeader, onVoteChange, timeDisplay }: PollCardProps) 
       .find(([, count]) => count === maxVotes)?.[0];
 
     await closePoll(poll.id, winningTime);
-    onVoteChange();
+    onAvailabilityChange();
   };
 
   const handleReopenPoll = async () => {
     await reopenPoll(poll.id);
-    onVoteChange();
+    onAvailabilityChange();
   };
 
   const handleDeletePoll = async () => {
     if (!confirm('Are you sure you want to delete this poll?')) return;
     await deletePoll(poll.id);
-    onVoteChange();
+    onAvailabilityChange();
   };
 
-  // Sort time slots by vote count for better UX
+  // Sort time slots by availability count
   const sortedSlots = useMemo(() => {
     return [...poll.time_slots].sort((a, b) => {
       const votesA = poll.votes_by_time[a] || 0;
@@ -408,6 +414,7 @@ function PollCard({ poll, isLeader, onVoteChange, timeDisplay }: PollCardProps) 
 
   const maxVotes = Math.max(...Object.values(poll.votes_by_time), 1);
   const isOpen = poll.status === 'open';
+  const hasExistingVote = !!poll.user_vote;
 
   return (
     <div className={`rounded-xl border overflow-hidden ${
@@ -427,7 +434,7 @@ function PollCard({ poll, isLeader, onVoteChange, timeDisplay }: PollCardProps) 
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-500">
               <span className="flex items-center gap-1">
                 <Users className="w-3 h-3" />
-                {poll.total_voters} vote{poll.total_voters !== 1 ? 's' : ''}
+                {poll.total_voters} {poll.total_voters === 1 ? 'response' : 'responses'}
               </span>
               {poll.training_date && (
                 <span className="flex items-center gap-1">
@@ -467,12 +474,43 @@ function PollCard({ poll, isLeader, onVoteChange, timeDisplay }: PollCardProps) 
             <p className="text-sm text-stone-400 pt-3">{poll.description}</p>
           )}
 
+          {/* Name input for voting */}
+          {isOpen && (
+            <div className="pt-3">
+              <label className="block text-sm text-stone-400 mb-1.5">
+                Your Name <span className="text-red-400">*</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" />
+                  <input
+                    type="text"
+                    value={voterName}
+                    onChange={(e) => {
+                      setVoterName(e.target.value);
+                      setHasChanges(true);
+                    }}
+                    placeholder="Enter your in-game name"
+                    className="w-full pl-9 pr-3 py-2 bg-stone-700 border border-stone-600 rounded-lg text-stone-200 focus:border-emerald-500 focus:outline-none"
+                    disabled={hasExistingVote && !isAuthenticated}
+                  />
+                </div>
+              </div>
+              {!isAuthenticated && !hasExistingVote && (
+                <p className="text-xs text-amber-500/80 mt-1.5 flex items-start gap-1">
+                  <Info className="w-3 h-3 mt-0.5 shrink-0" />
+                  Sign in to edit your response later. Anonymous responses cannot be changed.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Instructions */}
-          {isOpen && !poll.user_vote && (
+          {isOpen && !hasExistingVote && (
             <div className="p-3 bg-emerald-600/10 border border-emerald-600/30 rounded-lg">
               <p className="text-sm text-emerald-400">
-                <strong>How to vote:</strong> Tap all the times you could attend.
-                Then tap the star to mark your favorite time.
+                <strong>Mark your availability:</strong> Tap all the times you could attend training.
+                We&apos;ll find the time that works for the most people.
               </p>
             </div>
           )}
@@ -483,9 +521,9 @@ function PollCard({ poll, isLeader, onVoteChange, timeDisplay }: PollCardProps) 
               const voteCount = poll.votes_by_time[slot] || 0;
               const percentage = maxVotes > 0 ? (voteCount / maxVotes) * 100 : 0;
               const isSelected = selectedTimes.includes(slot);
-              const isPreferred = preferredTime === slot;
               const isWinner = poll.selected_time === slot;
-              const isTopVoted = index === 0 && voteCount > 0 && isOpen;
+              const isBestOption = index === 0 && voteCount > 0 && isOpen;
+              const voters = poll.voters_by_time[slot] || [];
 
               return (
                 <div key={slot} className="relative">
@@ -495,7 +533,7 @@ function PollCard({ poll, isLeader, onVoteChange, timeDisplay }: PollCardProps) 
                         ? 'bg-emerald-600/20 border-emerald-500'
                         : isOpen && isSelected
                         ? 'bg-stone-700/50 border-emerald-500'
-                        : isTopVoted
+                        : isBestOption
                         ? 'bg-stone-700/30 border-amber-500/50'
                         : 'bg-stone-800 border-stone-700'
                     } ${isOpen ? 'cursor-pointer active:scale-[0.99]' : ''}`}
@@ -522,60 +560,63 @@ function PollCard({ poll, isLeader, onVoteChange, timeDisplay }: PollCardProps) 
                       <div className="min-w-0">
                         {formatTimeDisplay(slot, timeDisplay)}
                       </div>
-                      {isPreferred && (
-                        <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded text-xs font-medium flex items-center gap-1">
-                          <Star className="w-3 h-3 fill-current" />
-                          Preferred
-                        </span>
-                      )}
                       {isWinner && (
                         <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-xs font-medium">
                           Selected
                         </span>
                       )}
-                      {isTopVoted && !isWinner && (
+                      {isBestOption && !isWinner && (
                         <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded text-xs font-medium">
-                          Leading
+                          Best Option
                         </span>
                       )}
                     </div>
 
                     <div className="relative flex items-center gap-2 shrink-0">
-                      <div className="text-right">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowVoters(showVoters === slot ? null : slot);
+                        }}
+                        className="text-right hover:bg-stone-700/50 px-2 py-1 rounded transition-colors"
+                        title="Click to see who's available"
+                      >
                         <span className="text-lg font-bold text-stone-200">{voteCount}</span>
-                        <span className="text-xs text-stone-500 ml-1">vote{voteCount !== 1 ? 's' : ''}</span>
-                      </div>
-                      {isOpen && isSelected && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setAsPreferred(slot);
-                          }}
-                          className={`p-1.5 rounded-md transition-colors ${
-                            isPreferred
-                              ? 'bg-yellow-500/20 text-yellow-400'
-                              : 'hover:bg-stone-600 text-stone-500 hover:text-yellow-400'
-                          }`}
-                          title={isPreferred ? 'Remove preference' : 'Mark as preferred'}
-                        >
-                          <Star className={`w-4 h-4 ${isPreferred ? 'fill-current' : ''}`} />
-                        </button>
-                      )}
+                        <span className="text-xs text-stone-500 ml-1">available</span>
+                      </button>
                     </div>
                   </div>
+
+                  {/* Voters list dropdown */}
+                  {showVoters === slot && voters.length > 0 && (
+                    <div className="mt-1 p-2 bg-stone-700 rounded-lg border border-stone-600 text-sm">
+                      <div className="text-xs text-stone-400 mb-1">Who&apos;s available:</div>
+                      <div className="flex flex-wrap gap-1">
+                        {voters.map((name, i) => (
+                          <span key={i} className="px-2 py-0.5 bg-stone-600 rounded text-stone-300 text-xs">
+                            {name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
 
-          {/* Vote actions */}
+          {/* Submit error */}
+          {submitError && (
+            <p className="text-red-400 text-sm">{submitError}</p>
+          )}
+
+          {/* Submit actions */}
           {isOpen && (
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
               <div className="text-sm text-stone-400">
-                {poll.user_vote ? (
+                {hasExistingVote ? (
                   <span className="text-emerald-400">
-                    You voted for {poll.user_vote.available_times.length} time{poll.user_vote.available_times.length !== 1 ? 's' : ''}
-                    {poll.user_vote.preferred_time && ' (starred your favorite)'}
+                    You marked {poll.user_vote?.available_times.length} time{(poll.user_vote?.available_times.length || 0) !== 1 ? 's' : ''} as available
                   </span>
                 ) : selectedTimes.length > 0 ? (
                   <span>{selectedTimes.length} time{selectedTimes.length !== 1 ? 's' : ''} selected</span>
@@ -584,21 +625,21 @@ function PollCard({ poll, isLeader, onVoteChange, timeDisplay }: PollCardProps) 
                 )}
               </div>
               <div className="flex gap-2">
-                {poll.user_vote && (
+                {hasExistingVote && isAuthenticated && (
                   <button
-                    onClick={handleRemoveVote}
-                    disabled={voteLoading}
+                    onClick={handleRemove}
+                    disabled={submitLoading}
                     className="flex-1 sm:flex-none px-3 py-2 text-sm rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
                   >
-                    Remove Vote
+                    Remove
                   </button>
                 )}
                 <button
-                  onClick={handleVote}
-                  disabled={voteLoading || selectedTimes.length === 0 || !hasChanges}
+                  onClick={handleSubmit}
+                  disabled={submitLoading || selectedTimes.length === 0 || !voterName.trim() || (!hasChanges && hasExistingVote)}
                   className="flex-1 sm:flex-none px-4 py-2 text-sm rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {voteLoading ? 'Saving...' : poll.user_vote ? 'Update Vote' : 'Submit Vote'}
+                  {submitLoading ? 'Saving...' : hasExistingVote ? 'Update' : 'Submit Availability'}
                 </button>
               </div>
             </div>
@@ -652,6 +693,23 @@ export function TrainingPolls() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [filter, setFilter] = useState<'all' | 'open' | 'closed'>('all');
   const [timeDisplay, setTimeDisplay] = useState<TimeDisplay>('both');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userName, setUserName] = useState('');
+
+  // Check auth status
+  useEffect(() => {
+    const checkAuth = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsAuthenticated(!!user);
+      if (user?.user_metadata?.name) {
+        setUserName(user.user_metadata.name);
+      } else if (user?.email) {
+        setUserName(user.email.split('@')[0]);
+      }
+    };
+    checkAuth();
+  }, []);
 
   // Load saved time preference
   useEffect(() => {
@@ -690,9 +748,9 @@ export function TrainingPolls() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold text-stone-200">Training Time Polls</h3>
+          <h3 className="text-lg font-semibold text-stone-200">Training Availability</h3>
           <p className="text-sm text-stone-500">
-            Your timezone: <span className="text-stone-400">{timezone}</span>
+            Find the best time for training. Your timezone: <span className="text-stone-400">{timezone}</span>
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -745,7 +803,7 @@ export function TrainingPolls() {
           <p className="text-lg">No {filter !== 'all' ? filter : ''} polls yet</p>
           <p className="text-sm mt-1">
             {isLeaderOrAdmin
-              ? 'Create a poll to find the best training time for everyone.'
+              ? 'Create a poll to find when everyone is available for training.'
               : 'Check back later for new polls.'}
           </p>
           {isLeaderOrAdmin && filter !== 'closed' && (
@@ -760,11 +818,13 @@ export function TrainingPolls() {
       ) : (
         <div className="space-y-3">
           {filteredPolls.map(poll => (
-            <PollCard
+            <AvailabilityCard
               key={poll.id}
               poll={poll}
               isLeader={isLeaderOrAdmin}
-              onVoteChange={refetch}
+              isAuthenticated={isAuthenticated}
+              userName={userName}
+              onAvailabilityChange={refetch}
               timeDisplay={timeDisplay}
             />
           ))}
@@ -776,7 +836,6 @@ export function TrainingPolls() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreated={refetch}
-        timeDisplay={timeDisplay}
       />
     </div>
   );
