@@ -575,21 +575,20 @@ export function getUniqueTimes(slots: string[]): string[] {
     times.add(time);
   }
 
-  // Sort by local hour so morning times appear first
-  return Array.from(times).sort((a, b) => {
-    const localA = utcToLocal(a);
-    const localB = utcToLocal(b);
+  const timesArray = Array.from(times);
 
-    // Parse local times to get hour for comparison
-    const hourA = parseInt(localA.time.split(':')[0]);
-    const hourB = parseInt(localB.time.split(':')[0]);
-
+  // Pre-compute local hours to avoid repeated utcToLocal calls in sort
+  const localHourMap = new Map<string, number>();
+  for (const time of timesArray) {
+    const local = utcToLocal(time);
+    const hour = parseInt(local.time.split(':')[0]);
     // Convert to 24-hour for sorting (AM before PM, then by hour)
-    const hour24A = localA.period === 'AM' ? (hourA === 12 ? 0 : hourA) : (hourA === 12 ? 12 : hourA + 12);
-    const hour24B = localB.period === 'AM' ? (hourB === 12 ? 0 : hourB) : (hourB === 12 ? 12 : hourB + 12);
+    const hour24 = local.period === 'AM' ? (hour === 12 ? 0 : hour) : (hour === 12 ? 12 : hour + 12);
+    localHourMap.set(time, hour24);
+  }
 
-    return hour24A - hour24B;
-  });
+  // Sort by pre-computed local hour
+  return timesArray.sort((a, b) => localHourMap.get(a)! - localHourMap.get(b)!);
 }
 
 /**
