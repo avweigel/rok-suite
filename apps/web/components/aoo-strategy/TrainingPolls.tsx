@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Clock, Plus, Check, X, Users, ChevronDown, ChevronUp, Trash2, Lock, Unlock, Globe, MapPin, User, Info, Calendar, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { Clock, Plus, Check, X, Users, ChevronDown, ChevronUp, Trash2, Lock, Unlock, Globe, MapPin, User, Info, Calendar, CheckCircle2, Eye, EyeOff, Download } from 'lucide-react';
+import { useRef, useCallback } from 'react';
 import {
   useTrainingPolls,
   useCreatePoll,
@@ -703,6 +704,176 @@ function BestTimesSummary({ poll, timeDisplay }: BestTimesSummaryProps) {
 }
 
 // =============================================================================
+// EXPORT POLL IMAGE - Creates a shareable snapshot of poll results
+// =============================================================================
+
+interface ExportPollImageProps {
+  poll: PollWithResults;
+}
+
+function ExportPollImage({ poll }: ExportPollImageProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const exportImage = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Get dates and filter times to only those with votes
+    const dates = getUniqueDates(poll.time_slots);
+    const allTimes = getUniqueTimes(poll.time_slots);
+
+    // Filter to times that have at least one vote
+    const timesWithVotes = allTimes.filter(time => {
+      return dates.some(date => {
+        const slot = dates.length > 0 ? `${date} ${time}` : time;
+        return (poll.votes_by_time[slot] || 0) > 0;
+      });
+    });
+
+    // If no votes, use all times
+    const times = timesWithVotes.length > 0 ? timesWithVotes : allTimes;
+
+    // Get top times for summary
+    const rankedTimes = Object.entries(poll.votes_by_time)
+      .filter(([, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+
+    // Canvas dimensions
+    const cellWidth = 50;
+    const cellHeight = 32;
+    const headerHeight = 40;
+    const timeColWidth = 70;
+    const padding = 20;
+    const titleHeight = 50;
+    const summaryHeight = rankedTimes.length > 0 ? 30 + rankedTimes.length * 24 : 0;
+
+    const width = timeColWidth + (dates.length || 1) * cellWidth + padding * 2;
+    const height = titleHeight + headerHeight + times.length * cellHeight + summaryHeight + padding * 2;
+
+    canvas.width = width;
+    canvas.height = height;
+
+    // Background
+    ctx.fillStyle = '#1c1917'; // stone-900
+    ctx.fillRect(0, 0, width, height);
+
+    // Title
+    ctx.fillStyle = '#fafaf9'; // stone-50
+    ctx.font = 'bold 16px system-ui, sans-serif';
+    ctx.fillText(poll.title, padding, padding + 20);
+
+    ctx.fillStyle = '#78716c'; // stone-500
+    ctx.font = '12px system-ui, sans-serif';
+    ctx.fillText(`${poll.total_voters} responses`, padding, padding + 38);
+
+    const tableTop = padding + titleHeight;
+
+    // Date headers
+    ctx.fillStyle = '#a8a29e'; // stone-400
+    ctx.font = 'bold 11px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+
+    if (dates.length > 0) {
+      dates.forEach((date, i) => {
+        const x = padding + timeColWidth + i * cellWidth + cellWidth / 2;
+        const d = new Date(date + 'T00:00:00');
+        const dayStr = d.toLocaleDateString(undefined, { weekday: 'short' });
+        const dateStr = d.getDate().toString();
+        ctx.fillText(dayStr, x, tableTop + 14);
+        ctx.fillText(dateStr, x, tableTop + 28);
+      });
+    }
+
+    // Time rows (UTC only)
+    ctx.textAlign = 'left';
+    times.forEach((time, rowIdx) => {
+      const y = tableTop + headerHeight + rowIdx * cellHeight;
+
+      // Time label
+      ctx.fillStyle = '#d6d3d1'; // stone-300
+      ctx.font = '11px system-ui, sans-serif';
+      ctx.fillText(`${time} UTC`, padding + 4, y + 20);
+
+      // Cells
+      const cols = dates.length > 0 ? dates : [''];
+      cols.forEach((date, colIdx) => {
+        const slot = date ? `${date} ${time}` : time;
+        const voteCount = poll.votes_by_time[slot] || 0;
+        const x = padding + timeColWidth + colIdx * cellWidth;
+
+        // Cell background based on votes
+        const maxVotes = Math.max(...Object.values(poll.votes_by_time), 1);
+        const intensity = voteCount / maxVotes;
+
+        if (voteCount > 0) {
+          if (intensity >= 0.8) ctx.fillStyle = '#78716c'; // stone-500
+          else if (intensity >= 0.6) ctx.fillStyle = '#57534e'; // stone-600
+          else if (intensity >= 0.4) ctx.fillStyle = '#44403c'; // stone-700
+          else ctx.fillStyle = '#292524'; // stone-800
+        } else {
+          ctx.fillStyle = '#1c1917'; // stone-900
+        }
+
+        ctx.fillRect(x + 2, y + 2, cellWidth - 4, cellHeight - 4);
+
+        // Vote count
+        if (voteCount > 0) {
+          ctx.fillStyle = '#fafaf9';
+          ctx.font = 'bold 12px system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(voteCount.toString(), x + cellWidth / 2, y + 20);
+          ctx.textAlign = 'left';
+        }
+      });
+    });
+
+    // Best times summary at bottom
+    if (rankedTimes.length > 0) {
+      const summaryY = tableTop + headerHeight + times.length * cellHeight + 16;
+
+      ctx.fillStyle = '#fbbf24'; // amber-400
+      ctx.font = 'bold 12px system-ui, sans-serif';
+      ctx.fillText('TOP TIMES:', padding, summaryY);
+
+      rankedTimes.forEach(([slot, count], idx) => {
+        const parsed = parseSlot(slot);
+        const timeStr = parsed.date
+          ? `${parsed.time} UTC - ${formatDate(parsed.date)}`
+          : `${parsed.time} UTC`;
+
+        ctx.fillStyle = idx === 0 ? '#fbbf24' : '#d6d3d1'; // amber-400 or stone-300
+        ctx.font = '11px system-ui, sans-serif';
+        ctx.fillText(`${idx + 1}. ${timeStr} (${count} votes)`, padding + 10, summaryY + 18 + idx * 24);
+      });
+    }
+
+    // Download
+    const link = document.createElement('a');
+    link.download = `${poll.title.replace(/\s+/g, '-').toLowerCase()}-results.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }, [poll]);
+
+  return (
+    <>
+      <canvas ref={canvasRef} className="hidden" />
+      <button
+        onClick={exportImage}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-stone-400 hover:text-stone-300 hover:bg-stone-700/50 rounded transition-colors"
+        title="Export as image"
+      >
+        <Download className="w-3.5 h-3.5" />
+        Export
+      </button>
+    </>
+  );
+}
+
+// =============================================================================
 // VIEW RESPONSES - Shows all voters and their selections
 // =============================================================================
 
@@ -1033,16 +1204,19 @@ function AvailabilityCard({ poll, isLeader, isAuthenticated, userName, onAvailab
             <BestTimesSummary poll={poll} timeDisplay={timeDisplay} />
           )}
 
-          {/* View Responses Toggle */}
+          {/* View Responses Toggle & Export */}
           {poll.total_voters > 0 && (
             <div>
-              <button
-                onClick={() => setShowResponses(!showResponses)}
-                className="flex items-center gap-2 text-xs text-stone-500 hover:text-stone-400 transition-colors"
-              >
-                {showResponses ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                {showResponses ? 'Hide' : 'View'} individual responses
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowResponses(!showResponses)}
+                  className="flex items-center gap-2 text-xs text-stone-500 hover:text-stone-400 transition-colors"
+                >
+                  {showResponses ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  {showResponses ? 'Hide' : 'View'} individual responses
+                </button>
+                <ExportPollImage poll={poll} />
+              </div>
 
               {showResponses && (
                 <div className="mt-3 p-3 rounded-lg bg-stone-900/50 border border-stone-700">
