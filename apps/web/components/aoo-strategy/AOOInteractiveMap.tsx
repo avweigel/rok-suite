@@ -433,11 +433,6 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
 
                   if (isFiltered && !assignment?.team) return null;
 
-                  // Calculate position - mirror across center when corners are swapped
-                  // This moves the numbered circles to align with the equivalent strategic target
-                  const posX = swapCorners ? (100 - building.x) : building.x;
-                  const posY = swapCorners ? (100 - building.y) : building.y;
-
                   // Get building type for tooltip - swap "Your side" / "Enemy side" labels when swapped
                   const getBuildingInfo = () => {
                     if (building.id.includes('obelisk')) return { type: 'Obelisk', points: '+100 pts/tick', info: 'Teleport source' };
@@ -457,8 +452,8 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                       key={building.id}
                       className={`absolute cursor-pointer transition-all duration-150 ${isFiltered ? 'opacity-30' : ''}`}
                       style={{
-                        left: `${posX}%`,
-                        top: `${posY}%`,
+                        left: `${building.x}%`,
+                        top: `${building.y}%`,
                         transform: `translate(-50%, -50%) scale(${isSelected || isHovered ? 1.15 : 1})`,
                         zIndex: isSelected ? 30 : isHovered ? 25 : 10,
                       }}
@@ -489,10 +484,10 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                         <div
                           className={`absolute left-1/2 -translate-x-1/2 px-2.5 py-1.5 rounded-lg text-xs whitespace-nowrap ${theme.bgSecondary} ${theme.text} shadow-xl border ${theme.border} pointer-events-none`}
                           style={{
-                            top: posY < 30 ? '100%' : 'auto',
-                            bottom: posY >= 30 ? '100%' : 'auto',
-                            marginTop: posY < 30 ? '4px' : 0,
-                            marginBottom: posY >= 30 ? '4px' : 0,
+                            top: building.y < 30 ? '100%' : 'auto',
+                            bottom: building.y >= 30 ? '100%' : 'auto',
+                            marginTop: building.y < 30 ? '4px' : 0,
+                            marginBottom: building.y >= 30 ? '4px' : 0,
                           }}
                         >
                           <div className="font-semibold">{building.name}</div>
