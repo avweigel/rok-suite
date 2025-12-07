@@ -1,18 +1,151 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Clock, Plus, Check, X, Users, Calendar, ChevronDown, ChevronUp, Trash2, Lock, Unlock } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Clock, Plus, Check, X, Users, Calendar, ChevronDown, ChevronUp, Trash2, Lock, Unlock, Globe, MapPin, Star } from 'lucide-react';
 import {
   useTrainingPolls,
   useCreatePoll,
   useVote,
   useManagePoll,
-  utcToLocal,
   generateTimeSlots,
   type CreatePollInput,
   type PollWithResults,
 } from '@/lib/supabase/use-training-polls';
 import { useUserRole } from '@/lib/supabase/use-guide';
+
+// =============================================================================
+// TIME UTILITIES
+// =============================================================================
+
+type TimeDisplay = 'utc' | 'local' | 'both';
+
+function getUserTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return 'UTC';
+  }
+}
+
+function getTimezoneAbbr(): string {
+  try {
+    const date = new Date();
+    const timeString = date.toLocaleTimeString('en-US', { timeZoneName: 'short' });
+    const match = timeString.match(/[A-Z]{2,5}$/);
+    return match ? match[0] : '';
+  } catch {
+    return '';
+  }
+}
+
+function utcToLocalTime(utcTime: string): { time: string; period: string } {
+  const [hours, minutes] = utcTime.split(':').map(Number);
+  const now = new Date();
+  const utcDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes));
+
+  const localHours = utcDate.getHours();
+  const localMinutes = utcDate.getMinutes();
+  const period = localHours >= 12 ? 'PM' : 'AM';
+  const displayHours = localHours % 12 || 12;
+
+  return {
+    time: `${displayHours}:${localMinutes.toString().padStart(2, '0')}`,
+    period,
+  };
+}
+
+function formatTimeDisplay(utcTime: string, mode: TimeDisplay): React.ReactNode {
+  const local = utcToLocalTime(utcTime);
+  const tzAbbr = getTimezoneAbbr();
+
+  switch (mode) {
+    case 'utc':
+      return (
+        <span className="font-mono">
+          <span className="text-lg font-bold">{utcTime}</span>
+          <span className="text-xs text-stone-500 ml-1">UTC</span>
+        </span>
+      );
+    case 'local':
+      return (
+        <span className="font-mono">
+          <span className="text-lg font-bold">{local.time}</span>
+          <span className="text-xs text-stone-400 ml-1">{local.period}</span>
+          {tzAbbr && <span className="text-xs text-stone-500 ml-1">{tzAbbr}</span>}
+        </span>
+      );
+    case 'both':
+    default:
+      return (
+        <div className="flex flex-col">
+          <span className="font-mono">
+            <span className="text-lg font-bold">{local.time}</span>
+            <span className="text-xs text-stone-400 ml-1">{local.period}</span>
+            {tzAbbr && <span className="text-xs text-stone-500 ml-1">{tzAbbr}</span>}
+          </span>
+          <span className="text-xs text-stone-500 font-mono">{utcTime} UTC</span>
+        </div>
+      );
+  }
+}
+
+// =============================================================================
+// TIME DISPLAY TOGGLE
+// =============================================================================
+
+interface TimeToggleProps {
+  value: TimeDisplay;
+  onChange: (value: TimeDisplay) => void;
+}
+
+function TimeToggle({ value, onChange }: TimeToggleProps) {
+  const tzAbbr = getTimezoneAbbr();
+
+  return (
+    <div className="flex items-center gap-2 p-2 bg-stone-800/50 rounded-lg border border-stone-700">
+      <span className="text-xs text-stone-500 hidden sm:inline">Show times:</span>
+      <div className="flex rounded-md overflow-hidden border border-stone-600">
+        <button
+          onClick={() => onChange('local')}
+          className={`px-2.5 py-1 text-xs font-medium flex items-center gap-1 transition-colors ${
+            value === 'local'
+              ? 'bg-emerald-600 text-white'
+              : 'bg-stone-700 text-stone-400 hover:bg-stone-600'
+          }`}
+          title="Show in your local time"
+        >
+          <MapPin className="w-3 h-3" />
+          <span className="hidden sm:inline">Local</span>
+          {tzAbbr && <span className="text-[10px] opacity-75">({tzAbbr})</span>}
+        </button>
+        <button
+          onClick={() => onChange('utc')}
+          className={`px-2.5 py-1 text-xs font-medium flex items-center gap-1 transition-colors ${
+            value === 'utc'
+              ? 'bg-emerald-600 text-white'
+              : 'bg-stone-700 text-stone-400 hover:bg-stone-600'
+          }`}
+          title="Show in UTC (game time)"
+        >
+          <Globe className="w-3 h-3" />
+          <span className="hidden sm:inline">UTC</span>
+        </button>
+        <button
+          onClick={() => onChange('both')}
+          className={`px-2.5 py-1 text-xs font-medium flex items-center gap-1 transition-colors ${
+            value === 'both'
+              ? 'bg-emerald-600 text-white'
+              : 'bg-stone-700 text-stone-400 hover:bg-stone-600'
+          }`}
+          title="Show both local and UTC"
+        >
+          <span className="hidden sm:inline">Both</span>
+          <span className="sm:hidden">All</span>
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // =============================================================================
 // CREATE POLL MODAL
@@ -22,9 +155,10 @@ interface CreatePollModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreated: () => void;
+  timeDisplay: TimeDisplay;
 }
 
-function CreatePollModal({ isOpen, onClose, onCreated }: CreatePollModalProps) {
+function CreatePollModal({ isOpen, onClose, onCreated, timeDisplay }: CreatePollModalProps) {
   const { createPoll, loading, error } = useCreatePoll();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -68,8 +202,8 @@ function CreatePollModal({ isOpen, onClose, onCreated }: CreatePollModalProps) {
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-50" onClick={onClose} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[95vw] max-w-lg bg-stone-800 rounded-xl border border-stone-600 shadow-xl">
-        <div className="p-4 border-b border-stone-700 flex items-center justify-between">
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto bg-stone-800 rounded-xl border border-stone-600 shadow-xl">
+        <div className="p-4 border-b border-stone-700 flex items-center justify-between sticky top-0 bg-stone-800 z-10">
           <h3 className="text-lg font-semibold text-emerald-400">Create Training Poll</h3>
           <button onClick={onClose} className="p-1 hover:bg-stone-700 rounded">
             <X className="w-5 h-5 text-stone-400" />
@@ -112,27 +246,34 @@ function CreatePollModal({ isOpen, onClose, onCreated }: CreatePollModalProps) {
 
           <div>
             <label className="block text-sm text-stone-400 mb-2">
-              Select Time Options * <span className="text-stone-500">(min 2, all times in UTC)</span>
+              Select Time Options * <span className="text-stone-500">(pick at least 2)</span>
             </label>
-            <div className="grid grid-cols-4 gap-2">
-              {allSlots.map(slot => (
-                <button
-                  key={slot}
-                  type="button"
-                  onClick={() => toggleSlot(slot)}
-                  className={`px-2 py-2 rounded-lg text-sm font-medium transition-all ${
-                    selectedSlots.includes(slot)
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-stone-700 text-stone-400 hover:bg-stone-600'
-                  }`}
-                >
-                  <div>{slot}</div>
-                  <div className="text-[10px] opacity-70">{utcToLocal(slot)}</div>
-                </button>
-              ))}
+            <p className="text-xs text-stone-500 mb-3">
+              Tap times that could work. Your local time is shown below UTC.
+            </p>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              {allSlots.map(slot => {
+                const local = utcToLocalTime(slot);
+                const isSelected = selectedSlots.includes(slot);
+                return (
+                  <button
+                    key={slot}
+                    type="button"
+                    onClick={() => toggleSlot(slot)}
+                    className={`p-2 rounded-lg text-center transition-all border-2 ${
+                      isSelected
+                        ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400'
+                        : 'bg-stone-700 border-transparent text-stone-400 hover:bg-stone-600 hover:border-stone-500'
+                    }`}
+                  >
+                    <div className="text-sm font-bold">{local.time} {local.period}</div>
+                    <div className="text-[10px] opacity-60">{slot} UTC</div>
+                  </button>
+                );
+              })}
             </div>
             {selectedSlots.length > 0 && (
-              <p className="text-xs text-stone-500 mt-2">
+              <p className="text-xs text-emerald-400 mt-2">
                 {selectedSlots.length} time{selectedSlots.length !== 1 ? 's' : ''} selected
               </p>
             )}
@@ -142,7 +283,7 @@ function CreatePollModal({ isOpen, onClose, onCreated }: CreatePollModalProps) {
             <p className="text-red-400 text-sm">{error}</p>
           )}
 
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3 pt-2 sticky bottom-0 bg-stone-800 pb-2">
             <button
               type="button"
               onClick={onClose}
@@ -172,11 +313,12 @@ interface PollCardProps {
   poll: PollWithResults;
   isLeader: boolean;
   onVoteChange: () => void;
+  timeDisplay: TimeDisplay;
 }
 
-function PollCard({ poll, isLeader, onVoteChange }: PollCardProps) {
+function PollCard({ poll, isLeader, onVoteChange, timeDisplay }: PollCardProps) {
   const { vote, removeVote, loading: voteLoading } = useVote();
-  const { closePoll, deletePoll, loading: manageLoading } = useManagePoll();
+  const { closePoll, reopenPoll, deletePoll, loading: manageLoading } = useManagePoll();
   const [expanded, setExpanded] = useState(poll.status === 'open');
   const [selectedTimes, setSelectedTimes] = useState<string[]>(poll.user_vote?.available_times || []);
   const [preferredTime, setPreferredTime] = useState<string | null>(poll.user_vote?.preferred_time || null);
@@ -195,7 +337,6 @@ function PollCard({ poll, isLeader, onVoteChange }: PollCardProps) {
         ? prev.filter(t => t !== time)
         : [...prev, time];
 
-      // Clear preferred if it's no longer selected
       if (preferredTime && !newTimes.includes(preferredTime)) {
         setPreferredTime(null);
       }
@@ -237,12 +378,16 @@ function PollCard({ poll, isLeader, onVoteChange }: PollCardProps) {
   };
 
   const handleClosePoll = async () => {
-    // Find the time with most votes
     const maxVotes = Math.max(...Object.values(poll.votes_by_time));
     const winningTime = Object.entries(poll.votes_by_time)
       .find(([, count]) => count === maxVotes)?.[0];
 
     await closePoll(poll.id, winningTime);
+    onVoteChange();
+  };
+
+  const handleReopenPoll = async () => {
+    await reopenPoll(poll.id);
     onVoteChange();
   };
 
@@ -252,25 +397,34 @@ function PollCard({ poll, isLeader, onVoteChange }: PollCardProps) {
     onVoteChange();
   };
 
+  // Sort time slots by vote count for better UX
+  const sortedSlots = useMemo(() => {
+    return [...poll.time_slots].sort((a, b) => {
+      const votesA = poll.votes_by_time[a] || 0;
+      const votesB = poll.votes_by_time[b] || 0;
+      return votesB - votesA;
+    });
+  }, [poll.time_slots, poll.votes_by_time]);
+
   const maxVotes = Math.max(...Object.values(poll.votes_by_time), 1);
   const isOpen = poll.status === 'open';
 
   return (
-    <div className={`rounded-xl border ${
+    <div className={`rounded-xl border overflow-hidden ${
       isOpen ? 'bg-stone-800/50 border-stone-600' : 'bg-stone-900/50 border-stone-700'
     }`}>
       {/* Header */}
       <div
-        className="p-4 flex items-center justify-between cursor-pointer"
+        className="p-4 flex items-center justify-between cursor-pointer hover:bg-stone-800/50 transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-lg ${isOpen ? 'bg-emerald-600/20' : 'bg-stone-700'}`}>
+        <div className="flex items-center gap-3 min-w-0">
+          <div className={`p-2 rounded-lg shrink-0 ${isOpen ? 'bg-emerald-600/20' : 'bg-stone-700'}`}>
             <Clock className={`w-5 h-5 ${isOpen ? 'text-emerald-400' : 'text-stone-500'}`} />
           </div>
-          <div>
-            <h4 className="font-medium text-stone-200">{poll.title}</h4>
-            <div className="flex items-center gap-3 text-xs text-stone-500">
+          <div className="min-w-0">
+            <h4 className="font-medium text-stone-200 truncate">{poll.title}</h4>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-500">
               <span className="flex items-center gap-1">
                 <Users className="w-3 h-3" />
                 {poll.total_voters} vote{poll.total_voters !== 1 ? 's' : ''}
@@ -278,7 +432,10 @@ function PollCard({ poll, isLeader, onVoteChange }: PollCardProps) {
               {poll.training_date && (
                 <span className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
-                  {new Date(poll.training_date).toLocaleDateString()}
+                  {new Date(poll.training_date + 'T00:00:00').toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric'
+                  })}
                 </span>
               )}
               <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
@@ -289,11 +446,11 @@ function PollCard({ poll, isLeader, onVoteChange }: PollCardProps) {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {poll.selected_time && (
-            <span className="px-2 py-1 bg-emerald-600/20 text-emerald-400 rounded-lg text-sm font-medium">
-              {poll.selected_time} UTC
-            </span>
+            <div className="hidden sm:block px-2 py-1 bg-emerald-600/20 text-emerald-400 rounded-lg text-sm">
+              {formatTimeDisplay(poll.selected_time, timeDisplay)}
+            </div>
           )}
           {expanded ? (
             <ChevronUp className="w-5 h-5 text-stone-500" />
@@ -305,84 +462,103 @@ function PollCard({ poll, isLeader, onVoteChange }: PollCardProps) {
 
       {/* Expanded content */}
       {expanded && (
-        <div className="px-4 pb-4 space-y-4">
+        <div className="px-4 pb-4 space-y-4 border-t border-stone-700/50">
           {poll.description && (
-            <p className="text-sm text-stone-400">{poll.description}</p>
+            <p className="text-sm text-stone-400 pt-3">{poll.description}</p>
+          )}
+
+          {/* Instructions */}
+          {isOpen && !poll.user_vote && (
+            <div className="p-3 bg-emerald-600/10 border border-emerald-600/30 rounded-lg">
+              <p className="text-sm text-emerald-400">
+                <strong>How to vote:</strong> Tap all the times you could attend.
+                Then tap the star to mark your favorite time.
+              </p>
+            </div>
           )}
 
           {/* Time slots */}
-          <div className="space-y-2">
-            {poll.time_slots.map(slot => {
+          <div className="space-y-2 pt-2">
+            {sortedSlots.map((slot, index) => {
               const voteCount = poll.votes_by_time[slot] || 0;
-              const percentage = (voteCount / maxVotes) * 100;
+              const percentage = maxVotes > 0 ? (voteCount / maxVotes) * 100 : 0;
               const isSelected = selectedTimes.includes(slot);
               const isPreferred = preferredTime === slot;
               const isWinner = poll.selected_time === slot;
+              const isTopVoted = index === 0 && voteCount > 0 && isOpen;
 
               return (
                 <div key={slot} className="relative">
                   <div
-                    className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
+                    className={`relative flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
                       isWinner
                         ? 'bg-emerald-600/20 border-emerald-500'
                         : isOpen && isSelected
-                        ? 'bg-stone-700 border-emerald-500'
+                        ? 'bg-stone-700/50 border-emerald-500'
+                        : isTopVoted
+                        ? 'bg-stone-700/30 border-amber-500/50'
                         : 'bg-stone-800 border-stone-700'
-                    } ${isOpen ? 'cursor-pointer hover:border-stone-500' : ''}`}
+                    } ${isOpen ? 'cursor-pointer active:scale-[0.99]' : ''}`}
                     onClick={() => isOpen && toggleTime(slot)}
                   >
                     {/* Progress bar background */}
                     <div
-                      className={`absolute inset-0 rounded-lg transition-all ${
-                        isWinner ? 'bg-emerald-600/10' : 'bg-stone-600/20'
+                      className={`absolute inset-0 rounded-lg transition-all pointer-events-none ${
+                        isWinner ? 'bg-emerald-600/10' : 'bg-emerald-600/5'
                       }`}
                       style={{ width: `${percentage}%` }}
                     />
 
-                    <div className="relative flex items-center gap-3">
+                    <div className="relative flex items-center gap-3 min-w-0">
                       {isOpen && (
-                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                        <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
                           isSelected
                             ? 'bg-emerald-600 border-emerald-600'
-                            : 'border-stone-500'
+                            : 'border-stone-500 hover:border-stone-400'
                         }`}>
-                          {isSelected && <Check className="w-3 h-3 text-white" />}
+                          {isSelected && <Check className="w-4 h-4 text-white" />}
                         </div>
                       )}
-                      <div>
-                        <span className="font-medium text-stone-200">{slot} UTC</span>
-                        <span className="text-xs text-stone-500 ml-2">({utcToLocal(slot)} local)</span>
+                      <div className="min-w-0">
+                        {formatTimeDisplay(slot, timeDisplay)}
                       </div>
                       {isPreferred && (
-                        <span className="px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 rounded text-[10px] font-medium">
-                          PREFERRED
+                        <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded text-xs font-medium flex items-center gap-1">
+                          <Star className="w-3 h-3 fill-current" />
+                          Preferred
                         </span>
                       )}
                       {isWinner && (
-                        <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-[10px] font-medium">
-                          SELECTED
+                        <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-xs font-medium">
+                          Selected
+                        </span>
+                      )}
+                      {isTopVoted && !isWinner && (
+                        <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded text-xs font-medium">
+                          Leading
                         </span>
                       )}
                     </div>
 
-                    <div className="relative flex items-center gap-2">
-                      <span className="text-sm font-medium text-stone-300">
-                        {voteCount} vote{voteCount !== 1 ? 's' : ''}
-                      </span>
+                    <div className="relative flex items-center gap-2 shrink-0">
+                      <div className="text-right">
+                        <span className="text-lg font-bold text-stone-200">{voteCount}</span>
+                        <span className="text-xs text-stone-500 ml-1">vote{voteCount !== 1 ? 's' : ''}</span>
+                      </div>
                       {isOpen && isSelected && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setAsPreferred(slot);
                           }}
-                          className={`p-1 rounded ${
+                          className={`p-1.5 rounded-md transition-colors ${
                             isPreferred
                               ? 'bg-yellow-500/20 text-yellow-400'
-                              : 'hover:bg-stone-600 text-stone-500'
+                              : 'hover:bg-stone-600 text-stone-500 hover:text-yellow-400'
                           }`}
-                          title="Mark as preferred"
+                          title={isPreferred ? 'Remove preference' : 'Mark as preferred'}
                         >
-                          <Check className="w-4 h-4" />
+                          <Star className={`w-4 h-4 ${isPreferred ? 'fill-current' : ''}`} />
                         </button>
                       )}
                     </div>
@@ -394,18 +570,25 @@ function PollCard({ poll, isLeader, onVoteChange }: PollCardProps) {
 
           {/* Vote actions */}
           {isOpen && (
-            <div className="flex items-center justify-between pt-2">
-              <div className="text-xs text-stone-500">
-                {poll.user_vote
-                  ? `You voted for ${poll.user_vote.available_times.length} time${poll.user_vote.available_times.length !== 1 ? 's' : ''}`
-                  : 'Select times you can attend'}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+              <div className="text-sm text-stone-400">
+                {poll.user_vote ? (
+                  <span className="text-emerald-400">
+                    You voted for {poll.user_vote.available_times.length} time{poll.user_vote.available_times.length !== 1 ? 's' : ''}
+                    {poll.user_vote.preferred_time && ' (starred your favorite)'}
+                  </span>
+                ) : selectedTimes.length > 0 ? (
+                  <span>{selectedTimes.length} time{selectedTimes.length !== 1 ? 's' : ''} selected</span>
+                ) : (
+                  <span>Tap times you can attend</span>
+                )}
               </div>
               <div className="flex gap-2">
                 {poll.user_vote && (
                   <button
                     onClick={handleRemoveVote}
                     disabled={voteLoading}
-                    className="px-3 py-1.5 text-sm rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10"
+                    className="flex-1 sm:flex-none px-3 py-2 text-sm rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
                   >
                     Remove Vote
                   </button>
@@ -413,7 +596,7 @@ function PollCard({ poll, isLeader, onVoteChange }: PollCardProps) {
                 <button
                   onClick={handleVote}
                   disabled={voteLoading || selectedTimes.length === 0 || !hasChanges}
-                  className="px-4 py-1.5 text-sm rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 sm:flex-none px-4 py-2 text-sm rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {voteLoading ? 'Saving...' : poll.user_vote ? 'Update Vote' : 'Submit Vote'}
                 </button>
@@ -423,25 +606,21 @@ function PollCard({ poll, isLeader, onVoteChange }: PollCardProps) {
 
           {/* Leader actions */}
           {isLeader && (
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-700">
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-stone-700">
               {isOpen ? (
                 <button
                   onClick={handleClosePoll}
                   disabled={manageLoading}
-                  className="px-3 py-1.5 text-sm rounded-lg bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 flex items-center gap-1.5"
+                  className="px-3 py-1.5 text-sm rounded-lg bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 flex items-center gap-1.5 transition-colors"
                 >
                   <Lock className="w-3.5 h-3.5" />
                   Close Poll
                 </button>
               ) : (
                 <button
-                  onClick={async () => {
-                    const { reopenPoll } = useManagePoll();
-                    await reopenPoll(poll.id);
-                    onVoteChange();
-                  }}
+                  onClick={handleReopenPoll}
                   disabled={manageLoading}
-                  className="px-3 py-1.5 text-sm rounded-lg bg-stone-700 text-stone-300 hover:bg-stone-600 flex items-center gap-1.5"
+                  className="px-3 py-1.5 text-sm rounded-lg bg-stone-700 text-stone-300 hover:bg-stone-600 flex items-center gap-1.5 transition-colors"
                 >
                   <Unlock className="w-3.5 h-3.5" />
                   Reopen
@@ -450,7 +629,7 @@ function PollCard({ poll, isLeader, onVoteChange }: PollCardProps) {
               <button
                 onClick={handleDeletePoll}
                 disabled={manageLoading}
-                className="px-3 py-1.5 text-sm rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 flex items-center gap-1.5"
+                className="px-3 py-1.5 text-sm rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 flex items-center gap-1.5 transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 Delete
@@ -472,6 +651,21 @@ export function TrainingPolls() {
   const { isLeaderOrAdmin, loading: roleLoading } = useUserRole();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [filter, setFilter] = useState<'all' | 'open' | 'closed'>('all');
+  const [timeDisplay, setTimeDisplay] = useState<TimeDisplay>('both');
+
+  // Load saved time preference
+  useEffect(() => {
+    const saved = localStorage.getItem('aoo-time-display');
+    if (saved && ['utc', 'local', 'both'].includes(saved)) {
+      setTimeDisplay(saved as TimeDisplay);
+    }
+  }, []);
+
+  // Save time preference
+  const handleTimeDisplayChange = (value: TimeDisplay) => {
+    setTimeDisplay(value);
+    localStorage.setItem('aoo-time-display', value);
+  };
 
   const filteredPolls = polls.filter(poll => {
     if (filter === 'all') return true;
@@ -479,12 +673,14 @@ export function TrainingPolls() {
   });
 
   const openPolls = polls.filter(p => p.status === 'open');
-  const closedPolls = polls.filter(p => p.status === 'closed');
+
+  const timezone = getUserTimezone();
 
   if (loading || roleLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+      <div className="flex flex-col items-center justify-center py-12 gap-3">
+        <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm text-stone-500">Loading polls...</p>
       </div>
     );
   }
@@ -492,22 +688,25 @@ export function TrainingPolls() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h3 className="text-lg font-semibold text-stone-200">Training Time Polls</h3>
           <p className="text-sm text-stone-500">
-            Vote for times that work for you (all times in UTC)
+            Your timezone: <span className="text-stone-400">{timezone}</span>
           </p>
         </div>
-        {isLeaderOrAdmin && (
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-500 flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            New Poll
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <TimeToggle value={timeDisplay} onChange={handleTimeDisplayChange} />
+          {isLeaderOrAdmin && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-500 flex items-center gap-2 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">New Poll</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filter tabs */}
@@ -543,13 +742,18 @@ export function TrainingPolls() {
       {filteredPolls.length === 0 ? (
         <div className="text-center py-12 text-stone-500">
           <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p>No {filter !== 'all' ? filter : ''} polls yet</p>
+          <p className="text-lg">No {filter !== 'all' ? filter : ''} polls yet</p>
+          <p className="text-sm mt-1">
+            {isLeaderOrAdmin
+              ? 'Create a poll to find the best training time for everyone.'
+              : 'Check back later for new polls.'}
+          </p>
           {isLeaderOrAdmin && filter !== 'closed' && (
             <button
               onClick={() => setShowCreateModal(true)}
-              className="mt-3 text-emerald-400 hover:text-emerald-300"
+              className="mt-4 px-4 py-2 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-500 transition-colors"
             >
-              Create the first poll
+              Create First Poll
             </button>
           )}
         </div>
@@ -561,6 +765,7 @@ export function TrainingPolls() {
               poll={poll}
               isLeader={isLeaderOrAdmin}
               onVoteChange={refetch}
+              timeDisplay={timeDisplay}
             />
           ))}
         </div>
@@ -571,6 +776,7 @@ export function TrainingPolls() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreated={refetch}
+        timeDisplay={timeDisplay}
       />
     </div>
   );
