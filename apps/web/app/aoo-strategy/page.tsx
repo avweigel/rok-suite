@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
 import type { MapAssignments, Player, Team, StrategyData as ImportedStrategyData } from '@/lib/aoo-strategy/types';
@@ -68,7 +68,10 @@ export default function AooStrategyPage() {
     const [useCustomName, setUseCustomName] = useState(false);
     const [lookupSearch, setLookupSearch] = useState('');
     const [rosterSort, setRosterSort] = useState<'power' | 'teleport' | 'name'>('power');
+    const [copySuccess, setCopySuccess] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const rosterGridRef = useRef<HTMLDivElement>(null);
+    const rosterCanvasRef = useRef<HTMLCanvasElement>(null);
 
     const EDITOR_PASSWORD = 'carn-dum';
 
@@ -272,6 +275,162 @@ export default function AooStrategyPage() {
         setMapAssignments(newAssignments);
         saveData({ mapAssignments: newAssignments });
     };
+
+    // Generate roster text for copying to clipboard
+    const generateRosterText = useCallback(() => {
+        const zoneDescriptions: Record<number, string> = {
+            1: teams[0]?.description || 'Bottom',
+            2: teams[1]?.description || 'Center',
+            3: teams[2]?.description || 'Upper',
+        };
+
+        const formatPlayerTags = (p: Player) => {
+            const tags: string[] = [];
+            if (p.tags.includes('Rally Leader')) tags.push('Leader');
+            if (p.tags.includes('Coordinator')) tags.push('Coordinator');
+            if (p.tags.includes('Teleport 1st')) tags.push('1st Teleport');
+            if (p.tags.includes('Teleport 2nd')) tags.push('2nd Teleport');
+            return tags.length > 0 ? ` (${tags.join(', ')})` : '';
+        };
+
+        const lines: string[] = [];
+        [1, 2, 3].forEach(zoneNum => {
+            const zonePlayers = sortPlayers(players.filter(p => p.team === zoneNum));
+            const zoneName = teams[zoneNum - 1]?.name || `Zone ${zoneNum}`;
+            const zoneDesc = zoneDescriptions[zoneNum];
+
+            const playerList = zonePlayers
+                .map(p => `${p.name}${formatPlayerTags(p)}`)
+                .join(', ');
+
+            lines.push(`${zoneName} (${zoneDesc}): ${playerList}`);
+        });
+
+        return lines.join('\n\n');
+    }, [players, teams, sortPlayers]);
+
+    const copyRosterToClipboard = useCallback(async () => {
+        const text = generateRosterText();
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopySuccess(true);
+            setTimeout(() => setCopySuccess(false), 2000);
+        } catch (err) {
+            console.error('Failed to copy:', err);
+        }
+    }, [generateRosterText]);
+
+    const exportRosterImage = useCallback(() => {
+        const canvas = rosterCanvasRef.current;
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Canvas settings
+        const padding = 40;
+        const zoneWidth = 400;
+        const playerHeight = 28;
+        const headerHeight = 50;
+        const zoneGap = 30;
+
+        // Calculate dimensions
+        const zonePlayers = [1, 2, 3].map(z => sortPlayers(players.filter(p => p.team === z)));
+        const maxPlayers = Math.max(...zonePlayers.map(z => z.length));
+        const canvasWidth = (zoneWidth * 3) + (zoneGap * 2) + (padding * 2);
+        const canvasHeight = headerHeight + (maxPlayers * playerHeight) + (padding * 2) + 60;
+
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+
+        // Background
+        ctx.fillStyle = '#18181b';
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+        // Title
+        ctx.fillStyle = '#fafafa';
+        ctx.font = 'bold 24px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Ark of Osiris - Zone Assignments', canvasWidth / 2, padding + 10);
+
+        // Draw each zone
+        [1, 2, 3].forEach((zoneNum, idx) => {
+            const x = padding + (idx * (zoneWidth + zoneGap));
+            const y = padding + headerHeight;
+            const zonePlayersList = zonePlayers[idx];
+            const zoneName = teams[zoneNum - 1]?.name || `Zone ${zoneNum}`;
+            const zoneDesc = teams[zoneNum - 1]?.description || '';
+
+            // Zone header
+            ctx.fillStyle = '#27272a';
+            ctx.fillRect(x, y, zoneWidth, 36);
+            ctx.fillStyle = '#fafafa';
+            ctx.font = 'bold 14px system-ui, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(`${zoneName} - ${zoneDesc}`, x + 12, y + 24);
+            ctx.fillStyle = '#a1a1aa';
+            ctx.font = '12px system-ui, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(`${zonePlayersList.length} players`, x + zoneWidth - 12, y + 24);
+
+            // Players
+            zonePlayersList.forEach((p, pIdx) => {
+                const py = y + 40 + (pIdx * playerHeight);
+
+                // Alternating row background
+                ctx.fillStyle = pIdx % 2 === 0 ? '#1f1f23' : '#18181b';
+                ctx.fillRect(x, py, zoneWidth, playerHeight);
+
+                // Player name
+                ctx.fillStyle = '#fafafa';
+                ctx.font = '13px system-ui, sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(p.name, x + 12, py + 18);
+
+                // Tags
+                let tagX = x + 140;
+                const tagColors: Record<string, string> = {
+                    'Rally Leader': '#dc2626',
+                    'Coordinator': '#f59e0b',
+                    'Teleport 1st': '#2563eb',
+                    'Teleport 2nd': '#0891b2',
+                };
+
+                p.tags.forEach(tag => {
+                    if (tagColors[tag]) {
+                        const shortTag = tag === 'Rally Leader' ? 'Leader' :
+                                        tag === 'Coordinator' ? 'Coord' :
+                                        tag === 'Teleport 1st' ? '1st' :
+                                        tag === 'Teleport 2nd' ? '2nd' : tag;
+                        ctx.fillStyle = tagColors[tag];
+                        const tagWidth = ctx.measureText(shortTag).width + 12;
+                        ctx.beginPath();
+                        ctx.roundRect(tagX, py + 4, tagWidth, 18, 4);
+                        ctx.fill();
+                        ctx.fillStyle = '#fff';
+                        ctx.font = '11px system-ui, sans-serif';
+                        ctx.fillText(shortTag, tagX + 6, py + 16);
+                        tagX += tagWidth + 4;
+                    }
+                });
+
+                // Power
+                const power = p.power || powerByName[p.name] || 0;
+                if (power > 0) {
+                    ctx.fillStyle = '#71717a';
+                    ctx.font = '11px system-ui, sans-serif';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(formatPower(power), x + zoneWidth - 12, py + 18);
+                }
+            });
+        });
+
+        // Download
+        const link = document.createElement('a');
+        link.download = 'aoo-roster.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    }, [players, teams, sortPlayers, powerByName]);
 
     const theme = {
         bg: darkMode ? 'bg-zinc-950' : 'bg-gray-50',
@@ -496,33 +655,53 @@ export default function AooStrategyPage() {
                         </section>
                     )}
 
-                    {/* Sort Controls */}
-                    <div className={`flex items-center justify-between mb-4`}>
+                    {/* Sort Controls and Export */}
+                    <div className={`flex flex-wrap items-center justify-between gap-3 mb-4`}>
                         <h2 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted}`}>Zone Assignments</h2>
-                        <div className="flex items-center gap-2">
-                            <span className={`text-xs ${theme.textMuted}`}>Sort by:</span>
-                            <div className="flex gap-1">
+                        <div className="flex flex-wrap items-center gap-3">
+                            {/* Sort options */}
+                            <div className="flex items-center gap-2">
+                                <span className={`text-xs ${theme.textMuted}`}>Sort:</span>
+                                <div className="flex gap-1">
+                                    <button
+                                        onClick={() => setRosterSort('power')}
+                                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${rosterSort === 'power' ? theme.tagActive : theme.tag}`}
+                                    >
+                                        Power
+                                    </button>
+                                    <button
+                                        onClick={() => setRosterSort('teleport')}
+                                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${rosterSort === 'teleport' ? theme.tagActive : theme.tag}`}
+                                    >
+                                        Teleport
+                                    </button>
+                                    <button
+                                        onClick={() => setRosterSort('name')}
+                                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${rosterSort === 'name' ? theme.tagActive : theme.tag}`}
+                                    >
+                                        Name
+                                    </button>
+                                </div>
+                            </div>
+                            {/* Export actions */}
+                            <div className="flex gap-2">
                                 <button
-                                    onClick={() => setRosterSort('power')}
-                                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${rosterSort === 'power' ? theme.tagActive : theme.tag}`}
+                                    onClick={copyRosterToClipboard}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${copySuccess ? 'bg-emerald-600 text-white' : theme.button}`}
                                 >
-                                    Power
+                                    {copySuccess ? '✓ Copied!' : '📋 Copy'}
                                 </button>
                                 <button
-                                    onClick={() => setRosterSort('teleport')}
-                                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${rosterSort === 'teleport' ? theme.tagActive : theme.tag}`}
+                                    onClick={exportRosterImage}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${theme.button}`}
                                 >
-                                    Teleport
-                                </button>
-                                <button
-                                    onClick={() => setRosterSort('name')}
-                                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${rosterSort === 'name' ? theme.tagActive : theme.tag}`}
-                                >
-                                    Name
+                                    📷 Export
                                 </button>
                             </div>
                         </div>
                     </div>
+                    {/* Hidden canvas for export */}
+                    <canvas ref={rosterCanvasRef} style={{ display: 'none' }} />
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         {[1, 2, 3].map((teamNum) => {
