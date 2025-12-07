@@ -354,6 +354,9 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
   const [dragMode, setDragMode] = useState<'select' | 'deselect'>('select');
   const [draggedSlots, setDraggedSlots] = useState<Set<string>>(new Set());
 
+  // Shift+click range selection
+  const [lastClickedSlot, setLastClickedSlot] = useState<string | null>(null);
+
   // Get all slots for a given date (column)
   const getSlotsForDate = (date: string) => poll.time_slots.filter(s => s.startsWith(date));
   // Get all slots for a given time (row)
@@ -362,15 +365,81 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
   // Check if all slots in a set are selected
   const allSelected = (slots: string[]) => slots.every(s => selectedSlots.has(s));
 
-  // Drag handlers
-  const handleDragStart = (slot: string) => {
+  // Get slots in rectangular range between two slots
+  const getSlotsInRange = (slot1: string, slot2: string): string[] => {
+    const idx1 = poll.time_slots.indexOf(slot1);
+    const idx2 = poll.time_slots.indexOf(slot2);
+    if (idx1 === -1 || idx2 === -1) return [slot2];
+
+    // For multi-day grid, get rectangular selection
+    if (dates.length > 0) {
+      const [date1, time1] = slot1.split(' ');
+      const [date2, time2] = slot2.split(' ');
+      const dateIdx1 = dates.indexOf(date1);
+      const dateIdx2 = dates.indexOf(date2);
+      const timeIdx1 = times.indexOf(time1);
+      const timeIdx2 = times.indexOf(time2);
+
+      const minDateIdx = Math.min(dateIdx1, dateIdx2);
+      const maxDateIdx = Math.max(dateIdx1, dateIdx2);
+      const minTimeIdx = Math.min(timeIdx1, timeIdx2);
+      const maxTimeIdx = Math.max(timeIdx1, timeIdx2);
+
+      const rangeSlots: string[] = [];
+      for (let d = minDateIdx; d <= maxDateIdx; d++) {
+        for (let t = minTimeIdx; t <= maxTimeIdx; t++) {
+          const slot = `${dates[d]} ${times[t]}`;
+          if (poll.time_slots.includes(slot)) {
+            rangeSlots.push(slot);
+          }
+        }
+      }
+      return rangeSlots;
+    }
+
+    // For time-only polls, just get linear range
+    const minIdx = Math.min(idx1, idx2);
+    const maxIdx = Math.max(idx1, idx2);
+    return poll.time_slots.slice(minIdx, maxIdx + 1);
+  };
+
+  // Handle cell click with shift support
+  const handleCellClick = (slot: string, e: React.MouseEvent) => {
     if (!isOpen) return;
+
+    if (e.shiftKey && lastClickedSlot) {
+      // Shift+click: select range
+      const rangeSlots = getSlotsInRange(lastClickedSlot, slot);
+      // Determine mode based on first slot in range
+      const shouldSelect = !selectedSlots.has(lastClickedSlot);
+      const slotsToToggle = rangeSlots.filter(s =>
+        shouldSelect ? !selectedSlots.has(s) : selectedSlots.has(s)
+      );
+      if (slotsToToggle.length > 0) {
+        onToggleMany(slotsToToggle);
+      }
+    } else {
+      // Normal click
+      onToggle(slot);
+    }
+    setLastClickedSlot(slot);
+  };
+
+  // Drag handlers
+  const handleDragStart = (slot: string, e: React.MouseEvent) => {
+    if (!isOpen) return;
+    // Don't start drag if shift is held (let shift+click handle it)
+    if (e.shiftKey && lastClickedSlot) {
+      handleCellClick(slot, e);
+      return;
+    }
     setIsDragging(true);
     // If slot is already selected, we're deselecting; otherwise selecting
     const mode = selectedSlots.has(slot) ? 'deselect' : 'select';
     setDragMode(mode);
     setDraggedSlots(new Set([slot]));
     onToggle(slot);
+    setLastClickedSlot(slot);
   };
 
   const handleDragEnter = (slot: string) => {
@@ -405,6 +474,18 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
       window.removeEventListener('touchend', handleGlobalUp);
     };
   }, [isDragging]);
+
+  // Build tooltip for a cell
+  const getCellTooltip = (slot: string, voteCount: number, voters: string[]) => {
+    const lines: string[] = [];
+    if (voteCount > 0) {
+      lines.push(`${voteCount} available: ${voters.join(', ')}`);
+    }
+    if (isOpen) {
+      lines.push('Click to toggle • Drag to select multiple • Shift+click for range');
+    }
+    return lines.join('\n');
+  };
 
   // If no dates (time-only poll), show simple list
   if (dates.length === 0) {
@@ -462,6 +543,7 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
               const dateSlots = getSlotsForDate(date);
               const isAllSelected = allSelected(dateSlots);
               const someSelected = dateSlots.some(s => selectedSlots.has(s));
+              const selectedCount = dateSlots.filter(s => selectedSlots.has(s)).length;
               const d = new Date(date + 'T00:00:00');
               return (
                 <th key={date} className="text-center pb-2 px-0.5 min-w-[52px]">
@@ -471,7 +553,9 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
                     className={`w-full px-1 py-1 rounded-lg transition-all border ${
                       isOpen ? 'hover:bg-emerald-600/10 hover:border-emerald-500/50 cursor-pointer' : ''
                     } ${isAllSelected ? 'bg-emerald-600/20 border-emerald-500/50' : someSelected ? 'border-emerald-500/30' : 'border-transparent'}`}
-                    title={isOpen ? `Select all ${formatDate(date)}` : formatDate(date)}
+                    title={isOpen
+                      ? `Click to ${isAllSelected ? 'deselect' : 'select'} all ${dateSlots.length} times on ${formatDate(date)}${selectedCount > 0 ? ` (${selectedCount} selected)` : ''}`
+                      : formatDate(date)}
                   >
                     <div className="text-[10px] text-stone-500 uppercase">{d.toLocaleDateString(undefined, { weekday: 'short' })}</div>
                     <div className={`text-sm font-bold ${isAllSelected ? 'text-emerald-400' : 'text-stone-400'}`}>{d.getDate()}</div>
@@ -487,6 +571,7 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
             const timeSlots = getSlotsForTime(time);
             const isAllSelected = allSelected(timeSlots);
             const someSelected = timeSlots.some(s => selectedSlots.has(s));
+            const selectedCount = timeSlots.filter(s => selectedSlots.has(s)).length;
             const isAM = local.period === 'AM';
 
             return (
@@ -498,7 +583,9 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
                     className={`w-full text-left px-1.5 py-1 rounded-lg transition-all text-xs border ${
                       isOpen ? 'hover:bg-emerald-600/10 hover:border-emerald-500/50 cursor-pointer' : ''
                     } ${isAllSelected ? 'bg-emerald-600/20 border-emerald-500/50' : someSelected ? 'border-emerald-500/30' : 'border-transparent'}`}
-                    title={isOpen ? `Select all at ${time} UTC` : `${time} UTC`}
+                    title={isOpen
+                      ? `Click to ${isAllSelected ? 'deselect' : 'select'} ${local.time} ${local.period} on all ${timeSlots.length} days${selectedCount > 0 ? ` (${selectedCount} selected)` : ''}`
+                      : `${local.time} ${local.period} (${time} UTC)`}
                   >
                     <div className={isAllSelected ? 'text-emerald-400' : 'text-stone-300'}>
                       {local.time} <span className={`font-bold ${isAM ? 'text-sky-400' : 'text-amber-400'}`}>{local.period}</span>
@@ -524,9 +611,9 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
                   return (
                     <td key={slot} className="p-0.5">
                       <button
-                        onMouseDown={(e) => { e.preventDefault(); handleDragStart(slot); }}
+                        onMouseDown={(e) => { e.preventDefault(); handleDragStart(slot, e); }}
                         onMouseEnter={() => handleDragEnter(slot)}
-                        onTouchStart={(e) => { e.preventDefault(); handleDragStart(slot); }}
+                        onTouchStart={(e) => { e.preventDefault(); handleDragStart(slot, e as unknown as React.MouseEvent); }}
                         onTouchMove={(e) => {
                           // Get element under touch point
                           const touch = e.touches[0];
@@ -547,7 +634,7 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
                             ? 'bg-emerald-600/10 border-stone-600 text-stone-300'
                             : 'bg-stone-700/30 border-stone-700 text-stone-500'
                         } ${isOpen ? 'hover:border-emerald-400 cursor-pointer' : ''}`}
-                        title={`${voteCount} available${voters.length ? ': ' + voters.join(', ') : ''}`}
+                        title={getCellTooltip(slot, voteCount, voters)}
                       >
                         {isSelected ? <Check className="w-4 h-4" /> : voteCount > 0 ? voteCount : ''}
                       </button>
@@ -562,15 +649,39 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
 
       {/* Legend */}
       {isOpen && (
-        <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-stone-500">
-          <span className="flex items-center gap-1">
-            <span className="text-sky-400 font-bold">AM</span> = morning
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="text-amber-400 font-bold">PM</span> = afternoon/evening
-          </span>
-          <span className="text-stone-600">|</span>
-          <span>Drag to select multiple • Tap headers for row/column</span>
+        <div className="mt-3 p-2.5 rounded-lg bg-stone-900/50 border border-stone-700/50">
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-stone-400">
+            <span className="flex items-center gap-1.5">
+              <span className="w-5 h-5 rounded bg-stone-700/50 border border-stone-600 flex items-center justify-center text-[10px]">◻</span>
+              <span>Click to toggle</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="text-stone-500">⇢</span>
+              <span>Drag across for multiple</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <kbd className="px-1.5 py-0.5 rounded bg-stone-700 border border-stone-600 text-[10px] font-mono">⇧</kbd>
+              <span>Shift+click for range</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="text-emerald-400/70">▤</span>
+              <span>Click headers for row/column</span>
+            </span>
+          </div>
+          <div className="flex gap-4 mt-2 pt-2 border-t border-stone-700/50 text-[10px]">
+            <span className="flex items-center gap-1">
+              <span className="text-sky-400 font-bold">AM</span>
+              <span className="text-stone-500">morning</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="text-amber-400 font-bold">PM</span>
+              <span className="text-stone-500">afternoon/evening</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-4 h-4 rounded bg-amber-500/20 border border-amber-500/50"></span>
+              <span className="text-stone-500">most votes</span>
+            </span>
+          </div>
         </div>
       )}
     </div>
