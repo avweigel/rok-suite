@@ -30,10 +30,11 @@ const DEFAULT_TEAMS: TeamInfo[] = [
     { name: 'Zone 3', description: 'Lower' },
 ];
 
-const AVAILABLE_TAGS = ['Rally Leader', 'Teleport 1st', 'Teleport 2nd', 'Hold Obelisks', 'Garrison', 'Farm', 'Conquer'];
+const AVAILABLE_TAGS = ['Rally Leader', 'Coordinator', 'Teleport 1st', 'Teleport 2nd', 'Hold Obelisks', 'Garrison', 'Farm', 'Conquer'];
 
 const TAG_COLORS: Record<string, string> = {
     'Rally Leader': 'bg-red-600 text-white',
+    'Coordinator': 'bg-amber-500 text-black',
     'Teleport 1st': 'bg-blue-600 text-white',
     'Teleport 2nd': 'bg-cyan-600 text-white',
     'Hold Obelisks': 'bg-cyan-400 text-black',

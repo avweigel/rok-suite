@@ -50,6 +50,9 @@ const FORCE_TELEPORT_1ST = new Set<string>(['Calca']);
 // Players to exclude from first teleport (bumped to 2nd wave)
 const EXCLUDE_FROM_TELEPORT_1ST = new Set<string>(['SmokinLizard']);
 
+// Coordinators (5 per team as of patch 1.0.88)
+const COORDINATORS = new Set<string>(['Fluffy', 'Sysstm', 'Soutz', 'Suntzu', 'aubs']);
+
 async function main() {
   // Parse CSV
   const csvPath = path.join(__dirname, '../data/roster.csv');
@@ -195,6 +198,10 @@ async function main() {
   }
 
   for (const p of players) {
+    // Add Coordinator tag (5 per team as of patch 1.0.88)
+    if (COORDINATORS.has(p.name) && !p.tags.includes('Coordinator')) {
+      p.tags.push('Coordinator');
+    }
     if (top8Names.has(p.name) && !p.tags.includes('Teleport 1st')) {
       p.tags.push('Teleport 1st');
     }
