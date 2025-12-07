@@ -31,6 +31,8 @@ const ZONE_LEADERS: Record<string, number> = {
 const ZONE_OVERRIDES: Record<string, number> = {
   'aubs': 1,      // Put aubs on Soutz's team (Zone 1)
   'BBQSGE': 3,    // Put BBQSGE on Suntzu's team (Zone 3)
+  'Calca': 3,     // Swap Calca to Zone 3 with Suntzu
+  'Vaelstrom': 1, // Swap Vaelstrom to Zone 1
 };
 
 // Players to exclude from main roster (moved to substitutes or removed)
@@ -43,9 +45,10 @@ const ADD_TO_SUBSTITUTES = new Set(['KKTowMater2']);
 const REMOVED_FROM_ALLIANCE = new Set(['bear']);
 
 // Manual first teleport additions (use this to force specific players into 1st wave)
-// Note: This ADDS to the top 8, so if you add someone not in top 8, you'll have 9+ teleporters
-// To swap someone in, remove them from exclusions and let the power ranking handle it
-const FORCE_TELEPORT_1ST = new Set<string>([]);
+const FORCE_TELEPORT_1ST = new Set<string>(['Calca']);
+
+// Players to exclude from first teleport (bumped to 2nd wave)
+const EXCLUDE_FROM_TELEPORT_1ST = new Set<string>(['SmokinLizard']);
 
 async function main() {
   // Parse CSV
@@ -164,15 +167,32 @@ async function main() {
 
   // Add Teleport 1st to top 8 (first obelisk capture = 8 teleports per patch 1.0.42)
   // Add Teleport 2nd to next 8 (positions 9-16)
-  // But also include any FORCE_TELEPORT_1ST players
+  // Respect FORCE_TELEPORT_1ST and EXCLUDE_FROM_TELEPORT_1ST overrides
   const sortedByPower = [...players].sort((a, b) => b.power - a.power);
-  const top8Names = new Set(sortedByPower.slice(0, 8).map(p => p.name));
+
+  // Build top 8: start with power ranking, remove exclusions, add forced
+  const top8Names = new Set<string>();
+  let added = 0;
+  for (const p of sortedByPower) {
+    if (added >= 8) break;
+    if (EXCLUDE_FROM_TELEPORT_1ST.has(p.name)) continue;
+    top8Names.add(p.name);
+    added++;
+  }
   // Add forced first teleporters
   FORCE_TELEPORT_1ST.forEach(name => top8Names.add(name));
 
-  const next8Names = new Set(sortedByPower.slice(8, 16).map(p => p.name));
-  // Remove any forced 1st teleporters from 2nd group
-  FORCE_TELEPORT_1ST.forEach(name => next8Names.delete(name));
+  // Build next 8: those excluded from 1st + next by power
+  const next8Names = new Set<string>();
+  // Add excluded players to 2nd wave
+  EXCLUDE_FROM_TELEPORT_1ST.forEach(name => next8Names.add(name));
+  // Fill remaining spots from power ranking
+  for (const p of sortedByPower) {
+    if (next8Names.size >= 8) break;
+    if (top8Names.has(p.name)) continue;
+    if (next8Names.has(p.name)) continue;
+    next8Names.add(p.name);
+  }
 
   for (const p of players) {
     if (top8Names.has(p.name) && !p.tags.includes('Teleport 1st')) {
