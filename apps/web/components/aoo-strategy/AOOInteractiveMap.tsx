@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Moon, Sun, RotateCcw } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Moon, Sun, RotateCcw, RotateCw } from 'lucide-react';
 import type { Player, MapAssignments, MapAssignment } from '@/lib/aoo-strategy/types';
 
 type TeamNumber = 1 | 2 | 3 | null;
@@ -84,6 +84,27 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
   });
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
   const [filterTeam, setFilterTeam] = useState<TeamNumber | 'all'>('all');
+  const [swapCorners, setSwapCorners] = useState(false);
+  const [hoveredBuilding, setHoveredBuilding] = useState<Building | null>(null);
+
+  // Get teleporters for each zone dynamically from player data
+  const teleportersByZone = useMemo(() => {
+    const result: Record<number, { first: string[]; second: string[] }> = {
+      1: { first: [], second: [] },
+      2: { first: [], second: [] },
+      3: { first: [], second: [] },
+    };
+    players.forEach(p => {
+      if (p.team >= 1 && p.team <= 3) {
+        if (p.tags.includes('Teleport 1st')) {
+          result[p.team].first.push(p.name);
+        } else if (p.tags.includes('Teleport 2nd')) {
+          result[p.team].second.push(p.name);
+        }
+      }
+    });
+    return result;
+  }, [players]);
 
   // Update assignments when initialAssignments changes
   useEffect(() => {
@@ -175,6 +196,14 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
         <div className="max-w-[1600px] mx-auto flex items-center justify-between">
           <h1 className={`text-xl font-bold ${theme.text}`}>AOO Strategy Map</h1>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSwapCorners(!swapCorners)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${theme.bgTertiary} ${theme.text} text-sm hover:opacity-80`}
+              title="Swap start/enemy corners"
+            >
+              <RotateCw size={16} />
+              {swapCorners ? 'Start: Bottom-Right' : 'Start: Top-Left'}
+            </button>
             {isEditor && (
               <button
                 onClick={clearAll}
@@ -312,12 +341,12 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   style={{ opacity: isDark ? 0.8 : 1 }}
                 />
 
-                {/* START Marker - Upper Left spawn circle */}
+                {/* START Marker - position swaps based on swapCorners */}
                 <div
                   className="absolute flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-sm shadow-lg border-2 border-emerald-400"
                   style={{
-                    left: '12%',
-                    top: '6%',
+                    left: swapCorners ? '88%' : '12%',
+                    top: swapCorners ? '94%' : '6%',
                     transform: 'translate(-50%, -50%)',
                     zIndex: 20,
                   }}
@@ -326,12 +355,12 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   <span>START</span>
                 </div>
 
-                {/* ENEMY Marker - Lower Right spawn circle */}
+                {/* ENEMY Marker - position swaps based on swapCorners */}
                 <div
                   className="absolute flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-600 text-white font-bold text-sm shadow-lg border-2 border-red-400"
                   style={{
-                    left: '88%',
-                    top: '94%',
+                    left: swapCorners ? '12%' : '88%',
+                    top: swapCorners ? '6%' : '94%',
                     transform: 'translate(-50%, -50%)',
                     zIndex: 20,
                   }}
@@ -341,43 +370,82 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 </div>
 
                 {/* RUSH indicators showing which zone goes where */}
-                {/* Zone 3 rushes Obelisk 1 (upper) */}
+                {/* Zone 3 rushes Obelisk 1 (upper) or Obelisk 4 (lower) based on swap */}
                 <div
                   className="absolute px-1.5 py-0.5 rounded bg-purple-600 text-white text-[10px] font-bold shadow"
-                  style={{ left: '50%', top: '5%', transform: 'translate(-50%, 0)', zIndex: 15 }}
+                  style={{
+                    left: swapCorners ? '42%' : '50%',
+                    top: swapCorners ? '85%' : '5%',
+                    transform: 'translate(-50%, 0)',
+                    zIndex: 15
+                  }}
                 >
-                  Z3 RUSH ↓
+                  Z3 RUSH {swapCorners ? '↑' : '↓'}
                 </div>
-                {/* Teleport indicator for Obelisk 1 */}
-                <div
-                  className="absolute px-1.5 py-0.5 rounded bg-purple-800/80 text-purple-200 text-[9px] font-medium shadow"
-                  style={{ left: '58%', top: '10%', transform: 'translate(-50%, 0)', zIndex: 15 }}
-                >
-                  ⚡ TP: Divid3, Mornamarth, Calca
-                </div>
-                
-                {/* Zone 1 rushes Obelisk 2 (left) */}
+                {/* Teleport indicator for Zone 3 obelisk - dynamic from roster */}
+                {teleportersByZone[3].first.length > 0 && (
+                  <div
+                    className="absolute px-1.5 py-0.5 rounded bg-purple-800/80 text-purple-200 text-[9px] font-medium shadow"
+                    style={{
+                      left: swapCorners ? '50%' : '58%',
+                      top: swapCorners ? '73%' : '10%',
+                      transform: 'translate(-50%, 0)',
+                      zIndex: 15
+                    }}
+                  >
+                    ⚡ TP: {teleportersByZone[3].first.slice(0, 3).join(', ')}
+                  </div>
+                )}
+
+                {/* Zone 1 rushes Obelisk 2 (left) or Obelisk 3 (right) based on swap */}
                 <div
                   className="absolute px-1.5 py-0.5 rounded bg-blue-600 text-white text-[10px] font-bold shadow"
-                  style={{ left: '2%', top: '40%', transform: 'translate(0, -50%)', zIndex: 15 }}
+                  style={{
+                    left: swapCorners ? '98%' : '2%',
+                    top: '40%',
+                    transform: swapCorners ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
+                    zIndex: 15
+                  }}
                 >
-                  Z1 RUSH →
+                  {swapCorners ? '← ' : ''}Z1 RUSH{swapCorners ? '' : ' →'}
                 </div>
-                {/* Teleport indicator for Obelisk 2 */}
-                <div
-                  className="absolute px-1.5 py-0.5 rounded bg-blue-800/80 text-blue-200 text-[9px] font-medium shadow"
-                  style={{ left: '10%', top: '48%', transform: 'translate(-50%, 0)', zIndex: 15 }}
-                >
-                  ⚡ TP: cloud, MayorEric, bear
-                </div>
+                {/* Teleport indicator for Zone 1 obelisk - dynamic from roster */}
+                {teleportersByZone[1].first.length > 0 && (
+                  <div
+                    className="absolute px-1.5 py-0.5 rounded bg-blue-800/80 text-blue-200 text-[9px] font-medium shadow"
+                    style={{
+                      left: swapCorners ? '90%' : '10%',
+                      top: '48%',
+                      transform: 'translate(-50%, 0)',
+                      zIndex: 15
+                    }}
+                  >
+                    ⚡ TP: {teleportersByZone[1].first.slice(0, 3).join(', ')}
+                  </div>
+                )}
 
                 {/* Building Markers */}
                 {buildings.map(building => {
                   const assignment = assignments[building.id];
                   const isSelected = selectedBuilding?.id === building.id;
+                  const isHovered = hoveredBuilding?.id === building.id;
                   const isFiltered = filterTeam !== 'all' && assignment?.team !== filterTeam;
-                  
+
                   if (isFiltered && !assignment?.team) return null;
+
+                  // Get building type for tooltip
+                  const getBuildingInfo = () => {
+                    if (building.id.includes('obelisk')) return { type: 'Obelisk', points: '+100 pts/tick', info: 'Teleport source' };
+                    if (building.id.includes('iset')) return { type: 'Outpost of Iset', points: '+50 pts/tick', info: 'Your side' };
+                    if (building.id.includes('seth')) return { type: 'Outpost of Seth', points: '+50 pts/tick', info: 'Enemy side' };
+                    if (building.id.includes('war')) return { type: 'Shrine of War', points: '+25 pts/tick', info: '+5% ATK buff' };
+                    if (building.id.includes('life')) return { type: 'Shrine of Life', points: '+25 pts/tick', info: '+5% HP buff' };
+                    if (building.id.includes('desert')) return { type: 'Desert Altar', points: '+25 pts/tick', info: 'Relic spawn' };
+                    if (building.id.includes('sky')) return { type: 'Sky Altar', points: '+25 pts/tick', info: 'Relic spawn' };
+                    if (building.id === 'ark') return { type: 'Ark', points: '+200 pts/tick', info: 'Main objective' };
+                    return { type: 'Building', points: '', info: '' };
+                  };
+                  const buildingInfo = getBuildingInfo();
 
                   return (
                     <div
@@ -386,16 +454,18 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                       style={{
                         left: `${building.x}%`,
                         top: `${building.y}%`,
-                        transform: `translate(-50%, -50%) scale(${isSelected ? 1.2 : 1})`,
-                        zIndex: isSelected ? 30 : 10,
+                        transform: `translate(-50%, -50%) scale(${isSelected || isHovered ? 1.15 : 1})`,
+                        zIndex: isSelected ? 30 : isHovered ? 25 : 10,
                       }}
                       onClick={() => setSelectedBuilding(isSelected ? null : building)}
+                      onMouseEnter={() => setHoveredBuilding(building)}
+                      onMouseLeave={() => setHoveredBuilding(null)}
                     >
                       {/* Marker */}
                       <div
                         className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg border-2 ${
-                          assignment?.team 
-                            ? 'border-white' 
+                          assignment?.team
+                            ? 'border-white'
                             : isDark ? 'border-zinc-600 bg-zinc-700' : 'border-slate-400 bg-slate-200'
                         }`}
                         style={assignment?.team ? { backgroundColor: teamColors[assignment.team].bg } : {}}
@@ -409,10 +479,27 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                         )}
                       </div>
 
-                      {/* Label on hover/select */}
-                      {isSelected && (
-                        <div className={`absolute top-full left-1/2 -translate-x-1/2 mt-1 px-2 py-1 rounded text-xs whitespace-nowrap ${theme.bgSecondary} ${theme.text} shadow-lg border ${theme.border}`}>
-                          {building.name}
+                      {/* Tooltip on hover - shows building name and info */}
+                      {(isHovered || isSelected) && (
+                        <div
+                          className={`absolute left-1/2 -translate-x-1/2 px-2.5 py-1.5 rounded-lg text-xs whitespace-nowrap ${theme.bgSecondary} ${theme.text} shadow-xl border ${theme.border} pointer-events-none`}
+                          style={{
+                            top: building.y < 30 ? '100%' : 'auto',
+                            bottom: building.y >= 30 ? '100%' : 'auto',
+                            marginTop: building.y < 30 ? '4px' : 0,
+                            marginBottom: building.y >= 30 ? '4px' : 0,
+                          }}
+                        >
+                          <div className="font-semibold">{building.name}</div>
+                          <div className={`text-[10px] ${theme.textMuted} flex items-center gap-2`}>
+                            <span>{buildingInfo.points}</span>
+                            {buildingInfo.info && <span>• {buildingInfo.info}</span>}
+                          </div>
+                          {assignment?.team && (
+                            <div className="text-[10px] mt-0.5" style={{ color: teamColors[assignment.team].bg }}>
+                              {teamColors[assignment.team].name} • Phase {assignment.order || 1}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

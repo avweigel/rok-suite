@@ -32,15 +32,24 @@ const DEFAULT_TEAMS: TeamInfo[] = [
 
 const AVAILABLE_TAGS = ['Rally Leader', 'Coordinator', 'Teleport 1st', 'Teleport 2nd', 'Hold Obelisks', 'Garrison', 'Farm', 'Conquer'];
 
+// Simplified tag colors - muted to not compete with zone colors
+// Zone colors: Z1=blue, Z2=orange, Z3=purple (match in-game)
 const TAG_COLORS: Record<string, string> = {
-    'Rally Leader': 'bg-red-600 text-white',
-    'Coordinator': 'bg-amber-500 text-black',
-    'Teleport 1st': 'bg-blue-600 text-white',
-    'Teleport 2nd': 'bg-cyan-600 text-white',
-    'Hold Obelisks': 'bg-cyan-400 text-black',
-    'Garrison': 'bg-orange-600 text-white',
-    'Farm': 'bg-yellow-500 text-black',
-    'Conquer': 'bg-purple-600 text-white',
+    'Rally Leader': 'bg-stone-700 text-white',
+    'Coordinator': 'bg-stone-600 text-white',
+    'Teleport 1st': 'bg-emerald-700 text-white',
+    'Teleport 2nd': 'bg-emerald-600/70 text-white',
+    'Hold Obelisks': 'bg-stone-600 text-stone-200',
+    'Garrison': 'bg-stone-600 text-stone-200',
+    'Farm': 'bg-stone-500 text-white',
+    'Conquer': 'bg-stone-600 text-stone-200',
+};
+
+// Zone colors matching in-game
+const ZONE_COLORS: Record<number, { bg: string; border: string; text: string }> = {
+    1: { bg: 'bg-blue-600', border: 'border-blue-500', text: 'text-blue-400' },
+    2: { bg: 'bg-orange-600', border: 'border-orange-500', text: 'text-orange-400' },
+    3: { bg: 'bg-purple-600', border: 'border-purple-500', text: 'text-purple-400' },
 };
 
 export default function AooStrategyPage() {
@@ -342,6 +351,13 @@ export default function AooStrategyPage() {
         ctx.textAlign = 'center';
         ctx.fillText('Ark of Osiris - Zone Assignments', canvasWidth / 2, padding + 10);
 
+        // Zone colors matching in-game (Z1=blue, Z2=orange, Z3=purple)
+        const zoneHexColors: Record<number, string> = {
+            1: '#2563eb', // blue-600
+            2: '#ea580c', // orange-600
+            3: '#9333ea', // purple-600
+        };
+
         // Draw each zone
         [1, 2, 3].forEach((zoneNum, idx) => {
             const x = padding + (idx * (zoneWidth + zoneGap));
@@ -350,10 +366,13 @@ export default function AooStrategyPage() {
             const zoneName = teams[zoneNum - 1]?.name || `Zone ${zoneNum}`;
             const zoneDesc = teams[zoneNum - 1]?.description || '';
 
-            // Zone header
+            // Zone header with colored left border
             ctx.fillStyle = '#27272a';
             ctx.fillRect(x, y, zoneWidth, 36);
-            ctx.fillStyle = '#fafafa';
+            // Left color stripe
+            ctx.fillStyle = zoneHexColors[zoneNum];
+            ctx.fillRect(x, y, 4, 36);
+            ctx.fillStyle = zoneHexColors[zoneNum];
             ctx.font = 'bold 14px system-ui, sans-serif';
             ctx.textAlign = 'left';
             ctx.fillText(`${zoneName} - ${zoneDesc}`, x + 12, y + 24);
@@ -376,13 +395,13 @@ export default function AooStrategyPage() {
                 ctx.textAlign = 'left';
                 ctx.fillText(p.name, x + 12, py + 18);
 
-                // Tags
+                // Tags - muted colors to not compete with zone colors
                 let tagX = x + 140;
                 const tagColors: Record<string, string> = {
-                    'Rally Leader': '#dc2626',
-                    'Coordinator': '#f59e0b',
-                    'Teleport 1st': '#2563eb',
-                    'Teleport 2nd': '#0891b2',
+                    'Rally Leader': '#44403c',  // stone-700
+                    'Coordinator': '#57534e',   // stone-600
+                    'Teleport 1st': '#047857',  // emerald-700
+                    'Teleport 2nd': '#059669',  // emerald-600
                 };
 
                 p.tags.forEach(tag => {
@@ -717,12 +736,13 @@ export default function AooStrategyPage() {
                             const teamInfo = teams[teamNum - 1];
                             const teamPlayers = getTeamPlayers(teamNum);
                             const zoneTotalPower = teamPlayers.reduce((sum, p) => sum + (p.power || powerByName[p.name] || 0), 0);
+                            const zoneColor = ZONE_COLORS[teamNum as keyof typeof ZONE_COLORS];
                             return (
-                                <section key={teamNum} className={`${theme.card} border rounded-xl p-4`}>
+                                <section key={teamNum} className={`${theme.card} border-l-4 ${zoneColor.border} rounded-xl p-4`}>
                                     <div className={`mb-4 pb-3 border-b ${theme.border}`}>
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">
-                                                <h3 className="font-semibold">{teamInfo.name}</h3>
+                                                <h3 className={`font-semibold ${zoneColor.text}`}>{teamInfo.name}</h3>
                                                 <button
                                                     onClick={() => copyZoneToClipboard(teamNum)}
                                                     className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${copySuccess === teamNum ? 'bg-emerald-600 text-white' : theme.tag} hover:opacity-80`}
