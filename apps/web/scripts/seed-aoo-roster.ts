@@ -4,6 +4,12 @@
  * Usage:
  *   NEXT_PUBLIC_SUPABASE_URL="..." NEXT_PUBLIC_SUPABASE_ANON_KEY="..." npx tsx apps/web/scripts/seed-aoo-roster.ts
  *
+ * Ark of Osiris Rules:
+ *   - 30 players per alliance
+ *   - First obelisk capture gives 5 teleports
+ *   - Top 5 players by power should teleport first
+ *   - Obelisks generate 2 additional teleports every 5 minutes
+ *
  * Leaders:
  *   Zone 1: Soutz
  *   Zone 2: Sysstm & Fluffy (center/flex)
@@ -41,12 +47,12 @@ interface Player {
   assignments: { phase1: string; phase2: string; phase3: string; phase4: string };
 }
 
-// Zone leaders configuration
-const ZONE_LEADERS: Record<string, { zone: number; tags: string[] }> = {
-  'Soutz': { zone: 1, tags: ['Rally Leader', 'Teleport 1st'] },
-  'Sysstm': { zone: 2, tags: ['Rally Leader', 'Teleport 1st'] },
-  'Fluffy': { zone: 2, tags: ['Rally Leader', 'Teleport 1st'] },
-  'Suntzu': { zone: 3, tags: ['Rally Leader', 'Teleport 1st'] },
+// Zone leaders configuration - these get Rally Leader tag
+const ZONE_LEADERS: Record<string, number> = {
+  'Soutz': 1,
+  'Sysstm': 2,
+  'Fluffy': 2,
+  'Suntzu': 3,
 };
 
 function parseCSV(content: string): RosterEntry[] {
@@ -112,13 +118,13 @@ async function seedRoster() {
   // First, add leaders to their zones
   const assignedNames = new Set<string>();
   for (const entry of top30) {
-    const leaderConfig = ZONE_LEADERS[entry.name];
-    if (leaderConfig) {
+    const leaderZone = ZONE_LEADERS[entry.name];
+    if (leaderZone !== undefined) {
       players.push({
         id: Date.now() + players.length,
         name: entry.name,
-        team: leaderConfig.zone,
-        tags: leaderConfig.tags,
+        team: leaderZone,
+        tags: ['Rally Leader'],  // Leaders get Rally Leader tag
         power: entry.power,
         assignments: { phase1: '', phase2: '', phase3: '', phase4: '' },
       });
@@ -159,7 +165,25 @@ async function seedRoster() {
     if (currentZone > 3) currentZone = 1;
   }
 
-  console.log('\nZone assignments:');
+  // Add "Teleport 1st" tag to top 5 players by power (first obelisk gives 5 teleports)
+  const sortedByPower = [...players].sort((a, b) => b.power - a.power);
+  const top5Names = new Set(sortedByPower.slice(0, 5).map(p => p.name));
+
+  for (const player of players) {
+    if (top5Names.has(player.name)) {
+      if (!player.tags.includes('Teleport 1st')) {
+        player.tags.push('Teleport 1st');
+      }
+    }
+  }
+
+  console.log('\n🚀 TOP 5 TELEPORT FIRST (first obelisk = 5 teleports):');
+  sortedByPower.slice(0, 5).forEach((p, i) => {
+    const powerM = (p.power / 1000000).toFixed(1);
+    console.log(`  ${i + 1}. ${p.name}: ${powerM}M (Zone ${p.team})`);
+  });
+
+  console.log('\nZone assignments (sorted by power):');
   for (let zone = 1; zone <= 3; zone++) {
     const zonePlayers = players.filter(p => p.team === zone).sort((a, b) => b.power - a.power);
     const leader = zonePlayers.find(p => leaderNames.includes(p.name));
@@ -168,7 +192,9 @@ async function seedRoster() {
     zonePlayers.forEach(p => {
       const powerM = (p.power / 1000000).toFixed(1);
       const isLeader = leaderNames.includes(p.name);
-      console.log(`    ${isLeader ? '👑 ' : '   '}${p.name}: ${powerM}M`);
+      const isTp1st = top5Names.has(p.name);
+      const prefix = isLeader ? '👑 ' : isTp1st ? '🚀 ' : '   ';
+      console.log(`    ${prefix}${p.name}: ${powerM}M${p.tags.length ? ` [${p.tags.join(', ')}]` : ''}`);
     });
   }
 
