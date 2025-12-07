@@ -354,9 +354,6 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
   const [dragMode, setDragMode] = useState<'select' | 'deselect'>('select');
   const [draggedSlots, setDraggedSlots] = useState<Set<string>>(new Set());
 
-  // Shift+click range selection
-  const [lastClickedSlot, setLastClickedSlot] = useState<string | null>(null);
-
   // Get all slots for a given date (column)
   const getSlotsForDate = (date: string) => poll.time_slots.filter(s => s.startsWith(date));
   // Get all slots for a given time (row)
@@ -365,81 +362,15 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
   // Check if all slots in a set are selected
   const allSelected = (slots: string[]) => slots.every(s => selectedSlots.has(s));
 
-  // Get slots in rectangular range between two slots
-  const getSlotsInRange = (slot1: string, slot2: string): string[] => {
-    const idx1 = poll.time_slots.indexOf(slot1);
-    const idx2 = poll.time_slots.indexOf(slot2);
-    if (idx1 === -1 || idx2 === -1) return [slot2];
-
-    // For multi-day grid, get rectangular selection
-    if (dates.length > 0) {
-      const [date1, time1] = slot1.split(' ');
-      const [date2, time2] = slot2.split(' ');
-      const dateIdx1 = dates.indexOf(date1);
-      const dateIdx2 = dates.indexOf(date2);
-      const timeIdx1 = times.indexOf(time1);
-      const timeIdx2 = times.indexOf(time2);
-
-      const minDateIdx = Math.min(dateIdx1, dateIdx2);
-      const maxDateIdx = Math.max(dateIdx1, dateIdx2);
-      const minTimeIdx = Math.min(timeIdx1, timeIdx2);
-      const maxTimeIdx = Math.max(timeIdx1, timeIdx2);
-
-      const rangeSlots: string[] = [];
-      for (let d = minDateIdx; d <= maxDateIdx; d++) {
-        for (let t = minTimeIdx; t <= maxTimeIdx; t++) {
-          const slot = `${dates[d]} ${times[t]}`;
-          if (poll.time_slots.includes(slot)) {
-            rangeSlots.push(slot);
-          }
-        }
-      }
-      return rangeSlots;
-    }
-
-    // For time-only polls, just get linear range
-    const minIdx = Math.min(idx1, idx2);
-    const maxIdx = Math.max(idx1, idx2);
-    return poll.time_slots.slice(minIdx, maxIdx + 1);
-  };
-
-  // Handle cell click with shift support
-  const handleCellClick = (slot: string, e: React.MouseEvent) => {
-    if (!isOpen) return;
-
-    if (e.shiftKey && lastClickedSlot) {
-      // Shift+click: select range
-      const rangeSlots = getSlotsInRange(lastClickedSlot, slot);
-      // Determine mode based on first slot in range
-      const shouldSelect = !selectedSlots.has(lastClickedSlot);
-      const slotsToToggle = rangeSlots.filter(s =>
-        shouldSelect ? !selectedSlots.has(s) : selectedSlots.has(s)
-      );
-      if (slotsToToggle.length > 0) {
-        onToggleMany(slotsToToggle);
-      }
-    } else {
-      // Normal click
-      onToggle(slot);
-    }
-    setLastClickedSlot(slot);
-  };
-
   // Drag handlers
-  const handleDragStart = (slot: string, e: React.MouseEvent) => {
+  const handleDragStart = (slot: string) => {
     if (!isOpen) return;
-    // Don't start drag if shift is held (let shift+click handle it)
-    if (e.shiftKey && lastClickedSlot) {
-      handleCellClick(slot, e);
-      return;
-    }
     setIsDragging(true);
     // If slot is already selected, we're deselecting; otherwise selecting
     const mode = selectedSlots.has(slot) ? 'deselect' : 'select';
     setDragMode(mode);
     setDraggedSlots(new Set([slot]));
     onToggle(slot);
-    setLastClickedSlot(slot);
   };
 
   const handleDragEnter = (slot: string) => {
@@ -482,7 +413,7 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
       lines.push(`${voteCount} available: ${voters.join(', ')}`);
     }
     if (isOpen) {
-      lines.push('Click to toggle • Drag to select multiple • Shift+click for range');
+      lines.push('Click to toggle • Drag to select multiple');
     }
     return lines.join('\n');
   };
@@ -611,9 +542,9 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
                   return (
                     <td key={slot} className="p-0.5">
                       <button
-                        onMouseDown={(e) => { e.preventDefault(); handleDragStart(slot, e); }}
+                        onMouseDown={(e) => { e.preventDefault(); handleDragStart(slot); }}
                         onMouseEnter={() => handleDragEnter(slot)}
-                        onTouchStart={(e) => { e.preventDefault(); handleDragStart(slot, e as unknown as React.MouseEvent); }}
+                        onTouchStart={(e) => { e.preventDefault(); handleDragStart(slot); }}
                         onTouchMove={(e) => {
                           // Get element under touch point
                           const touch = e.touches[0];
@@ -658,10 +589,6 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
             <span className="flex items-center gap-1.5">
               <span className="text-stone-500">⇢</span>
               <span>Drag across for multiple</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <kbd className="px-1.5 py-0.5 rounded bg-stone-700 border border-stone-600 text-[10px] font-mono">⇧</kbd>
-              <span>Shift+click for range</span>
             </span>
             <span className="flex items-center gap-1.5">
               <span className="text-emerald-400/70">▤</span>
