@@ -166,13 +166,20 @@ async function seedRoster() {
   }
 
   // Add "Teleport 1st" tag to top 5 players by power (first obelisk gives 5 teleports)
+  // Add "Teleport 2nd" tag to next 5 players (positions 6-10)
   const sortedByPower = [...players].sort((a, b) => b.power - a.power);
   const top5Names = new Set(sortedByPower.slice(0, 5).map(p => p.name));
+  const next5Names = new Set(sortedByPower.slice(5, 10).map(p => p.name));
 
   for (const player of players) {
     if (top5Names.has(player.name)) {
       if (!player.tags.includes('Teleport 1st')) {
         player.tags.push('Teleport 1st');
+      }
+    }
+    if (next5Names.has(player.name)) {
+      if (!player.tags.includes('Teleport 2nd')) {
+        player.tags.push('Teleport 2nd');
       }
     }
   }
@@ -181,6 +188,12 @@ async function seedRoster() {
   sortedByPower.slice(0, 5).forEach((p, i) => {
     const powerM = (p.power / 1000000).toFixed(1);
     console.log(`  ${i + 1}. ${p.name}: ${powerM}M (Zone ${p.team})`);
+  });
+
+  console.log('\n🔷 NEXT 5 TELEPORT SECOND:');
+  sortedByPower.slice(5, 10).forEach((p, i) => {
+    const powerM = (p.power / 1000000).toFixed(1);
+    console.log(`  ${i + 6}. ${p.name}: ${powerM}M (Zone ${p.team})`);
   });
 
   console.log('\nZone assignments (sorted by power):');
@@ -193,7 +206,8 @@ async function seedRoster() {
       const powerM = (p.power / 1000000).toFixed(1);
       const isLeader = leaderNames.includes(p.name);
       const isTp1st = top5Names.has(p.name);
-      const prefix = isLeader ? '👑 ' : isTp1st ? '🚀 ' : '   ';
+      const isTp2nd = next5Names.has(p.name);
+      const prefix = isLeader ? '👑 ' : isTp1st ? '🚀 ' : isTp2nd ? '🔷 ' : '   ';
       console.log(`    ${prefix}${p.name}: ${powerM}M${p.tags.length ? ` [${p.tags.join(', ')}]` : ''}`);
     });
   }
@@ -228,16 +242,31 @@ async function seedRoster() {
 
   if (existingData) {
     // Update existing record
-    const { error } = await supabase
+    const { data: updateResult, error } = await supabase
       .from('aoo_strategy')
       .update({ data: strategyData })
-      .eq('id', existingData.id);
+      .eq('id', existingData.id)
+      .select();
 
     if (error) {
       console.error('Error updating data:', error);
       process.exit(1);
     }
-    console.log('Updated existing strategy record');
+
+    // Check if the update actually happened (RLS may silently block it)
+    if (!updateResult || updateResult.length === 0) {
+      console.error('\n❌ ERROR: Update was blocked by RLS (Row Level Security).');
+      console.error('The anon key cannot update this table.');
+      console.error('\nTo fix this, either:');
+      console.error('1. Use SUPABASE_SERVICE_ROLE_KEY instead of anon key');
+      console.error('2. Update RLS policies to allow updates');
+      console.error('3. Update the data directly in Supabase dashboard');
+      console.error('\nOutputting data as JSON for manual import...\n');
+      console.log(JSON.stringify(strategyData, null, 2));
+      process.exit(1);
+    }
+
+    console.log('✅ Updated existing strategy record');
   } else {
     // Insert new record
     const { error } = await supabase
