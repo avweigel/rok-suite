@@ -68,7 +68,7 @@ export default function AooStrategyPage() {
     const [useCustomName, setUseCustomName] = useState(false);
     const [lookupSearch, setLookupSearch] = useState('');
     const [rosterSort, setRosterSort] = useState<'power' | 'teleport' | 'name'>('power');
-    const [copySuccess, setCopySuccess] = useState(false);
+    const [copySuccess, setCopySuccess] = useState<number | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const rosterGridRef = useRef<HTMLDivElement>(null);
     const rosterCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -276,14 +276,8 @@ export default function AooStrategyPage() {
         saveData({ mapAssignments: newAssignments });
     };
 
-    // Generate roster text for copying to clipboard
-    const generateRosterText = useCallback(() => {
-        const zoneDescriptions: Record<number, string> = {
-            1: teams[0]?.description || 'Bottom',
-            2: teams[1]?.description || 'Center',
-            3: teams[2]?.description || 'Upper',
-        };
-
+    // Generate zone roster text for copying to clipboard (newline separated)
+    const generateZoneText = useCallback((zoneNum: number) => {
         const formatPlayerTags = (p: Player) => {
             const tags: string[] = [];
             if (p.tags.includes('Rally Leader')) tags.push('Leader');
@@ -293,32 +287,26 @@ export default function AooStrategyPage() {
             return tags.length > 0 ? ` (${tags.join(', ')})` : '';
         };
 
-        const lines: string[] = [];
-        [1, 2, 3].forEach(zoneNum => {
-            const zonePlayers = sortPlayers(players.filter(p => p.team === zoneNum));
-            const zoneName = teams[zoneNum - 1]?.name || `Zone ${zoneNum}`;
-            const zoneDesc = zoneDescriptions[zoneNum];
+        const zonePlayers = sortPlayers(players.filter(p => p.team === zoneNum));
+        const zoneName = teams[zoneNum - 1]?.name || `Zone ${zoneNum}`;
+        const zoneDesc = teams[zoneNum - 1]?.description || '';
 
-            const playerList = zonePlayers
-                .map(p => `${p.name}${formatPlayerTags(p)}`)
-                .join(', ');
+        const header = `${zoneName} - ${zoneDesc}`;
+        const playerLines = zonePlayers.map(p => `${p.name}${formatPlayerTags(p)}`);
 
-            lines.push(`${zoneName} (${zoneDesc}): ${playerList}`);
-        });
-
-        return lines.join('\n\n');
+        return `${header}\n${playerLines.join('\n')}`;
     }, [players, teams, sortPlayers]);
 
-    const copyRosterToClipboard = useCallback(async () => {
-        const text = generateRosterText();
+    const copyZoneToClipboard = useCallback(async (zoneNum: number) => {
+        const text = generateZoneText(zoneNum);
         try {
             await navigator.clipboard.writeText(text);
-            setCopySuccess(true);
-            setTimeout(() => setCopySuccess(false), 2000);
+            setCopySuccess(zoneNum);
+            setTimeout(() => setCopySuccess(null), 2000);
         } catch (err) {
             console.error('Failed to copy:', err);
         }
-    }, [generateRosterText]);
+    }, [generateZoneText]);
 
     const exportRosterImage = useCallback(() => {
         const canvas = rosterCanvasRef.current;
@@ -333,12 +321,13 @@ export default function AooStrategyPage() {
         const playerHeight = 28;
         const headerHeight = 50;
         const zoneGap = 30;
+        const subsHeight = substitutes.length > 0 ? 60 + Math.ceil(substitutes.length / 6) * 24 : 0;
 
         // Calculate dimensions
         const zonePlayers = [1, 2, 3].map(z => sortPlayers(players.filter(p => p.team === z)));
         const maxPlayers = Math.max(...zonePlayers.map(z => z.length));
         const canvasWidth = (zoneWidth * 3) + (zoneGap * 2) + (padding * 2);
-        const canvasHeight = headerHeight + (maxPlayers * playerHeight) + (padding * 2) + 60;
+        const canvasHeight = headerHeight + (maxPlayers * playerHeight) + (padding * 2) + 60 + subsHeight;
 
         canvas.width = canvasWidth;
         canvas.height = canvasHeight;
@@ -425,12 +414,40 @@ export default function AooStrategyPage() {
             });
         });
 
+        // Substitutes section
+        if (substitutes.length > 0) {
+            const subsY = padding + headerHeight + (maxPlayers * playerHeight) + 60;
+
+            // Subs header
+            ctx.fillStyle = '#a1a1aa';
+            ctx.font = 'bold 12px system-ui, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(`SUBSTITUTES (${substitutes.length})`, padding, subsY);
+
+            // Draw subs in a grid (6 per row)
+            const subsPerRow = 6;
+            const subWidth = (canvasWidth - padding * 2) / subsPerRow;
+            substitutes.forEach((sub, idx) => {
+                const row = Math.floor(idx / subsPerRow);
+                const col = idx % subsPerRow;
+                const sx = padding + (col * subWidth);
+                const sy = subsY + 16 + (row * 24);
+
+                ctx.fillStyle = '#71717a';
+                ctx.font = '12px system-ui, sans-serif';
+                ctx.textAlign = 'left';
+                const power = sub.power || powerByName[sub.name] || 0;
+                const powerStr = power > 0 ? ` (${formatPower(power)})` : '';
+                ctx.fillText(`${sub.name}${powerStr}`, sx, sy);
+            });
+        }
+
         // Download
         const link = document.createElement('a');
         link.download = 'aoo-roster.png';
         link.href = canvas.toDataURL('image/png');
         link.click();
-    }, [players, teams, sortPlayers, powerByName]);
+    }, [players, teams, substitutes, sortPlayers, powerByName]);
 
     const theme = {
         bg: darkMode ? 'bg-zinc-950' : 'bg-gray-50',
@@ -683,21 +700,13 @@ export default function AooStrategyPage() {
                                     </button>
                                 </div>
                             </div>
-                            {/* Export actions */}
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={copyRosterToClipboard}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${copySuccess ? 'bg-emerald-600 text-white' : theme.button}`}
-                                >
-                                    {copySuccess ? '✓ Copied!' : '📋 Copy'}
-                                </button>
-                                <button
-                                    onClick={exportRosterImage}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${theme.button}`}
-                                >
-                                    📷 Export
-                                </button>
-                            </div>
+                            {/* Export action */}
+                            <button
+                                onClick={exportRosterImage}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${theme.button}`}
+                            >
+                                📷 Export
+                            </button>
                         </div>
                     </div>
                     {/* Hidden canvas for export */}
@@ -712,7 +721,16 @@ export default function AooStrategyPage() {
                                 <section key={teamNum} className={`${theme.card} border rounded-xl p-4`}>
                                     <div className={`mb-4 pb-3 border-b ${theme.border}`}>
                                         <div className="flex items-center justify-between">
-                                            <h3 className="font-semibold">{teamInfo.name}</h3>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="font-semibold">{teamInfo.name}</h3>
+                                                <button
+                                                    onClick={() => copyZoneToClipboard(teamNum)}
+                                                    className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${copySuccess === teamNum ? 'bg-emerald-600 text-white' : theme.tag} hover:opacity-80`}
+                                                    title={`Copy ${teamInfo.name} roster`}
+                                                >
+                                                    {copySuccess === teamNum ? '✓' : '📋'}
+                                                </button>
+                                            </div>
                                             <div className="text-right">
                                                 <span className={`text-xs ${theme.textMuted}`}>{teamPlayers.length} players</span>
                                                 {zoneTotalPower > 0 && (
