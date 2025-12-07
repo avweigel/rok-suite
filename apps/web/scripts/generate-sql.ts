@@ -90,16 +90,16 @@ async function main() {
     if (currentZone > 3) currentZone = 1;
   }
 
-  // Add Teleport 1st to top 5 (first obelisk capture = 5 teleports)
-  // Add Teleport 2nd to next 5 (positions 6-10)
+  // Add Teleport 1st to top 8 (first obelisk capture = 8 teleports per patch 1.0.42)
+  // Add Teleport 2nd to next 8 (positions 9-16)
   const sortedByPower = [...players].sort((a, b) => b.power - a.power);
-  const top5 = new Set(sortedByPower.slice(0, 5).map(p => p.name));
-  const next5 = new Set(sortedByPower.slice(5, 10).map(p => p.name));
+  const top8 = new Set(sortedByPower.slice(0, 8).map(p => p.name));
+  const next8 = new Set(sortedByPower.slice(8, 16).map(p => p.name));
   for (const p of players) {
-    if (top5.has(p.name) && !p.tags.includes('Teleport 1st')) {
+    if (top8.has(p.name) && !p.tags.includes('Teleport 1st')) {
       p.tags.push('Teleport 1st');
     }
-    if (next5.has(p.name) && !p.tags.includes('Teleport 2nd')) {
+    if (next8.has(p.name) && !p.tags.includes('Teleport 2nd')) {
       p.tags.push('Teleport 2nd');
     }
   }

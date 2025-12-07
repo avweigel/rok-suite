@@ -6,8 +6,8 @@
  *
  * Ark of Osiris Rules:
  *   - 30 players per alliance
- *   - First obelisk capture gives 5 teleports
- *   - Top 5 players by power should teleport first
+ *   - First obelisk capture gives 8 teleports (updated in patch 1.0.42)
+ *   - Top 8 players by power should teleport first
  *   - Obelisks generate 2 additional teleports every 5 minutes
  *
  * Leaders:
@@ -165,35 +165,35 @@ async function seedRoster() {
     if (currentZone > 3) currentZone = 1;
   }
 
-  // Add "Teleport 1st" tag to top 5 players by power (first obelisk gives 5 teleports)
-  // Add "Teleport 2nd" tag to next 5 players (positions 6-10)
+  // Add "Teleport 1st" tag to top 8 players by power (first obelisk gives 8 teleports per patch 1.0.42)
+  // Add "Teleport 2nd" tag to next 8 players (positions 9-16)
   const sortedByPower = [...players].sort((a, b) => b.power - a.power);
-  const top5Names = new Set(sortedByPower.slice(0, 5).map(p => p.name));
-  const next5Names = new Set(sortedByPower.slice(5, 10).map(p => p.name));
+  const top8Names = new Set(sortedByPower.slice(0, 8).map(p => p.name));
+  const next8Names = new Set(sortedByPower.slice(8, 16).map(p => p.name));
 
   for (const player of players) {
-    if (top5Names.has(player.name)) {
+    if (top8Names.has(player.name)) {
       if (!player.tags.includes('Teleport 1st')) {
         player.tags.push('Teleport 1st');
       }
     }
-    if (next5Names.has(player.name)) {
+    if (next8Names.has(player.name)) {
       if (!player.tags.includes('Teleport 2nd')) {
         player.tags.push('Teleport 2nd');
       }
     }
   }
 
-  console.log('\n🚀 TOP 5 TELEPORT FIRST (first obelisk = 5 teleports):');
-  sortedByPower.slice(0, 5).forEach((p, i) => {
+  console.log('\n🚀 TOP 8 TELEPORT FIRST (first obelisk = 8 teleports):');
+  sortedByPower.slice(0, 8).forEach((p, i) => {
     const powerM = (p.power / 1000000).toFixed(1);
     console.log(`  ${i + 1}. ${p.name}: ${powerM}M (Zone ${p.team})`);
   });
 
-  console.log('\n🔷 NEXT 5 TELEPORT SECOND:');
-  sortedByPower.slice(5, 10).forEach((p, i) => {
+  console.log('\n🔷 NEXT 8 TELEPORT SECOND:');
+  sortedByPower.slice(8, 16).forEach((p, i) => {
     const powerM = (p.power / 1000000).toFixed(1);
-    console.log(`  ${i + 6}. ${p.name}: ${powerM}M (Zone ${p.team})`);
+    console.log(`  ${i + 9}. ${p.name}: ${powerM}M (Zone ${p.team})`);
   });
 
   console.log('\nZone assignments (sorted by power):');
@@ -205,8 +205,8 @@ async function seedRoster() {
     zonePlayers.forEach(p => {
       const powerM = (p.power / 1000000).toFixed(1);
       const isLeader = leaderNames.includes(p.name);
-      const isTp1st = top5Names.has(p.name);
-      const isTp2nd = next5Names.has(p.name);
+      const isTp1st = top8Names.has(p.name);
+      const isTp2nd = next8Names.has(p.name);
       const prefix = isLeader ? '👑 ' : isTp1st ? '🚀 ' : isTp2nd ? '🔷 ' : '   ';
       console.log(`    ${prefix}${p.name}: ${powerM}M${p.tags.length ? ` [${p.tags.join(', ')}]` : ''}`);
     });
