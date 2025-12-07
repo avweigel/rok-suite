@@ -306,7 +306,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 {/* Map Background */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/aoo-map.jpg"
+                  src="/aoo-strategy/aoo-map.jpg"
                   alt="AOO Map"
                   className="absolute inset-0 w-full h-full object-cover"
                   style={{ opacity: isDark ? 0.8 : 1 }}
