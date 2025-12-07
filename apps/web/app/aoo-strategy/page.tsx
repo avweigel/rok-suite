@@ -236,6 +236,12 @@ export default function AooStrategyPage() {
 
     const sortPlayers = (playerList: Player[]) => {
         return [...playerList].sort((a, b) => {
+            // Rally Leaders always at top
+            const aIsLeader = a.tags.includes('Rally Leader');
+            const bIsLeader = b.tags.includes('Rally Leader');
+            if (aIsLeader && !bIsLeader) return -1;
+            if (!aIsLeader && bIsLeader) return 1;
+
             switch (rosterSort) {
                 case 'power':
                     const powerA = a.power || powerByName[a.name] || 0;
