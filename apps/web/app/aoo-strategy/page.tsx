@@ -66,6 +66,7 @@ export default function AooStrategyPage() {
     const [newPlayerTags, setNewPlayerTags] = useState<string[]>([]);
     const [useCustomName, setUseCustomName] = useState(false);
     const [lookupSearch, setLookupSearch] = useState('');
+    const [rosterSort, setRosterSort] = useState<'power' | 'teleport' | 'name'>('power');
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const EDITOR_PASSWORD = 'carn-dum';
@@ -228,7 +229,37 @@ export default function AooStrategyPage() {
         }
     };
 
-    const getTeamPlayers = (teamNum: number) => players.filter(p => p.team === teamNum);
+    const getTeamPlayers = (teamNum: number) => {
+        const teamPlayers = players.filter(p => p.team === teamNum);
+        return sortPlayers(teamPlayers);
+    };
+
+    const sortPlayers = (playerList: Player[]) => {
+        return [...playerList].sort((a, b) => {
+            switch (rosterSort) {
+                case 'power':
+                    const powerA = a.power || powerByName[a.name] || 0;
+                    const powerB = b.power || powerByName[b.name] || 0;
+                    return powerB - powerA; // Descending
+                case 'teleport':
+                    // Teleport order: 1st > 2nd > none, then by power within group
+                    const getTeleportOrder = (p: Player) => {
+                        if (p.tags.includes('Teleport 1st')) return 0;
+                        if (p.tags.includes('Teleport 2nd')) return 1;
+                        return 2;
+                    };
+                    const orderA = getTeleportOrder(a);
+                    const orderB = getTeleportOrder(b);
+                    if (orderA !== orderB) return orderA - orderB;
+                    // Same teleport group, sort by power
+                    return (b.power || powerByName[b.name] || 0) - (a.power || powerByName[a.name] || 0);
+                case 'name':
+                    return a.name.localeCompare(b.name); // Alphabetical
+                default:
+                    return 0;
+            }
+        });
+    };
 
     const handleMapSave = (newAssignments: MapAssignments) => {
         setMapAssignments(newAssignments);
@@ -457,6 +488,34 @@ export default function AooStrategyPage() {
                             </div>
                         </section>
                     )}
+
+                    {/* Sort Controls */}
+                    <div className={`flex items-center justify-between mb-4`}>
+                        <h2 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted}`}>Zone Assignments</h2>
+                        <div className="flex items-center gap-2">
+                            <span className={`text-xs ${theme.textMuted}`}>Sort by:</span>
+                            <div className="flex gap-1">
+                                <button
+                                    onClick={() => setRosterSort('power')}
+                                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${rosterSort === 'power' ? theme.tagActive : theme.tag}`}
+                                >
+                                    Power
+                                </button>
+                                <button
+                                    onClick={() => setRosterSort('teleport')}
+                                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${rosterSort === 'teleport' ? theme.tagActive : theme.tag}`}
+                                >
+                                    Teleport
+                                </button>
+                                <button
+                                    onClick={() => setRosterSort('name')}
+                                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${rosterSort === 'name' ? theme.tagActive : theme.tag}`}
+                                >
+                                    Name
+                                </button>
+                            </div>
+                        </div>
+                    </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         {[1, 2, 3].map((teamNum) => {
