@@ -526,13 +526,15 @@ export function utcToLocal(slot: string): { time: string; period: string; date?:
 }
 
 /**
- * Generate common time slots for AoO (every 2 hours)
+ * Generate all time slots (every hour, 24 hours)
+ * Covers all time zones for global users
  */
 export function generateTimeSlots(): string[] {
-  return [
-    '00:00', '02:00', '04:00', '06:00', '08:00', '10:00',
-    '12:00', '14:00', '16:00', '18:00', '20:00', '22:00',
-  ];
+  const slots: string[] = [];
+  for (let hour = 0; hour < 24; hour++) {
+    slots.push(`${hour.toString().padStart(2, '0')}:00`);
+  }
+  return slots;
 }
 
 /**
