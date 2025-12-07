@@ -342,9 +342,10 @@ interface AvailabilityGridProps {
   onToggleMany: (slots: string[]) => void;
   timeDisplay: TimeDisplay;
   isOpen: boolean;
+  voterName: string;
 }
 
-function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDisplay, isOpen }: AvailabilityGridProps) {
+function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDisplay, isOpen, voterName }: AvailabilityGridProps) {
   const dates = getUniqueDates(poll.time_slots);
   const times = getUniqueTimes(poll.time_slots);
   const maxVotes = Math.max(...Object.values(poll.votes_by_time), 1);
@@ -538,12 +539,28 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
                   const isBest = voteCount === maxVotes && voteCount > 0;
                   const voters = poll.voters_by_time[slot] || [];
 
-                  // Clean cell styling
+                  // Calculate display count (include user's pending vote)
+                  const displayCount = isSelected && !voters.includes(voterName)
+                    ? voteCount + 1
+                    : voteCount;
+
+                  // Gray gradient for others' votes based on intensity
+                  const getGrayIntensity = () => {
+                    if (maxVotes === 0) return 'bg-stone-800/60';
+                    const intensity = voteCount / maxVotes;
+                    if (intensity >= 0.8) return 'bg-stone-500';
+                    if (intensity >= 0.6) return 'bg-stone-600';
+                    if (intensity >= 0.4) return 'bg-stone-700';
+                    if (intensity > 0) return 'bg-stone-700/70';
+                    return 'bg-stone-800/60';
+                  };
+
+                  // Cell styling
                   const getCellStyle = () => {
                     if (isWinner) return 'bg-emerald-500 text-white ring-2 ring-emerald-400';
                     if (isSelected) return 'bg-emerald-600 text-white';
                     if (isBest) return 'bg-amber-500/30 text-amber-300';
-                    if (voteCount > 0) return 'bg-stone-700 text-stone-300';
+                    if (voteCount > 0) return `${getGrayIntensity()} text-stone-300`;
                     return 'bg-stone-800/60 text-stone-600';
                   };
 
@@ -564,7 +581,7 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
                         className={`w-full h-9 rounded flex items-center justify-center text-xs font-medium transition-all select-none ${getCellStyle()} ${isOpen ? 'hover:ring-1 hover:ring-white/30 cursor-pointer' : ''}`}
                         title={getCellTooltip(slot, voteCount, voters)}
                       >
-                        {isSelected ? <Check className="w-4 h-4" /> : voteCount > 0 ? voteCount : ''}
+                        {displayCount > 0 ? displayCount : ''}
                       </button>
                     </td>
                   );
@@ -578,16 +595,20 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
       {/* Legend */}
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-stone-500">
         <span className="flex items-center gap-1.5">
-          <span className="w-4 h-4 rounded bg-emerald-600 flex items-center justify-center"><Check className="w-2.5 h-2.5 text-white" /></span>
+          <span className="w-4 h-4 rounded bg-emerald-600 text-[9px] text-white flex items-center justify-center font-medium">2</span>
           your picks
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-4 h-4 rounded bg-stone-700 text-[9px] text-stone-300 flex items-center justify-center font-medium">3</span>
-          votes
+          <div className="flex gap-0.5">
+            <span className="w-3 h-4 rounded-sm bg-stone-700/70"></span>
+            <span className="w-3 h-4 rounded-sm bg-stone-600"></span>
+            <span className="w-3 h-4 rounded-sm bg-stone-500"></span>
+          </div>
+          more votes
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-4 h-4 rounded bg-amber-500/30"></span>
-          best time
+          best
         </span>
         {isOpen && <span className="text-stone-600">• click or drag to select</span>}
       </div>
@@ -1004,6 +1025,7 @@ function AvailabilityCard({ poll, isLeader, isAuthenticated, userName, onAvailab
             onToggleMany={toggleMany}
             timeDisplay={timeDisplay}
             isOpen={isOpen}
+            voterName={voterName}
           />
 
           {/* Best Times Summary - at bottom for easy scanning */}
