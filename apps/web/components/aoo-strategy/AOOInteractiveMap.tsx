@@ -448,6 +448,21 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   </div>
                 )}
 
+                {/* Zone 2 (Ark/Center) - Teleport indicator */}
+                {teleportersByZone[2].first.length > 0 && (
+                  <div
+                    className="absolute px-1.5 py-0.5 rounded bg-orange-800/80 text-orange-200 text-[9px] font-medium shadow"
+                    style={{
+                      left: '48%',
+                      top: '52%',
+                      transform: 'translate(-50%, 0)',
+                      zIndex: 15
+                    }}
+                  >
+                    ⚡ Z2: {teleportersByZone[2].first.join(', ')}
+                  </div>
+                )}
+
                 {/* Building Markers */}
                 {buildings.map(building => {
                   // When swapCorners is true, show the mirrored building's assignment at this position
