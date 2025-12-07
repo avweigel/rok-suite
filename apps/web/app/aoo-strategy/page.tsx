@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import type { MapAssignments, Player, Team, StrategyData as ImportedStrategyData } from '@/lib/aoo-strategy/types';
 import { defaultStrategyData } from '@/lib/aoo-strategy/strategy-data';
 import { TrainingPolls } from '@/components/aoo-strategy/TrainingPolls';
+import { useAllianceRoster, formatPower } from '@/lib/supabase/use-alliance-roster';
 
 // Dynamic import to avoid SSR issues with the map
 const AOOInteractiveMap = dynamic(() => import('@/components/aoo-strategy/AOOInteractiveMap'), {
@@ -40,80 +41,9 @@ const TAG_COLORS: Record<string, string> = {
     'Conquer': 'bg-purple-600 text-white',
 };
 
-// Player power data from roster
-const PLAYER_POWER: Record<string, number> = {
-    'Soutz': 12105470,
-    'cloud': 11688006,
-    'MayorEric': 10583063,
-    'bear': 9626742,
-    'Funny': 9497210,
-    'notfun': 9094607,
-    'CBC': 8089612,
-    'Lady Leanna': 7575583,
-    'Batussai': 7071806,
-    'Zdrawee': 7044077,
-    'aubs': 7027928,
-    'Buby': 6830766,
-    'Cain': 5904444,
-    'AlakD': 5344479,
-    'Fluffy': 50693872,
-    'Sysstm': 40782106,
-    'Suntzu': 11195333,
-    'Divid3': 10227129,
-    'Mornamarth': 10119180,
-    'Calca': 9015237,
-    'Raijin': 8905144,
-    'Obi': 8325745,
-    'Gallo': 7691294,
-    'FnDuke': 7516205,
-    'Xtelli': 7160714,
-    'Zetma': 7007776,
-    'Bryan': 6817555,
-    'MrOren': 6414288,
-    'Monke': 5910567,
-    'Crus8r': 5753284,
-    'DoOofy': 22232513,
-    'Kasurana': 21749286,
-    'ang': 14533951,
-    'BBQSage': 9064819,
-    'Centurium': 7957569,
-    'Assa555': 7020235,
-    'Alcar': 6704917,
-    'Trap': 6126850,
-    'Conejo': 6086334,
-    'lml Keter lml': 5830654,
-    'Neco': 8090213,
-    'ClayFM': 7773463,
-    'Nhi': 6176665,
-    'Yuriy': 5996394,
-    'nLeander': 5945108,
-    'Enes1111': 5552503,
-    'Shroud': 4432679,
-};
-
-// Format power number with M suffix
-const formatPower = (power: number): string => {
-    if (power >= 1000000) {
-        return (power / 1000000).toFixed(1) + 'M';
-    }
-    return power.toLocaleString();
-};
-
-const ALLIANCE_ROSTER = [
-    'Fluffy', 'Soutz', 'BBQSGE', 'aubs', 'Giza', 'Sysstm', 'Freddy', 'TRAP', 'KomVD2',
-    'Suntzu', 'Funny', 'notfun', 'Raijin', 'Qindar', 'Buby', 'Nhi', 'Cain', 'Enes1111', 'yigitl',
-    'Shroud', 'cloud', 'DoOofy', 'MayorEric', 'Mornamarth', 'Divid3', 'bear', 'Hungvv', 'Draken', 'Djembo',
-    'NevX', 'Kasurana', 'VNKaiLey', 'Calca', 'Black Ruler', 'Obi', 'CBC', 'Centurium', 'SSRB', 'NECO',
-    'EF SàuVôLệ', 'Trà Đàoooo', 'sir Yuckfou', 'Xtelli', 'Alcar', 'sóc trăng', 'BryanV', 'ZETMA', 'Bart', 'Gouverneur',
-    'Locfuho7', 'MrOren', 'Bakr', 'Conejo', 'DonV4', 'ang', 'leander112', 'Tvman', 'lml Keter lml', 'Lukes',
-    'Crus8r', 'YzO', 'VN Lượngg', 'Ahmad511', 'Assa555', '쿨냥이 55', 'Mbare', 'Adegi', 'Alak D', 'Ramyah',
-    'Bryan', 'Nolie', 'reeeldid', 'Sunman', 'Akka', 'chuuu', 'CasualJoe', 'goat',
-    'ClayFM', 'ĐÊQUOOCRAUMA', 'Batussai', 'Sadgame', 'MissEm', 'GiuliaFC', 'BooBoo', 'FnDuke',
-    'Armstrong jr XL', 'Hoangg', 'Gallo', 'Lady Leanna', 'Emberflame', 'Joker', 'Zdrawee', '⚔MihawkX',
-    'kenji', 'Silent Omen', 'Perote', 'Ssjlbroly'
-].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-
 export default function AooStrategyPage() {
+    // Fetch roster from Supabase
+    const { rosterNames, powerByName, loading: rosterLoading } = useAllianceRoster();
     const [activeTab, setActiveTab] = useState<'map' | 'roster' | 'lookup' | 'quickref' | 'schedule'>('lookup');
     const [players, setPlayers] = useState<Player[]>([]);
     const [substitutes, setSubstitutes] = useState<Player[]>([]);
@@ -221,7 +151,7 @@ export default function AooStrategyPage() {
     };
 
     const assignedNames = [...players, ...substitutes].map(p => p.name.toLowerCase());
-    const filteredRoster = ALLIANCE_ROSTER.filter(name =>
+    const filteredRoster = rosterNames.filter(name =>
         name.toLowerCase().includes(playerSearch.toLowerCase()) &&
         !assignedNames.includes(name.toLowerCase())
     );
@@ -531,7 +461,7 @@ export default function AooStrategyPage() {
                         {[1, 2, 3].map((teamNum) => {
                             const teamInfo = teams[teamNum - 1];
                             const teamPlayers = getTeamPlayers(teamNum);
-                            const zoneTotalPower = teamPlayers.reduce((sum, p) => sum + (p.power || PLAYER_POWER[p.name] || 0), 0);
+                            const zoneTotalPower = teamPlayers.reduce((sum, p) => sum + (p.power || powerByName[p.name] || 0), 0);
                             return (
                                 <section key={teamNum} className={`${theme.card} border rounded-xl p-4`}>
                                     <div className={`mb-4 pb-3 border-b ${theme.border}`}>
@@ -560,9 +490,9 @@ export default function AooStrategyPage() {
                                                     <div className="flex items-center justify-between mb-2">
                                                         <div className="flex items-center gap-2">
                                                             <span className="font-medium text-sm">{player.name}</span>
-                                                            {(player.power || PLAYER_POWER[player.name]) && (
+                                                            {(player.power || powerByName[player.name]) && (
                                                                 <span className={`text-xs ${theme.textMuted}`}>
-                                                                    {formatPower(player.power || PLAYER_POWER[player.name])}
+                                                                    {formatPower(player.power || powerByName[player.name])}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -742,7 +672,7 @@ export default function AooStrategyPage() {
                             
                             if (foundPlayer) {
                                 const teamInfo = teams[foundPlayer.team - 1];
-                                const playerPower = foundPlayer.power || PLAYER_POWER[foundPlayer.name];
+                                const playerPower = foundPlayer.power || powerByName[foundPlayer.name];
                                 const zoneColors: Record<number, string> = {
                                     1: 'text-blue-500',
                                     2: 'text-orange-500',
@@ -1030,7 +960,7 @@ export default function AooStrategyPage() {
                                     </div>
                                 );
                             } else if (foundSub) {
-                                const subPower = foundSub.power || PLAYER_POWER[foundSub.name];
+                                const subPower = foundSub.power || powerByName[foundSub.name];
                                 return (
                                     <div className={`mt-6 p-6 rounded-xl ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'} text-center`}>
                                         <h3 className="text-2xl font-bold text-yellow-500">{foundSub.name}</h3>

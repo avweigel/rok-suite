@@ -535,9 +535,19 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
                   const voteCount = poll.votes_by_time[slot] || 0;
                   const isSelected = selectedSlots.has(slot);
                   const isWinner = poll.selected_time === slot;
-                  const isBest = voteCount === maxVotes && voteCount > 0 && maxVotes > 0;
                   const intensity = maxVotes > 0 ? voteCount / maxVotes : 0;
                   const voters = poll.voters_by_time[slot] || [];
+
+                  // Heatmap colors based on vote intensity
+                  const getHeatmapStyle = () => {
+                    if (isWinner) return 'bg-emerald-600 border-emerald-400 text-white';
+                    if (intensity >= 1) return 'bg-emerald-500 border-emerald-400 text-white'; // Max votes
+                    if (intensity >= 0.75) return 'bg-emerald-600/80 border-emerald-500/80 text-white';
+                    if (intensity >= 0.5) return 'bg-emerald-600/50 border-emerald-500/50 text-emerald-100';
+                    if (intensity >= 0.25) return 'bg-emerald-600/30 border-emerald-500/30 text-emerald-200';
+                    if (intensity > 0) return 'bg-emerald-600/15 border-emerald-500/20 text-emerald-300';
+                    return 'bg-stone-800/50 border-stone-700 text-stone-600';
+                  };
 
                   return (
                     <td key={slot} className="p-0.5">
@@ -554,20 +564,16 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
                         }}
                         data-slot={slot}
                         disabled={!isOpen}
-                        className={`w-full h-9 rounded-md flex items-center justify-center text-sm font-medium transition-all border-2 select-none ${
-                          isWinner
-                            ? 'bg-emerald-600 border-emerald-500 text-white'
-                            : isSelected
-                            ? 'bg-emerald-600/40 border-emerald-500 text-emerald-300'
-                            : isBest
-                            ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
-                            : intensity > 0
-                            ? 'bg-emerald-600/10 border-stone-600 text-stone-300'
-                            : 'bg-stone-700/30 border-stone-700 text-stone-500'
-                        } ${isOpen ? 'hover:border-emerald-400 cursor-pointer' : ''}`}
+                        className={`w-full h-9 rounded-md flex items-center justify-center text-sm font-bold transition-all border-2 select-none relative ${getHeatmapStyle()} ${isOpen ? 'hover:ring-2 hover:ring-emerald-400/50 cursor-pointer' : ''}`}
                         title={getCellTooltip(slot, voteCount, voters)}
                       >
-                        {isSelected ? <Check className="w-4 h-4" /> : voteCount > 0 ? voteCount : ''}
+                        {voteCount > 0 ? voteCount : ''}
+                        {/* Small indicator if user selected this slot */}
+                        {isSelected && (
+                          <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 rounded-full border border-stone-800 flex items-center justify-center">
+                            <Check className="w-2 h-2 text-stone-900" />
+                          </span>
+                        )}
                       </button>
                     </td>
                   );
@@ -579,35 +585,160 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
       </table>
 
       {/* Legend */}
-      {isOpen && (
-        <div className="mt-3 p-2.5 rounded-lg bg-stone-900/50 border border-stone-700/50">
-          <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-stone-400">
-            <span className="flex items-center gap-1.5">
-              <span className="w-5 h-5 rounded bg-stone-700/50 border border-stone-600 flex items-center justify-center text-[10px]">◻</span>
-              <span>Click to toggle</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="text-stone-500">⇢</span>
-              <span>Drag across for multiple</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="text-emerald-400/70">▤</span>
-              <span>Click headers for row/column</span>
-            </span>
+      <div className="mt-3 p-2.5 rounded-lg bg-stone-900/50 border border-stone-700/50">
+        {/* Heatmap legend */}
+        <div className="flex items-center gap-2 text-[10px] text-stone-400 mb-2">
+          <span>Availability:</span>
+          <div className="flex items-center gap-0.5">
+            <span className="w-5 h-5 rounded bg-stone-800/50 border border-stone-700"></span>
+            <span className="w-5 h-5 rounded bg-emerald-600/15 border border-emerald-500/20"></span>
+            <span className="w-5 h-5 rounded bg-emerald-600/30 border border-emerald-500/30"></span>
+            <span className="w-5 h-5 rounded bg-emerald-600/50 border border-emerald-500/50"></span>
+            <span className="w-5 h-5 rounded bg-emerald-600/80 border border-emerald-500/80"></span>
+            <span className="w-5 h-5 rounded bg-emerald-500 border border-emerald-400"></span>
           </div>
-          <div className="flex gap-4 mt-2 pt-2 border-t border-stone-700/50 text-[10px]">
-            <span className="flex items-center gap-1">
-              <span className="text-sky-400 font-bold">AM</span>
-              <span className="text-stone-500">morning</span>
+          <span className="text-stone-500">0 → max</span>
+          <span className="flex items-center gap-1 ml-2">
+            <span className="relative w-5 h-5 rounded bg-stone-700 border border-stone-600">
+              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-amber-400 rounded-full border border-stone-800"></span>
             </span>
-            <span className="flex items-center gap-1">
-              <span className="text-amber-400 font-bold">PM</span>
-              <span className="text-stone-500">afternoon/evening</span>
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-4 h-4 rounded bg-amber-500/20 border border-amber-500/50"></span>
-              <span className="text-stone-500">most votes</span>
-            </span>
+            <span className="text-stone-500">= your pick</span>
+          </span>
+        </div>
+        {isOpen && (
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-stone-500 pt-2 border-t border-stone-700/50">
+            <span>Click cells to toggle</span>
+            <span>Drag to select multiple</span>
+            <span>Click row/column headers for bulk</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// BEST TIMES SUMMARY - Shows optimal times ranked by availability
+// =============================================================================
+
+interface BestTimesSummaryProps {
+  poll: PollWithResults;
+  timeDisplay: TimeDisplay;
+}
+
+function BestTimesSummary({ poll, timeDisplay }: BestTimesSummaryProps) {
+  // Get all time slots sorted by vote count (descending)
+  const rankedTimes = useMemo(() => {
+    const entries = Object.entries(poll.votes_by_time)
+      .filter(([, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1]);
+
+    return entries.map(([slot, count]) => ({
+      slot,
+      count,
+      voters: poll.voters_by_time[slot] || [],
+      percentage: Math.round((count / poll.total_voters) * 100),
+    }));
+  }, [poll.votes_by_time, poll.voters_by_time, poll.total_voters]);
+
+  if (rankedTimes.length === 0) return null;
+
+  // Group by vote count to show ties
+  const maxVotes = rankedTimes[0]?.count || 0;
+  const topTimes = rankedTimes.filter(t => t.count === maxVotes);
+  const otherTimes = rankedTimes.filter(t => t.count < maxVotes).slice(0, 5); // Show up to 5 more
+
+  return (
+    <div className="pt-4 -mx-4 px-4 bg-gradient-to-b from-emerald-950/50 to-transparent border-t-2 border-emerald-500/50">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30">
+          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+        </div>
+        <div>
+          <h5 className="text-base font-bold text-emerald-400">Best Times</h5>
+          <p className="text-xs text-stone-500">{poll.total_voters} response{poll.total_voters !== 1 ? 's' : ''} · showing times with most overlap</p>
+        </div>
+      </div>
+
+      {/* Top times (highest vote count) - BIG and obvious */}
+      <div className="space-y-3">
+        {topTimes.map(({ slot, count, voters, percentage }) => {
+          const parsed = parseSlot(slot);
+          const local = utcToLocal(parsed.time);
+          const isAM = local.period === 'AM';
+
+          return (
+            <div key={slot} className="p-4 rounded-xl bg-emerald-600/20 border-2 border-emerald-500 shadow-lg shadow-emerald-500/10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold text-emerald-300">
+                      {local.time}
+                    </span>
+                    <span className={`text-lg font-bold ${isAM ? 'text-sky-400' : 'text-amber-400'}`}>
+                      {local.period}
+                    </span>
+                    {parsed.date && (
+                      <span className="text-sm text-stone-400 ml-1">
+                        {formatDate(parsed.date)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-stone-500 mt-0.5">
+                    {parsed.time} UTC
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl font-bold text-emerald-400">{count}</span>
+                    <span className="text-lg text-stone-500">/{poll.total_voters}</span>
+                  </div>
+                  <div className="text-sm font-medium text-emerald-400/80">{percentage}% available</div>
+                </div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-emerald-500/30">
+                <div className="text-xs text-stone-400">
+                  <span className="text-emerald-400/70 font-medium">Who&apos;s available:</span>{' '}
+                  <span className="text-stone-300">{voters.join(', ')}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Other high-availability times */}
+      {otherTimes.length > 0 && (
+        <div className="mt-4">
+          <p className="text-xs text-stone-500 mb-2 font-medium">Other options:</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {otherTimes.map(({ slot, count, voters, percentage }) => {
+              const parsed = parseSlot(slot);
+              const local = utcToLocal(parsed.time);
+              const isAM = local.period === 'AM';
+
+              return (
+                <div key={slot} className="flex items-center justify-between p-2.5 rounded-lg bg-stone-800/70 border border-stone-700">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-stone-300">
+                      {local.time} <span className={`${isAM ? 'text-sky-400' : 'text-amber-400'}`}>{local.period}</span>
+                    </span>
+                    {parsed.date && (
+                      <span className="text-[10px] text-stone-500">
+                        {formatDate(parsed.date)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-emerald-400">
+                      {count}
+                    </span>
+                    <span className="text-xs text-stone-500">({percentage}%)</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -888,6 +1019,11 @@ function AvailabilityCard({ poll, isLeader, isAuthenticated, userName, onAvailab
         <div className="px-4 pb-4 space-y-4 border-t border-stone-700/50">
           {poll.description && (
             <p className="text-sm text-stone-400 pt-3">{poll.description}</p>
+          )}
+
+          {/* Best Times Summary - PROMINENT at top */}
+          {poll.total_voters > 0 && (
+            <BestTimesSummary poll={poll} timeDisplay={timeDisplay} />
           )}
 
           {/* Name input */}
