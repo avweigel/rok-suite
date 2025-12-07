@@ -70,6 +70,16 @@ create index if not exists training_poll_votes_poll_id_idx on public.training_po
 alter table public.training_polls enable row level security;
 alter table public.training_poll_votes enable row level security;
 
+-- Drop existing policies if they exist (for idempotent re-runs)
+drop policy if exists "Authenticated users can view polls" on public.training_polls;
+drop policy if exists "Authenticated users can view votes" on public.training_poll_votes;
+drop policy if exists "Leaders can create polls" on public.training_polls;
+drop policy if exists "Leaders can update polls" on public.training_polls;
+drop policy if exists "Leaders can delete polls" on public.training_polls;
+drop policy if exists "Users can vote on open polls" on public.training_poll_votes;
+drop policy if exists "Users can update own vote" on public.training_poll_votes;
+drop policy if exists "Users can delete own vote" on public.training_poll_votes;
+
 -- READ POLICIES --
 
 -- Anyone authenticated can view polls
