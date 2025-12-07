@@ -332,7 +332,7 @@ function CreatePollModal({ isOpen, onClose, onCreated }: CreatePollModalProps) {
 }
 
 // =============================================================================
-// AVAILABILITY GRID - Easy multi-day selection with row/column helpers
+// AVAILABILITY GRID - Easy multi-day selection with row/column helpers + drag
 // =============================================================================
 
 interface AvailabilityGridProps {
@@ -349,6 +349,11 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
   const times = getUniqueTimes(poll.time_slots);
   const maxVotes = Math.max(...Object.values(poll.votes_by_time), 1);
 
+  // Drag selection state
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragMode, setDragMode] = useState<'select' | 'deselect'>('select');
+  const [draggedSlots, setDraggedSlots] = useState<Set<string>>(new Set());
+
   // Get all slots for a given date (column)
   const getSlotsForDate = (date: string) => poll.time_slots.filter(s => s.startsWith(date));
   // Get all slots for a given time (row)
@@ -356,6 +361,50 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
 
   // Check if all slots in a set are selected
   const allSelected = (slots: string[]) => slots.every(s => selectedSlots.has(s));
+
+  // Drag handlers
+  const handleDragStart = (slot: string) => {
+    if (!isOpen) return;
+    setIsDragging(true);
+    // If slot is already selected, we're deselecting; otherwise selecting
+    const mode = selectedSlots.has(slot) ? 'deselect' : 'select';
+    setDragMode(mode);
+    setDraggedSlots(new Set([slot]));
+    onToggle(slot);
+  };
+
+  const handleDragEnter = (slot: string) => {
+    if (!isDragging || !isOpen) return;
+    if (draggedSlots.has(slot)) return; // Already processed this slot
+
+    setDraggedSlots(prev => new Set([...prev, slot]));
+
+    // Apply the drag mode
+    const isCurrentlySelected = selectedSlots.has(slot);
+    if (dragMode === 'select' && !isCurrentlySelected) {
+      onToggle(slot);
+    } else if (dragMode === 'deselect' && isCurrentlySelected) {
+      onToggle(slot);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+    setDraggedSlots(new Set());
+  };
+
+  // Global mouse up listener to end drag
+  useEffect(() => {
+    const handleGlobalUp = () => {
+      if (isDragging) handleDragEnd();
+    };
+    window.addEventListener('mouseup', handleGlobalUp);
+    window.addEventListener('touchend', handleGlobalUp);
+    return () => {
+      window.removeEventListener('mouseup', handleGlobalUp);
+      window.removeEventListener('touchend', handleGlobalUp);
+    };
+  }, [isDragging]);
 
   // If no dates (time-only poll), show simple list
   if (dates.length === 0) {
@@ -412,16 +461,17 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
             {dates.map(date => {
               const dateSlots = getSlotsForDate(date);
               const isAllSelected = allSelected(dateSlots);
+              const someSelected = dateSlots.some(s => selectedSlots.has(s));
               const d = new Date(date + 'T00:00:00');
               return (
                 <th key={date} className="text-center pb-2 px-0.5 min-w-[52px]">
                   <button
                     onClick={() => isOpen && onToggleMany(dateSlots)}
                     disabled={!isOpen}
-                    className={`w-full px-1 py-1 rounded-lg transition-all ${
-                      isOpen ? 'hover:bg-stone-700 cursor-pointer' : ''
-                    } ${isAllSelected ? 'bg-emerald-600/20' : ''}`}
-                    title={isOpen ? `Toggle all ${formatDate(date)}` : formatDate(date)}
+                    className={`w-full px-1 py-1 rounded-lg transition-all border ${
+                      isOpen ? 'hover:bg-emerald-600/10 hover:border-emerald-500/50 cursor-pointer' : ''
+                    } ${isAllSelected ? 'bg-emerald-600/20 border-emerald-500/50' : someSelected ? 'border-emerald-500/30' : 'border-transparent'}`}
+                    title={isOpen ? `Select all ${formatDate(date)}` : formatDate(date)}
                   >
                     <div className="text-[10px] text-stone-500 uppercase">{d.toLocaleDateString(undefined, { weekday: 'short' })}</div>
                     <div className={`text-sm font-bold ${isAllSelected ? 'text-emerald-400' : 'text-stone-400'}`}>{d.getDate()}</div>
@@ -436,6 +486,7 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
             const local = utcToLocal(time);
             const timeSlots = getSlotsForTime(time);
             const isAllSelected = allSelected(timeSlots);
+            const someSelected = timeSlots.some(s => selectedSlots.has(s));
             const isAM = local.period === 'AM';
 
             return (
@@ -444,10 +495,10 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
                   <button
                     onClick={() => isOpen && onToggleMany(timeSlots)}
                     disabled={!isOpen}
-                    className={`w-full text-left px-1.5 py-1 rounded-lg transition-all text-xs ${
-                      isOpen ? 'hover:bg-stone-700 cursor-pointer' : ''
-                    } ${isAllSelected ? 'bg-emerald-600/20' : ''}`}
-                    title={isOpen ? `Toggle all at ${time} UTC` : `${time} UTC`}
+                    className={`w-full text-left px-1.5 py-1 rounded-lg transition-all text-xs border ${
+                      isOpen ? 'hover:bg-emerald-600/10 hover:border-emerald-500/50 cursor-pointer' : ''
+                    } ${isAllSelected ? 'bg-emerald-600/20 border-emerald-500/50' : someSelected ? 'border-emerald-500/30' : 'border-transparent'}`}
+                    title={isOpen ? `Select all at ${time} UTC` : `${time} UTC`}
                   >
                     <div className={isAllSelected ? 'text-emerald-400' : 'text-stone-300'}>
                       {local.time} <span className={`font-bold ${isAM ? 'text-sky-400' : 'text-amber-400'}`}>{local.period}</span>
@@ -473,9 +524,19 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
                   return (
                     <td key={slot} className="p-0.5">
                       <button
-                        onClick={() => isOpen && onToggle(slot)}
+                        onMouseDown={(e) => { e.preventDefault(); handleDragStart(slot); }}
+                        onMouseEnter={() => handleDragEnter(slot)}
+                        onTouchStart={(e) => { e.preventDefault(); handleDragStart(slot); }}
+                        onTouchMove={(e) => {
+                          // Get element under touch point
+                          const touch = e.touches[0];
+                          const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                          const slotAttr = element?.closest('[data-slot]')?.getAttribute('data-slot');
+                          if (slotAttr) handleDragEnter(slotAttr);
+                        }}
+                        data-slot={slot}
                         disabled={!isOpen}
-                        className={`w-full h-9 rounded-md flex items-center justify-center text-sm font-medium transition-all border-2 ${
+                        className={`w-full h-9 rounded-md flex items-center justify-center text-sm font-medium transition-all border-2 select-none ${
                           isWinner
                             ? 'bg-emerald-600 border-emerald-500 text-white'
                             : isSelected
@@ -509,7 +570,7 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
             <span className="text-amber-400 font-bold">PM</span> = afternoon/evening
           </span>
           <span className="text-stone-600">|</span>
-          <span>Tap date/time headers to select entire row/column</span>
+          <span>Drag to select multiple • Tap headers for row/column</span>
         </div>
       )}
     </div>
