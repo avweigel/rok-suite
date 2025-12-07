@@ -68,65 +68,67 @@ export function useTrainingPolls(status?: 'open' | 'closed' | 'cancelled') {
     setLoading(true);
 
     try {
-      // Get current user (may be null for anonymous)
-      const { data: { user } } = await supabase.auth.getUser();
+      // Fetch polls and votes in parallel to reduce latency
+      const [userResult, pollsResult] = await Promise.all([
+        supabase.auth.getUser(),
+        (async () => {
+          let query = supabase
+            .from('training_polls')
+            .select('*, training_poll_votes(*)')
+            .order('created_at', { ascending: false });
 
-      // Build query
-      let query = supabase
-        .from('training_polls')
-        .select('*')
-        .order('created_at', { ascending: false });
+          if (status) {
+            query = query.eq('status', status);
+          }
 
-      if (status) {
-        query = query.eq('status', status);
-      }
+          return query;
+        })(),
+      ]);
 
-      const { data: pollsData, error: pollsError } = await query;
+      const user = userResult.data?.user;
+      const { data: pollsData, error: pollsError } = pollsResult;
 
       if (pollsError) throw pollsError;
 
-      // Get vote counts and user's vote for each poll
-      const pollsWithResults: PollWithResults[] = await Promise.all(
-        (pollsData || []).map(async (poll) => {
-          // Get all votes for this poll
-          const { data: votes } = await supabase
-            .from('training_poll_votes')
-            .select('*')
-            .eq('poll_id', poll.id);
+      // Process all polls with their embedded votes (no additional queries needed)
+      const pollsWithResults: PollWithResults[] = (pollsData || []).map((poll) => {
+        const votes = poll.training_poll_votes || [];
 
-          // Calculate votes by time slot and collect voter names
-          const votesByTime: Record<string, number> = {};
-          const votersByTime: Record<string, string[]> = {};
-          poll.time_slots.forEach((slot: string) => {
-            votesByTime[slot] = 0;
-            votersByTime[slot] = [];
+        // Calculate votes by time slot and collect voter names
+        const votesByTime: Record<string, number> = {};
+        const votersByTime: Record<string, string[]> = {};
+        poll.time_slots.forEach((slot: string) => {
+          votesByTime[slot] = 0;
+          votersByTime[slot] = [];
+        });
+
+        votes.forEach((vote: TrainingPollVote) => {
+          const voterName = vote.voter_name || 'Anonymous';
+          vote.available_times.forEach((time: string) => {
+            if (votesByTime[time] !== undefined) {
+              votesByTime[time]++;
+              votersByTime[time].push(voterName);
+            }
           });
+        });
 
-          (votes || []).forEach((vote) => {
-            const voterName = vote.voter_name || 'Anonymous';
-            vote.available_times.forEach((time: string) => {
-              if (votesByTime[time] !== undefined) {
-                votesByTime[time]++;
-                votersByTime[time].push(voterName);
-              }
-            });
-          });
+        // Find user's vote (only for authenticated users)
+        const userVote = user
+          ? votes.find((v: TrainingPollVote) => v.voter_id === user.id)
+          : undefined;
 
-          // Find user's vote (only for authenticated users)
-          const userVote = user
-            ? votes?.find((v) => v.voter_id === user.id)
-            : undefined;
+        // Remove the nested votes from the poll object before spreading
+        const { training_poll_votes: _, ...pollWithoutVotes } = poll;
 
-          return {
-            ...poll,
-            total_voters: votes?.length || 0,
-            votes_by_time: votesByTime,
-            voters_by_time: votersByTime,
-            all_votes: votes || [],
-            user_vote: userVote,
-          };
-        })
-      );
+        return {
+          ...pollWithoutVotes,
+          total_voters: votes.length,
+          votes_by_time: votesByTime,
+          voters_by_time: votersByTime,
+          all_votes: votes,
+          user_vote: userVote,
+        };
+      });
 
       setPolls(pollsWithResults);
       setError(null);
