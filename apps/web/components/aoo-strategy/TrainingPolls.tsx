@@ -406,7 +406,8 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
         <thead>
           <tr>
             <th className="text-left text-xs text-stone-500 pb-2 pr-2 sticky left-0 bg-stone-800/95 z-10">
-              {timeDisplay === 'utc' ? 'UTC' : getTimezoneAbbr() || 'Local'}
+              <div>{getTimezoneAbbr() || 'Local'}</div>
+              <div className="text-[10px] text-stone-600">UTC</div>
             </th>
             {dates.map(date => {
               const dateSlots = getSlotsForDate(date);
@@ -443,18 +444,17 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
                   <button
                     onClick={() => isOpen && onToggleMany(timeSlots)}
                     disabled={!isOpen}
-                    className={`w-full text-left px-1.5 py-1.5 rounded-lg transition-all text-xs ${
+                    className={`w-full text-left px-1.5 py-1 rounded-lg transition-all text-xs ${
                       isOpen ? 'hover:bg-stone-700 cursor-pointer' : ''
                     } ${isAllSelected ? 'bg-emerald-600/20' : ''}`}
                     title={isOpen ? `Toggle all at ${time} UTC` : `${time} UTC`}
                   >
-                    {timeDisplay === 'utc' ? (
-                      <span className={isAllSelected ? 'text-emerald-400' : 'text-stone-400'}>{time}</span>
-                    ) : (
-                      <span className={isAllSelected ? 'text-emerald-400' : 'text-stone-400'}>
-                        {local.time} <span className={`font-bold ${isAM ? 'text-sky-400' : 'text-amber-400'}`}>{local.period}</span>
-                      </span>
-                    )}
+                    <div className={isAllSelected ? 'text-emerald-400' : 'text-stone-300'}>
+                      {local.time} <span className={`font-bold ${isAM ? 'text-sky-400' : 'text-amber-400'}`}>{local.period}</span>
+                    </div>
+                    <div className={`text-[10px] ${isAllSelected ? 'text-emerald-400/60' : 'text-stone-500'}`}>
+                      {time} UTC
+                    </div>
                   </button>
                 </td>
                 {dates.map(date => {
