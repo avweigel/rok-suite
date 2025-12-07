@@ -55,6 +55,7 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
   const [currentVerifyIndex, setCurrentVerifyIndex] = useState(0);
   const [commanders, setCommanders] = useState<Commander[]>([]);
   const [isLoadingCommanders, setIsLoadingCommanders] = useState(true);
+  const [useOcrMode, setUseOcrMode] = useState(true); // Default to OCR while AI model is being trained
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Training data collection
@@ -242,7 +243,7 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
     setProgress(0);
 
     const newDetected: DetectedCommander[] = [];
-    const useRoboflow = isDetectionConfigured();
+    const useRoboflow = !useOcrMode && isDetectionConfigured();
 
     for (let i = 0; i < images.length; i++) {
       if (images[i].processed) continue;
@@ -510,6 +511,42 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
                 </label>
               </div>
 
+              {/* Scan mode toggle */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-stone-800/50 border border-stone-700">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-stone-400">Scan mode:</span>
+                  <div className="flex rounded-lg overflow-hidden border border-stone-600">
+                    <button
+                      onClick={() => setUseOcrMode(true)}
+                      className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                        useOcrMode
+                          ? 'bg-amber-600 text-stone-900'
+                          : 'bg-stone-700 text-stone-400 hover:bg-stone-600'
+                      }`}
+                    >
+                      OCR (Stable)
+                    </button>
+                    <button
+                      onClick={() => setUseOcrMode(false)}
+                      disabled={!isDetectionConfigured()}
+                      className={`px-3 py-1.5 text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                        !useOcrMode && isDetectionConfigured()
+                          ? 'bg-amber-600 text-stone-900'
+                          : isDetectionConfigured()
+                          ? 'bg-stone-700 text-stone-400 hover:bg-stone-600'
+                          : 'bg-stone-800 text-stone-600 cursor-not-allowed'
+                      }`}
+                    >
+                      <Zap className="w-3 h-3" />
+                      AI (Beta)
+                    </button>
+                  </div>
+                </div>
+                <span className="text-xs text-stone-500">
+                  {useOcrMode ? 'Uses Tesseract OCR' : 'Uses Roboflow AI'}
+                </span>
+              </div>
+
               {/* Uploaded images preview */}
               {images.length > 0 && (
                 <div className="space-y-3">
@@ -543,7 +580,7 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
             <div className="text-center py-8">
               <div className="relative w-12 h-12 mx-auto mb-4">
                 <Loader2 className="w-12 h-12 text-amber-500 animate-spin" />
-                {isDetectionConfigured() && (
+                {!useOcrMode && isDetectionConfigured() && (
                   <Zap className="w-5 h-5 text-yellow-400 absolute -top-1 -right-1 animate-pulse" />
                 )}
               </div>
@@ -551,7 +588,7 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
                 Scanning image {(processingIndex ?? 0) + 1} of {images.length}
               </p>
               <p className="text-stone-500 text-sm mb-4">
-                {isDetectionConfigured()
+                {!useOcrMode && isDetectionConfigured()
                   ? 'AI detecting commander elements...'
                   : 'Reading text with OCR...'}
               </p>
@@ -561,7 +598,7 @@ export function ScreenshotScanner({ onImport, onClose }: ScreenshotScannerProps)
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              {isDetectionConfigured() && (
+              {!useOcrMode && isDetectionConfigured() && (
                 <p className="text-xs text-amber-600/60 mt-3 flex items-center justify-center gap-1">
                   <Sparkles className="w-3 h-3" />
                   Powered by Roboflow AI
