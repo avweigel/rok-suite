@@ -156,7 +156,6 @@ select
   p.title,
   p.status,
   p.time_slots,
-  p.training_date,
   p.selected_time,
   p.closes_at,
   p.created_at,
