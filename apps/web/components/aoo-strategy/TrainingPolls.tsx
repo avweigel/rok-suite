@@ -48,18 +48,23 @@ function getTimezoneAbbr(): string {
 
 function formatTimeForDisplay(time: string, mode: TimeDisplay): React.ReactNode {
   const local = utcToLocal(time);
-  const tzAbbr = getTimezoneAbbr();
 
   switch (mode) {
     case 'utc':
       return <span className="font-mono text-sm">{parseSlot(time).time}</span>;
     case 'local':
-      return <span className="font-mono text-sm">{local.time} {local.period}</span>;
+      return (
+        <span className="font-mono text-sm">
+          {local.time} <span className={`font-bold ${local.period === 'AM' ? 'text-sky-400' : 'text-amber-400'}`}>{local.period}</span>
+        </span>
+      );
     case 'both':
     default:
       return (
         <div className="text-center">
-          <div className="font-mono text-sm font-medium">{local.time} {local.period}</div>
+          <div className="font-mono text-sm font-medium">
+            {local.time} <span className={`font-bold ${local.period === 'AM' ? 'text-sky-400' : 'text-amber-400'}`}>{local.period}</span>
+          </div>
           <div className="text-[10px] text-stone-500">{parseSlot(time).time} UTC</div>
         </div>
       );
@@ -152,6 +157,7 @@ function CreatePollModal({ isOpen, onClose, onCreated }: CreatePollModalProps) {
 
   const selectAllTimes = () => setSelectedTimes(allTimes);
   const selectCommonTimes = () => setSelectedTimes(['12:00', '14:00', '16:00', '18:00', '20:00', '22:00']);
+  const clearTimes = () => setSelectedTimes([]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -263,12 +269,16 @@ function CreatePollModal({ isOpen, onClose, onCreated }: CreatePollModalProps) {
                 <button type="button" onClick={selectAllTimes} className="text-xs text-emerald-400 hover:text-emerald-300">
                   All
                 </button>
+                <button type="button" onClick={clearTimes} className="text-xs text-stone-400 hover:text-stone-300">
+                  Clear
+                </button>
               </div>
             </div>
             <div className="grid grid-cols-6 gap-1.5">
               {allTimes.map(time => {
                 const local = utcToLocal(time);
                 const isSelected = selectedTimes.includes(time);
+                const isAM = local.period === 'AM';
                 return (
                   <button
                     key={time}
@@ -280,8 +290,10 @@ function CreatePollModal({ isOpen, onClose, onCreated }: CreatePollModalProps) {
                         : 'bg-stone-700/50 border-stone-600 text-stone-400 hover:bg-stone-600'
                     }`}
                   >
-                    <div className="text-xs font-medium">{local.time}</div>
-                    <div className="text-[10px] opacity-60">{time}</div>
+                    <div className="text-xs font-medium">
+                      {local.time} <span className={`font-bold ${isAM ? 'text-sky-400' : 'text-amber-400'}`}>{local.period}</span>
+                    </div>
+                    <div className="text-[10px] opacity-60">{time} UTC</div>
                   </button>
                 );
               })}
@@ -320,21 +332,30 @@ function CreatePollModal({ isOpen, onClose, onCreated }: CreatePollModalProps) {
 }
 
 // =============================================================================
-// AVAILABILITY GRID - Easy multi-day selection
+// AVAILABILITY GRID - Easy multi-day selection with row/column helpers
 // =============================================================================
 
 interface AvailabilityGridProps {
   poll: PollWithResults;
   selectedSlots: Set<string>;
   onToggle: (slot: string) => void;
+  onToggleMany: (slots: string[]) => void;
   timeDisplay: TimeDisplay;
   isOpen: boolean;
 }
 
-function AvailabilityGrid({ poll, selectedSlots, onToggle, timeDisplay, isOpen }: AvailabilityGridProps) {
+function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDisplay, isOpen }: AvailabilityGridProps) {
   const dates = getUniqueDates(poll.time_slots);
   const times = getUniqueTimes(poll.time_slots);
   const maxVotes = Math.max(...Object.values(poll.votes_by_time), 1);
+
+  // Get all slots for a given date (column)
+  const getSlotsForDate = (date: string) => poll.time_slots.filter(s => s.startsWith(date));
+  // Get all slots for a given time (row)
+  const getSlotsForTime = (time: string) => poll.time_slots.filter(s => s.endsWith(time));
+
+  // Check if all slots in a set are selected
+  const allSelected = (slots: string[]) => slots.every(s => selectedSlots.has(s));
 
   // If no dates (time-only poll), show simple list
   if (dates.length === 0) {
@@ -378,68 +399,119 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, timeDisplay, isOpen }
     );
   }
 
-  // Multi-day grid view
+  // Multi-day grid view with clickable headers
   return (
     <div className="overflow-x-auto -mx-4 px-4">
       <table className="w-full border-collapse min-w-[400px]">
         <thead>
           <tr>
-            <th className="text-left text-xs text-stone-500 pb-2 pr-2 sticky left-0 bg-stone-800/95">
+            <th className="text-left text-xs text-stone-500 pb-2 pr-2 sticky left-0 bg-stone-800/95 z-10">
               {timeDisplay === 'utc' ? 'UTC' : getTimezoneAbbr() || 'Local'}
             </th>
-            {dates.map(date => (
-              <th key={date} className="text-center text-xs text-stone-400 pb-2 px-1 min-w-[60px]">
-                <div>{formatDate(date).split(',')[0]}</div>
-                <div className="font-bold">{new Date(date + 'T00:00:00').getDate()}</div>
-              </th>
-            ))}
+            {dates.map(date => {
+              const dateSlots = getSlotsForDate(date);
+              const isAllSelected = allSelected(dateSlots);
+              const d = new Date(date + 'T00:00:00');
+              return (
+                <th key={date} className="text-center pb-2 px-0.5 min-w-[52px]">
+                  <button
+                    onClick={() => isOpen && onToggleMany(dateSlots)}
+                    disabled={!isOpen}
+                    className={`w-full px-1 py-1 rounded-lg transition-all ${
+                      isOpen ? 'hover:bg-stone-700 cursor-pointer' : ''
+                    } ${isAllSelected ? 'bg-emerald-600/20' : ''}`}
+                    title={isOpen ? `Toggle all ${formatDate(date)}` : formatDate(date)}
+                  >
+                    <div className="text-[10px] text-stone-500 uppercase">{d.toLocaleDateString(undefined, { weekday: 'short' })}</div>
+                    <div className={`text-sm font-bold ${isAllSelected ? 'text-emerald-400' : 'text-stone-400'}`}>{d.getDate()}</div>
+                  </button>
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
-          {times.map(time => (
-            <tr key={time}>
-              <td className="text-xs text-stone-400 py-1 pr-2 sticky left-0 bg-stone-800/95">
-                {timeDisplay === 'utc' ? time : `${utcToLocal(time).time} ${utcToLocal(time).period}`}
-              </td>
-              {dates.map(date => {
-                const slot = `${date} ${time}`;
-                if (!poll.time_slots.includes(slot)) {
-                  return <td key={slot} className="p-1"><div className="w-full h-10 bg-stone-900/50 rounded" /></td>;
-                }
+          {times.map(time => {
+            const local = utcToLocal(time);
+            const timeSlots = getSlotsForTime(time);
+            const isAllSelected = allSelected(timeSlots);
+            const isAM = local.period === 'AM';
 
-                const voteCount = poll.votes_by_time[slot] || 0;
-                const isSelected = selectedSlots.has(slot);
-                const isWinner = poll.selected_time === slot;
-                const isBest = voteCount === maxVotes && voteCount > 0 && maxVotes > 0;
-                const intensity = maxVotes > 0 ? voteCount / maxVotes : 0;
+            return (
+              <tr key={time}>
+                <td className="py-0.5 pr-1 sticky left-0 bg-stone-800/95 z-10">
+                  <button
+                    onClick={() => isOpen && onToggleMany(timeSlots)}
+                    disabled={!isOpen}
+                    className={`w-full text-left px-1.5 py-1.5 rounded-lg transition-all text-xs ${
+                      isOpen ? 'hover:bg-stone-700 cursor-pointer' : ''
+                    } ${isAllSelected ? 'bg-emerald-600/20' : ''}`}
+                    title={isOpen ? `Toggle all at ${time} UTC` : `${time} UTC`}
+                  >
+                    {timeDisplay === 'utc' ? (
+                      <span className={isAllSelected ? 'text-emerald-400' : 'text-stone-400'}>{time}</span>
+                    ) : (
+                      <span className={isAllSelected ? 'text-emerald-400' : 'text-stone-400'}>
+                        {local.time} <span className={`font-bold ${isAM ? 'text-sky-400' : 'text-amber-400'}`}>{local.period}</span>
+                      </span>
+                    )}
+                  </button>
+                </td>
+                {dates.map(date => {
+                  const slot = `${date} ${time}`;
+                  if (!poll.time_slots.includes(slot)) {
+                    return <td key={slot} className="p-0.5"><div className="w-full h-9 bg-stone-900/50 rounded" /></td>;
+                  }
 
-                return (
-                  <td key={slot} className="p-0.5">
-                    <button
-                      onClick={() => isOpen && onToggle(slot)}
-                      disabled={!isOpen}
-                      className={`w-full h-10 rounded-md flex items-center justify-center text-sm font-medium transition-all border-2 ${
-                        isWinner
-                          ? 'bg-emerald-600 border-emerald-500 text-white'
-                          : isSelected
-                          ? 'bg-emerald-600/40 border-emerald-500 text-emerald-300'
-                          : isBest
-                          ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
-                          : intensity > 0
-                          ? 'bg-emerald-600/10 border-stone-600 text-stone-300'
-                          : 'bg-stone-700/30 border-stone-700 text-stone-500'
-                      } ${isOpen ? 'hover:border-emerald-400 cursor-pointer' : ''}`}
-                      title={`${voteCount} available${poll.voters_by_time[slot]?.length ? ': ' + poll.voters_by_time[slot].join(', ') : ''}`}
-                    >
-                      {isSelected ? <Check className="w-4 h-4" /> : voteCount > 0 ? voteCount : ''}
-                    </button>
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
+                  const voteCount = poll.votes_by_time[slot] || 0;
+                  const isSelected = selectedSlots.has(slot);
+                  const isWinner = poll.selected_time === slot;
+                  const isBest = voteCount === maxVotes && voteCount > 0 && maxVotes > 0;
+                  const intensity = maxVotes > 0 ? voteCount / maxVotes : 0;
+                  const voters = poll.voters_by_time[slot] || [];
+
+                  return (
+                    <td key={slot} className="p-0.5">
+                      <button
+                        onClick={() => isOpen && onToggle(slot)}
+                        disabled={!isOpen}
+                        className={`w-full h-9 rounded-md flex items-center justify-center text-sm font-medium transition-all border-2 ${
+                          isWinner
+                            ? 'bg-emerald-600 border-emerald-500 text-white'
+                            : isSelected
+                            ? 'bg-emerald-600/40 border-emerald-500 text-emerald-300'
+                            : isBest
+                            ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                            : intensity > 0
+                            ? 'bg-emerald-600/10 border-stone-600 text-stone-300'
+                            : 'bg-stone-700/30 border-stone-700 text-stone-500'
+                        } ${isOpen ? 'hover:border-emerald-400 cursor-pointer' : ''}`}
+                        title={`${voteCount} available${voters.length ? ': ' + voters.join(', ') : ''}`}
+                      >
+                        {isSelected ? <Check className="w-4 h-4" /> : voteCount > 0 ? voteCount : ''}
+                      </button>
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
+
+      {/* Legend */}
+      {isOpen && (
+        <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-stone-500">
+          <span className="flex items-center gap-1">
+            <span className="text-sky-400 font-bold">AM</span> = morning
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="text-amber-400 font-bold">PM</span> = afternoon/evening
+          </span>
+          <span className="text-stone-600">|</span>
+          <span>Tap date/time headers to select entire row/column</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -479,6 +551,21 @@ function AvailabilityCard({ poll, isLeader, isAuthenticated, userName, onAvailab
       const next = new Set(prev);
       if (next.has(slot)) next.delete(slot);
       else next.add(slot);
+      return next;
+    });
+    setHasChanges(true);
+  };
+
+  const toggleMany = (slots: string[]) => {
+    setSelectedSlots(prev => {
+      const next = new Set(prev);
+      // If all are selected, deselect all. Otherwise, select all.
+      const allSelected = slots.every(s => next.has(s));
+      if (allSelected) {
+        slots.forEach(s => next.delete(s));
+      } else {
+        slots.forEach(s => next.add(s));
+      }
       return next;
     });
     setHasChanges(true);
@@ -639,6 +726,7 @@ function AvailabilityCard({ poll, isLeader, isAuthenticated, userName, onAvailab
             poll={poll}
             selectedSlots={selectedSlots}
             onToggle={toggleSlot}
+            onToggleMany={toggleMany}
             timeDisplay={timeDisplay}
             isOpen={isOpen}
           />
