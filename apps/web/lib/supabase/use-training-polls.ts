@@ -12,8 +12,7 @@ export interface TrainingPoll {
   title: string;
   description: string | null;
   poll_type: 'training' | 'event' | 'other';
-  time_slots: string[];
-  training_date: string | null;
+  time_slots: string[]; // Format: "YYYY-MM-DD HH:MM" or "HH:MM" for time-only
   status: 'open' | 'closed' | 'cancelled';
   closes_at: string | null;
   selected_time: string | null;
@@ -43,8 +42,7 @@ export interface CreatePollInput {
   title: string;
   description?: string;
   poll_type?: 'training' | 'event' | 'other';
-  time_slots: string[];
-  training_date?: string;
+  time_slots: string[]; // Format: "YYYY-MM-DD HH:MM" for multi-day polls
   closes_at?: string;
 }
 
@@ -244,7 +242,6 @@ export function useCreatePoll() {
           description: input.description || null,
           poll_type: input.poll_type || 'training',
           time_slots: input.time_slots,
-          training_date: input.training_date || null,
           closes_at: input.closes_at || null,
           created_by: user.id,
         })
@@ -475,31 +472,57 @@ export function useManagePoll() {
 // =============================================================================
 
 /**
- * Convert UTC time string to user's local time
+ * Parse a slot string into date and time components
+ * Supports: "HH:MM" (time only) or "YYYY-MM-DD HH:MM" (date+time)
  */
-export function utcToLocal(utcTime: string): string {
-  const [hours, minutes] = utcTime.split(':').map(Number);
-  const now = new Date();
-  const utcDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes));
-  return utcDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+export function parseSlot(slot: string): { date: string | null; time: string } {
+  if (slot.includes(' ')) {
+    const [date, time] = slot.split(' ');
+    return { date, time };
+  }
+  return { date: null, time: slot };
 }
 
 /**
- * Convert local time to UTC time string
+ * Create a slot string from date and time
  */
-export function localToUtc(localTime: string): string {
-  const [time, period] = localTime.split(' ');
-  let [hours, minutes] = time.split(':').map(Number);
+export function createSlot(date: string | null, time: string): string {
+  return date ? `${date} ${time}` : time;
+}
 
-  if (period?.toLowerCase() === 'pm' && hours !== 12) hours += 12;
-  if (period?.toLowerCase() === 'am' && hours === 12) hours = 0;
+/**
+ * Check if a slot has a date component
+ */
+export function hasDate(slot: string): boolean {
+  return slot.includes(' ');
+}
 
-  const now = new Date();
-  const localDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
-  const utcHours = localDate.getUTCHours().toString().padStart(2, '0');
-  const utcMinutes = localDate.getUTCMinutes().toString().padStart(2, '0');
+/**
+ * Convert UTC time/datetime to user's local time
+ */
+export function utcToLocal(slot: string): { time: string; period: string; date?: Date } {
+  const { date, time } = parseSlot(slot);
+  const [hours, minutes] = time.split(':').map(Number);
 
-  return `${utcHours}:${utcMinutes}`;
+  let utcDate: Date;
+  if (date) {
+    const [year, month, day] = date.split('-').map(Number);
+    utcDate = new Date(Date.UTC(year, month - 1, day, hours, minutes));
+  } else {
+    const now = new Date();
+    utcDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes));
+  }
+
+  const localHours = utcDate.getHours();
+  const localMinutes = utcDate.getMinutes();
+  const period = localHours >= 12 ? 'PM' : 'AM';
+  const displayHours = localHours % 12 || 12;
+
+  return {
+    time: `${displayHours}:${localMinutes.toString().padStart(2, '0')}`,
+    period,
+    date: date ? utcDate : undefined,
+  };
 }
 
 /**
@@ -513,9 +536,64 @@ export function generateTimeSlots(): string[] {
 }
 
 /**
- * Format UTC time for display with local equivalent
+ * Generate date-time slots for multiple days
  */
-export function formatTimeWithLocal(utcTime: string): string {
-  const local = utcToLocal(utcTime);
-  return `${utcTime} UTC (${local} local)`;
+export function generateDateTimeSlots(dates: string[], times: string[]): string[] {
+  const slots: string[] = [];
+  for (const date of dates) {
+    for (const time of times) {
+      slots.push(`${date} ${time}`);
+    }
+  }
+  return slots.sort();
+}
+
+/**
+ * Get unique dates from slots
+ */
+export function getUniqueDates(slots: string[]): string[] {
+  const dates = new Set<string>();
+  for (const slot of slots) {
+    const { date } = parseSlot(slot);
+    if (date) dates.add(date);
+  }
+  return Array.from(dates).sort();
+}
+
+/**
+ * Get unique times from slots
+ */
+export function getUniqueTimes(slots: string[]): string[] {
+  const times = new Set<string>();
+  for (const slot of slots) {
+    const { time } = parseSlot(slot);
+    times.add(time);
+  }
+  return Array.from(times).sort();
+}
+
+/**
+ * Format a date for display
+ */
+export function formatDate(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+/**
+ * Get the next N days starting from today
+ */
+export function getNextDays(count: number): string[] {
+  const dates: string[] = [];
+  const today = new Date();
+  for (let i = 0; i < count; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    dates.push(`${year}-${month}-${day}`);
+  }
+  return dates;
 }

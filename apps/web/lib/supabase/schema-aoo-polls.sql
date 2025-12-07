@@ -6,7 +6,11 @@
 -- TRAINING POLLS (Leaders create polls to find optimal training times)
 -- =============================================================================
 
-create table if not exists public.training_polls (
+-- Drop and recreate to change column type (time_slots now includes dates)
+drop table if exists public.training_poll_votes cascade;
+drop table if exists public.training_polls cascade;
+
+create table public.training_polls (
   id uuid default gen_random_uuid() primary key,
 
   -- Poll metadata
@@ -14,18 +18,17 @@ create table if not exists public.training_polls (
   description text,                       -- Optional details
   poll_type text default 'training' check (poll_type in ('training', 'event', 'other')),
 
-  -- Time slots offered (stored as UTC times like "14:00", "18:00")
-  time_slots text[] not null,             -- Array of time options in HH:MM format (UTC)
-
-  -- Optional: specific date for the training
-  training_date date,                     -- NULL = recurring, or specific date
+  -- Date-time slots offered
+  -- Format: "YYYY-MM-DD HH:MM" in UTC (e.g., "2024-01-15 14:00")
+  -- For recurring/time-only polls, use "HH:MM" format
+  time_slots text[] not null,             -- Array of date-time or time options
 
   -- Poll status
   status text default 'open' check (status in ('open', 'closed', 'cancelled')),
   closes_at timestamp with time zone,     -- When voting ends (optional)
 
   -- Result
-  selected_time text,                     -- The winning time slot (HH:MM UTC)
+  selected_time text,                     -- The winning slot
 
   -- Tracking
   created_by uuid references auth.users(id) not null,
@@ -38,7 +41,7 @@ create table if not exists public.training_polls (
 -- Supports both authenticated and anonymous voters
 -- =============================================================================
 
-create table if not exists public.training_poll_votes (
+create table public.training_poll_votes (
   id uuid default gen_random_uuid() primary key,
   poll_id uuid references public.training_polls(id) on delete cascade not null,
 
