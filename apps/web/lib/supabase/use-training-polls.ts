@@ -35,6 +35,7 @@ export interface PollWithResults extends TrainingPoll {
   total_voters: number;
   votes_by_time: Record<string, number>;
   voters_by_time: Record<string, string[]>; // Names of voters for each time slot
+  all_votes: TrainingPollVote[]; // All individual votes for viewing responses
   user_vote?: TrainingPollVote;
 }
 
@@ -121,6 +122,7 @@ export function useTrainingPolls(status?: 'open' | 'closed' | 'cancelled') {
             total_voters: votes?.length || 0,
             votes_by_time: votesByTime,
             voters_by_time: votersByTime,
+            all_votes: votes || [],
             user_vote: userVote,
           };
         })
@@ -201,6 +203,7 @@ export function useTrainingPoll(pollId: string) {
         total_voters: votes?.length || 0,
         votes_by_time: votesByTime,
         voters_by_time: votersByTime,
+        all_votes: votes || [],
         user_vote: userVote,
       });
       setError(null);

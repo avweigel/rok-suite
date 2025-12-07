@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Clock, Plus, Check, X, Users, ChevronDown, ChevronUp, Trash2, Lock, Unlock, Globe, MapPin, User, Info, Calendar, CheckCircle2 } from 'lucide-react';
+import { Clock, Plus, Check, X, Users, ChevronDown, ChevronUp, Trash2, Lock, Unlock, Globe, MapPin, User, Info, Calendar, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import {
   useTrainingPolls,
   useCreatePoll,
@@ -517,6 +517,115 @@ function AvailabilityGrid({ poll, selectedSlots, onToggle, onToggleMany, timeDis
 }
 
 // =============================================================================
+// VIEW RESPONSES - Shows all voters and their selections
+// =============================================================================
+
+interface ViewResponsesProps {
+  poll: PollWithResults;
+  timeDisplay: TimeDisplay;
+}
+
+function ViewResponses({ poll, timeDisplay }: ViewResponsesProps) {
+  const dates = getUniqueDates(poll.time_slots);
+  const times = getUniqueTimes(poll.time_slots);
+
+  if (poll.all_votes.length === 0) {
+    return (
+      <div className="text-center py-4 text-stone-500 text-sm">
+        No responses yet
+      </div>
+    );
+  }
+
+  // Sort votes by name
+  const sortedVotes = [...poll.all_votes].sort((a, b) =>
+    (a.voter_name || 'Anonymous').localeCompare(b.voter_name || 'Anonymous')
+  );
+
+  return (
+    <div className="space-y-3">
+      {/* Summary stats */}
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-stone-400">{poll.all_votes.length} response{poll.all_votes.length !== 1 ? 's' : ''}</span>
+        <span className="text-stone-500 text-xs">
+          {dates.length > 0 ? `${dates.length} days × ${times.length} times` : `${times.length} time slots`}
+        </span>
+      </div>
+
+      {/* Voter list */}
+      <div className="space-y-2 max-h-80 overflow-y-auto">
+        {sortedVotes.map((vote) => {
+          const voterName = vote.voter_name || 'Anonymous';
+          const availableCount = vote.available_times.length;
+          const totalSlots = poll.time_slots.length;
+          const percentage = Math.round((availableCount / totalSlots) * 100);
+
+          return (
+            <div
+              key={vote.id}
+              className="p-3 rounded-lg bg-stone-700/30 border border-stone-700"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-stone-500" />
+                  <span className="font-medium text-stone-200">{voterName}</span>
+                </div>
+                <div className="text-xs text-stone-500">
+                  {availableCount}/{totalSlots} slots ({percentage}%)
+                </div>
+              </div>
+
+              {/* Availability summary */}
+              {dates.length > 0 ? (
+                // Multi-day: show compact grid
+                <div className="flex flex-wrap gap-1">
+                  {dates.map(date => {
+                    const d = new Date(date + 'T00:00:00');
+                    const dayAbbr = d.toLocaleDateString(undefined, { weekday: 'short' });
+                    const availableForDate = vote.available_times.filter(t => t.startsWith(date)).length;
+                    const totalForDate = times.length;
+                    const hasAny = availableForDate > 0;
+                    const hasAll = availableForDate === totalForDate;
+
+                    return (
+                      <div
+                        key={date}
+                        className={`px-2 py-1 rounded text-xs font-medium ${
+                          hasAll
+                            ? 'bg-emerald-600/30 text-emerald-400'
+                            : hasAny
+                            ? 'bg-emerald-600/10 text-emerald-400/70'
+                            : 'bg-stone-800 text-stone-600'
+                        }`}
+                        title={`${availableForDate}/${totalForDate} times on ${formatDate(date)}`}
+                      >
+                        {dayAbbr} {availableForDate > 0 && <span className="opacity-70">({availableForDate})</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                // Time-only: show list of times
+                <div className="flex flex-wrap gap-1">
+                  {vote.available_times.map(slot => (
+                    <span
+                      key={slot}
+                      className="px-2 py-0.5 rounded text-xs bg-emerald-600/20 text-emerald-400"
+                    >
+                      {formatTimeForDisplay(slot, timeDisplay)}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
 // AVAILABILITY CARD
 // =============================================================================
 
@@ -533,6 +642,7 @@ function AvailabilityCard({ poll, isLeader, isAuthenticated, userName, onAvailab
   const { submitAvailability, removeAvailability, loading: submitLoading, error: submitError } = useSubmitAvailability();
   const { closePoll, reopenPoll, deletePoll, loading: manageLoading } = useManagePoll();
   const [expanded, setExpanded] = useState(poll.status === 'open');
+  const [showResponses, setShowResponses] = useState(false);
   const [selectedSlots, setSelectedSlots] = useState<Set<string>>(new Set(poll.user_vote?.available_times || []));
   const [voterName, setVoterName] = useState(poll.user_vote?.voter_name || userName || '');
   const [hasChanges, setHasChanges] = useState(false);
@@ -730,6 +840,25 @@ function AvailabilityCard({ poll, isLeader, isAuthenticated, userName, onAvailab
             timeDisplay={timeDisplay}
             isOpen={isOpen}
           />
+
+          {/* View Responses Toggle */}
+          {poll.total_voters > 0 && (
+            <div className="pt-2">
+              <button
+                onClick={() => setShowResponses(!showResponses)}
+                className="flex items-center gap-2 text-sm text-stone-400 hover:text-stone-300 transition-colors"
+              >
+                {showResponses ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showResponses ? 'Hide' : 'View'} {poll.total_voters} response{poll.total_voters !== 1 ? 's' : ''}
+              </button>
+
+              {showResponses && (
+                <div className="mt-3 p-3 rounded-lg bg-stone-900/50 border border-stone-700">
+                  <ViewResponses poll={poll} timeDisplay={timeDisplay} />
+                </div>
+              )}
+            </div>
+          )}
 
           {submitError && <p className="text-red-400 text-sm">{submitError}</p>}
 
