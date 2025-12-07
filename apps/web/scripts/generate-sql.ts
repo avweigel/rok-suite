@@ -42,8 +42,10 @@ const ADD_TO_SUBSTITUTES = new Set(['KKTowMater2']);
 // Players removed from alliance entirely
 const REMOVED_FROM_ALLIANCE = new Set(['bear']);
 
-// Manual first teleport additions
-const FORCE_TELEPORT_1ST = new Set(['Calca']);
+// Manual first teleport additions (use this to force specific players into 1st wave)
+// Note: This ADDS to the top 8, so if you add someone not in top 8, you'll have 9+ teleporters
+// To swap someone in, remove them from exclusions and let the power ranking handle it
+const FORCE_TELEPORT_1ST = new Set<string>([]);
 
 async function main() {
   // Parse CSV
