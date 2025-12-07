@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
 import type { MapAssignments, Player, Team, StrategyData as ImportedStrategyData } from '@/lib/aoo-strategy/types';
 import { defaultStrategyData } from '@/lib/aoo-strategy/strategy-data';
+import { TrainingPolls } from '@/components/aoo-strategy/TrainingPolls';
 
 // Dynamic import to avoid SSR issues with the map
 const AOOInteractiveMap = dynamic(() => import('@/components/aoo-strategy/AOOInteractiveMap'), {
@@ -113,7 +114,7 @@ const ALLIANCE_ROSTER = [
 ].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 
 export default function AooStrategyPage() {
-    const [activeTab, setActiveTab] = useState<'map' | 'roster' | 'lookup' | 'quickref'>('lookup');
+    const [activeTab, setActiveTab] = useState<'map' | 'roster' | 'lookup' | 'quickref' | 'schedule'>('lookup');
     const [players, setPlayers] = useState<Player[]>([]);
     const [substitutes, setSubstitutes] = useState<Player[]>([]);
     const [teams, setTeams] = useState<TeamInfo[]>(DEFAULT_TEAMS);
@@ -398,6 +399,14 @@ export default function AooStrategyPage() {
                             }`}
                         >
                             👥 Zone Roster
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('schedule')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                                activeTab === 'schedule' ? theme.tabActive : theme.tabInactive
+                            }`}
+                        >
+                            📅 Schedule
                         </button>
                     </div>
                 </div>
@@ -1489,6 +1498,21 @@ Need ALL zones to support!`}
                     <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
                         <p className={`text-xs ${theme.textMuted}`}>Angmar • Rise of Kingdoms</p>
                         <p className={`text-[10px] ${theme.textMuted} mt-1 opacity-50`}>🐇 Hop to it! • Don Juan sends his regards</p>
+                    </footer>
+                </div>
+            )}
+
+            {/* Schedule Tab - Training Time Polls */}
+            {activeTab === 'schedule' && (
+                <div className="max-w-3xl mx-auto p-4 md:p-6">
+                    <h1 className="text-3xl font-bold text-center mb-2">📅 Training Schedule</h1>
+                    <p className={`text-center ${theme.textMuted} mb-8`}>Vote for training times that work for you</p>
+
+                    <TrainingPolls />
+
+                    <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
+                        <p className={`text-xs ${theme.textMuted}`}>Angmar • Rise of Kingdoms</p>
+                        <p className={`text-[10px] ${theme.textMuted} mt-1 opacity-50`}>All times are in UTC</p>
                     </footer>
                 </div>
             )}
