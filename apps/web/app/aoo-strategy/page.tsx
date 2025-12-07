@@ -1156,7 +1156,7 @@ Follow leader's calls`}
                         </div>
                         <div className={`mt-4 p-3 rounded-lg ${darkMode ? 'bg-red-900/30' : 'bg-red-50'} border border-red-500/50 text-center`}>
                             <div className="font-bold text-red-500">🎯 Leaders Rally Occupied Buildings</div>
-                            <div className={`text-sm ${theme.textMuted}`}>Don't attack empty buildings - capture them with T1 cav. Rally only when enemies are garrisoned!</div>
+                            <div className={`text-sm ${theme.textMuted}`}>Rally only when enemies are garrisoned!</div>
                         </div>
                     </section>
 
