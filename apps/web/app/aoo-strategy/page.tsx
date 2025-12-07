@@ -1288,43 +1288,30 @@ export default function AooStrategyPage() {
                             className={`p-6 rounded-lg ${darkMode ? 'bg-zinc-900 hover:bg-zinc-800' : 'bg-gray-50 hover:bg-gray-100'} cursor-pointer border-2 border-emerald-500/50 transition-colors`}
                         >
                             <div className={`copy-text font-mono text-sm ${theme.text} whitespace-pre-line leading-relaxed`}>
-{`ARK OF OSIRIS BATTLE
+{`⚔️ AOO BATTLE ⚔️
 
-BEFORE BATTLE:
-- Clear hospital completely
-- Use 25% troop expansion buff
-- Check your zone: rok-suite.vercel.app/aoo-strategy
+BEFORE:
+• Clear hospital
+• Check zone: rok-suite.vercel.app/aoo-strategy
 
-KNOW YOUR ROLE:
-- Rally Leader: Rally altars after teleport (1 min rallies)
-- Teleport 1st (Fluffy/Sysstm/Suntzu): TP immediately
-- Hold Obelisks: Send 1 troop to each Obelisk 3&4
-- Garrison: Stay in buildings to defend
-- Conquer: Use cavalry, be first to buildings
-- Farm: Support rallies first, then gather
+PHASE 1 - RUSH:
+Z1/Z3 → Grab your obelisk FAST
+Z2 → Rush outposts
 
-PHASE 1 - RUSH (0:00):
-Zone 1 & 3: Send FASTEST marches to grab obelisks
-Zone 2 (Fluffy/Sysstm): Rush outposts
+PHASE 2 - TELEPORT:
+⚡ Fluffy/Sysstm/Suntzu TP NOW
+Rally shrines + altars (1 min rallies)
+Garrison everything we take
 
-PHASE 2 - TELEPORT & CONQUER (~5:00):
-FIRST WAVE TP: Fluffy, Sysstm, Suntzu teleport NOW
-TOP TEAM: Send 1 troop to EACH Obelisk 3&4 (hold them)
-Fluffy/Sysstm: Rally 1 Shrine + 1 Altar each
-Conquer: Capture shrines & altars with cavalry
-Garrison: BACKFILL everything we conquer
+PHASE 3 - ARK:
+Control center buildings
+STAY in buildings you take
+Farm for points
 
-PHASE 3 - ARK CONTROL (~15:00):
-Fluffy/Sysstm: 3rd march ready for Ark
-Once you take a building → STAY IN IT
-Defend what we have (priority!)
-Farm constantly for points
-
-PHASE 4 - PUSH ENEMY (~45:00):
-Attack enemy Obelisks 3 & 4
-Defend our buildings first
-Support weak lanes
-Follow leader's calls`}
+PHASE 4 - PUSH:
+Hit enemy obelisks
+Defend > Attack
+Follow calls`}
                             </div>
                         </div>
                         <p className={`text-xs ${theme.textMuted} text-center mt-3`}>Click anywhere on the text to copy</p>
@@ -1666,11 +1653,10 @@ Follow leader's calls`}
                                     className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border-2 border-emerald-500/30 transition-colors`}
                                 >
                                     <div className={`font-mono text-sm ${theme.text} whitespace-pre-line`}>
-{`⚔️ AOO BATTLE IN 30 MIN ⚔️
-✓ Clear hospital NOW
-✓ Use 25% troop expansion buff
+{`⚔️ AOO IN 30 MIN ⚔️
+✓ Clear hospital
 ✓ Check your zone: rok-suite.vercel.app/aoo-strategy
-ZONE 1 (Left) • ZONE 2 (Ark) • ZONE 3 (Right)`}
+Z1 (Blue) • Z2 (Orange) • Z3 (Purple)`}
                                     </div>
                                 </div>
                             </div>
@@ -1768,10 +1754,6 @@ Need ALL zones to support!`}
                             <li className="flex items-start gap-2">
                                 <span className="text-emerald-500 font-bold">✓</span>
                                 <span>Clear your hospital completely</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <span className="text-emerald-500 font-bold">✓</span>
-                                <span>Activate 25% troop expansion buff</span>
                             </li>
                             <li className="flex items-start gap-2">
                                 <span className="text-emerald-500 font-bold">✓</span>
