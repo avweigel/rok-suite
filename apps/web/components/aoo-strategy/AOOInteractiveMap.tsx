@@ -69,6 +69,30 @@ const teamColors: Record<number, { bg: string; text: string; name: string }> = {
   3: { bg: '#7C3AED', text: 'white', name: 'Zone 3' },
 };
 
+// Building pairs that are mirrored across the map diagonal
+// When swapping corners, these buildings swap their strategic roles
+const MIRROR_PAIRS: Record<string, string> = {
+  'obelisk-1': 'obelisk-4',  // Upper <-> Lower
+  'obelisk-4': 'obelisk-1',
+  'obelisk-2': 'obelisk-3',  // Left <-> Right
+  'obelisk-3': 'obelisk-2',
+  'iset-1': 'seth-3',        // Iset outposts <-> Seth outposts (mirrored)
+  'iset-2': 'seth-2',
+  'iset-3': 'seth-1',
+  'seth-1': 'iset-3',
+  'seth-2': 'iset-2',
+  'seth-3': 'iset-1',
+  'war-1': 'war-2',          // Left <-> Right shrines
+  'war-2': 'war-1',
+  'life-1': 'life-2',        // Right <-> Left shrines
+  'life-2': 'life-1',
+  'desert-1': 'desert-2',    // Right <-> Left altars
+  'desert-2': 'desert-1',
+  'sky-1': 'sky-2',          // Right <-> Left sky altars
+  'sky-2': 'sky-1',
+  'ark': 'ark',              // Ark stays the same (center)
+};
+
 const getDefaultAssignments = (): MapAssignments => {
   const initial: MapAssignments = {};
   buildings.forEach(b => {
@@ -426,7 +450,11 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
 
                 {/* Building Markers */}
                 {buildings.map(building => {
-                  const assignment = assignments[building.id];
+                  // When swapCorners is true, show the mirrored building's assignment at this position
+                  // This way the marker stays aligned with the map, but shows what zone attacks this building
+                  // when starting from the opposite corner
+                  const displayBuildingId = swapCorners ? MIRROR_PAIRS[building.id] : building.id;
+                  const assignment = assignments[displayBuildingId];
                   const isSelected = selectedBuilding?.id === building.id;
                   const isHovered = hoveredBuilding?.id === building.id;
                   const isFiltered = filterTeam !== 'all' && assignment?.team !== filterTeam;
