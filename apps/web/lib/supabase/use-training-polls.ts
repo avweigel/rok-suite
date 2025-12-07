@@ -566,7 +566,7 @@ export function getUniqueDates(slots: string[]): string[] {
 }
 
 /**
- * Get unique times from slots
+ * Get unique times from slots, sorted by local time (morning first)
  */
 export function getUniqueTimes(slots: string[]): string[] {
   const times = new Set<string>();
@@ -574,7 +574,22 @@ export function getUniqueTimes(slots: string[]): string[] {
     const { time } = parseSlot(slot);
     times.add(time);
   }
-  return Array.from(times).sort();
+
+  // Sort by local hour so morning times appear first
+  return Array.from(times).sort((a, b) => {
+    const localA = utcToLocal(a);
+    const localB = utcToLocal(b);
+
+    // Parse local times to get hour for comparison
+    const hourA = parseInt(localA.time.split(':')[0]);
+    const hourB = parseInt(localB.time.split(':')[0]);
+
+    // Convert to 24-hour for sorting (AM before PM, then by hour)
+    const hour24A = localA.period === 'AM' ? (hourA === 12 ? 0 : hourA) : (hourA === 12 ? 12 : hourA + 12);
+    const hour24B = localB.period === 'AM' ? (hourB === 12 ? 0 : hourB) : (hourB === 12 ? 12 : hourB + 12);
+
+    return hour24A - hour24B;
+  });
 }
 
 /**
