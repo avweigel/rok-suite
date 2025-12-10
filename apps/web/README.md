@@ -23,8 +23,10 @@ Strategy tools and battle planning for Rise of Kingdoms.
 ### Sunset Canyon Simulator (`/sunset-canyon`)
 5v5 defensive formation optimizer with:
 - **Commander Roster** - Full stats tracking (level, stars, skills, talents)
+- **JSON Import** - Bulk import commanders from JSON files with format documentation
 - **Screenshot Scanner** - OCR (Tesseract.js) + Vision AI (Roboflow) for bulk import
-- **Formation Optimizer** - Multi-layered scoring algorithm for optimal lineups
+- **Formation Optimizer** - Multi-layered scoring with primary/secondary position preferences
+- **Meta Synergies** - Based on research from ROK community guides (Dec 2025)
 - **Win Rate Analysis** - Synergy-based probability estimates
 - **Training Data Submission** - Contribute to model improvement
 

@@ -77,11 +77,36 @@ function getEffectivePower(commander) {
 
 ## Step 3: Pairing Score Calculation
 
-The pairing score determines how well two commanders work together. This now includes **talent tree synergies** and **skill effect combinations**, modeling the game's "Quick Deploy" optimization logic.
+The pairing score determines how well two commanders work together. This includes **primary/secondary position preferences**, **talent tree synergies**, and **skill effect combinations**, modeling the game's "Quick Deploy" optimization logic.
+
+### Critical Rule: Primary vs Secondary Position
+
+**Only the primary commander's talent tree takes effect.** The secondary commander contributes only their skills.
+
+This means commanders should be positioned based on the value of their talent tree:
+- Commanders with valuable talent trees (Guan Yu, Charles Martel, Richard I) → **Primary**
+- Commanders whose value comes from skills (Yi Seong-Gye, Eulji Mundeok) → **Secondary**
 
 ```javascript
 function getPairingScore(primary, secondary) {
   let score = 0;
+
+  // ═══════════════════════════════════════════════
+  // STEP 0: PRIMARY/SECONDARY POSITION PREFERENCE (NEW)
+  // Some commanders MUST be primary due to talent tree value
+  // ═══════════════════════════════════════════════
+  if (primarySynergy.preferredPosition === 'secondary') {
+    score -= 150;  // Wrong position - should be secondary!
+  }
+  if (secondarySynergy.preferredPosition === 'primary') {
+    score -= 150;  // Wrong position - should be primary!
+  }
+  if (primarySynergy.preferredPosition === 'primary') {
+    score += 50;   // Correctly positioned as primary
+  }
+  if (secondarySynergy.preferredPosition === 'secondary') {
+    score += 50;   // Correctly positioned as secondary
+  }
 
   // ═══════════════════════════════════════════════
   // STEP 1: COMMANDER POWER (Primary Factor ~50%)
@@ -100,7 +125,7 @@ function getPairingScore(primary, secondary) {
   }
 
   // ═══════════════════════════════════════════════
-  // STEP 3: TALENT TREE & SKILL EFFECT SYNERGIES (NEW ~15%)
+  // STEP 3: TALENT TREE & SKILL EFFECT SYNERGIES (~15%)
   // Models "Quick Deploy" well-rounded optimization
   // ═══════════════════════════════════════════════
   score += getTalentTreeSynergyBonus(primary, secondary);
@@ -131,6 +156,22 @@ function getPairingScore(primary, secondary) {
   return score;
 }
 ```
+
+### Position Preference Reference
+
+| Commander | Position | Reason |
+|-----------|----------|--------|
+| **Guan Yu** | Primary | "You must use Sun Tzu as secondary because of Guan Yu's talent tree" |
+| **Charles Martel** | Primary | "Most people are better off using him as primary in an individual tank slot" |
+| **Richard I** | Primary | Garrison/defense talent tree valuable for Canyon defense |
+| **Sun Tzu** | Primary | Skill tree is very valuable for damage builds |
+| **Aethelflaed** | Primary | "Aethelflaed primary + YSG secondary" for excellent AOE |
+| **Constantine I** | Primary | Garrison talent tree is valuable |
+| **Wu Zetian** | Primary | Leadership talent tree is valuable |
+| **Yi Seong-Gye** | Secondary | Skills are the value (5-target AOE), not talent tree |
+| **Eulji Mundeok** | Secondary | Defense reduction debuff is the value |
+| **Joan of Arc** | Either | Works well as primary or secondary |
+| **Björn Ironside** | Either | Works as primary or secondary |
 
 ### Talent Tree Synergy Bonuses
 
@@ -290,11 +331,14 @@ interface CommanderSynergy {
   aoeTargets: number;      // 1-5 targets
   preferredRow: 'front' | 'back' | 'center';
 
-  // NEW: Talent tree specializations
+  // Talent tree specializations
   talentTrees: TalentTree[];  // e.g., ['infantry', 'skill', 'garrison']
 
-  // NEW: Skill effect types
+  // Skill effect types
   skillEffects: SkillEffectType[];  // e.g., ['aoe_damage', 'silence', 'rage_boost']
+
+  // Primary/Secondary position preference (Dec 2025)
+  preferredPosition: 'primary' | 'secondary' | 'either';
 }
 ```
 

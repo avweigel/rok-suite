@@ -11,23 +11,46 @@ Sunset Canyon is a 5v5 simulated battle mode where:
 - Attackers can see your formation and counter-pick
 - Only commander **level** and **talents** take effect (no gear, kingdom buffs, etc.)
 
+**Key Rule:** Only the **primary commander's talent tree** takes effect. The secondary commander contributes only their skills (active + passive). This is why commander positioning matters!
+
 ## How the Optimizer Works
 
 The optimizer uses a **multi-layered scoring algorithm** that prioritizes:
 
-1. **Commander Power (60%)** - Level and skills matter most
-2. **Meta Synergies (20%)** - Known good pairings from the community
-3. **AOE Coverage (15%)** - Multi-target skills dominate Canyon
-4. **Troop Type Balance (5%)** - Infantry strong, cavalry weak
+1. **Primary/Secondary Position** - Correct commander positioning based on talent tree value
+2. **Commander Power** - Level and skills matter most
+3. **Meta Synergies** - Known good pairings from the community (Dec 2025 research)
+4. **AOE Coverage** - Multi-target skills dominate Canyon
+5. **Troop Type Balance** - Infantry strong, cavalry weak
 
 See [Algorithm Details](./algorithm.md) for the full breakdown.
 
 ## Quick Start
 
-1. **Add your commanders** - Enter level, stars, and skill levels
+1. **Add your commanders** - Enter level, stars, and skill levels manually or via JSON import
 2. **Set City Hall level** - Affects troop capacity calculations
 3. **Click "Optimize Formation"** - Get 3 recommended formations
-4. **Review suggestions** - Check win rates and reasoning
+4. **Review suggestions** - Check win rates, reasoning, and commander positions
+
+### JSON Import
+
+You can bulk import commanders using a JSON file. Click the **Import** button and use this format:
+
+```json
+[
+  {
+    "id": "sun-tzu",
+    "name": "Sun Tzu",
+    "rarity": "epic",
+    "types": ["Infantry", "Garrison", "Skill"],
+    "level": 60,
+    "stars": 5,
+    "skills": [5, 5, 5, 5]
+  }
+]
+```
+
+See the in-app help modal for full field documentation.
 
 ## Key Strategies
 

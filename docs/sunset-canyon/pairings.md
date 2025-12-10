@@ -12,8 +12,27 @@ In Rise of Kingdoms, two commanders lead each army:
 | **Secondary** | Inactive | Active | Supports primary |
 
 **Key insight:** Secondary commanders cannot use their talents, only their skills. This means:
-- Same troop type = better talent synergy
-- Skill interactions are more important than individual talent builds
+- The **primary commander's talent tree** is what makes or breaks the march
+- Skill interactions are more important than individual talent builds for secondaries
+- Some commanders MUST be primary due to their talent tree value
+
+### Primary/Secondary Position Guide (Dec 2025)
+
+Based on research from ROK community guides, certain commanders should always be primary or secondary:
+
+| Commander | Position | Reason |
+|-----------|----------|--------|
+| **Guan Yu** | **Primary** | "You must use Sun Tzu as secondary because of Guan Yu's talent tree" |
+| **Charles Martel** | **Primary** | "Most people are better off using him as primary in an individual tank slot" |
+| **Richard I** | **Primary** | Garrison/defense talent tree is valuable for Canyon defense |
+| **Sun Tzu** | **Primary** | Skill tree is very valuable for damage builds |
+| **Aethelflaed** | **Primary** | "Aethelflaed primary + YSG secondary" for excellent AOE |
+| **Constantine I** | **Primary** | Garrison talent tree is valuable |
+| **Wu Zetian** | **Primary** | Leadership talent tree is valuable |
+| **Yi Seong-Gye** | **Secondary** | Skills are the value (5-target AOE), not talent tree |
+| **Eulji Mundeok** | **Secondary** | Defense reduction debuff is the value |
+| **Joan of Arc** | **Either** | Works well as primary or secondary |
+| **Björn Ironside** | **Either** | Works as primary or secondary |
 
 ## S-Tier Pairings (Must-Use)
 
@@ -60,8 +79,8 @@ In Rise of Kingdoms, two commanders lead each army:
 
 | Primary | Secondary | Why It Works |
 |---------|-----------|--------------|
-| **Eulji Mundeok** | **Sun Tzu** | Infantry debuffer, weakens enemy front line |
-| **Bjorn Ironside** | **Sun Tzu** | Epic infantry with skill damage boost |
+| **Sun Tzu** | **Eulji Mundeok** | Infantry debuffer, weakens enemy front line (Eulji should be secondary!) |
+| **Sun Tzu** | **Bjorn Ironside** | Epic infantry with skill damage boost |
 | **Kusunoki Masashige** | **Yi Seong-Gye** | Archer AOE with garrison defense |
 | **Boudica** | **Joan of Arc** | Rage engine with healing, sustain support |
 

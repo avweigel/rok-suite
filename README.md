@@ -34,10 +34,12 @@ Learn how it works
 
 ### Sunset Canyon Simulator (`/sunset-canyon`)
 - **Commander roster management** with full stats (level, stars, skills, talents)
+- **JSON import** to bulk-import commanders from JSON files (with format documentation)
 - **Screenshot scanner** using OCR (Tesseract.js) + Vision AI (Roboflow) to bulk-import commanders
 - **Formation optimizer** that recommends optimal 5-commander defensive lineups
-- **Win rate analysis** based on commander synergies and positioning
-- **Multi-layered scoring**: Commander Power (60%), Meta Synergies (20%), AOE Coverage (15%), Troop Balance (5%)
+- **Primary/secondary position logic** - Commanders assigned to correct roles based on talent tree value
+- **Win rate analysis** based on commander synergies, positioning, and meta pairings
+- **Multi-layered scoring**: Commander Power → Primary/Secondary Position → Meta Synergies → AOE Coverage → Troop Balance
 
 > **[Read the Docs](https://avweigel.github.io/rok-suite/#/sunset-canyon/README)** — Algorithm details, commander pairings, and formation strategies.
 

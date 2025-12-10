@@ -33,6 +33,11 @@ interface CommanderSynergy {
   preferredRow?: 'front' | 'back' | 'center';
   talentTrees?: TalentTree[];  // Primary talent tree specializations
   skillEffects?: SkillEffectType[];  // Key skill effects for synergy matching
+  // Primary/Secondary preference based on talent tree value
+  // 'primary': This commander should lead (talent tree is valuable)
+  // 'secondary': This commander works better as secondary (skills are the value)
+  // 'either': Doesn't matter (both work well)
+  preferredPosition?: 'primary' | 'secondary' | 'either';
 }
 
 // Known good commander pairings from Rise of Kingdoms meta (2025)
@@ -53,7 +58,8 @@ const KNOWN_SYNERGIES: Record<string, CommanderSynergy> = {
     canyonBonus: 50,
     preferredRow: 'front',
     talentTrees: ['leadership', 'garrison', 'support'],
-    skillEffects: ['shield', 'heal', 'damage_boost']
+    skillEffects: ['shield', 'heal', 'damage_boost'],
+    preferredPosition: 'primary'  // Garrison talent tree is valuable
   },
 
   // Wu Zetian - Best defensive pairing with Constantine
@@ -64,7 +70,8 @@ const KNOWN_SYNERGIES: Record<string, CommanderSynergy> = {
     canyonBonus: 45,
     preferredRow: 'front',
     talentTrees: ['leadership', 'garrison', 'defense'],
-    skillEffects: ['attack_reduction', 'shield', 'debuff']
+    skillEffects: ['attack_reduction', 'shield', 'debuff'],
+    preferredPosition: 'primary'  // Leadership talent tree is valuable
   },
 
   // Theodora - "Perfect when defending garrisons"
@@ -80,6 +87,8 @@ const KNOWN_SYNERGIES: Record<string, CommanderSynergy> = {
   },
 
   // Richard I - "Probably the best tank in Rise of Kingdoms"
+  // Research: "Use Richard or Charles as your secondary commander" when paired with Sun Tzu
+  // But Richard's garrison tree is valuable - use as primary when leading
   'Richard I': {
     partners: ['Charles Martel', 'Sun Tzu', 'Scipio Africanus', 'Yi Seong-Gye', 'Guan Yu', 'Constantine I'],
     reason: 'Best tank in RoK with healing + damage reduction, front line anchor that lasts forever',
@@ -87,10 +96,14 @@ const KNOWN_SYNERGIES: Record<string, CommanderSynergy> = {
     canyonBonus: 45,
     preferredRow: 'front',
     talentTrees: ['infantry', 'garrison', 'defense'],
-    skillEffects: ['heal', 'slow', 'defense_reduction']
+    skillEffects: ['heal', 'slow', 'defense_reduction'],
+    preferredPosition: 'primary'  // Garrison/Defense talent tree valuable for Canyon defense
   },
 
   // Sun Tzu - "Arguably the best epic commander, S-tier for Sunset Canyon"
+  // Research: "It does not matter if Sun Tzu is primary or secondary"
+  // But his skill tree and rage generation make him excellent as primary for damage builds
+  // With tanks (Richard/Charles), he's often secondary for survivability
   'Sun Tzu': {
     partners: ['Charles Martel', 'Guan Yu', 'Harald Sigurdsson', 'Richard I', 'Scipio Africanus', 'Yi Seong-Gye', 'Alexander the Great', 'Björn Ironside', 'Eulji Mundeok', 'Mehmed II', 'Baibars', 'Joan of Arc'],
     reason: 'Best epic for Canyon - AOE monster hitting 5 targets, skill damage buff, rage restoration',
@@ -99,10 +112,12 @@ const KNOWN_SYNERGIES: Record<string, CommanderSynergy> = {
     aoeTargets: 5,
     preferredRow: 'center',  // Center for maximum AOE coverage
     talentTrees: ['infantry', 'skill', 'integration'],
-    skillEffects: ['aoe_damage', 'rage_boost', 'damage_boost']
+    skillEffects: ['aoe_damage', 'rage_boost', 'damage_boost'],
+    preferredPosition: 'primary'  // Skill tree is very valuable, use as primary for damage
   },
 
   // Yi Seong-Gye (YSG) - "Great option for backline, fan-shaped arrow hits 5 targets"
+  // Research: "Aethelflaed primary + YSG secondary" - YSG's value is his skills, not talent tree
   'Yi Seong-Gye': {
     partners: ['Sun Tzu', 'Aethelflaed', 'Kusunoki Masashige', 'Mehmed II', 'Richard I', 'Hermann Prime', 'Ramesses II', 'Theodora'],
     reason: 'Best epic AOE - fan-shaped arrow hits 5 targets, place in CENTER for max coverage',
@@ -111,10 +126,12 @@ const KNOWN_SYNERGIES: Record<string, CommanderSynergy> = {
     aoeTargets: 5,
     preferredRow: 'center',  // "Place in center position to hit as many armies as possible"
     talentTrees: ['archer', 'skill', 'garrison'],
-    skillEffects: ['aoe_damage', 'damage_boost', 'rage_boost']
+    skillEffects: ['aoe_damage', 'damage_boost', 'rage_boost'],
+    preferredPosition: 'secondary'  // Best as secondary with Aethelflaed/Sun Tzu primary
   },
 
   // Joan of Arc - "Outstanding Sunset Canyon support, most used epic KVK1-3"
+  // Research: "It doesn't matter who is primary, but Sun Tzu recommended if looking to battle"
   'Joan of Arc': {
     partners: ['Charles Martel', 'Scipio Africanus', 'Boudica', 'Sun Tzu', 'Mulan', 'Constantine I'],
     reason: 'Outstanding Canyon support - versatile buffer, most used epic early-mid game',
@@ -122,7 +139,8 @@ const KNOWN_SYNERGIES: Record<string, CommanderSynergy> = {
     canyonBonus: 40,
     preferredRow: 'back',
     talentTrees: ['integration', 'support', 'leadership'],
-    skillEffects: ['damage_boost', 'heal', 'rage_boost']
+    skillEffects: ['damage_boost', 'heal', 'rage_boost'],
+    preferredPosition: 'either'  // Works well as primary or secondary
   },
 
   // William I - "Makes massive difference with defense + rage boost"
@@ -138,6 +156,7 @@ const KNOWN_SYNERGIES: Record<string, CommanderSynergy> = {
 
   // ===== INFANTRY - TOP TIER (Strong in Canyon) =====
 
+  // Research: "You must use Sun Tzu as secondary because of Guan Yu's talent tree"
   'Guan Yu': {
     partners: ['Sun Tzu', 'Alexander the Great', 'Richard I', 'Harald Sigurdsson', 'William I'],
     reason: 'Massive AOE damage + silence, rapid rage regeneration, infantry powerhouse',
@@ -146,7 +165,8 @@ const KNOWN_SYNERGIES: Record<string, CommanderSynergy> = {
     aoeTargets: 3,
     preferredRow: 'front',
     talentTrees: ['infantry', 'skill', 'attack'],
-    skillEffects: ['aoe_damage', 'silence', 'rage_boost']
+    skillEffects: ['aoe_damage', 'silence', 'rage_boost'],
+    preferredPosition: 'primary'  // Must be primary - talent tree is essential
   },
 
   'Harald Sigurdsson': {
@@ -159,6 +179,7 @@ const KNOWN_SYNERGIES: Record<string, CommanderSynergy> = {
     skillEffects: ['aoe_damage', 'damage_boost', 'shield']
   },
 
+  // Research: "Most people are better off using Charles Martel as primary in an individual tank slot"
   'Charles Martel': {
     partners: ['Sun Tzu', 'Richard I', 'Scipio Africanus', 'Joan of Arc', 'Eulji Mundeok', 'Björn Ironside', 'Harald Sigurdsson', 'Constantine I', 'Wu Zetian'],
     reason: 'Best epic tank with shield absorption, counters cavalry, perfect Canyon front line',
@@ -166,7 +187,8 @@ const KNOWN_SYNERGIES: Record<string, CommanderSynergy> = {
     canyonBonus: 40,
     preferredRow: 'front',
     talentTrees: ['infantry', 'garrison', 'defense'],
-    skillEffects: ['shield', 'heal', 'damage_boost']
+    skillEffects: ['shield', 'heal', 'damage_boost'],
+    preferredPosition: 'primary'  // Garrison talent tree is valuable for defense
   },
 
   'Scipio Africanus': {
@@ -199,6 +221,7 @@ const KNOWN_SYNERGIES: Record<string, CommanderSynergy> = {
     skillEffects: ['damage_boost', 'debuff', 'aoe_damage']
   },
 
+  // Research: Björn works well as secondary to boost skill damage
   'Björn Ironside': {
     partners: ['Sun Tzu', 'Eulji Mundeok', 'Charles Martel', 'Scipio Africanus'],
     reason: 'Best epic infantry with skill damage boost, excellent early-mid Canyon',
@@ -206,9 +229,12 @@ const KNOWN_SYNERGIES: Record<string, CommanderSynergy> = {
     canyonBonus: 20,
     preferredRow: 'front',
     talentTrees: ['infantry', 'skill', 'attack'],
-    skillEffects: ['aoe_damage', 'damage_boost']
+    skillEffects: ['aoe_damage', 'damage_boost'],
+    preferredPosition: 'either'  // Works as primary or secondary
   },
 
+  // Research: "Sun Tzu should be primary" when paired with Eulji
+  // Eulji's value is his defense reduction debuff, not his talent tree
   'Eulji Mundeok': {
     partners: ['Sun Tzu', 'Björn Ironside', 'Osman I', 'Charles Martel'],
     reason: 'Infantry defense debuffer, weakens enemy front line',
@@ -216,7 +242,8 @@ const KNOWN_SYNERGIES: Record<string, CommanderSynergy> = {
     canyonBonus: 10,
     preferredRow: 'front',
     talentTrees: ['infantry', 'attack', 'defense'],
-    skillEffects: ['defense_reduction', 'aoe_damage']
+    skillEffects: ['defense_reduction', 'aoe_damage'],
+    preferredPosition: 'secondary'  // Debuff skill is the value, pair with Sun Tzu primary
   },
 
   'Alexander the Great': {
@@ -453,6 +480,7 @@ const KNOWN_SYNERGIES: Record<string, CommanderSynergy> = {
   },
 
   // Aethelflaed - Free from Canyon shop, great with YSG
+  // Research: "Aethelflaed primary and YSG secondary will give you excellent AOE combination"
   'Aethelflaed': {
     partners: ['Yi Seong-Gye', 'Sun Tzu', 'Lohar', 'Boudica', 'Baibars', 'Kusunoki Masashige'],
     reason: 'Free from Canyon shop! Universal debuffer, Aethelflaed+YSG is top F2P Canyon pair',
@@ -461,7 +489,8 @@ const KNOWN_SYNERGIES: Record<string, CommanderSynergy> = {
     aoeTargets: 5,
     preferredRow: 'center',
     talentTrees: ['integration', 'peacekeeping', 'support'],
-    skillEffects: ['aoe_damage', 'debuff', 'attack_reduction', 'defense_reduction']
+    skillEffects: ['aoe_damage', 'debuff', 'attack_reduction', 'defense_reduction'],
+    preferredPosition: 'primary'  // Should be primary with YSG secondary
   },
 
   'Boudica': {
@@ -743,6 +772,31 @@ function getPairingScore(primary: UserCommander, secondary: UserCommander): numb
   let score = 0;
 
   // ============================================
+  // STEP 0: PRIMARY/SECONDARY POSITION PREFERENCE
+  // Some commanders MUST be primary (Guan Yu, Charles Martel) due to talent tree value
+  // Others work best as secondary (YSG - skills are the value, not talents)
+  // ============================================
+
+  const primarySynergy = KNOWN_SYNERGIES[primary.name];
+  const secondarySynergy = KNOWN_SYNERGIES[secondary.name];
+
+  // Heavy penalty if primary should be secondary and vice versa
+  if (primarySynergy?.preferredPosition === 'secondary') {
+    score -= 150; // This commander should be secondary, not primary
+  }
+  if (secondarySynergy?.preferredPosition === 'primary') {
+    score -= 150; // This commander should be primary, not secondary
+  }
+
+  // Bonus for correct positioning
+  if (primarySynergy?.preferredPosition === 'primary') {
+    score += 50; // Correctly positioned as primary
+  }
+  if (secondarySynergy?.preferredPosition === 'secondary') {
+    score += 50; // Correctly positioned as secondary
+  }
+
+  // ============================================
   // STEP 1: COMMANDER POWER IS THE FOUNDATION
   // A high-level commander with good skills beats low-level meta picks
   // ============================================
@@ -774,7 +828,7 @@ function getPairingScore(primary: UserCommander, secondary: UserCommander): numb
   // Good synergies boost already-strong commanders
   // ============================================
 
-  const knownSynergy = KNOWN_SYNERGIES[primary.name];
+  const knownSynergy = primarySynergy;
   if (knownSynergy && knownSynergy.partners.includes(secondary.name)) {
     // Tier-based bonuses: S-tier pairs get highest bonus
     // But these are now smaller relative to power
@@ -788,7 +842,7 @@ function getPairingScore(primary: UserCommander, secondary: UserCommander): numb
   }
 
   // Reverse check - secondary's synergies
-  const reverseSynergy = KNOWN_SYNERGIES[secondary.name];
+  const reverseSynergy = secondarySynergy;
   if (reverseSynergy && reverseSynergy.partners.includes(primary.name)) {
     const tierBonus = reverseSynergy.tier === 'S' ? 40 : reverseSynergy.tier === 'A' ? 30 : 20;
     score += tierBonus;
