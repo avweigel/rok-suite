@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Shield, ArrowLeft, Settings, Castle, Users, Scan, Plus, Loader2, Trophy, Edit2, Download, Copy, Check, ChevronDown, ChevronUp, Target, Cloud, CloudOff, X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Shield, ArrowLeft, Settings, Castle, Users, Scan, Plus, Loader2, Trophy, Edit2, Download, Copy, Check, ChevronDown, ChevronUp, Target, Cloud, CloudOff, X, Upload, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
 import { AddCommanderModal } from '@/components/sunset-canyon/AddCommanderModal';
 import { EditCommanderModal } from '@/components/sunset-canyon/EditCommanderModal';
 import { ScreenshotScanner } from '@/components/sunset-canyon/ScreenshotScanner';
 import { QuickAddCommander } from '@/components/sunset-canyon/QuickAddCommander';
 import { UserMenu } from '@/components/auth/UserMenu';
-import { useCommanders } from '@/lib/supabase/use-commanders';
+import { useCommanders, ImportedCommander } from '@/lib/supabase/use-commanders';
 import { useAuth } from '@/lib/supabase/auth-context';
 import { Commander, UserCommander } from '@/lib/sunset-canyon/commanders';
 import { optimizeDefense, OptimizedFormation } from '@/lib/sunset-canyon/optimizer';
@@ -29,6 +29,9 @@ export default function SunsetCanyonPage() {
   const [selectedFormationIndex, setSelectedFormationIndex] = useState(0);
   const [copied, setCopied] = useState(false);
   const [showCounterEnemy, setShowCounterEnemy] = useState(false);
+  const [showImportHelp, setShowImportHelp] = useState(false);
+  const [importingJson, setImportingJson] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { user } = useAuth();
   const {
@@ -40,6 +43,7 @@ export default function SunsetCanyonPage() {
     updateCommander: updateUserCommander,
     removeCommander: removeUserCommander,
     clearAllCommanders,
+    importFromJson,
   } = useCommanders();
 
   useEffect(() => {
@@ -101,6 +105,41 @@ export default function SunsetCanyonPage() {
     }
 
     setLoadingPreloaded(false);
+  };
+
+  const handleJsonImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setImportingJson(true);
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      // Support both array format and object with commanders array
+      const commanders: ImportedCommander[] = Array.isArray(data) ? data : data.commanders;
+
+      if (!commanders || !Array.isArray(commanders)) {
+        throw new Error('Invalid JSON format. Expected array of commanders or { commanders: [...] }');
+      }
+
+      const replace = userCommanders.length > 0 &&
+        window.confirm(`You have ${userCommanders.length} commanders. Replace them with imported data (${commanders.length} commanders)?`);
+
+      const result = await importFromJson(commanders, replace);
+
+      alert(`Import complete!\nSuccessful: ${result.success}\nFailed: ${result.failed}`);
+    } catch (err) {
+      console.error('Import failed:', err);
+      alert(`Import failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setImportingJson(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   const handleOptimize = async () => {
@@ -271,6 +310,28 @@ export default function SunsetCanyonPage() {
                 <Scan className="w-3 h-3" />
                 Scan
               </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importingJson}
+                className="px-3 py-1.5 rounded-lg border border-amber-600 text-amber-500 text-sm hover:bg-amber-600/10 transition-all flex items-center gap-1 disabled:opacity-50"
+              >
+                {importingJson ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                Import
+              </button>
+              <button
+                onClick={() => setShowImportHelp(true)}
+                className="px-2 py-1.5 rounded-lg border border-stone-600 text-stone-400 text-sm hover:bg-stone-600/10 transition-all"
+                title="JSON format help"
+              >
+                <HelpCircle className="w-3 h-3" />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleJsonImport}
+                className="hidden"
+              />
               {userCommanders.length > 0 && (
                 <button
                   onClick={() => {
@@ -292,7 +353,7 @@ export default function SunsetCanyonPage() {
               <Users className="w-12 h-12 text-stone-600 mx-auto mb-3" />
               <p className="text-stone-400 mb-2">No commanders added yet</p>
               <p className="text-sm text-stone-500 mb-6">Add your commanders to optimize your defense formation</p>
-              <div className="flex gap-3 justify-center">
+              <div className="flex gap-3 justify-center flex-wrap">
                 <button
                   onClick={() => setShowQuickAdd(true)}
                   className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-amber-600 to-amber-700 text-stone-900 font-semibold hover:from-amber-500 hover:to-amber-600 transition-all flex items-center gap-2"
@@ -306,6 +367,14 @@ export default function SunsetCanyonPage() {
                 >
                   <Scan className="w-4 h-4" />
                   Scan Screenshots
+                </button>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={importingJson}
+                  className="px-5 py-2.5 rounded-lg border border-amber-600 text-amber-500 font-medium hover:bg-amber-600/10 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  {importingJson ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                  Import JSON
                 </button>
               </div>
               {/* Hidden dev option */}
@@ -725,6 +794,85 @@ export default function SunsetCanyonPage() {
           onClose={() => setShowQuickAdd(false)}
           existingCommanderIds={userCommanders.map(c => c.id)}
         />
+      )}
+
+      {/* JSON Import Help Modal */}
+      {showImportHelp && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-stone-800 rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto border border-amber-600/30">
+            <div className="sticky top-0 bg-stone-800 border-b border-stone-700 p-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-amber-500">JSON Import Format</h2>
+              <button
+                onClick={() => setShowImportHelp(false)}
+                className="p-2 rounded-lg hover:bg-stone-700 transition-colors"
+              >
+                <X className="w-5 h-5 text-stone-400" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <p className="text-stone-300">
+                Import your commanders from a JSON file. The file should contain an array of commanders
+                or an object with a <code className="text-amber-400">commanders</code> array.
+              </p>
+
+              <div className="bg-stone-900 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-amber-400 mb-2">Required Fields</h3>
+                <ul className="text-sm text-stone-300 space-y-1">
+                  <li>• <code className="text-green-400">id</code> - Unique identifier (e.g., &quot;sun-tzu&quot;)</li>
+                  <li>• <code className="text-green-400">name</code> - Display name (e.g., &quot;Sun Tzu&quot;)</li>
+                  <li>• <code className="text-green-400">rarity</code> - &quot;elite&quot;, &quot;epic&quot;, or &quot;legendary&quot;</li>
+                  <li>• <code className="text-green-400">types</code> - Array like [&quot;Infantry&quot;, &quot;Skill&quot;]</li>
+                  <li>• <code className="text-green-400">level</code> - Commander level (1-60)</li>
+                  <li>• <code className="text-green-400">stars</code> - Star count (1-6)</li>
+                  <li>• <code className="text-green-400">skills</code> - Array of skill levels [5, 5, 5, 5]</li>
+                </ul>
+              </div>
+
+              <div className="bg-stone-900 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-amber-400 mb-2">Example JSON</h3>
+                <pre className="text-xs text-stone-300 overflow-x-auto whitespace-pre">{`[
+  {
+    "id": "sun-tzu",
+    "name": "Sun Tzu",
+    "rarity": "epic",
+    "types": ["Infantry", "Garrison", "Skill"],
+    "level": 60,
+    "stars": 5,
+    "skills": [5, 5, 5, 5]
+  },
+  {
+    "id": "charles-martel",
+    "name": "Charles Martel",
+    "rarity": "legendary",
+    "types": ["Infantry", "Garrison", "Defense"],
+    "level": 60,
+    "stars": 6,
+    "skills": [5, 5, 5, 5, 5]
+  }
+]`}</pre>
+              </div>
+
+              <div className="bg-stone-900 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-amber-400 mb-2">Optional Fields</h3>
+                <ul className="text-sm text-stone-300 space-y-1">
+                  <li>• <code className="text-blue-400">title</code> - Commander title</li>
+                  <li>• <code className="text-blue-400">maxLevel</code> - Max level cap</li>
+                  <li>• <code className="text-blue-400">power</code> - Total power</li>
+                  <li>• <code className="text-blue-400">unitCapacity</code> - Troop capacity</li>
+                </ul>
+              </div>
+
+              <div className="bg-amber-900/30 border border-amber-600/30 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-amber-400 mb-2">Tips</h3>
+                <ul className="text-sm text-stone-300 space-y-1">
+                  <li>• First troop type determines primary type (Infantry, Cavalry, Archer)</li>
+                  <li>• Legendary commanders can have 5 skills, epic/elite have 4</li>
+                  <li>• You can export from other tools and modify the format to match</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

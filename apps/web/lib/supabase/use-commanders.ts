@@ -5,6 +5,21 @@ import { useAuth } from './auth-context';
 import { createClient } from './client';
 import { Commander, UserCommander } from '@/lib/sunset-canyon/commanders';
 
+// JSON import format - matches preloadedCommanders structure
+export interface ImportedCommander {
+  id: string;
+  name: string;
+  title?: string;
+  rarity: 'elite' | 'epic' | 'legendary';
+  types: string[];
+  level: number;
+  maxLevel?: number;
+  stars: number;
+  skills: number[];
+  power?: number;
+  unitCapacity?: number;
+}
+
 interface UseCommandersReturn {
   commanders: UserCommander[];
   loading: boolean;
@@ -16,6 +31,7 @@ interface UseCommandersReturn {
   removeCommander: (uniqueId: string) => Promise<void>;
   clearAllCommanders: () => Promise<void>;
   refreshCommanders: () => Promise<void>;
+  importFromJson: (commanders: ImportedCommander[], replace?: boolean) => Promise<{ success: number; failed: number }>;
 }
 
 // For non-logged-in users, use localStorage
@@ -204,6 +220,46 @@ export function useCommanders(): UseCommandersReturn {
     }
   };
 
+  const importFromJson = async (
+    importedCommanders: ImportedCommander[],
+    replace: boolean = false
+  ): Promise<{ success: number; failed: number }> => {
+    let success = 0;
+    let failed = 0;
+
+    if (replace) {
+      await clearAllCommanders();
+    }
+
+    for (const cmd of importedCommanders) {
+      try {
+        // Convert imported format to Commander format
+        const troopType = (['Infantry', 'Cavalry', 'Archer'].includes(cmd.types[0])
+          ? cmd.types[0].toLowerCase()
+          : 'mixed') as 'infantry' | 'cavalry' | 'archer' | 'mixed';
+
+        const commanderData: Commander = {
+          id: cmd.id,
+          name: cmd.name,
+          rarity: cmd.rarity === 'elite' ? 'epic' : cmd.rarity, // Map elite to epic for compatibility
+          role: [],
+          troopType,
+          baseStats: { attack: 0, defense: 0, health: 0, marchSpeed: 0 },
+          skills: [],
+          synergies: [],
+        };
+
+        await addCommander(commanderData, cmd.level, cmd.skills, cmd.stars);
+        success++;
+      } catch (err) {
+        console.error(`Failed to import ${cmd.name}:`, err);
+        failed++;
+      }
+    }
+
+    return { success, failed };
+  };
+
   return {
     commanders,
     loading,
@@ -215,5 +271,6 @@ export function useCommanders(): UseCommandersReturn {
     removeCommander,
     clearAllCommanders,
     refreshCommanders: loadCommanders,
+    importFromJson,
   };
 }
