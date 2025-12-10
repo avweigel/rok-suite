@@ -773,28 +773,37 @@ function getPairingScore(primary: UserCommander, secondary: UserCommander): numb
 
   // ============================================
   // STEP 0: PRIMARY/SECONDARY POSITION PREFERENCE
-  // Some commanders MUST be primary (Guan Yu, Charles Martel) due to talent tree value
-  // Others work best as secondary (YSG - skills are the value, not talents)
+  // Only apply as a TIEBREAKER when power is similar
+  // In Canyon, raw power beats "optimal" positioning
   // ============================================
 
   const primarySynergy = KNOWN_SYNERGIES[primary.name];
   const secondarySynergy = KNOWN_SYNERGIES[secondary.name];
 
-  // Heavy penalty if primary should be secondary and vice versa
-  if (primarySynergy?.preferredPosition === 'secondary') {
-    score -= 150; // This commander should be secondary, not primary
-  }
-  if (secondarySynergy?.preferredPosition === 'primary') {
-    score -= 150; // This commander should be primary, not secondary
-  }
+  const primaryPowerCheck = getEffectivePower(primary);
+  const secondaryPowerCheck = getEffectivePower(secondary);
+  const powerRatio = Math.min(primaryPowerCheck, secondaryPowerCheck) /
+                     Math.max(primaryPowerCheck, secondaryPowerCheck);
 
-  // Bonus for correct positioning
-  if (primarySynergy?.preferredPosition === 'primary') {
-    score += 50; // Correctly positioned as primary
+  // Only apply position preference when commanders are similar power (within 15%)
+  // This acts as a tiebreaker, not a hard rule
+  if (powerRatio > 0.85) {
+    // Small bonus for correct positioning (tiebreaker only)
+    if (primarySynergy?.preferredPosition === 'primary') {
+      score += 15; // Slight preference for correct primary
+    }
+    if (secondarySynergy?.preferredPosition === 'secondary') {
+      score += 15; // Slight preference for correct secondary
+    }
+    // Small penalty for clearly wrong positioning
+    if (primarySynergy?.preferredPosition === 'secondary') {
+      score -= 20; // Mild preference to swap
+    }
+    if (secondarySynergy?.preferredPosition === 'primary') {
+      score -= 20; // Mild preference to swap
+    }
   }
-  if (secondarySynergy?.preferredPosition === 'secondary') {
-    score += 50; // Correctly positioned as secondary
-  }
+  // When power differs significantly, let power decide (no position adjustments)
 
   // ============================================
   // STEP 1: COMMANDER POWER IS THE FOUNDATION

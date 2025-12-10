@@ -79,34 +79,32 @@ function getEffectivePower(commander) {
 
 The pairing score determines how well two commanders work together. This includes **primary/secondary position preferences**, **talent tree synergies**, and **skill effect combinations**, modeling the game's "Quick Deploy" optimization logic.
 
-### Critical Rule: Primary vs Secondary Position
+### Primary vs Secondary Position
 
 **Only the primary commander's talent tree takes effect.** The secondary commander contributes only their skills.
 
-This means commanders should be positioned based on the value of their talent tree:
-- Commanders with valuable talent trees (Guan Yu, Charles Martel, Richard I) → **Primary**
-- Commanders whose value comes from skills (Yi Seong-Gye, Eulji Mundeok) → **Secondary**
+However, in Sunset Canyon's simulated battles, **raw power trumps optimal positioning**. A level 60 commander in the "wrong" position beats a level 40 commander in the "right" position.
+
+The optimizer uses position preference only as a **tiebreaker** when commanders have similar power (within 15%):
 
 ```javascript
 function getPairingScore(primary, secondary) {
   let score = 0;
 
   // ═══════════════════════════════════════════════
-  // STEP 0: PRIMARY/SECONDARY POSITION PREFERENCE (NEW)
-  // Some commanders MUST be primary due to talent tree value
+  // STEP 0: POSITION PREFERENCE (TIEBREAKER ONLY)
+  // Only applies when commanders are within 15% power
   // ═══════════════════════════════════════════════
-  if (primarySynergy.preferredPosition === 'secondary') {
-    score -= 150;  // Wrong position - should be secondary!
+  const powerRatio = minPower / maxPower;
+
+  if (powerRatio > 0.85) {
+    // Small tiebreaker bonuses
+    if (primarySynergy.preferredPosition === 'primary') score += 15;
+    if (secondarySynergy.preferredPosition === 'secondary') score += 15;
+    if (primarySynergy.preferredPosition === 'secondary') score -= 20;
+    if (secondarySynergy.preferredPosition === 'primary') score -= 20;
   }
-  if (secondarySynergy.preferredPosition === 'primary') {
-    score -= 150;  // Wrong position - should be primary!
-  }
-  if (primarySynergy.preferredPosition === 'primary') {
-    score += 50;   // Correctly positioned as primary
-  }
-  if (secondarySynergy.preferredPosition === 'secondary') {
-    score += 50;   // Correctly positioned as secondary
-  }
+  // When power differs significantly, let power decide
 
   // ═══════════════════════════════════════════════
   // STEP 1: COMMANDER POWER (Primary Factor ~50%)
