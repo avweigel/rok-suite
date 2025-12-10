@@ -602,16 +602,14 @@ function getEffectivePower(commander: UserCommander): number {
 // Check if a commander meets minimum viability threshold for Canyon
 // Under-leveled commanders with incomplete skills are essentially dead weight
 function isCommanderViable(commander: UserCommander): boolean {
-  // Minimum level 40 to be useful in Canyon
-  // Level 25-39 commanders are too weak compared to maxed opponents
-  if (commander.level < 40) return false;
+  // Minimum level 30 to be considered at all
+  if (commander.level < 30) return false;
 
-  // Must have at least first skill at level 5 (maxed)
-  // First skill is the most important and should be expertise'd
-  if (commander.skillLevels[0] < 5) return false;
+  // Must have at least first skill at level 3+
+  if (commander.skillLevels[0] < 3) return false;
 
-  // Stars matter - need at least 3 stars for decent troop capacity
-  if ((commander.stars || 1) < 3) return false;
+  // Stars matter - need at least 2 stars
+  if ((commander.stars || 1) < 2) return false;
 
   return true;
 }
@@ -621,19 +619,23 @@ function isCommanderViable(commander: UserCommander): boolean {
 function getViabilityPenalty(commander: UserCommander): number {
   let penalty = 0;
 
-  // Heavy penalty for under level 50 (scaled)
+  // Heavy penalty for under level 50 (scaled aggressively)
   if (commander.level < 50) {
-    penalty += (50 - commander.level) * 25; // -25 per level below 50
+    penalty += (50 - commander.level) * 30; // -30 per level below 50
+  }
+  // Extra penalty for really low level (under 40)
+  if (commander.level < 40) {
+    penalty += (40 - commander.level) * 20; // Additional -20 per level below 40
   }
 
   // Penalty for incomplete first skill (should be maxed)
   if (commander.skillLevels[0] < 5) {
-    penalty += (5 - commander.skillLevels[0]) * 50;
+    penalty += (5 - commander.skillLevels[0]) * 60;
   }
 
   // Penalty for low stars (need 4+ ideally)
   if ((commander.stars || 1) < 4) {
-    penalty += (4 - (commander.stars || 1)) * 75;
+    penalty += (4 - (commander.stars || 1)) * 80;
   }
 
   return penalty;

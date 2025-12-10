@@ -38,11 +38,11 @@ Commanders must meet minimum thresholds to be considered. **There is no fallback
 
 | Requirement | Minimum | Reason |
 |-------------|---------|--------|
-| Level | 40 | Under-leveled commanders can't compete |
-| First Skill | Level 5 (maxed) | Primary skill must be expertise'd |
-| Stars | 3 | Need decent troop capacity |
+| Level | 30 | Under-leveled = dead weight |
+| First Skill | Level 3 | Primary skill is most important |
+| Stars | 2 | 1-star commanders too weak |
 
-Commanders that fail viability are **excluded entirely** from pairing consideration. Commanders below level 50 or with incomplete skills/stars still receive penalties even if they pass the minimum threshold.
+Commanders that fail viability are **excluded entirely** from pairing consideration. Commanders below level 50 or with incomplete skills/stars receive heavy penalties that push them down the priority list.
 
 ## Step 2: Commander Power Calculation
 
