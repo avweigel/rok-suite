@@ -602,14 +602,16 @@ function getEffectivePower(commander: UserCommander): number {
 // Check if a commander meets minimum viability threshold for Canyon
 // Under-leveled commanders with incomplete skills are essentially dead weight
 function isCommanderViable(commander: UserCommander): boolean {
-  // Minimum level 25 to be useful at all
-  if (commander.level < 25) return false;
+  // Minimum level 40 to be useful in Canyon
+  // Level 25-39 commanders are too weak compared to maxed opponents
+  if (commander.level < 40) return false;
 
-  // Must have at least first skill at level 3+
-  if (commander.skillLevels[0] < 3) return false;
+  // Must have at least first skill at level 5 (maxed)
+  // First skill is the most important and should be expertise'd
+  if (commander.skillLevels[0] < 5) return false;
 
-  // Stars matter - 1 star commanders are too weak
-  if ((commander.stars || 1) < 2) return false;
+  // Stars matter - need at least 3 stars for decent troop capacity
+  if ((commander.stars || 1) < 3) return false;
 
   return true;
 }
@@ -619,19 +621,19 @@ function isCommanderViable(commander: UserCommander): boolean {
 function getViabilityPenalty(commander: UserCommander): number {
   let penalty = 0;
 
-  // Heavy penalty for very low level (under 30)
-  if (commander.level < 30) {
-    penalty += (30 - commander.level) * 20; // -20 per level below 30
+  // Heavy penalty for under level 50 (scaled)
+  if (commander.level < 50) {
+    penalty += (50 - commander.level) * 25; // -25 per level below 50
   }
 
-  // Penalty for incomplete first skill
+  // Penalty for incomplete first skill (should be maxed)
   if (commander.skillLevels[0] < 5) {
-    penalty += (5 - commander.skillLevels[0]) * 30;
+    penalty += (5 - commander.skillLevels[0]) * 50;
   }
 
-  // Penalty for low stars
+  // Penalty for low stars (need 4+ ideally)
   if ((commander.stars || 1) < 4) {
-    penalty += (4 - (commander.stars || 1)) * 50;
+    penalty += (4 - (commander.stars || 1)) * 75;
   }
 
   return penalty;
@@ -1009,11 +1011,12 @@ function generatePairings(commanders: UserCommander[], requirePairs: boolean = f
 
   // Filter to only viable commanders first (level 25+, decent skills, 2+ stars)
   // This prevents low-level commanders from even being considered
+  // NO FALLBACK - if you don't have enough viable commanders, use fewer armies
   const viableCommanders = commanders.filter(c => isCommanderViable(c));
 
-  // If we don't have enough viable commanders, fall back to all commanders
-  // but still sort by power to prefer better ones
-  const commandersToUse = viableCommanders.length >= 10 ? viableCommanders : commanders;
+  // Sort by power and only use viable commanders - no fallback to weak ones
+  // If you don't have 10 viable commanders, you'll get fewer armies (which is correct)
+  const commandersToUse = viableCommanders;
 
   // Sort commanders by effective power first - best commanders as primary
   const sortedCommanders = [...commandersToUse].sort((a, b) => getEffectivePower(b) - getEffectivePower(a));

@@ -34,15 +34,15 @@ A level 50 "non-meta" commander will outperform a level 10 "meta" commander ever
 
 ## Step 1: Viability Filtering
 
-Commanders must meet minimum thresholds to be considered:
+Commanders must meet minimum thresholds to be considered. **There is no fallback** - if you don't have enough viable commanders, the optimizer will use fewer armies rather than include weak commanders.
 
 | Requirement | Minimum | Reason |
 |-------------|---------|--------|
-| Level | 25 | Under-leveled = dead weight |
-| First Skill | Level 3 | Primary skill is most important |
-| Stars | 2 | 1-star commanders too weak |
+| Level | 40 | Under-leveled commanders can't compete |
+| First Skill | Level 5 (maxed) | Primary skill must be expertise'd |
+| Stars | 3 | Need decent troop capacity |
 
-Commanders that fail viability get a **-500 penalty** (primary) or **-300 penalty** (secondary), effectively removing them from consideration.
+Commanders that fail viability are **excluded entirely** from pairing consideration. Commanders below level 50 or with incomplete skills/stars still receive penalties even if they pass the minimum threshold.
 
 ## Step 2: Commander Power Calculation
 
