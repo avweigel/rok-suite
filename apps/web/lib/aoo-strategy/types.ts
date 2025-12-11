@@ -1,3 +1,5 @@
+export type EventMode = 'main' | 'training';
+
 export interface PlayerAssignments {
   phase1: string;
   phase2: string;

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
-import type { MapAssignments, Player, Team, StrategyData as ImportedStrategyData } from '@/lib/aoo-strategy/types';
+import type { MapAssignments, Player, Team, StrategyData as ImportedStrategyData, EventMode } from '@/lib/aoo-strategy/types';
 import { defaultStrategyData } from '@/lib/aoo-strategy/strategy-data';
 import { TrainingPolls } from '@/components/aoo-strategy/TrainingPolls';
 import { useAllianceRoster, formatPower } from '@/lib/supabase/use-alliance-roster';
@@ -69,6 +69,7 @@ export default function AooStrategyPage() {
     const [strategyId, setStrategyId] = useState<number | null>(null);
     const [darkMode, setDarkMode] = useState(true);
     const [strategyExpanded, setStrategyExpanded] = useState(false);
+    const [eventMode, setEventMode] = useState<EventMode>('main');
 
     const [playerSearch, setPlayerSearch] = useState('');
     const [showDropdown, setShowDropdown] = useState(false);
@@ -85,10 +86,22 @@ export default function AooStrategyPage() {
     const EDITOR_PASSWORD = 'carn-dum';
 
     useEffect(() => {
-        loadData();
+        // Load data for the initial event mode (check URL or localStorage)
+        const savedMode = localStorage.getItem('aoo-event-mode') as EventMode | null;
+        const initialMode = savedMode || 'main';
+        setEventMode(initialMode);
+        loadData(initialMode);
         const savedTheme = localStorage.getItem('aoo-theme');
         if (savedTheme) setDarkMode(savedTheme === 'dark');
     }, []);
+
+    // Handle event mode changes
+    const handleEventModeChange = (newMode: EventMode) => {
+        if (newMode === eventMode) return;
+        setEventMode(newMode);
+        localStorage.setItem('aoo-event-mode', newMode);
+        loadData(newMode);
+    };
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -106,11 +119,22 @@ export default function AooStrategyPage() {
         localStorage.setItem('aoo-theme', newMode ? 'dark' : 'light');
     };
 
-    const loadData = async () => {
+    const loadData = async (mode: EventMode = eventMode) => {
         setIsLoading(true);
         try {
-            const { data, error } = await supabase.from('aoo_strategy').select('*').limit(1).maybeSingle();
-            if (error) console.error('Error loading data:', error);
+            // Query for the specific event mode, fall back to any record for backwards compatibility
+            const { data, error } = await supabase
+                .from('aoo_strategy')
+                .select('*')
+                .eq('event_mode', mode)
+                .limit(1)
+                .maybeSingle();
+
+            if (error && error.code !== 'PGRST116') {
+                // PGRST116 = column doesn't exist (migration not run yet)
+                console.error('Error loading data:', error);
+            }
+
             if (data) {
                 setStrategyId(data.id);
                 const strategyData = data.data as StrategyData;
@@ -120,6 +144,15 @@ export default function AooStrategyPage() {
                 setMapImage(strategyData?.mapImage || null);
                 setNotes(strategyData?.notes || '');
                 setMapAssignments(strategyData?.mapAssignments || undefined);
+            } else {
+                // No data for this mode - reset to defaults
+                setStrategyId(null);
+                setPlayers([]);
+                setSubstitutes([]);
+                setTeams(DEFAULT_TEAMS);
+                setMapImage(null);
+                setNotes('');
+                setMapAssignments(undefined);
             }
         } catch (error) {
             console.error('Error loading data:', error);
@@ -141,7 +174,11 @@ export default function AooStrategyPage() {
                 const { error } = await supabase.from('aoo_strategy').update({ data }).eq('id', strategyId);
                 if (error) throw error;
             } else {
-                const { data: newData, error } = await supabase.from('aoo_strategy').insert([{ data }]).select().single();
+                const { data: newData, error } = await supabase
+                    .from('aoo_strategy')
+                    .insert([{ data, event_mode: eventMode }])
+                    .select()
+                    .single();
                 if (error) throw error;
                 if (newData) setStrategyId(newData.id);
             }
@@ -349,7 +386,10 @@ export default function AooStrategyPage() {
         ctx.fillStyle = '#fafafa';
         ctx.font = 'bold 24px system-ui, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('Ark of Osiris - Zone Assignments', canvasWidth / 2, padding + 10);
+        const titleText = eventMode === 'training'
+            ? 'Ark of Osiris - Training Match'
+            : 'Ark of Osiris - Zone Assignments';
+        ctx.fillText(titleText, canvasWidth / 2, padding + 10);
 
         // Zone colors matching in-game (Z1=blue, Z2=orange, Z3=purple)
         const zoneHexColors: Record<number, string> = {
@@ -463,10 +503,10 @@ export default function AooStrategyPage() {
 
         // Download
         const link = document.createElement('a');
-        link.download = 'aoo-roster.png';
+        link.download = eventMode === 'training' ? 'aoo-training-roster.png' : 'aoo-roster.png';
         link.href = canvas.toDataURL('image/png');
         link.click();
-    }, [players, teams, substitutes, sortPlayers, powerByName]);
+    }, [players, teams, substitutes, sortPlayers, powerByName, eventMode]);
 
     const theme = {
         bg: darkMode ? 'bg-zinc-950' : 'bg-gray-50',
@@ -512,11 +552,43 @@ export default function AooStrategyPage() {
                                 ←
                             </a>
                             <div>
-                                <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Ark of Osiris</h1>
-                                <p className={`text-sm ${theme.textMuted}`}>30v30 Strategy Planner</p>
+                                <div className="flex items-center gap-2">
+                                    <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Ark of Osiris</h1>
+                                    {eventMode === 'training' && (
+                                        <span className="px-2 py-0.5 text-xs font-medium bg-amber-600 text-white rounded-full">
+                                            Training
+                                        </span>
+                                    )}
+                                </div>
+                                <p className={`text-sm ${theme.textMuted}`}>
+                                    {eventMode === 'training' ? 'Training Match Roster' : '30v30 Strategy Planner'}
+                                </p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 md:gap-3">
+                            {/* Event Mode Toggle */}
+                            <div className={`flex rounded-lg p-0.5 ${darkMode ? 'bg-zinc-800' : 'bg-gray-200'}`}>
+                                <button
+                                    onClick={() => handleEventModeChange('main')}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                        eventMode === 'main'
+                                            ? 'bg-emerald-600 text-white'
+                                            : darkMode ? 'text-zinc-400 hover:text-zinc-200' : 'text-gray-600 hover:text-gray-800'
+                                    }`}
+                                >
+                                    Main
+                                </button>
+                                <button
+                                    onClick={() => handleEventModeChange('training')}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                        eventMode === 'training'
+                                            ? 'bg-amber-600 text-white'
+                                            : darkMode ? 'text-zinc-400 hover:text-zinc-200' : 'text-gray-600 hover:text-gray-800'
+                                    }`}
+                                >
+                                    Training
+                                </button>
+                            </div>
                             <button onClick={toggleTheme} className={`p-2 rounded-lg ${theme.button}`}>
                                 {darkMode ? '☀️' : '🌙'}
                             </button>
