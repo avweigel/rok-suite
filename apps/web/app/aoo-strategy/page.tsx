@@ -78,7 +78,7 @@ export default function AooStrategyPage() {
     const [newPlayerTags, setNewPlayerTags] = useState<string[]>([]);
     const [useCustomName, setUseCustomName] = useState(false);
     const [lookupSearch, setLookupSearch] = useState('');
-    const [rosterSort, setRosterSort] = useState<'power' | 'teleport' | 'name'>('power');
+    const [rosterSort, setRosterSort] = useState<'power' | 'teleport' | 'name'>('teleport');
     const [copySuccess, setCopySuccess] = useState<number | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const rosterGridRef = useRef<HTMLDivElement>(null);
@@ -766,7 +766,13 @@ export default function AooStrategyPage() {
 
                     {/* Sort Controls and Export */}
                     <div className={`flex flex-wrap items-center justify-between gap-3 mb-4`}>
-                        <h2 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted}`}>Zone Assignments</h2>
+                        <div className="flex items-center gap-4">
+                            <h2 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted}`}>Zone Assignments</h2>
+                            <div className="flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-green-500" />
+                                <span className={`text-xs ${theme.textMuted}`}>= confirmed</span>
+                            </div>
+                        </div>
                         <div className="flex flex-wrap items-center gap-3">
                             {/* Sort options */}
                             <div className="flex items-center gap-2">
@@ -846,6 +852,9 @@ export default function AooStrategyPage() {
                                                 <div key={player.id} className={`rounded-lg p-3 ${darkMode ? 'bg-zinc-800/50' : 'bg-gray-50'}`}>
                                                     <div className="flex items-center justify-between mb-2">
                                                         <div className="flex items-center gap-2">
+                                                            {player.tags.includes('Confirmed') && (
+                                                                <span className="w-2 h-2 rounded-full bg-green-500" title="Confirmed" />
+                                                            )}
                                                             <span className="font-medium text-sm">{player.name}</span>
                                                             {(player.power || powerByName[player.name]) && (
                                                                 <span className={`text-xs ${theme.textMuted}`}>
@@ -872,7 +881,7 @@ export default function AooStrategyPage() {
                                                                 </button>
                                                             ))
                                                         ) : (
-                                                            player.tags.length > 0 ? player.tags.map(tag => (
+                                                            player.tags.filter(tag => tag !== 'Confirmed').length > 0 ? player.tags.filter(tag => tag !== 'Confirmed').map(tag => (
                                                                 <span key={tag} className={`px-2 py-0.5 rounded text-xs ${TAG_COLORS[tag]}`}>{tag}</span>
                                                             )) : <span className={`text-xs ${theme.textMuted}`}>No tags</span>
                                                         )}
