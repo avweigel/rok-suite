@@ -35,9 +35,9 @@ UPDATE aoo_strategy SET data = '{
     {"id": 30, "name": "Sunman", "team": 3, "tags": ["Confirmed"], "power": 6446296, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}}
   ],
   "teams": [
-    {"name": "Zone 1", "description": "Ark"},
-    {"name": "Zone 2", "description": "Upper"},
-    {"name": "Zone 3", "description": "Lower"}
+    {"name": "Zone 1", "description": "Lower"},
+    {"name": "Zone 2", "description": "Ark"},
+    {"name": "Zone 3", "description": "Upper"}
   ],
   "substitutes": [
     {"id": 101, "name": "TURAN80g", "team": 0, "tags": ["Confirmed"], "power": 8836607, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
