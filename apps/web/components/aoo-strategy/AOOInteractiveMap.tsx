@@ -71,23 +71,28 @@ const teamColors: Record<number, { bg: string; text: string; name: string }> = {
   3: { bg: '#7C3AED', text: 'white', name: 'Zone 3' },
 };
 
-// Conquer order by zone - only shows RUSH targets (priority 1)
+// Conquer order by zone - shows RUSH (1) and 2nd phase (2) targets
 // Zone 1 (Blue) rushes left obelisk
 // Zone 3 (Purple) rushes upper obelisk
 // Zone 2 (Orange) secures Iset outposts
 const CONQUER_ORDER: Record<number, Record<string, number>> = {
-  // Zone 1 (Blue): Rush left obelisk
+  // Zone 1 (Blue): Rush left obelisk, then sky-l and war-l
   1: {
     'obelisk-2': 1,  // Left obelisk - RUSH
+    'sky-2': 2,      // Sky Altar Left - 2nd phase
+    'war-1': 2,      // Shrine of War Left - 2nd phase
   },
   // Zone 2 (Orange): Secure Iset outposts
   2: {
     'iset-1': 1,     // Outpost of Iset 1
     'iset-2': 1,     // Outpost of Iset 2
+    'iset-3': 2,     // Outpost of Iset 3 - 2nd phase
   },
-  // Zone 3 (Purple): Rush upper obelisk
+  // Zone 3 (Purple): Rush upper obelisk, then des-r and life-r
   3: {
     'obelisk-1': 1,  // Upper obelisk - RUSH
+    'desert-1': 2,   // Desert Altar Right - 2nd phase
+    'life-1': 2,     // Shrine of Life Right - 2nd phase
   },
 };
 
@@ -545,13 +550,13 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
 
                         if (zonesWithOrders.length === 0) return null;
 
-                        // If only one zone, show it centered on the marker
+                        // If only one zone, show it as full-size overlay matching the marker
                         if (zonesWithOrders.length === 1) {
                           const { zone, order } = zonesWithOrders[0];
                           return (
                             <div
                               key={`conquer-${zone}-${building.id}`}
-                              className="absolute w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg border-2 border-white"
+                              className="absolute w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-lg border-2 border-white"
                               style={{
                                 backgroundColor: teamColors[zone].bg,
                                 left: '50%',
@@ -568,9 +573,9 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
 
                         // Multiple zones - position them around the marker
                         const positions: Record<number, { x: number; y: number }> = {
-                          1: { x: -10, y: 10 },   // Bottom-left
-                          2: { x: 0, y: -12 },    // Top-center
-                          3: { x: 10, y: 10 },    // Bottom-right
+                          1: { x: -14, y: 14 },   // Bottom-left
+                          2: { x: 0, y: -16 },    // Top-center
+                          3: { x: 14, y: 14 },    // Bottom-right
                         };
 
                         return zonesWithOrders.map(({ zone, order }) => {
@@ -578,7 +583,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                           return (
                             <div
                               key={`conquer-${zone}-${building.id}`}
-                              className="absolute w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-md border border-white"
+                              className="absolute w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-md border-2 border-white"
                               style={{
                                 backgroundColor: teamColors[zone].bg,
                                 left: `calc(50% + ${pos.x}px)`,
