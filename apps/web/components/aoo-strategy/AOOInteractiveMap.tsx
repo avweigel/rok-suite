@@ -26,42 +26,42 @@ export type { MapAssignments };
 
 // All buildings on the map with positions (percentages based on map image)
 // These coordinates are fixed and represent the actual building locations on the map
-// Adjusted based on visual alignment with map labels
+// Adjusted based on visual alignment with actual building structures
 const buildings: Building[] = [
-  // Obelisks - aligned with "Obelisk" labels on map
-  { id: 'obelisk-1', name: 'Obelisk (Upper)', shortName: 'Ob-Upper', x: 53, y: 14 },
-  { id: 'obelisk-2', name: 'Obelisk (Left)', shortName: 'Ob-Left', x: 10, y: 41 },
-  { id: 'obelisk-3', name: 'Obelisk (Right)', shortName: 'Ob-Right', x: 86, y: 47 },
-  { id: 'obelisk-4', name: 'Obelisk (Lower)', shortName: 'Ob-Lower', x: 43, y: 82 },
+  // Obelisks - positioned on the actual obelisk structures
+  { id: 'obelisk-1', name: 'Obelisk (Upper)', shortName: 'Ob-Upper', x: 50, y: 18 },
+  { id: 'obelisk-2', name: 'Obelisk (Left)', shortName: 'Ob-Left', x: 8, y: 45 },
+  { id: 'obelisk-3', name: 'Obelisk (Right)', shortName: 'Ob-Right', x: 87, y: 53 },
+  { id: 'obelisk-4', name: 'Obelisk (Lower)', shortName: 'Ob-Lower', x: 42, y: 86 },
 
-  // Outposts of Iset (your side - upper left) - aligned with "Outpost of Iset" labels
-  { id: 'iset-1', name: 'Outpost of Iset 1', shortName: 'Iset-1', x: 35, y: 14 },
-  { id: 'iset-2', name: 'Outpost of Iset 2', shortName: 'Iset-2', x: 18, y: 27 },
-  { id: 'iset-3', name: 'Outpost of Iset 3', shortName: 'Iset-3', x: 36, y: 29 },
+  // Outposts of Iset (your side - upper left)
+  { id: 'iset-1', name: 'Outpost of Iset 1', shortName: 'Iset-1', x: 32, y: 18 },
+  { id: 'iset-2', name: 'Outpost of Iset 2', shortName: 'Iset-2', x: 15, y: 30 },
+  { id: 'iset-3', name: 'Outpost of Iset 3', shortName: 'Iset-3', x: 33, y: 34 },
 
-  // Outposts of Seth (enemy side - lower right) - aligned with "Outpost of Seth" labels
-  { id: 'seth-1', name: 'Outpost of Seth 1', shortName: 'Seth-1', x: 63, y: 58 },
-  { id: 'seth-2', name: 'Outpost of Seth 2', shortName: 'Seth-2', x: 82, y: 58 },
-  { id: 'seth-3', name: 'Outpost of Seth 3', shortName: 'Seth-3', x: 64, y: 76 },
+  // Outposts of Seth (enemy side - lower right)
+  { id: 'seth-1', name: 'Outpost of Seth 1', shortName: 'Seth-1', x: 61, y: 62 },
+  { id: 'seth-2', name: 'Outpost of Seth 2', shortName: 'Seth-2', x: 82, y: 62 },
+  { id: 'seth-3', name: 'Outpost of Seth 3', shortName: 'Seth-3', x: 62, y: 80 },
 
-  // Shrines of War - aligned with "Shrine of War" labels
-  { id: 'war-1', name: 'Shrine of War (Left)', shortName: 'War-L', x: 29, y: 49 },
-  { id: 'war-2', name: 'Shrine of War (Right)', shortName: 'War-R', x: 70, y: 41 },
+  // Shrines of War
+  { id: 'war-1', name: 'Shrine of War (Left)', shortName: 'War-L', x: 27, y: 52 },
+  { id: 'war-2', name: 'Shrine of War (Right)', shortName: 'War-R', x: 70, y: 47 },
 
-  // Shrines of Life - aligned with "Shrine of Life" labels
-  { id: 'life-1', name: 'Shrine of Life (Right)', shortName: 'Life-R', x: 70, y: 18 },
-  { id: 'life-2', name: 'Shrine of Life (Left)', shortName: 'Life-L', x: 26, y: 77 },
+  // Shrines of Life
+  { id: 'life-1', name: 'Shrine of Life (Right)', shortName: 'Life-R', x: 72, y: 24 },
+  { id: 'life-2', name: 'Shrine of Life (Left)', shortName: 'Life-L', x: 24, y: 76 },
 
-  // Desert Altars - aligned with "Desert Altar" labels
-  { id: 'desert-1', name: 'Desert Altar (Right)', shortName: 'Des-R', x: 54, y: 30 },
-  { id: 'desert-2', name: 'Desert Altar (Left)', shortName: 'Des-L', x: 43, y: 62 },
+  // Desert Altars
+  { id: 'desert-1', name: 'Desert Altar (Right)', shortName: 'Des-R', x: 55, y: 36 },
+  { id: 'desert-2', name: 'Desert Altar (Left)', shortName: 'Des-L', x: 42, y: 65 },
 
-  // Sky Altars - aligned with "Sky Altar" labels
-  { id: 'sky-1', name: 'Sky Altar (Right)', shortName: 'Sky-R', x: 83, y: 26 },
-  { id: 'sky-2', name: 'Sky Altar (Left)', shortName: 'Sky-L', x: 14, y: 60 },
+  // Sky Altars
+  { id: 'sky-1', name: 'Sky Altar (Right)', shortName: 'Sky-R', x: 83, y: 33 },
+  { id: 'sky-2', name: 'Sky Altar (Left)', shortName: 'Sky-L', x: 13, y: 58 },
 
-  // Ark (center) - aligned with golden Ark building
-  { id: 'ark', name: 'Ark', shortName: 'Ark', x: 49, y: 46 },
+  // Ark (center)
+  { id: 'ark', name: 'Ark', shortName: 'Ark', x: 48, y: 50 },
 ];
 
 // Zone colors - colorblind friendly

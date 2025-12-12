@@ -33,13 +33,17 @@ const ZONE_OVERRIDES: Record<string, number> = {
   'BBQSGE': 3,    // Put BBQSGE on Suntzu's team (Zone 3)
   'Calca': 3,     // Swap Calca to Zone 3 with Suntzu
   'Vaelstrom': 1, // Swap Vaelstrom to Zone 1
+  'Divid3': 1,    // Replacing WOLF in Zone 1
 };
 
 // Players to exclude from main roster (moved to substitutes or removed)
-const EXCLUDE_FROM_ROSTER = new Set(['KKTowMater2', 'bear']);
+const EXCLUDE_FROM_ROSTER = new Set(['KKTowMater2', 'bear', 'WOLF', 'SkyLord']);
 
 // Players to add as substitutes (not removed, just benched)
 const ADD_TO_SUBSTITUTES = new Set(['KKTowMater2']);
+
+// Players removed from gold AoO (signed up for silver)
+const SILVER_AOO_PLAYERS = new Set(['WOLF', 'SkyLord']);
 
 // Players removed from alliance entirely
 const REMOVED_FROM_ALLIANCE = new Set(['bear']);
@@ -67,8 +71,9 @@ async function main() {
     const values = lines[i].trim().split(',');
     if (!values[nameIdx]) continue;
     const name = values[nameIdx].trim();
-    // Skip players removed from alliance
+    // Skip players removed from alliance or signed up for silver AoO
     if (REMOVED_FROM_ALLIANCE.has(name)) continue;
+    if (SILVER_AOO_PLAYERS.has(name)) continue;
     roster.push({ name, power: parseInt(values[powerIdx]) || 0 });
   }
 
