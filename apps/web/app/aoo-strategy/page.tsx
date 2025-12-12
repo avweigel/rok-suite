@@ -1370,49 +1370,6 @@ export default function AooStrategyPage() {
                         })()}
                     </section>
 
-                    {/* Quick Copy Instructions - Single Text Block */}
-                    <section className={`${theme.card} border-4 border-emerald-500 rounded-xl p-6 mt-6`}>
-                        <h2 className="text-xl font-bold text-center mb-2">💬 Copy All Instructions</h2>
-                        <p className={`text-sm ${theme.textMuted} text-center mb-4`}>Click the text below to copy everything for in-game chat</p>
-                        <div
-                            onClick={(e) => {
-                                const textElement = e.currentTarget.querySelector('.copy-text');
-                                const text = textElement?.textContent || '';
-                                navigator.clipboard.writeText(text);
-                                alert('Copied to clipboard!');
-                            }}
-                            className={`p-6 rounded-lg ${darkMode ? 'bg-zinc-900 hover:bg-zinc-800' : 'bg-gray-50 hover:bg-gray-100'} cursor-pointer border-2 border-emerald-500/50 transition-colors`}
-                        >
-                            <div className={`copy-text font-mono text-sm ${theme.text} whitespace-pre-line leading-relaxed`}>
-{`⚔️ AOO BATTLE ⚔️
-
-BEFORE:
-• Clear hospital
-• Check zone: rok-suite.vercel.app/aoo-strategy
-
-PHASE 1 - RUSH:
-Z1/Z3 → Grab your obelisk FAST
-Z2 → Rush outposts
-
-PHASE 2 - TELEPORT:
-⚡ Fluffy/Sysstm/Suntzu TP NOW
-Rally shrines + altars (1 min rallies)
-Garrison everything we take
-
-PHASE 3 - ARK:
-Control center buildings
-STAY in buildings you take
-Farm for points
-
-PHASE 4 - PUSH:
-Hit enemy obelisks
-Defend > Attack
-Follow calls`}
-                            </div>
-                        </div>
-                        <p className={`text-xs ${theme.textMuted} text-center mt-3`}>Click anywhere on the text to copy</p>
-                    </section>
-
                     <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
                         <p className={`text-xs ${theme.textMuted}`}>Angmar • Rise of Kingdoms</p>
                         <p className={`text-[10px] ${theme.textMuted} mt-1 opacity-50`}>🐰 Led by Fluffy • Suntzu is charming the enemy (again)</p>
