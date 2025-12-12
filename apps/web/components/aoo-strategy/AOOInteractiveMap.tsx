@@ -71,6 +71,29 @@ const teamColors: Record<number, { bg: string; text: string; name: string }> = {
   3: { bg: '#7C3AED', text: 'white', name: 'Zone 3' },
 };
 
+// Conquer order by zone - defines the priority order for capturing buildings
+// Order number displayed on map; buildings with same order are captured simultaneously
+const CONQUER_ORDER: Record<number, Record<string, number>> = {
+  // Zone 1: Rush left obelisk, then nearby buildings
+  1: {
+    'obelisk-2': 1,  // Left obelisk - RUSH first
+    'iset-2': 2,     // Outpost of Iset 2 - nearby
+    'sky-2': 2,      // Sky Altar Left - nearby
+  },
+  // Zone 2: Fluffy & Sysstm grab both top Iset outposts simultaneously
+  2: {
+    'iset-1': 1,     // Outpost of Iset 1 - Fluffy
+    'iset-2': 1,     // Outpost of Iset 2 - Sysstm (simultaneous)
+    'iset-3': 2,     // Outpost of Iset 3 - secure third
+  },
+  // Zone 3: Rush upper obelisk, then nearby buildings
+  3: {
+    'obelisk-1': 1,  // Upper obelisk - RUSH first
+    'iset-1': 2,     // Outpost of Iset 1 - nearby
+    'desert-1': 2,   // Desert Altar Right - nearby
+  },
+};
+
 // Building pairs that are mirrored across the map diagonal
 // When swapping corners, these buildings swap their strategic roles
 const MIRROR_PAIRS: Record<string, string> = {
@@ -509,6 +532,47 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                         )}
                       </div>
 
+                      {/* Conquer Order Labels - show for all zones that have this building in their order */}
+                      {(() => {
+                        // Get conquer orders for this building from all zones
+                        // When swapCorners is true, we show the mirrored building's conquer order
+                        const effectiveBuildingId = swapCorners ? MIRROR_PAIRS[building.id] : building.id;
+                        const orders: { zone: number; order: number }[] = [];
+
+                        [1, 2, 3].forEach(zone => {
+                          const zoneOrders = CONQUER_ORDER[zone];
+                          if (zoneOrders && zoneOrders[effectiveBuildingId]) {
+                            orders.push({ zone, order: zoneOrders[effectiveBuildingId] });
+                          }
+                        });
+
+                        if (orders.length === 0) return null;
+
+                        // Position labels around the marker
+                        return orders.map((o, idx) => {
+                          // Offset each label so they don't overlap
+                          const offsetX = idx === 0 ? -18 : idx === 1 ? 18 : 0;
+                          const offsetY = idx === 0 ? -8 : idx === 1 ? -8 : 16;
+
+                          return (
+                            <div
+                              key={`${building.id}-order-${o.zone}`}
+                              className="absolute flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold text-white shadow-md border border-white/50"
+                              style={{
+                                backgroundColor: teamColors[o.zone].bg,
+                                left: `calc(50% + ${offsetX}px)`,
+                                top: `calc(50% + ${offsetY}px)`,
+                                transform: 'translate(-50%, -50%)',
+                                zIndex: 35,
+                              }}
+                              title={`${teamColors[o.zone].name} - Conquer #${o.order}`}
+                            >
+                              {o.order}
+                            </div>
+                          );
+                        });
+                      })()}
+
                       {/* Tooltip on hover - shows building name and info */}
                       {(isHovered || isSelected) && (
                         <div
@@ -563,11 +627,10 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 </div>
               </div>
               <div className={`flex flex-wrap gap-3 pt-2 border-t ${theme.border}`}>
-                <span className={`${theme.textMuted} font-medium`}>Phases:</span>
-                <span className={theme.textMuted}><strong>1</strong> = Rush (Obelisks)</span>
-                <span className={theme.textMuted}><strong>2</strong> = Secure (Outposts)</span>
-                <span className={theme.textMuted}><strong>3</strong> = Expand (Shrines/Altars/Ark)</span>
-                <span className={theme.textMuted}><strong>4</strong> = Contest (Enemy territory)</span>
+                <span className={`${theme.textMuted} font-medium`}>Conquer Order:</span>
+                <span className={theme.textMuted}>Small colored circles = zone&apos;s capture priority</span>
+                <span className={theme.textMuted}><strong>1</strong> = Rush first</span>
+                <span className={theme.textMuted}><strong>2</strong> = Second wave</span>
               </div>
             </div>
           </div>
