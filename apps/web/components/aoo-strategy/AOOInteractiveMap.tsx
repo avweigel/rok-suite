@@ -73,26 +73,26 @@ const teamColors: Record<number, { bg: string; text: string; name: string }> = {
 
 // Conquer order by zone - defines the priority order for capturing buildings
 // Order number displayed on map; buildings with same order are captured simultaneously
-// Zone 1 and 3 push obelisks then move DOWN towards enemy
-// Zone 2 (Fluffy/Sysstm) secures Iset outposts on our side
+// Zone 1 (Lower) and Zone 3 (Upper) push obelisks then move towards enemy
+// Zone 2 (Ark/Center) - Fluffy/Sysstm secure Iset outposts on our side
 const CONQUER_ORDER: Record<number, Record<string, number>> = {
-  // Zone 1: Rush left obelisk, then push down the left side
+  // Zone 1 (Lower): Rush lower obelisk, then push up towards center
   1: {
-    'obelisk-2': 1,  // Left obelisk - RUSH first
-    'war-1': 2,      // Shrine of War Left - nearby, moving down
-    'sky-2': 2,      // Sky Altar Left - nearby, moving down
+    'obelisk-4': 1,  // Lower obelisk - RUSH first
+    'life-2': 2,     // Shrine of Life Left - nearby
+    'desert-2': 2,   // Desert Altar Left - nearby
   },
-  // Zone 2: Fluffy & Sysstm secure all 3 Iset outposts (our side)
+  // Zone 2 (Ark): Fluffy & Sysstm secure all 3 Iset outposts (our side)
   2: {
     'iset-1': 1,     // Outpost of Iset 1 - Fluffy (top)
     'iset-2': 1,     // Outpost of Iset 2 - Sysstm (left) - simultaneous
     'iset-3': 2,     // Outpost of Iset 3 - secure third (middle)
   },
-  // Zone 3: Rush upper obelisk, then push down the right side
+  // Zone 3 (Upper): Rush upper obelisk, then push down the right side
   3: {
     'obelisk-1': 1,  // Upper obelisk - RUSH first
-    'life-1': 2,     // Shrine of Life Right - nearby, moving down
-    'desert-1': 2,   // Desert Altar Right - nearby, moving down
+    'life-1': 2,     // Shrine of Life Right - nearby
+    'desert-1': 2,   // Desert Altar Right - nearby
   },
 };
 
@@ -421,12 +421,12 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 </div>
 
                 {/* RUSH indicators showing which zone goes where */}
-                {/* Zone 3 rushes Obelisk 1 (upper) or Obelisk 4 (lower) based on swap */}
+                {/* Zone 3 (Upper) rushes Obelisk 1 (upper) or Obelisk 4 (lower) based on swap */}
                 <div
                   className="absolute px-1.5 py-0.5 rounded bg-purple-600 text-white text-[10px] font-bold shadow"
                   style={{
                     left: swapCorners ? '42%' : '50%',
-                    top: swapCorners ? '85%' : '5%',
+                    top: swapCorners ? '90%' : '5%',
                     transform: 'translate(-50%, 0)',
                     zIndex: 15
                   }}
@@ -438,8 +438,8 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   <div
                     className="absolute px-1.5 py-0.5 rounded bg-purple-800/80 text-purple-200 text-[9px] font-medium shadow"
                     style={{
-                      left: swapCorners ? '50%' : '58%',
-                      top: swapCorners ? '73%' : '10%',
+                      left: swapCorners ? '42%' : '50%',
+                      top: swapCorners ? '95%' : '10%',
                       transform: 'translate(-50%, 0)',
                       zIndex: 15
                     }}
@@ -448,25 +448,25 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   </div>
                 )}
 
-                {/* Zone 1 rushes Obelisk 2 (left) or Obelisk 3 (right) based on swap */}
+                {/* Zone 1 (Lower) rushes Obelisk 4 (lower) or Obelisk 1 (upper) based on swap */}
                 <div
                   className="absolute px-1.5 py-0.5 rounded bg-blue-600 text-white text-[10px] font-bold shadow"
                   style={{
-                    left: swapCorners ? '98%' : '2%',
-                    top: '40%',
-                    transform: swapCorners ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
+                    left: swapCorners ? '50%' : '42%',
+                    top: swapCorners ? '5%' : '80%',
+                    transform: 'translate(-50%, 0)',
                     zIndex: 15
                   }}
                 >
-                  {swapCorners ? '← ' : ''}Z1 RUSH{swapCorners ? '' : ' →'}
+                  Z1 RUSH {swapCorners ? '↓' : '↑'}
                 </div>
                 {/* Teleport indicator for Zone 1 obelisk - dynamic from roster */}
                 {teleportersByZone[1].first.length > 0 && (
                   <div
                     className="absolute px-1.5 py-0.5 rounded bg-blue-800/80 text-blue-200 text-[9px] font-medium shadow"
                     style={{
-                      left: swapCorners ? '90%' : '10%',
-                      top: '48%',
+                      left: swapCorners ? '50%' : '42%',
+                      top: swapCorners ? '10%' : '85%',
                       transform: 'translate(-50%, 0)',
                       zIndex: 15
                     }}

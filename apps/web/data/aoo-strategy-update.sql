@@ -29,8 +29,8 @@ UPDATE aoo_strategy SET data = '{
     {"id": 24, "name": "MayorEric", "team": 1, "tags": [], "power": 11921993, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
     {"id": 25, "name": "DRAGON", "team": 1, "tags": ["Confirmed"], "power": 11161597, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
     {"id": 26, "name": "VNKaiLey", "team": 1, "tags": ["Confirmed"], "power": 10606053, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
-    {"id": 27, "name": "FnDuke", "team": 1, "tags": ["Confirmed"], "power": 10494272, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
-    {"id": 28, "name": "Obi", "team": 1, "tags": ["Confirmed"], "power": 10162482, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
+    {"id": 27, "name": "FnDuke", "team": 1, "tags": ["Rally Leader", "Teleport 1st", "Confirmed"], "power": 10494272, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
+    {"id": 28, "name": "Obi", "team": 1, "tags": ["Teleport 1st", "Confirmed"], "power": 10162482, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
     {"id": 29, "name": "Lady Leanna", "team": 1, "tags": ["Confirmed"], "power": 9070720, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
     {"id": 30, "name": "Adegi", "team": 1, "tags": ["Confirmed"], "power": 6632214, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}}
   ],
