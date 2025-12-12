@@ -30,7 +30,7 @@ const DEFAULT_TEAMS: TeamInfo[] = [
     { name: 'Zone 3', description: 'Lower' },
 ];
 
-const AVAILABLE_TAGS = ['Rally Leader', 'Coordinator', 'Teleport 1st', 'Teleport 2nd', 'Hold Obelisks', 'Garrison', 'Farm', 'Conquer'];
+const AVAILABLE_TAGS = ['Rally Leader', 'Coordinator', 'Teleport 1st', 'Teleport 2nd', 'Hold Obelisks', 'Garrison', 'Farm', 'Conquer', 'Confirmed'];
 
 // Simplified tag colors - muted to not compete with zone colors
 // Zone colors: Z1=blue, Z2=orange, Z3=purple (match in-game)
@@ -43,6 +43,7 @@ const TAG_COLORS: Record<string, string> = {
     'Garrison': 'bg-stone-600 text-stone-200',
     'Farm': 'bg-stone-500 text-white',
     'Conquer': 'bg-stone-600 text-stone-200',
+    'Confirmed': 'bg-green-600 text-white',
 };
 
 // Zone colors matching in-game
