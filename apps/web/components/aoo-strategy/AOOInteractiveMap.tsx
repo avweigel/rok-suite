@@ -73,24 +73,26 @@ const teamColors: Record<number, { bg: string; text: string; name: string }> = {
 
 // Conquer order by zone - defines the priority order for capturing buildings
 // Order number displayed on map; buildings with same order are captured simultaneously
+// Zone 1 and 3 push obelisks then move DOWN towards enemy
+// Zone 2 (Fluffy/Sysstm) secures Iset outposts on our side
 const CONQUER_ORDER: Record<number, Record<string, number>> = {
-  // Zone 1: Rush left obelisk, then nearby buildings
+  // Zone 1: Rush left obelisk, then push down the left side
   1: {
     'obelisk-2': 1,  // Left obelisk - RUSH first
-    'iset-2': 2,     // Outpost of Iset 2 - nearby
-    'sky-2': 2,      // Sky Altar Left - nearby
+    'war-1': 2,      // Shrine of War Left - nearby, moving down
+    'sky-2': 2,      // Sky Altar Left - nearby, moving down
   },
-  // Zone 2: Fluffy & Sysstm grab both top Iset outposts simultaneously
+  // Zone 2: Fluffy & Sysstm secure all 3 Iset outposts (our side)
   2: {
-    'iset-1': 1,     // Outpost of Iset 1 - Fluffy
-    'iset-2': 1,     // Outpost of Iset 2 - Sysstm (simultaneous)
-    'iset-3': 2,     // Outpost of Iset 3 - secure third
+    'iset-1': 1,     // Outpost of Iset 1 - Fluffy (top)
+    'iset-2': 1,     // Outpost of Iset 2 - Sysstm (left) - simultaneous
+    'iset-3': 2,     // Outpost of Iset 3 - secure third (middle)
   },
-  // Zone 3: Rush upper obelisk, then nearby buildings
+  // Zone 3: Rush upper obelisk, then push down the right side
   3: {
     'obelisk-1': 1,  // Upper obelisk - RUSH first
-    'iset-1': 2,     // Outpost of Iset 1 - nearby
-    'desert-1': 2,   // Desert Altar Right - nearby
+    'life-1': 2,     // Shrine of Life Right - nearby, moving down
+    'desert-1': 2,   // Desert Altar Right - nearby, moving down
   },
 };
 
@@ -548,16 +550,16 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
 
                         if (orders.length === 0) return null;
 
-                        // Position labels around the marker
+                        // Position labels around the marker - offset based on how many zones share this building
                         return orders.map((o, idx) => {
-                          // Offset each label so they don't overlap
-                          const offsetX = idx === 0 ? -18 : idx === 1 ? 18 : 0;
-                          const offsetY = idx === 0 ? -8 : idx === 1 ? -8 : 16;
+                          // Offset each label so they don't overlap (same size as building marker)
+                          const offsetX = orders.length === 1 ? 28 : (idx === 0 ? -28 : idx === 1 ? 28 : 0);
+                          const offsetY = orders.length === 1 ? 0 : (idx === 0 ? 0 : idx === 1 ? 0 : 28);
 
                           return (
                             <div
                               key={`${building.id}-order-${o.zone}`}
-                              className="absolute flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold text-white shadow-md border border-white/50"
+                              className="absolute flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold text-white shadow-lg border-2 border-white"
                               style={{
                                 backgroundColor: teamColors[o.zone].bg,
                                 left: `calc(50% + ${offsetX}px)`,
