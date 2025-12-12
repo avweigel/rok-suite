@@ -73,14 +73,14 @@ const teamColors: Record<number, { bg: string; text: string; name: string }> = {
 
 // Conquer order by zone - defines the priority order for capturing buildings
 // Order number displayed on map; buildings with same order are captured simultaneously
-// Zone 1 (Lower) and Zone 3 (Upper) push obelisks then move towards enemy
+// Everyone starts from top-left (START), rushing to their assigned obelisk
 // Zone 2 (Ark/Center) - Fluffy/Sysstm secure Iset outposts on our side
 const CONQUER_ORDER: Record<number, Record<string, number>> = {
-  // Zone 1 (Lower): Rush lower obelisk, then push up towards center
+  // Zone 1 (Lower): Rush upper obelisk (near start), then push down
   1: {
-    'obelisk-4': 1,  // Lower obelisk - RUSH first
-    'life-2': 2,     // Shrine of Life Left - nearby
-    'desert-2': 2,   // Desert Altar Left - nearby
+    'obelisk-1': 1,  // Upper obelisk - RUSH first (near START)
+    'life-1': 2,     // Shrine of Life Right - nearby
+    'desert-1': 2,   // Desert Altar Right - nearby
   },
   // Zone 2 (Ark): Fluffy & Sysstm secure all 3 Iset outposts (our side)
   2: {
@@ -88,11 +88,11 @@ const CONQUER_ORDER: Record<number, Record<string, number>> = {
     'iset-2': 1,     // Outpost of Iset 2 - Sysstm (left) - simultaneous
     'iset-3': 2,     // Outpost of Iset 3 - secure third (middle)
   },
-  // Zone 3 (Upper): Rush upper obelisk, then push down the right side
+  // Zone 3 (Upper): Rush lower obelisk (towards enemy), then push up
   3: {
-    'obelisk-1': 1,  // Upper obelisk - RUSH first
-    'life-1': 2,     // Shrine of Life Right - nearby
-    'desert-1': 2,   // Desert Altar Right - nearby
+    'obelisk-4': 1,  // Lower obelisk - RUSH first (towards ENEMY)
+    'life-2': 2,     // Shrine of Life Left - nearby
+    'desert-2': 2,   // Desert Altar Left - nearby
   },
 };
 
@@ -421,9 +421,9 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 </div>
 
                 {/* RUSH indicators showing which zone goes where */}
-                {/* Zone 3 (Upper) rushes Obelisk 1 (upper) or Obelisk 4 (lower) based on swap */}
+                {/* Zone 1 (Lower) rushes upper obelisk (near START), swaps to lower when corners swap */}
                 <div
-                  className="absolute px-1.5 py-0.5 rounded bg-purple-600 text-white text-[10px] font-bold shadow"
+                  className="absolute px-1.5 py-0.5 rounded bg-blue-600 text-white text-[10px] font-bold shadow"
                   style={{
                     left: swapCorners ? '42%' : '50%',
                     top: swapCorners ? '90%' : '5%',
@@ -431,12 +431,12 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                     zIndex: 15
                   }}
                 >
-                  Z3 RUSH {swapCorners ? '↑' : '↓'}
+                  Z1 RUSH {swapCorners ? '↑' : '↓'}
                 </div>
-                {/* Teleport indicator for Zone 3 obelisk - dynamic from roster */}
-                {teleportersByZone[3].first.length > 0 && (
+                {/* Teleport indicator for Zone 1 obelisk - dynamic from roster */}
+                {teleportersByZone[1].first.length > 0 && (
                   <div
-                    className="absolute px-1.5 py-0.5 rounded bg-purple-800/80 text-purple-200 text-[9px] font-medium shadow"
+                    className="absolute px-1.5 py-0.5 rounded bg-blue-800/80 text-blue-200 text-[9px] font-medium shadow"
                     style={{
                       left: swapCorners ? '42%' : '50%',
                       top: swapCorners ? '95%' : '10%',
@@ -444,13 +444,13 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                       zIndex: 15
                     }}
                   >
-                    ⚡ TP: {teleportersByZone[3].first.slice(0, 3).join(', ')}
+                    ⚡ TP: {teleportersByZone[1].first.slice(0, 3).join(', ')}
                   </div>
                 )}
 
-                {/* Zone 1 (Lower) rushes Obelisk 4 (lower) or Obelisk 1 (upper) based on swap */}
+                {/* Zone 3 (Upper) rushes lower obelisk (towards ENEMY), swaps to upper when corners swap */}
                 <div
-                  className="absolute px-1.5 py-0.5 rounded bg-blue-600 text-white text-[10px] font-bold shadow"
+                  className="absolute px-1.5 py-0.5 rounded bg-purple-600 text-white text-[10px] font-bold shadow"
                   style={{
                     left: swapCorners ? '50%' : '42%',
                     top: swapCorners ? '5%' : '80%',
@@ -458,12 +458,12 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                     zIndex: 15
                   }}
                 >
-                  Z1 RUSH {swapCorners ? '↓' : '↑'}
+                  Z3 RUSH {swapCorners ? '↓' : '↑'}
                 </div>
-                {/* Teleport indicator for Zone 1 obelisk - dynamic from roster */}
-                {teleportersByZone[1].first.length > 0 && (
+                {/* Teleport indicator for Zone 3 obelisk - dynamic from roster */}
+                {teleportersByZone[3].first.length > 0 && (
                   <div
-                    className="absolute px-1.5 py-0.5 rounded bg-blue-800/80 text-blue-200 text-[9px] font-medium shadow"
+                    className="absolute px-1.5 py-0.5 rounded bg-purple-800/80 text-purple-200 text-[9px] font-medium shadow"
                     style={{
                       left: swapCorners ? '50%' : '42%',
                       top: swapCorners ? '10%' : '85%',
@@ -471,7 +471,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                       zIndex: 15
                     }}
                   >
-                    ⚡ TP: {teleportersByZone[1].first.slice(0, 3).join(', ')}
+                    ⚡ TP: {teleportersByZone[3].first.slice(0, 3).join(', ')}
                   </div>
                 )}
 
