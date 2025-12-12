@@ -534,57 +534,66 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                         )}
                       </div>
 
-                      {/* Conquer Order Labels - show for all zones that have this building in their order */}
+{/* Conquer Order Indicators - shown directly on/around the building marker */}
                       {(() => {
-                        // Get conquer orders for this building from all zones
-                        // When swapCorners is true, we show the mirrored building's conquer order
-                        const effectiveBuildingId = swapCorners ? MIRROR_PAIRS[building.id] : building.id;
-                        const orders: { zone: number; order: number }[] = [];
+                        // Collect all zones that have conquer orders for this building
+                        const checkBuildingId = swapCorners ? MIRROR_PAIRS[building.id] : building.id;
+                        const zonesWithOrders: { zone: number; order: number }[] = [];
 
-                        [1, 2, 3].forEach(zone => {
-                          const zoneOrders = CONQUER_ORDER[zone];
-                          if (zoneOrders && zoneOrders[effectiveBuildingId]) {
-                            orders.push({ zone, order: zoneOrders[effectiveBuildingId] });
+                        Object.entries(CONQUER_ORDER).forEach(([zoneStr, buildingOrders]) => {
+                          const zone = parseInt(zoneStr);
+                          const order = buildingOrders[checkBuildingId];
+                          if (order && (filterTeam === 'all' || filterTeam === zone)) {
+                            zonesWithOrders.push({ zone, order });
                           }
                         });
 
-                        if (orders.length === 0) return null;
+                        if (zonesWithOrders.length === 0) return null;
 
-                        // Position labels next to the marker (marker is 40px, circles are 40px)
-                        // Place to the right for single, left/right for two, triangle for three
-                        return orders.map((o, idx) => {
-                          let offsetX = 0;
-                          let offsetY = 0;
-
-                          if (orders.length === 1) {
-                            // Single label: to the right
-                            offsetX = 44;
-                            offsetY = 0;
-                          } else if (orders.length === 2) {
-                            // Two labels: left and right
-                            offsetX = idx === 0 ? -44 : 44;
-                            offsetY = 0;
-                          } else {
-                            // Three labels: left, right, below
-                            if (idx === 0) { offsetX = -44; offsetY = 0; }
-                            else if (idx === 1) { offsetX = 44; offsetY = 0; }
-                            else { offsetX = 0; offsetY = 44; }
-                          }
-
+                        // If only one zone, show it centered on the marker
+                        if (zonesWithOrders.length === 1) {
+                          const { zone, order } = zonesWithOrders[0];
                           return (
                             <div
-                              key={`${building.id}-order-${o.zone}`}
-                              className="absolute flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold text-white shadow-lg border-2 border-white"
+                              key={`conquer-${zone}-${building.id}`}
+                              className="absolute w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg border-2 border-white"
                               style={{
-                                backgroundColor: teamColors[o.zone].bg,
+                                backgroundColor: teamColors[zone].bg,
                                 left: '50%',
                                 top: '50%',
-                                transform: `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`,
-                                zIndex: 35,
+                                transform: 'translate(-50%, -50%)',
+                                zIndex: 15,
                               }}
-                              title={`${teamColors[o.zone].name} - Conquer #${o.order}`}
+                              title={`${teamColors[zone].name} - Priority ${order}`}
                             >
-                              {o.order}
+                              {order}
+                            </div>
+                          );
+                        }
+
+                        // Multiple zones - position them around the marker
+                        const positions: Record<number, { x: number; y: number }> = {
+                          1: { x: -10, y: 10 },   // Bottom-left
+                          2: { x: 0, y: -12 },    // Top-center
+                          3: { x: 10, y: 10 },    // Bottom-right
+                        };
+
+                        return zonesWithOrders.map(({ zone, order }) => {
+                          const pos = positions[zone];
+                          return (
+                            <div
+                              key={`conquer-${zone}-${building.id}`}
+                              className="absolute w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-md border border-white"
+                              style={{
+                                backgroundColor: teamColors[zone].bg,
+                                left: `calc(50% + ${pos.x}px)`,
+                                top: `calc(50% + ${pos.y}px)`,
+                                transform: 'translate(-50%, -50%)',
+                                zIndex: 15,
+                              }}
+                              title={`${teamColors[zone].name} - Priority ${order}`}
+                            >
+                              {order}
                             </div>
                           );
                         });
