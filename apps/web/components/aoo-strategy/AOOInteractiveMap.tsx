@@ -550,11 +550,26 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
 
                         if (orders.length === 0) return null;
 
-                        // Position labels around the marker - offset based on how many zones share this building
+                        // Position labels next to the marker (marker is 40px, circles are 40px)
+                        // Place to the right for single, left/right for two, triangle for three
                         return orders.map((o, idx) => {
-                          // Offset each label so they don't overlap (same size as building marker)
-                          const offsetX = orders.length === 1 ? 28 : (idx === 0 ? -28 : idx === 1 ? 28 : 0);
-                          const offsetY = orders.length === 1 ? 0 : (idx === 0 ? 0 : idx === 1 ? 0 : 28);
+                          let offsetX = 0;
+                          let offsetY = 0;
+
+                          if (orders.length === 1) {
+                            // Single label: to the right
+                            offsetX = 44;
+                            offsetY = 0;
+                          } else if (orders.length === 2) {
+                            // Two labels: left and right
+                            offsetX = idx === 0 ? -44 : 44;
+                            offsetY = 0;
+                          } else {
+                            // Three labels: left, right, below
+                            if (idx === 0) { offsetX = -44; offsetY = 0; }
+                            else if (idx === 1) { offsetX = 44; offsetY = 0; }
+                            else { offsetX = 0; offsetY = 44; }
+                          }
 
                           return (
                             <div
@@ -562,9 +577,9 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                               className="absolute flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold text-white shadow-lg border-2 border-white"
                               style={{
                                 backgroundColor: teamColors[o.zone].bg,
-                                left: `calc(50% + ${offsetX}px)`,
-                                top: `calc(50% + ${offsetY}px)`,
-                                transform: 'translate(-50%, -50%)',
+                                left: '50%',
+                                top: '50%',
+                                transform: `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`,
                                 zIndex: 35,
                               }}
                               title={`${teamColors[o.zone].name} - Conquer #${o.order}`}

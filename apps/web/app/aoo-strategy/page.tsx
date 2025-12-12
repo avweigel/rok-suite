@@ -678,31 +678,54 @@ export default function AooStrategyPage() {
             {activeTab === 'roster' && (
                 /* Roster Tab */
                 <div className="max-w-7xl mx-auto p-4 md:p-6">
-                    {/* Expandable Strategy Overview */}
-                    <section className={`${theme.card} border rounded-xl mb-6 overflow-hidden`}>
-                        <button 
-                            onClick={() => setStrategyExpanded(!strategyExpanded)}
-                            className={`w-full p-4 flex items-center justify-between hover:opacity-80 transition-opacity`}
-                        >
-                            <div className="flex items-center gap-2">
-                                <span className="text-lg">📋</span>
-                                <h2 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted}`}>Strategy Overview</h2>
+                    {/* Strategy Overview */}
+                    <section className={`${theme.card} border-2 border-emerald-500 rounded-xl mb-6 p-4`}>
+                        <h2 className={`text-sm font-semibold uppercase tracking-wider mb-4 text-emerald-500`}>📋 Strategy Overview</h2>
+
+                        {/* Key Rules */}
+                        <div className={`grid md:grid-cols-2 gap-4 mb-4`}>
+                            <div className={`p-3 rounded-lg ${darkMode ? 'bg-emerald-900/20' : 'bg-emerald-50'}`}>
+                                <h3 className={`font-bold text-emerald-500 text-sm mb-2`}>📌 IMPORTANT</h3>
+                                <ul className={`text-xs space-y-1 ${theme.text}`}>
+                                    <li>• Pay attention to your lane assignment</li>
+                                    <li>• Everyone rush their obelisk first</li>
+                                    <li>• Rally leaders TP first</li>
+                                    <li>• Move down ONLY after garrisoning</li>
+                                    <li>• Only rally occupied buildings</li>
+                                    <li>• Work as a unit, not individual</li>
+                                </ul>
                             </div>
-                            <span className={`text-lg ${theme.textMuted}`}>{strategyExpanded ? '▼' : '▶'}</span>
+                            <div className={`p-3 rounded-lg ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+                                <h3 className={`font-bold ${theme.textMuted} text-sm mb-2`}>🎯 TROOP DEPLOYMENT</h3>
+                                <ul className={`text-xs space-y-1 ${theme.text}`}>
+                                    <li>🐴 <strong>Cavalry</strong> → For rallies</li>
+                                    <li>🛡️ <strong>Infantry</strong> → To garrison</li>
+                                    <li>🌾 <strong>Else</strong> → Gather tiles</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        {/* Expandable Notes */}
+                        <button
+                            onClick={() => setStrategyExpanded(!strategyExpanded)}
+                            className={`w-full p-2 flex items-center justify-between hover:opacity-80 transition-opacity border-t ${theme.border}`}
+                        >
+                            <span className={`text-xs ${theme.textMuted}`}>{isEditor ? 'Edit Notes' : 'Additional Notes'}</span>
+                            <span className={`text-sm ${theme.textMuted}`}>{strategyExpanded ? '▼' : '▶'}</span>
                         </button>
                         {strategyExpanded && (
-                            <div className={`px-4 pb-4 border-t ${theme.border}`}>
+                            <div className={`pt-2`}>
                                 {isEditor ? (
-                                    <textarea 
-                                        value={notes} 
-                                        onChange={(e) => setNotes(e.target.value)} 
+                                    <textarea
+                                        value={notes}
+                                        onChange={(e) => setNotes(e.target.value)}
                                         onBlur={() => saveData({ notes })}
                                         placeholder="Add strategy notes..."
-                                        className={`w-full min-h-[300px] mt-4 px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-y font-mono text-sm`} 
+                                        className={`w-full min-h-[150px] px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-y font-mono text-sm`}
                                     />
                                 ) : (
-                                    <div className={`mt-4 whitespace-pre-wrap font-mono text-sm ${theme.text}`}>
-                                        {notes || 'No strategy notes available'}
+                                    <div className={`whitespace-pre-wrap font-mono text-sm ${theme.text}`}>
+                                        {notes || 'No additional notes'}
                                     </div>
                                 )}
                             </div>
@@ -955,65 +978,56 @@ export default function AooStrategyPage() {
             {/* Lookup Tab */}
             {activeTab === 'lookup' && (
                 <div className="max-w-3xl mx-auto p-4 md:p-6">
-                    {/* Timeline */}
-                    <section className={`${theme.card} border rounded-xl p-4 mb-6`}>
-                        <h2 className={`text-lg font-semibold mb-4 text-center`}>⏱️ Battle Timeline</h2>
-                        <div className="relative">
-                            {/* Timeline bar */}
-                            <div className={`h-2 rounded-full ${darkMode ? 'bg-zinc-700' : 'bg-gray-200'} mb-4`}>
-                                <div className="h-full rounded-full bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500" style={{ width: '100%' }}></div>
-                            </div>
-                            {/* Phase markers */}
-                            <div className="flex justify-between text-xs">
-                                <div className="text-center">
-                                    <div className="w-3 h-3 rounded-full bg-yellow-500 mx-auto mb-1"></div>
-                                    <div className="font-bold">0:00</div>
-                                    <div className={`${theme.textMuted}`}>START</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="w-3 h-3 rounded-full bg-yellow-600 mx-auto mb-1"></div>
-                                    <div className="font-bold">~5:00</div>
-                                    <div className={`${theme.textMuted}`}>Teleport</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="w-3 h-3 rounded-full bg-orange-500 mx-auto mb-1"></div>
-                                    <div className="font-bold">~7:00</div>
-                                    <div className={`${theme.textMuted}`}>Ark Spawns</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="w-3 h-3 rounded-full bg-orange-600 mx-auto mb-1"></div>
-                                    <div className="font-bold">~15:00</div>
-                                    <div className={`${theme.textMuted}`}>Expand</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="w-3 h-3 rounded-full bg-red-500 mx-auto mb-1"></div>
-                                    <div className="font-bold">~45:00</div>
-                                    <div className={`${theme.textMuted}`}>Contest</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="w-3 h-3 rounded-full bg-red-600 mx-auto mb-1"></div>
-                                    <div className="font-bold">60:00</div>
-                                    <div className={`${theme.textMuted}`}>END</div>
-                                </div>
-                            </div>
+                    {/* Key Instructions */}
+                    <section className={`${theme.card} border-4 border-emerald-500 rounded-xl p-6 mb-6`}>
+                        <h2 className={`text-xl font-bold text-center mb-4 text-emerald-500`}>⚔️ Battle Instructions</h2>
+
+                        {/* Important Rules */}
+                        <div className={`p-4 rounded-lg ${darkMode ? 'bg-emerald-900/30' : 'bg-emerald-50'} border-2 border-emerald-500 mb-4`}>
+                            <h3 className="font-bold text-emerald-500 mb-3">📌 IMPORTANT</h3>
+                            <ul className={`space-y-2 ${theme.text}`}>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-emerald-500 font-bold">•</span>
+                                    <span><strong>Pay attention to your lane assignment.</strong></span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-emerald-500 font-bold">•</span>
+                                    <span><strong>Everyone rush their obelisk first.</strong> Rally leaders TP first.</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-emerald-500 font-bold">•</span>
+                                    <span><strong>Move down the field ONLY after fully occupying and garrisoning a building.</strong></span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-emerald-500 font-bold">•</span>
+                                    <span><strong>Only use rallies to overtake already occupied buildings.</strong></span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-emerald-500 font-bold">•</span>
+                                    <span><strong>Work as a unit, not individual.</strong></span>
+                                </li>
+                            </ul>
                         </div>
-                        {/* Phase descriptions */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4 text-xs">
-                            <div className={`p-2 rounded ${darkMode ? 'bg-yellow-900/30' : 'bg-yellow-100'} border border-yellow-500/50`}>
-                                <div className="font-bold text-yellow-500">Phase 1: RUSH</div>
-                                <div className={theme.textMuted}>Capture your obelisks</div>
-                            </div>
-                            <div className={`p-2 rounded ${darkMode ? 'bg-yellow-800/30' : 'bg-yellow-50'} border border-yellow-600/50`}>
-                                <div className="font-bold text-yellow-600">Phase 2: SECURE</div>
-                                <div className={theme.textMuted}>Teleport & outposts</div>
-                            </div>
-                            <div className={`p-2 rounded ${darkMode ? 'bg-orange-900/30' : 'bg-orange-100'} border border-orange-500/50`}>
-                                <div className="font-bold text-orange-500">Phase 3: EXPAND</div>
-                                <div className={theme.textMuted}>Shrines, Altars, Ark</div>
-                            </div>
-                            <div className={`p-2 rounded ${darkMode ? 'bg-red-900/30' : 'bg-red-100'} border border-red-500/50`}>
-                                <div className="font-bold text-red-500">Phase 4: CONTEST</div>
-                                <div className={theme.textMuted}>Enemy territory</div>
+
+                        {/* Troop Deployment */}
+                        <div className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+                            <h3 className={`font-bold ${theme.textMuted} mb-3`}>🎯 IF YOU CAN</h3>
+                            <div className="grid grid-cols-3 gap-3 text-center text-sm">
+                                <div className={`p-3 rounded-lg ${darkMode ? 'bg-red-900/30' : 'bg-red-50'} border border-red-500/50`}>
+                                    <div className="text-2xl mb-1">🐴</div>
+                                    <div className="font-bold text-red-500">Cavalry</div>
+                                    <div className={`text-xs ${theme.textMuted}`}>For rallies</div>
+                                </div>
+                                <div className={`p-3 rounded-lg ${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'} border border-blue-500/50`}>
+                                    <div className="text-2xl mb-1">🛡️</div>
+                                    <div className="font-bold text-blue-500">Infantry</div>
+                                    <div className={`text-xs ${theme.textMuted}`}>To garrison</div>
+                                </div>
+                                <div className={`p-3 rounded-lg ${darkMode ? 'bg-yellow-900/30' : 'bg-yellow-50'} border border-yellow-500/50`}>
+                                    <div className="text-2xl mb-1">🌾</div>
+                                    <div className="font-bold text-yellow-600">Else</div>
+                                    <div className={`text-xs ${theme.textMuted}`}>Gather tiles</div>
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -1408,305 +1422,201 @@ Follow calls`}
 
             {/* Quick Reference Guide Tab */}
             {activeTab === 'quickref' && (
-                <div className="max-w-7xl mx-auto p-4 md:p-6">
+                <div className="max-w-5xl mx-auto p-4 md:p-6">
                     <h1 className="text-3xl font-bold text-center mb-2">⚡ Quick Battle Guide</h1>
-                    <p className={`text-center ${theme.textMuted} mb-8`}>Simple visual guide for all players</p>
+                    <p className={`text-center ${theme.textMuted} mb-6`}>Simplified strategy for all players</p>
 
-                    {/* Core Strategy */}
+                    {/* Core Instructions - Same as main page */}
                     <section className={`${theme.card} border-4 border-emerald-500 rounded-xl p-6 mb-6`}>
-                        <h2 className="text-2xl font-bold text-center mb-4">🎯 Core Strategy</h2>
-                        <div className="grid md:grid-cols-4 gap-4 text-center">
-                            <div className={`p-4 rounded-lg ${darkMode ? 'bg-emerald-900/30' : 'bg-emerald-50'} border-2 border-emerald-500`}>
-                                <div className="text-3xl mb-2">🏃</div>
-                                <div className="font-bold text-emerald-500">1. RUSH</div>
-                                <div className={`text-xs ${theme.textMuted}`}>Sprint to Obelisk</div>
-                            </div>
-                            <div className={`p-4 rounded-lg ${darkMode ? 'bg-emerald-900/30' : 'bg-emerald-50'} border-2 border-emerald-500`}>
-                                <div className="text-3xl mb-2">🛡️</div>
-                                <div className="font-bold text-emerald-500">2. GARRISON</div>
-                                <div className={`text-xs ${theme.textMuted}`}>Secure what we take</div>
-                            </div>
-                            <div className={`p-4 rounded-lg ${darkMode ? 'bg-emerald-900/30' : 'bg-emerald-50'} border-2 border-emerald-500`}>
-                                <div className="text-3xl mb-2">⚔️</div>
-                                <div className="font-bold text-emerald-500">3. PUSH</div>
-                                <div className={`text-xs ${theme.textMuted}`}>Advance toward enemy</div>
-                            </div>
-                            <div className={`p-4 rounded-lg ${darkMode ? 'bg-emerald-900/30' : 'bg-emerald-50'} border-2 border-emerald-500`}>
-                                <div className="text-3xl mb-2">🌾</div>
-                                <div className="font-bold text-emerald-500">4. FARM</div>
-                                <div className={`text-xs ${theme.textMuted}`}>Extra troops gather</div>
-                            </div>
-                        </div>
-                        <div className={`mt-4 p-3 rounded-lg ${darkMode ? 'bg-red-900/30' : 'bg-red-50'} border border-red-500/50 text-center`}>
-                            <div className="font-bold text-red-500">🎯 Leaders Rally Occupied Buildings</div>
-                            <div className={`text-sm ${theme.textMuted}`}>Rally only when enemies are garrisoned!</div>
-                        </div>
-                    </section>
-
-                    {/* Zone Assignment Overview - Leader Focused */}
-                    <section className={`${theme.card} border rounded-xl p-6 mb-6`}>
-                        <h2 className="text-2xl font-bold text-center mb-2">👑 Zone Leaders & Teams</h2>
-                        <p className={`text-center ${theme.textMuted} mb-6 text-sm`}>Follow your zone leader's calls</p>
-                        <div className="grid md:grid-cols-3 gap-4">
-                            {/* Zone 1 - Soutz */}
-                            <div className={`p-6 rounded-xl border-4 ${darkMode ? 'bg-blue-900/20 border-blue-500' : 'bg-blue-50 border-blue-400'}`}>
-                                <div className="text-center">
-                                    <div className="text-4xl mb-2">🔵</div>
-                                    <h3 className="text-2xl font-bold text-blue-500 mb-1">ZONE 1</h3>
-                                    <p className={`text-sm ${theme.textMuted} mb-3`}>Bottom / Left Side</p>
-                                    <div className={`p-3 rounded-lg ${darkMode ? 'bg-blue-800/50' : 'bg-blue-200'} mb-3`}>
-                                        <div className="text-xs text-blue-400 uppercase tracking-wider">Leader</div>
-                                        <div className="text-xl font-bold text-blue-300">👑 Soutz</div>
-                                    </div>
-                                    <div className={`text-xs ${theme.textMuted} space-y-1 max-h-32 overflow-y-auto`}>
-                                        {players.filter(p => p.team === 1 && p.name.toLowerCase() !== 'soutz').map(p => (
-                                            <div key={p.id} className="truncate">{p.name}</div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Zone 2 - Sysstm & Fluffy */}
-                            <div className={`p-6 rounded-xl border-4 ${darkMode ? 'bg-orange-900/20 border-orange-500' : 'bg-orange-50 border-orange-400'}`}>
-                                <div className="text-center">
-                                    <div className="text-4xl mb-2">🟠</div>
-                                    <h3 className="text-2xl font-bold text-orange-500 mb-1">ZONE 2</h3>
-                                    <p className={`text-sm ${theme.textMuted} mb-3`}>Ark / Center (Flex Support)</p>
-                                    <div className={`p-3 rounded-lg ${darkMode ? 'bg-orange-800/50' : 'bg-orange-200'} mb-3`}>
-                                        <div className="text-xs text-orange-400 uppercase tracking-wider">Leaders</div>
-                                        <div className="text-xl font-bold text-orange-300">👑 Sysstm & Fluffy</div>
-                                    </div>
-                                    <div className={`text-xs ${theme.textMuted} space-y-1 max-h-32 overflow-y-auto`}>
-                                        {players.filter(p => p.team === 2 && !['sysstm', 'fluffy'].includes(p.name.toLowerCase())).map(p => (
-                                            <div key={p.id} className="truncate">{p.name}</div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Zone 3 - Suntzu */}
-                            <div className={`p-6 rounded-xl border-4 ${darkMode ? 'bg-purple-900/20 border-purple-500' : 'bg-purple-50 border-purple-400'}`}>
-                                <div className="text-center">
-                                    <div className="text-4xl mb-2">🟣</div>
-                                    <h3 className="text-2xl font-bold text-purple-500 mb-1">ZONE 3</h3>
-                                    <p className={`text-sm ${theme.textMuted} mb-3`}>Top / Upper Side</p>
-                                    <div className={`p-3 rounded-lg ${darkMode ? 'bg-purple-800/50' : 'bg-purple-200'} mb-3`}>
-                                        <div className="text-xs text-purple-400 uppercase tracking-wider">Leader</div>
-                                        <div className="text-xl font-bold text-purple-300">👑 Suntzu</div>
-                                    </div>
-                                    <div className={`text-xs ${theme.textMuted} space-y-1 max-h-32 overflow-y-auto`}>
-                                        {players.filter(p => p.team === 3 && p.name.toLowerCase() !== 'suntzu').map(p => (
-                                            <div key={p.id} className="truncate">{p.name}</div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* Phase-by-Phase Visual Guide */}
-                    <section className={`${theme.card} border rounded-xl p-6 mb-6`}>
-                        <h2 className="text-2xl font-bold text-center mb-6">📅 Battle Timeline</h2>
-
-                        {/* Phase 1 - RUSH */}
-                        <div className={`mb-6 p-6 rounded-xl border-4 ${darkMode ? 'bg-yellow-900/20 border-yellow-500' : 'bg-yellow-50 border-yellow-400'}`}>
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="text-4xl">🏃</div>
-                                <div>
-                                    <h3 className="text-2xl font-bold text-yellow-500">PHASE 1: RUSH TO OBELISK</h3>
-                                    <p className={`text-sm ${theme.textMuted}`}>Time: 0:00 - Battle Start</p>
-                                </div>
-                            </div>
-                            <div className="grid md:grid-cols-3 gap-4">
-                                <div className={`p-4 rounded-lg ${darkMode ? 'bg-blue-900/30' : 'bg-blue-100'}`}>
-                                    <div className="font-bold text-blue-500 mb-2">🔵 Zone 1 - Soutz</div>
-                                    <div className={`text-sm ${theme.text}`}>→ Rush to Obelisk (Left)</div>
-                                    <div className={`text-xs ${theme.textMuted} mt-1`}>Whole team follows Soutz</div>
-                                </div>
-                                <div className={`p-4 rounded-lg ${darkMode ? 'bg-orange-900/30' : 'bg-orange-100'}`}>
-                                    <div className="font-bold text-orange-500 mb-2">🟠 Zone 2 - Sysstm/Fluffy</div>
-                                    <div className={`text-sm ${theme.text}`}>→ Split to support Z1 & Z3</div>
-                                    <div className={`text-xs ${theme.textMuted} mt-1`}>Reinforce where needed</div>
-                                </div>
-                                <div className={`p-4 rounded-lg ${darkMode ? 'bg-purple-900/30' : 'bg-purple-100'}`}>
-                                    <div className="font-bold text-purple-500 mb-2">🟣 Zone 3 - Suntzu</div>
-                                    <div className={`text-sm ${theme.text}`}>→ Rush to Obelisk (Upper)</div>
-                                    <div className={`text-xs ${theme.textMuted} mt-1`}>Whole team follows Suntzu</div>
-                                </div>
-                            </div>
-                            <div className={`mt-4 p-3 rounded-lg ${darkMode ? 'bg-yellow-900/30' : 'bg-yellow-100'} border border-yellow-500/50`}>
-                                <div className="font-bold text-yellow-600 mb-1">⚡ KEY ACTIONS:</div>
-                                <ul className={`text-sm ${theme.text} space-y-1`}>
-                                    <li>• <strong>Conquer (T1 Cav):</strong> Race to obelisk FIRST - speed is everything!</li>
-                                    <li>• <strong>Everyone else:</strong> Follow your zone leader, fill their rally</li>
-                                    <li>• <strong>Goal:</strong> Capture obelisk before enemy can garrison it</li>
+                        <h2 className="text-xl font-bold text-center mb-4 text-emerald-500">📌 IMPORTANT</h2>
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <div>
+                                <ul className={`space-y-3 ${theme.text}`}>
+                                    <li className="flex items-start gap-2">
+                                        <span className="text-emerald-500 font-bold text-lg">1.</span>
+                                        <span><strong>Pay attention to your lane assignment.</strong></span>
+                                    </li>
+                                    <li className="flex items-start gap-2">
+                                        <span className="text-emerald-500 font-bold text-lg">2.</span>
+                                        <span><strong>Everyone rush their obelisk first.</strong> Rally leaders TP first.</span>
+                                    </li>
+                                    <li className="flex items-start gap-2">
+                                        <span className="text-emerald-500 font-bold text-lg">3.</span>
+                                        <span><strong>Move down the field ONLY after fully occupying and garrisoning.</strong></span>
+                                    </li>
+                                    <li className="flex items-start gap-2">
+                                        <span className="text-emerald-500 font-bold text-lg">4.</span>
+                                        <span><strong>Only use rallies to overtake occupied buildings.</strong></span>
+                                    </li>
+                                    <li className="flex items-start gap-2">
+                                        <span className="text-emerald-500 font-bold text-lg">5.</span>
+                                        <span><strong>Work as a unit, not individual.</strong></span>
+                                    </li>
                                 </ul>
                             </div>
-                        </div>
-
-                        {/* Phase 2 - SECURE & GARRISON */}
-                        <div className={`mb-6 p-6 rounded-xl border-4 ${darkMode ? 'bg-green-900/20 border-green-500' : 'bg-green-50 border-green-400'}`}>
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="text-4xl">🛡️</div>
-                                <div>
-                                    <h3 className="text-2xl font-bold text-green-500">PHASE 2: SECURE & GARRISON</h3>
-                                    <p className={`text-sm ${theme.textMuted}`}>Time: ~5:00 - After Obelisk Captured</p>
+                            <div className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+                                <h3 className={`font-bold ${theme.textMuted} mb-3`}>🎯 TROOP DEPLOYMENT</h3>
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-2xl">🐴</span>
+                                        <div>
+                                            <div className="font-bold text-red-500">Cavalry</div>
+                                            <div className={`text-sm ${theme.textMuted}`}>For rallies</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-2xl">🛡️</span>
+                                        <div>
+                                            <div className="font-bold text-blue-500">Infantry</div>
+                                            <div className={`text-sm ${theme.textMuted}`}>To garrison buildings</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-2xl">🌾</span>
+                                        <div>
+                                            <div className="font-bold text-yellow-600">Everything Else</div>
+                                            <div className={`text-sm ${theme.textMuted}`}>Gather resource tiles</div>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className={`p-4 rounded-lg ${darkMode ? 'bg-green-900/30' : 'bg-green-100'} border border-green-500/50 mb-4`}>
-                                <div className="font-bold text-green-600 mb-2">🔑 KEY PRINCIPLE: Don't advance until secure!</div>
-                                <div className={`text-sm ${theme.text} space-y-2`}>
-                                    <div>🛡️ <strong>Garrison players:</strong> Stay in the obelisk - defend it!</div>
-                                    <div>🏃 <strong>Conquer (T1 Cav):</strong> Race to nearby outposts & shrines</div>
-                                    <div>👑 <strong>Leaders:</strong> Only rally buildings that enemies occupy</div>
-                                    <div>⚡ <strong>Teleport:</strong> Leaders TP to enemy obelisks when teleports unlock</div>
-                                    <div>🌾 <strong>Extra troops:</strong> Farm with remaining marches for points</div>
-                                </div>
-                            </div>
-                            <div className="grid md:grid-cols-3 gap-3">
-                                <div className={`p-3 rounded-lg ${darkMode ? 'bg-blue-900/30' : 'bg-blue-100'} text-center`}>
-                                    <div className="font-bold text-blue-500 text-sm">🔵 Soutz</div>
-                                    <div className={`text-xs ${theme.textMuted}`}>Secure left side, push toward center</div>
-                                </div>
-                                <div className={`p-3 rounded-lg ${darkMode ? 'bg-orange-900/30' : 'bg-orange-100'} text-center`}>
-                                    <div className="font-bold text-orange-500 text-sm">🟠 Sysstm/Fluffy</div>
-                                    <div className={`text-xs ${theme.textMuted}`}>Flex support, prep for Ark</div>
-                                </div>
-                                <div className={`p-3 rounded-lg ${darkMode ? 'bg-purple-900/30' : 'bg-purple-100'} text-center`}>
-                                    <div className="font-bold text-purple-500 text-sm">🟣 Suntzu</div>
-                                    <div className={`text-xs ${theme.textMuted}`}>Secure upper side, push toward center</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Phase 3 - PUSH FORWARD */}
-                        <div className={`mb-6 p-6 rounded-xl border-4 ${darkMode ? 'bg-orange-900/20 border-orange-500' : 'bg-orange-50 border-orange-400'}`}>
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="text-4xl">⚔️</div>
-                                <div>
-                                    <h3 className="text-2xl font-bold text-orange-500">PHASE 3: PUSH FORWARD</h3>
-                                    <p className={`text-sm ${theme.textMuted}`}>Time: ~15:00 - Ark Spawns, Advance Toward Enemy</p>
-                                </div>
-                            </div>
-                            <div className={`p-4 rounded-lg ${darkMode ? 'bg-orange-900/30' : 'bg-orange-100'} border border-orange-500/50 mb-4`}>
-                                <div className="font-bold text-orange-600 mb-2">🔑 SAME PRINCIPLE: Garrison before advancing!</div>
-                                <div className={`text-sm ${theme.text} space-y-2`}>
-                                    <div>🏛️ <strong>Zone 2 (Sysstm/Fluffy):</strong> Control the ARK - escort it to our side</div>
-                                    <div>👑 <strong>Leaders rally:</strong> ONLY occupied enemy buildings (don't waste rallies on empty!)</div>
-                                    <div>🏃 <strong>Conquer:</strong> T1 cav takes empty shrines, altars, outposts</div>
-                                    <div>🛡️ <strong>Garrison:</strong> As we capture, garrison before moving on</div>
-                                    <div>🌾 <strong>Extra troops:</strong> Farm for points - can earn 13,000+!</div>
-                                </div>
-                            </div>
-                            <div className="grid md:grid-cols-3 gap-3">
-                                <div className={`p-3 rounded-lg ${darkMode ? 'bg-blue-900/30' : 'bg-blue-100'} text-center`}>
-                                    <div className="font-bold text-blue-500 text-sm">🔵 Soutz</div>
-                                    <div className={`text-xs ${theme.textMuted}`}>Push toward enemy lower obelisk</div>
-                                </div>
-                                <div className={`p-3 rounded-lg ${darkMode ? 'bg-orange-900/30' : 'bg-orange-100'} text-center`}>
-                                    <div className="font-bold text-orange-500 text-sm">🟠 Sysstm/Fluffy</div>
-                                    <div className={`text-xs ${theme.textMuted}`}>Control Ark, rally center buildings</div>
-                                </div>
-                                <div className={`p-3 rounded-lg ${darkMode ? 'bg-purple-900/30' : 'bg-purple-100'} text-center`}>
-                                    <div className="font-bold text-purple-500 text-sm">🟣 Suntzu</div>
-                                    <div className={`text-xs ${theme.textMuted}`}>Push toward enemy right obelisk</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Phase 4 - CONTEST ENEMY */}
-                        <div className={`p-6 rounded-xl border-4 ${darkMode ? 'bg-red-900/20 border-red-500' : 'bg-red-50 border-red-400'}`}>
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="text-4xl">💥</div>
-                                <div>
-                                    <h3 className="text-2xl font-bold text-red-500">PHASE 4: CONTEST ENEMY TERRITORY</h3>
-                                    <p className={`text-sm ${theme.textMuted}`}>Time: ~45:00 - Final Push</p>
-                                </div>
-                            </div>
-                            <div className={`p-4 rounded-lg ${darkMode ? 'bg-red-900/30' : 'bg-red-100'} border border-red-500/50 mb-4`}>
-                                <div className="font-bold text-red-600 mb-2">🎯 FINAL PUSH - Leaders coordinate!</div>
-                                <div className={`text-sm ${theme.text} space-y-2`}>
-                                    <div>⚔️ <strong>Leaders rally enemy obelisks</strong> - these are heavily defended!</div>
-                                    <div>🗡️ <strong>Everyone:</strong> Fill leader's rallies when called</div>
-                                    <div>🛡️ <strong>Garrison:</strong> Defend our buildings from counter-attacks</div>
-                                    <div>📢 <strong>Follow your zone leader's calls</strong> for real-time coordination</div>
-                                </div>
-                            </div>
-                            <div className={`p-3 rounded-lg ${darkMode ? 'bg-red-800/30' : 'bg-red-100'} border border-red-400 text-center`}>
-                                <div className="font-bold text-red-500">⚠️ Remember: Garrison what we take!</div>
-                                <div className={`text-xs ${theme.textMuted}`}>An undefended building will be recaptured instantly</div>
                             </div>
                         </div>
                     </section>
 
-                    {/* Role Reference Cards */}
+                    {/* Zone Assignment Overview */}
                     <section className={`${theme.card} border rounded-xl p-6 mb-6`}>
-                        <h2 className="text-2xl font-bold text-center mb-6">🎭 Role Quick Reference</h2>
-                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <h2 className="text-xl font-bold text-center mb-4">👑 Zone Leaders</h2>
+                        <div className="grid md:grid-cols-3 gap-4">
+                            {/* Zone 1 */}
+                            <div className={`p-4 rounded-xl border-4 ${darkMode ? 'bg-blue-900/20 border-blue-500' : 'bg-blue-50 border-blue-400'}`}>
+                                <div className="text-center">
+                                    <div className="text-3xl mb-1">🔵</div>
+                                    <h3 className="text-xl font-bold text-blue-500">ZONE 1</h3>
+                                    <p className={`text-sm ${theme.textMuted} mb-2`}>Left Side → Push Down</p>
+                                    <div className={`p-2 rounded-lg ${darkMode ? 'bg-blue-800/50' : 'bg-blue-200'}`}>
+                                        <div className="font-bold text-blue-300">👑 FnDuke</div>
+                                    </div>
+                                    <div className={`text-xs ${theme.textMuted} mt-2`}>
+                                        Rush: Obelisk Left<br />
+                                        Then: War-L, Sky-L
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Zone 2 */}
+                            <div className={`p-4 rounded-xl border-4 ${darkMode ? 'bg-orange-900/20 border-orange-500' : 'bg-orange-50 border-orange-400'}`}>
+                                <div className="text-center">
+                                    <div className="text-3xl mb-1">🟠</div>
+                                    <h3 className="text-xl font-bold text-orange-500">ZONE 2</h3>
+                                    <p className={`text-sm ${theme.textMuted} mb-2`}>Center / Flex Support</p>
+                                    <div className={`p-2 rounded-lg ${darkMode ? 'bg-orange-800/50' : 'bg-orange-200'}`}>
+                                        <div className="font-bold text-orange-300">👑 Sysstm & Fluffy</div>
+                                    </div>
+                                    <div className={`text-xs ${theme.textMuted} mt-2`}>
+                                        Rush: Iset-1 + Iset-2 (split)<br />
+                                        Then: Iset-3, Ark
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Zone 3 */}
+                            <div className={`p-4 rounded-xl border-4 ${darkMode ? 'bg-purple-900/20 border-purple-500' : 'bg-purple-50 border-purple-400'}`}>
+                                <div className="text-center">
+                                    <div className="text-3xl mb-1">🟣</div>
+                                    <h3 className="text-xl font-bold text-purple-500">ZONE 3</h3>
+                                    <p className={`text-sm ${theme.textMuted} mb-2`}>Upper Side → Push Down</p>
+                                    <div className={`p-2 rounded-lg ${darkMode ? 'bg-purple-800/50' : 'bg-purple-200'}`}>
+                                        <div className="font-bold text-purple-300">👑 Suntzu</div>
+                                    </div>
+                                    <div className={`text-xs ${theme.textMuted} mt-2`}>
+                                        Rush: Obelisk Upper<br />
+                                        Then: Life-R, Desert-1
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Simplified Battle Flow */}
+                    <section className={`${theme.card} border rounded-xl p-6 mb-6`}>
+                        <h2 className="text-xl font-bold text-center mb-4">📅 Battle Flow</h2>
+                        <div className="space-y-4">
+                            {/* Rush */}
+                            <div className={`p-4 rounded-lg ${darkMode ? 'bg-yellow-900/30' : 'bg-yellow-50'} border-l-4 border-yellow-500`}>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-3xl">🏃</span>
+                                    <div>
+                                        <div className="font-bold text-yellow-500 text-lg">START → RUSH OBELISK</div>
+                                        <div className={`text-sm ${theme.text}`}>Everyone sprint to your zone&apos;s obelisk. Rally leaders TP when available.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Garrison */}
+                            <div className={`p-4 rounded-lg ${darkMode ? 'bg-green-900/30' : 'bg-green-50'} border-l-4 border-green-500`}>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-3xl">🛡️</span>
+                                    <div>
+                                        <div className="font-bold text-green-500 text-lg">CAPTURE → GARRISON</div>
+                                        <div className={`text-sm ${theme.text}`}>Infantry stays in building. Don&apos;t move until fully garrisoned!</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Push */}
+                            <div className={`p-4 rounded-lg ${darkMode ? 'bg-orange-900/30' : 'bg-orange-50'} border-l-4 border-orange-500`}>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-3xl">⚔️</span>
+                                    <div>
+                                        <div className="font-bold text-orange-500 text-lg">SECURE → PUSH DOWN</div>
+                                        <div className={`text-sm ${theme.text}`}>Move to next building. Only rally if enemy is garrisoned there.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Farm */}
+                            <div className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'} border-l-4 border-gray-500`}>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-3xl">🌾</span>
+                                    <div>
+                                        <div className={`font-bold ${theme.textMuted} text-lg`}>EXTRA TROOPS → GATHER</div>
+                                        <div className={`text-sm ${theme.text}`}>Send remaining marches to gather tiles for points.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Quick Role Reference */}
+                    <section className={`${theme.card} border rounded-xl p-6 mb-6`}>
+                        <h2 className="text-xl font-bold text-center mb-4">🎭 Role Quick Reference</h2>
+                        <div className="grid md:grid-cols-3 gap-4">
                             {/* Rally Leader */}
                             <div className={`p-4 rounded-xl ${darkMode ? 'bg-red-900/30 border-2 border-red-500' : 'bg-red-50 border-2 border-red-400'}`}>
-                                <div className="text-3xl mb-2">🎯</div>
-                                <h3 className="font-bold text-red-500 text-lg mb-2">Rally Leader</h3>
+                                <div className="text-2xl mb-1">🎯</div>
+                                <h3 className="font-bold text-red-500 mb-2">Rally Leader</h3>
                                 <ul className={`text-sm ${theme.text} space-y-1`}>
-                                    <li>✓ Lead rallies on buildings</li>
-                                    <li>✓ Use strongest commanders</li>
-                                    <li>✓ Start rallies early</li>
-                                    <li>✓ Coordinate with team</li>
-                                </ul>
-                            </div>
-
-                            {/* Teleport 1st */}
-                            <div className={`p-4 rounded-xl ${darkMode ? 'bg-blue-900/30 border-2 border-blue-500' : 'bg-blue-50 border-2 border-blue-400'}`}>
-                                <div className="text-3xl mb-2">⚡</div>
-                                <h3 className="font-bold text-blue-500 text-lg mb-2">Teleport 1st</h3>
-                                <ul className={`text-sm ${theme.text} space-y-1`}>
-                                    <li>✓ Teleport IMMEDIATELY</li>
-                                    <li>✓ Don't wait for call</li>
-                                    <li>✓ Fill rallies after teleport</li>
-                                    <li>✓ Support your zone</li>
-                                </ul>
-                            </div>
-
-                            {/* Hold Obelisks */}
-                            <div className={`p-4 rounded-xl ${darkMode ? 'bg-cyan-900/30 border-2 border-cyan-400' : 'bg-cyan-50 border-2 border-cyan-400'}`}>
-                                <div className="text-3xl mb-2">🏰</div>
-                                <h3 className="font-bold text-cyan-400 text-lg mb-2">Hold Obelisks</h3>
-                                <ul className={`text-sm ${theme.text} space-y-1`}>
-                                    <li>✓ Send 1 troop to Obelisk 3</li>
-                                    <li>✓ Send 1 troop to Obelisk 4</li>
-                                    <li>✓ Wait for first wave TP</li>
-                                    <li>✓ Then join rallies!</li>
+                                    <li>• Lead rallies on occupied buildings</li>
+                                    <li>• Use cavalry commanders</li>
+                                    <li>• TP first when available</li>
                                 </ul>
                             </div>
 
                             {/* Garrison */}
-                            <div className={`p-4 rounded-xl ${darkMode ? 'bg-orange-900/30 border-2 border-orange-500' : 'bg-orange-50 border-2 border-orange-400'}`}>
-                                <div className="text-3xl mb-2">🛡️</div>
-                                <h3 className="font-bold text-orange-500 text-lg mb-2">Garrison</h3>
+                            <div className={`p-4 rounded-xl ${darkMode ? 'bg-blue-900/30 border-2 border-blue-500' : 'bg-blue-50 border-2 border-blue-400'}`}>
+                                <div className="text-2xl mb-1">🛡️</div>
+                                <h3 className="font-bold text-blue-500 mb-2">Garrison</h3>
                                 <ul className={`text-sm ${theme.text} space-y-1`}>
-                                    <li>✓ Stay IN buildings</li>
-                                    <li>✓ Use infantry commanders</li>
-                                    <li>✓ Defend at all costs</li>
-                                    <li>✓ Switch buildings as needed</li>
-                                </ul>
-                            </div>
-
-                            {/* Conquer */}
-                            <div className={`p-4 rounded-xl ${darkMode ? 'bg-purple-900/30 border-2 border-purple-500' : 'bg-purple-50 border-2 border-purple-400'}`}>
-                                <div className="text-3xl mb-2">🏃</div>
-                                <h3 className="font-bold text-purple-500 text-lg mb-2">Conquer</h3>
-                                <ul className={`text-sm ${theme.text} space-y-1`}>
-                                    <li>✓ Use T1 CAVALRY only</li>
-                                    <li>✓ Be FIRST to buildings</li>
-                                    <li>✓ Speed is everything</li>
-                                    <li>✓ Capture undefended targets</li>
+                                    <li>• Stay IN buildings</li>
+                                    <li>• Use infantry commanders</li>
+                                    <li>• Defend at all costs</li>
                                 </ul>
                             </div>
 
                             {/* Farm */}
                             <div className={`p-4 rounded-xl ${darkMode ? 'bg-yellow-900/30 border-2 border-yellow-500' : 'bg-yellow-50 border-2 border-yellow-400'}`}>
-                                <div className="text-3xl mb-2">🌾</div>
-                                <h3 className="font-bold text-yellow-600 text-lg mb-2">Farm</h3>
+                                <div className="text-2xl mb-1">🌾</div>
+                                <h3 className="font-bold text-yellow-600 mb-2">Farm</h3>
                                 <ul className={`text-sm ${theme.text} space-y-1`}>
                                     <li>✓ Support rallies FIRST</li>
                                     <li>✓ Then gather with remaining marches</li>
@@ -1743,9 +1653,9 @@ Z1 (Blue) • Z2 (Orange) • Z3 (Purple)`}
                                 </div>
                             </div>
 
-                            {/* Quick Strategy Message */}
+                            {/* Strategy Reminder */}
                             <div>
-                                <div className={`text-sm font-semibold mb-2 ${theme.text}`}>🎯 STRATEGY REMINDER (send 10 mins before):</div>
+                                <div className={`text-sm font-semibold mb-2 ${theme.text}`}>🎯 STRATEGY (send at start):</div>
                                 <div
                                     onClick={(e) => {
                                         const text = e.currentTarget.textContent || '';
@@ -1755,20 +1665,21 @@ Z1 (Blue) • Z2 (Orange) • Z3 (Purple)`}
                                     className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border-2 border-emerald-500/30 transition-colors`}
                                 >
                                     <div className={`font-mono text-sm ${theme.text} whitespace-pre-line`}>
-{`📍 REMEMBER YOUR ROLE:
-🎯 Rally Leader - Start rallies
-⚡ Teleport 1st - TP immediately
-⏱️ Teleport 2nd - WAIT for call
-🛡️ Garrison - Stay in buildings
-🏃 Conquer - T1 CAV ONLY (fastest!)
-🌾 Farm - Fill rallies, then gather`}
+{`📌 IMPORTANT:
+1. Stay in your lane
+2. Rush obelisk first - leaders TP first
+3. Garrison BEFORE moving on
+4. Only rally OCCUPIED buildings
+5. Work as a unit!
+
+🐴 Cav = rallies | 🛡️ Inf = garrison | 🌾 Else = gather`}
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Phase 1 Start */}
+                            {/* Zone Assignments */}
                             <div>
-                                <div className={`text-sm font-semibold mb-2 ${theme.text}`}>🏃 AT START (0:00):</div>
+                                <div className={`text-sm font-semibold mb-2 ${theme.text}`}>🏃 ZONE TARGETS:</div>
                                 <div
                                     onClick={(e) => {
                                         const text = e.currentTarget.textContent || '';
@@ -1778,32 +1689,11 @@ Z1 (Blue) • Z2 (Orange) • Z3 (Purple)`}
                                     className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border-2 border-yellow-500/50 transition-colors`}
                                 >
                                     <div className={`font-mono text-sm ${theme.text} whitespace-pre-line`}>
-{`🏃 PHASE 1 - RUSH!
-🔵 Zone 1 → Obelisk LEFT
-🟣 Zone 3 → Obelisk UPPER
-🟠 Zone 2 → Support both
-🏃 CONQUER = T1 CAV - BE FIRST!`}
-                                    </div>
-                                </div>
-                            </div>
+{`🔵 Z1 → Obelisk LEFT → War-L, Sky-L
+🟠 Z2 → Iset-1 + Iset-2 → Iset-3, Ark
+🟣 Z3 → Obelisk UPPER → Life-R, Desert-1
 
-                            {/* Phase 2 Teleport */}
-                            <div>
-                                <div className={`text-sm font-semibold mb-2 ${theme.text}`}>📍 AFTER OBELISK (~5:00):</div>
-                                <div
-                                    onClick={(e) => {
-                                        const text = e.currentTarget.textContent || '';
-                                        navigator.clipboard.writeText(text);
-                                        alert('Copied to clipboard!');
-                                    }}
-                                    className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border-2 border-yellow-500/50 transition-colors`}
-                                >
-                                    <div className={`font-mono text-sm ${theme.text} whitespace-pre-line`}>
-{`📍 PHASE 2 - SECURE!
-⚡ TELEPORT 1ST - TP NOW! (don't wait)
-⏱️ TELEPORT 2ND - WAIT for my call
-🏃 Conquer Iset Outposts (T1 cav)
-🛡️ Garrison - Stay in buildings`}
+Garrison each building before moving!`}
                                     </div>
                                 </div>
                             </div>
