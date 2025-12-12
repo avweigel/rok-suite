@@ -1,4 +1,4 @@
--- AoO Strategy Update - Swapped WOLF, SkyLord, bear for BBQSGE, Divid3
+-- AoO Strategy Update - Updated confirmed list
 -- Run this in Supabase SQL Editor
 
 UPDATE aoo_strategy SET data = '{
@@ -11,17 +11,17 @@ UPDATE aoo_strategy SET data = '{
     {"id": 6, "name": "DRAGON", "team": 1, "tags": ["Confirmed"], "power": 11161597, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
     {"id": 7, "name": "VNKaiLey", "team": 1, "tags": ["Confirmed"], "power": 10606053, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
     {"id": 8, "name": "Lady Leanna", "team": 1, "tags": ["Confirmed"], "power": 9066944, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
-    {"id": 9, "name": "Divid3", "team": 1, "tags": [], "power": 12758119, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
-    {"id": 10, "name": "unlimit", "team": 1, "tags": ["Confirmed"], "power": 8322764, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
+    {"id": 9, "name": "Divid3", "team": 1, "tags": ["Confirmed"], "power": 12758119, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
+    {"id": 10, "name": "unlimit", "team": 1, "tags": [], "power": 8322764, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
     {"id": 11, "name": "MrOren", "team": 1, "tags": ["Confirmed"], "power": 7970158, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
-    {"id": 12, "name": "Enes1111", "team": 1, "tags": ["Confirmed"], "power": 7266601, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
-    {"id": 13, "name": "BBQSGE", "team": 1, "tags": [], "power": 12353171, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
+    {"id": 12, "name": "Enes1111", "team": 1, "tags": [], "power": 7266601, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
+    {"id": 13, "name": "BBQSGE", "team": 1, "tags": ["Confirmed"], "power": 12353171, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
     {"id": 14, "name": "Adegi", "team": 1, "tags": ["Confirmed"], "power": 6632214, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
     {"id": 15, "name": "Fluffy", "team": 2, "tags": ["Rally Leader", "Teleport 1st", "Confirmed"], "power": 58002935, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
     {"id": 16, "name": "Sysstm", "team": 2, "tags": ["Rally Leader", "Teleport 1st", "Confirmed"], "power": 60380989, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
     {"id": 17, "name": "Suntzu", "team": 3, "tags": ["Rally Leader", "Teleport 1st", "Confirmed"], "power": 22531780, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
     {"id": 18, "name": "Vaelstrom", "team": 3, "tags": ["Teleport 1st", "Confirmed"], "power": 12702636, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
-    {"id": 19, "name": "Fluffy Queen", "team": 3, "tags": ["Teleport 1st", "Confirmed"], "power": 13314510, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
+    {"id": 19, "name": "Fluffy Queen", "team": 3, "tags": ["Teleport 1st"], "power": 13314510, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
     {"id": 20, "name": "Bun", "team": 3, "tags": ["Confirmed"], "power": 17403166, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
     {"id": 21, "name": "Funny", "team": 3, "tags": ["Confirmed"], "power": 13953841, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
     {"id": 22, "name": "Calca", "team": 3, "tags": [], "power": 11819749, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
