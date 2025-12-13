@@ -24,43 +24,42 @@ interface Props {
 // Re-export for backward compatibility
 export type { MapAssignments };
 
-// All buildings on the map with positions (percentages from aoo-map-dot.jpg black circles)
-// Adjusted +5% X and +5% Y to center on dots
+// All buildings on the map with positions (from pixel coordinates on 2500x1913 image)
 const buildings: Building[] = [
   // Obelisks
-  { id: 'obelisk-1', name: 'Obelisk (Upper)', shortName: 'Ob-Upper', x: 58, y: 16 },
-  { id: 'obelisk-2', name: 'Obelisk (Left)', shortName: 'Ob-Left', x: 13, y: 44 },
-  { id: 'obelisk-3', name: 'Obelisk (Right)', shortName: 'Ob-Right', x: 98, y: 45 },
-  { id: 'obelisk-4', name: 'Obelisk (Lower)', shortName: 'Ob-Lower', x: 57, y: 80 },
+  { id: 'obelisk-1', name: 'Obelisk (Upper)', shortName: 'Ob-Upper', x: 53.4, y: 14.3 },     // (1334, 274)
+  { id: 'obelisk-2', name: 'Obelisk (Upper-Left)', shortName: 'Ob-UL', x: 11.1, y: 42.4 },   // (278, 812)
+  { id: 'obelisk-3', name: 'Obelisk (Lower-Right)', shortName: 'Ob-LR', x: 85.2, y: 45.7 }, // (2130, 874)
+  { id: 'obelisk-4', name: 'Obelisk (Lower)', shortName: 'Ob-Lower', x: 41.3, y: 79.8 },    // (1032, 1526)
 
-  // Outposts of Iset (your side - upper left)
-  { id: 'iset-1', name: 'Outpost of Iset 1', shortName: 'Iset-1', x: 41, y: 17 },
-  { id: 'iset-2', name: 'Outpost of Iset 2', shortName: 'Iset-2', x: 18, y: 27 },
-  { id: 'iset-3', name: 'Outpost of Iset 3', shortName: 'Iset-3', x: 36, y: 31 },
+  // Outposts of Iset (your side - upper)
+  { id: 'iset-1', name: 'Outpost of Iset 1', shortName: 'Iset-1', x: 33.8, y: 17.5 },       // (846, 334)
+  { id: 'iset-2', name: 'Outpost of Iset 2', shortName: 'Iset-2', x: 13.0, y: 10.7 },       // (324, 204)
+  { id: 'iset-3', name: 'Outpost of Iset 3', shortName: 'Iset-3', x: 33.2, y: 31.5 },       // (830, 602)
 
-  // Outposts of Seth (enemy side - lower right)
-  { id: 'seth-1', name: 'Outpost of Seth 1', shortName: 'Seth-1', x: 68, y: 60 },
-  { id: 'seth-2', name: 'Outpost of Seth 2', shortName: 'Seth-2', x: 90, y: 60 },
-  { id: 'seth-3', name: 'Outpost of Seth 3', shortName: 'Seth-3', x: 70, y: 75 },
+  // Outposts of Seth (enemy side - lower)
+  { id: 'seth-1', name: 'Outpost of Seth 1', shortName: 'Seth-1', x: 62.2, y: 58.9 },       // (1554, 1126)
+  { id: 'seth-2', name: 'Outpost of Seth 2', shortName: 'Seth-2', x: 79.0, y: 58.5 },       // (1974, 1120)
+  { id: 'seth-3', name: 'Outpost of Seth 3', shortName: 'Seth-3', x: 62.2, y: 74.0 },       // (1556, 1416)
 
   // Shrines of War
-  { id: 'war-1', name: 'Shrine of War (Left)', shortName: 'War-L', x: 32, y: 50 },
-  { id: 'war-2', name: 'Shrine of War (Right)', shortName: 'War-R', x: 77, y: 40 },
+  { id: 'war-1', name: 'Shrine of War (Upper)', shortName: 'War-Up', x: 27.9, y: 48.2 },    // (698, 922)
+  { id: 'war-2', name: 'Shrine of War (Lower)', shortName: 'War-Lo', x: 68.0, y: 42.1 },    // (1700, 806)
 
   // Shrines of Life
-  { id: 'life-1', name: 'Shrine of Life (Right)', shortName: 'Life-R', x: 75, y: 20 },
-  { id: 'life-2', name: 'Shrine of Life (Left)', shortName: 'Life-L', x: 26, y: 76 },
+  { id: 'life-1', name: 'Shrine of Life (Upper)', shortName: 'Life-Up', x: 68.0, y: 17.0 }, // (1700, 326)
+  { id: 'life-2', name: 'Shrine of Life (Lower)', shortName: 'Life-Lo', x: 24.1, y: 75.6 }, // (602, 1446)
 
   // Desert Altars
-  { id: 'desert-1', name: 'Desert Altar (Right)', shortName: 'Des-R', x: 59, y: 31 },
-  { id: 'desert-2', name: 'Desert Altar (Left)', shortName: 'Des-L', x: 46, y: 63 },
+  { id: 'desert-1', name: 'Desert Altar (Upper)', shortName: 'Des-Up', x: 54.4, y: 30.9 },  // (1360, 592)
+  { id: 'desert-2', name: 'Desert Altar (Lower)', shortName: 'Des-Lo', x: 40.9, y: 61.8 },  // (1022, 1182)
 
   // Sky Altars
-  { id: 'sky-1', name: 'Sky Altar (Right)', shortName: 'Sky-R', x: 91, y: 25 },
-  { id: 'sky-2', name: 'Sky Altar (Left)', shortName: 'Sky-L', x: 15, y: 59 },
+  { id: 'sky-1', name: 'Sky Altar (Upper)', shortName: 'Sky-Up', x: 81.8, y: 28.8 },        // (2046, 550)
+  { id: 'sky-2', name: 'Sky Altar (Lower)', shortName: 'Sky-Lo', x: 12.3, y: 61.4 },        // (308, 1174)
 
   // Ark (center)
-  { id: 'ark', name: 'Ark', shortName: 'Ark', x: 53, y: 47 },
+  { id: 'ark', name: 'Ark', shortName: 'Ark', x: 47.2, y: 46.7 },                            // (1180, 894)
 ];
 
 // Zone colors - colorblind friendly
