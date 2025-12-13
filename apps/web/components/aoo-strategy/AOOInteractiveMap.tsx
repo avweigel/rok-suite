@@ -399,58 +399,76 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   <span>ENEMY</span>
                 </div>
 
-                {/* RUSH indicators showing which zone goes where */}
-                {/* Zone 3 (Purple) rushes upper obelisk */}
-                <div
-                  className="absolute px-1.5 py-0.5 rounded bg-purple-600 text-white text-[10px] font-bold shadow"
+                {/* RUSH arrows showing zone flow directions */}
+                {/* Zone 3 (Purple) diagonal arrow toward upper obelisk */}
+                <svg
+                  className="absolute pointer-events-none"
                   style={{
-                    left: swapCorners ? '42%' : '50%',
-                    top: swapCorners ? '90%' : '5%',
-                    transform: 'translate(-50%, 0)',
-                    zIndex: 15
+                    left: swapCorners ? '55%' : '62%',
+                    top: swapCorners ? '70%' : '8%',
+                    width: '80px',
+                    height: '80px',
+                    transform: swapCorners ? 'rotate(135deg)' : 'rotate(-45deg)',
+                    zIndex: 15,
+                    opacity: 0.6,
                   }}
+                  viewBox="0 0 100 100"
                 >
-                  Z3 RUSH {swapCorners ? '↑' : '↓'}
-                </div>
+                  <defs>
+                    <marker id="arrowhead-purple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                      <polygon points="0 0, 10 3.5, 0 7" fill="#9333ea" />
+                    </marker>
+                  </defs>
+                  <line x1="10" y1="50" x2="85" y2="50" stroke="#9333ea" strokeWidth="6" markerEnd="url(#arrowhead-purple)" />
+                </svg>
                 {/* Teleport indicator for Zone 3 obelisk - dynamic from roster */}
                 {teleportersByZone[3].first.length > 0 && (
                   <div
                     className="absolute px-1.5 py-0.5 rounded bg-purple-800/80 text-purple-200 text-[9px] font-medium shadow"
                     style={{
-                      left: swapCorners ? '42%' : '50%',
-                      top: swapCorners ? '95%' : '10%',
+                      left: swapCorners ? '50%' : '50%',
+                      top: swapCorners ? '88%' : '5%',
                       transform: 'translate(-50%, 0)',
                       zIndex: 15
                     }}
                   >
-                    ⚡ TP: {teleportersByZone[3].first.slice(0, 3).join(', ')}
+                    Z3 TP: {teleportersByZone[3].first.slice(0, 3).join(', ')}
                   </div>
                 )}
 
-                {/* Zone 1 (Blue) rushes left obelisk */}
-                <div
-                  className="absolute px-1.5 py-0.5 rounded bg-blue-600 text-white text-[10px] font-bold shadow"
+                {/* Zone 1 (Blue) diagonal arrow toward left obelisk */}
+                <svg
+                  className="absolute pointer-events-none"
                   style={{
-                    left: swapCorners ? '92%' : '5%',
-                    top: swapCorners ? '55%' : '40%',
-                    transform: 'translate(-50%, 0)',
-                    zIndex: 15
+                    left: swapCorners ? '70%' : '18%',
+                    top: swapCorners ? '35%' : '55%',
+                    width: '80px',
+                    height: '80px',
+                    transform: swapCorners ? 'rotate(-45deg)' : 'rotate(135deg)',
+                    zIndex: 15,
+                    opacity: 0.6,
                   }}
+                  viewBox="0 0 100 100"
                 >
-                  Z1 RUSH {swapCorners ? '←' : '→'}
-                </div>
+                  <defs>
+                    <marker id="arrowhead-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                      <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb" />
+                    </marker>
+                  </defs>
+                  <line x1="10" y1="50" x2="85" y2="50" stroke="#2563eb" strokeWidth="6" markerEnd="url(#arrowhead-blue)" />
+                </svg>
                 {/* Teleport indicator for Zone 1 obelisk - dynamic from roster */}
                 {teleportersByZone[1].first.length > 0 && (
                   <div
                     className="absolute px-1.5 py-0.5 rounded bg-blue-800/80 text-blue-200 text-[9px] font-medium shadow"
                     style={{
-                      left: swapCorners ? '92%' : '5%',
-                      top: swapCorners ? '60%' : '45%',
+                      left: swapCorners ? '88%' : '5%',
+                      top: swapCorners ? '50%' : '42%',
                       transform: 'translate(-50%, 0)',
                       zIndex: 15
                     }}
                   >
-                    ⚡ TP: {teleportersByZone[1].first.slice(0, 3).join(', ')}
+                    Z1 TP: {teleportersByZone[1].first.slice(0, 3).join(', ')}
                   </div>
                 )}
 
