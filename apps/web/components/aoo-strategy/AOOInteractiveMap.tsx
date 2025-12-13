@@ -400,17 +400,16 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 </div>
 
                 {/* RUSH arrows showing zone flow directions */}
-                {/* Zone 3 (Purple) diagonal arrow toward upper obelisk */}
+                {/* Zone 3 (Purple) arrow: START -> upper obelisk (diagonal down-right) */}
                 <svg
                   className="absolute pointer-events-none"
                   style={{
-                    left: swapCorners ? '55%' : '62%',
-                    top: swapCorners ? '70%' : '8%',
-                    width: '80px',
-                    height: '80px',
-                    transform: swapCorners ? 'rotate(135deg)' : 'rotate(-45deg)',
+                    left: swapCorners ? '42%' : '30%',
+                    top: swapCorners ? '68%' : '12%',
+                    width: '100px',
+                    height: '100px',
                     zIndex: 15,
-                    opacity: 0.6,
+                    opacity: 0.5,
                   }}
                   viewBox="0 0 100 100"
                 >
@@ -419,7 +418,17 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                       <polygon points="0 0, 10 3.5, 0 7" fill="#9333ea" />
                     </marker>
                   </defs>
-                  <line x1="10" y1="50" x2="85" y2="50" stroke="#9333ea" strokeWidth="6" markerEnd="url(#arrowhead-purple)" />
+                  {/* Arrow pointing from top-left toward bottom-right (toward Ob-Up from START) */}
+                  <line
+                    x1={swapCorners ? 80 : 15}
+                    y1={swapCorners ? 80 : 15}
+                    x2={swapCorners ? 20 : 80}
+                    y2={swapCorners ? 20 : 80}
+                    stroke="#9333ea"
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    markerEnd="url(#arrowhead-purple)"
+                  />
                 </svg>
                 {/* Teleport indicator for Zone 3 obelisk - dynamic from roster */}
                 {teleportersByZone[3].first.length > 0 && (
@@ -436,17 +445,16 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   </div>
                 )}
 
-                {/* Zone 1 (Blue) diagonal arrow toward left obelisk */}
+                {/* Zone 1 (Blue) arrow: START -> left obelisk (diagonal down-left) */}
                 <svg
                   className="absolute pointer-events-none"
                   style={{
-                    left: swapCorners ? '70%' : '18%',
-                    top: swapCorners ? '35%' : '55%',
-                    width: '80px',
-                    height: '80px',
-                    transform: swapCorners ? 'rotate(-45deg)' : 'rotate(135deg)',
+                    left: swapCorners ? '72%' : '5%',
+                    top: swapCorners ? '28%' : '28%',
+                    width: '100px',
+                    height: '100px',
                     zIndex: 15,
-                    opacity: 0.6,
+                    opacity: 0.5,
                   }}
                   viewBox="0 0 100 100"
                 >
@@ -455,7 +463,17 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                       <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb" />
                     </marker>
                   </defs>
-                  <line x1="10" y1="50" x2="85" y2="50" stroke="#2563eb" strokeWidth="6" markerEnd="url(#arrowhead-blue)" />
+                  {/* Arrow pointing from top-right toward bottom-left (toward Ob-L from START) */}
+                  <line
+                    x1={swapCorners ? 15 : 80}
+                    y1={swapCorners ? 15 : 15}
+                    x2={swapCorners ? 80 : 20}
+                    y2={swapCorners ? 80 : 80}
+                    stroke="#2563eb"
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    markerEnd="url(#arrowhead-blue)"
+                  />
                 </svg>
                 {/* Teleport indicator for Zone 1 obelisk - dynamic from roster */}
                 {teleportersByZone[1].first.length > 0 && (
