@@ -25,43 +25,43 @@ interface Props {
 export type { MapAssignments };
 
 // All buildings on the map with positions (percentages based on map image)
-// These coordinates are fixed and represent the actual building locations on the map
-// Adjusted based on visual alignment with actual building structures
+// Mapped from actual aoo-map.jpg - coordinates are percentages of image dimensions
+// Your spawn: top-left corner, Enemy spawn: bottom-right corner
 const buildings: Building[] = [
-  // Obelisks - positioned on the actual obelisk structures
-  { id: 'obelisk-1', name: 'Obelisk (Upper)', shortName: 'Ob-Up', x: 50, y: 21 },
-  { id: 'obelisk-2', name: 'Obelisk (Left)', shortName: 'Ob-L', x: 11, y: 47 },
-  { id: 'obelisk-3', name: 'Obelisk (Right)', shortName: 'Ob-R', x: 85, y: 50 },
-  { id: 'obelisk-4', name: 'Obelisk (Lower)', shortName: 'Ob-Lo', x: 44, y: 81 },
+  // Obelisks (4) - main teleport points
+  { id: 'obelisk-1', name: 'Obelisk (Upper)', shortName: 'Ob-Up', x: 55, y: 12 },
+  { id: 'obelisk-2', name: 'Obelisk (Left)', shortName: 'Ob-L', x: 10, y: 40 },
+  { id: 'obelisk-3', name: 'Obelisk (Right)', shortName: 'Ob-R', x: 96, y: 44 },
+  { id: 'obelisk-4', name: 'Obelisk (Lower)', shortName: 'Ob-Lo', x: 48, y: 75 },
 
-  // Outposts of Iset (your side - upper left)
-  { id: 'iset-1', name: 'Outpost of Iset 1', shortName: 'Iset-1', x: 35, y: 20 },
-  { id: 'iset-2', name: 'Outpost of Iset 2', shortName: 'Iset-2', x: 18, y: 28 },
-  { id: 'iset-3', name: 'Outpost of Iset 3', shortName: 'Iset-3', x: 35, y: 36 },
+  // Outposts of Iset (3) - your side, upper-left quadrant
+  { id: 'iset-1', name: 'Outpost of Iset 1', shortName: 'Iset-1', x: 38, y: 16 },
+  { id: 'iset-2', name: 'Outpost of Iset 2', shortName: 'Iset-2', x: 15, y: 24 },
+  { id: 'iset-3', name: 'Outpost of Iset 3', shortName: 'Iset-3', x: 38, y: 28 },
 
-  // Outposts of Seth (enemy side - lower right)
-  { id: 'seth-1', name: 'Outpost of Seth 1', shortName: 'Seth-1', x: 60, y: 60 },
-  { id: 'seth-2', name: 'Outpost of Seth 2', shortName: 'Seth-2', x: 80, y: 60 },
-  { id: 'seth-3', name: 'Outpost of Seth 3', shortName: 'Seth-3', x: 62, y: 76 },
+  // Outposts of Seth (3) - enemy side, lower-right quadrant
+  { id: 'seth-1', name: 'Outpost of Seth 1', shortName: 'Seth-1', x: 68, y: 56 },
+  { id: 'seth-2', name: 'Outpost of Seth 2', shortName: 'Seth-2', x: 90, y: 56 },
+  { id: 'seth-3', name: 'Outpost of Seth 3', shortName: 'Seth-3', x: 68, y: 68 },
 
-  // Shrines of War
-  { id: 'war-1', name: 'Shrine of War (Left)', shortName: 'War-L', x: 28, y: 50 },
-  { id: 'war-2', name: 'Shrine of War (Right)', shortName: 'War-R', x: 68, y: 47 },
+  // Shrines of War (2) - attack buff
+  { id: 'war-1', name: 'Shrine of War (Left)', shortName: 'War-L', x: 30, y: 45 },
+  { id: 'war-2', name: 'Shrine of War (Right)', shortName: 'War-R', x: 76, y: 38 },
 
-  // Shrines of Life
-  { id: 'life-1', name: 'Shrine of Life (Right)', shortName: 'Life-R', x: 70, y: 21 },
-  { id: 'life-2', name: 'Shrine of Life (Left)', shortName: 'Life-L', x: 26, y: 73 },
+  // Shrines of Life (2) - HP buff
+  { id: 'life-1', name: 'Shrine of Life (Right)', shortName: 'Life-R', x: 78, y: 17 },
+  { id: 'life-2', name: 'Shrine of Life (Left)', shortName: 'Life-L', x: 26, y: 70 },
 
-  // Desert Altars
-  { id: 'desert-1', name: 'Desert Altar (Right)', shortName: 'Des-R', x: 54, y: 36 },
-  { id: 'desert-2', name: 'Desert Altar (Left)', shortName: 'Des-L', x: 42, y: 62 },
+  // Desert Altars (2) - relic spawn
+  { id: 'desert-1', name: 'Desert Altar (Right)', shortName: 'Des-R', x: 58, y: 28 },
+  { id: 'desert-2', name: 'Desert Altar (Left)', shortName: 'Des-L', x: 45, y: 56 },
 
-  // Sky Altars
-  { id: 'sky-1', name: 'Sky Altar (Right)', shortName: 'Sky-R', x: 82, y: 35 },
-  { id: 'sky-2', name: 'Sky Altar (Left)', shortName: 'Sky-L', x: 15, y: 60 },
+  // Sky Altars (2) - relic spawn
+  { id: 'sky-1', name: 'Sky Altar (Right)', shortName: 'Sky-R', x: 92, y: 24 },
+  { id: 'sky-2', name: 'Sky Altar (Left)', shortName: 'Sky-L', x: 12, y: 55 },
 
-  // Ark (center)
-  { id: 'ark', name: 'Ark', shortName: 'Ark', x: 48, y: 50 },
+  // Ark - center, main objective
+  { id: 'ark', name: 'Ark', shortName: 'Ark', x: 50, y: 43 },
 ];
 
 // Zone colors - colorblind friendly
@@ -400,43 +400,43 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 </div>
 
                 {/* RUSH arrows showing zone flow directions */}
-                {/* Zone 3 (Purple) arrow: START -> upper obelisk (diagonal down-right) */}
+                {/* Zone 3 (Purple): START (top-left) -> Ob-Up (upper, ~55% x, 12% y) */}
+                {/* Arrow should go horizontally right with slight downward angle */}
                 <svg
                   className="absolute pointer-events-none"
                   style={{
-                    left: swapCorners ? '42%' : '30%',
-                    top: swapCorners ? '68%' : '12%',
-                    width: '100px',
-                    height: '100px',
+                    left: swapCorners ? '38%' : '20%',
+                    top: swapCorners ? '72%' : '8%',
+                    width: '120px',
+                    height: '60px',
                     zIndex: 15,
                     opacity: 0.5,
                   }}
-                  viewBox="0 0 100 100"
+                  viewBox="0 0 120 60"
                 >
                   <defs>
                     <marker id="arrowhead-purple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
                       <polygon points="0 0, 10 3.5, 0 7" fill="#9333ea" />
                     </marker>
                   </defs>
-                  {/* Arrow pointing from top-left toward bottom-right (toward Ob-Up from START) */}
                   <line
-                    x1={swapCorners ? 80 : 15}
-                    y1={swapCorners ? 80 : 15}
-                    x2={swapCorners ? 20 : 80}
-                    y2={swapCorners ? 20 : 80}
+                    x1={swapCorners ? 110 : 10}
+                    y1={swapCorners ? 10 : 20}
+                    x2={swapCorners ? 10 : 110}
+                    y2={swapCorners ? 50 : 40}
                     stroke="#9333ea"
                     strokeWidth="8"
                     strokeLinecap="round"
                     markerEnd="url(#arrowhead-purple)"
                   />
                 </svg>
-                {/* Teleport indicator for Zone 3 obelisk - dynamic from roster */}
+                {/* Teleport indicator for Zone 3 obelisk */}
                 {teleportersByZone[3].first.length > 0 && (
                   <div
                     className="absolute px-1.5 py-0.5 rounded bg-purple-800/80 text-purple-200 text-[9px] font-medium shadow"
                     style={{
-                      left: swapCorners ? '50%' : '50%',
-                      top: swapCorners ? '88%' : '5%',
+                      left: swapCorners ? '48%' : '55%',
+                      top: swapCorners ? '80%' : '5%',
                       transform: 'translate(-50%, 0)',
                       zIndex: 15
                     }}
@@ -445,43 +445,43 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   </div>
                 )}
 
-                {/* Zone 1 (Blue) arrow: START -> left obelisk (diagonal down-left) */}
+                {/* Zone 1 (Blue): START (top-left) -> Ob-L (left, ~10% x, 40% y) */}
+                {/* Arrow should go straight down along left edge */}
                 <svg
                   className="absolute pointer-events-none"
                   style={{
-                    left: swapCorners ? '72%' : '5%',
-                    top: swapCorners ? '28%' : '28%',
-                    width: '100px',
+                    left: swapCorners ? '88%' : '5%',
+                    top: swapCorners ? '20%' : '18%',
+                    width: '60px',
                     height: '100px',
                     zIndex: 15,
                     opacity: 0.5,
                   }}
-                  viewBox="0 0 100 100"
+                  viewBox="0 0 60 100"
                 >
                   <defs>
                     <marker id="arrowhead-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
                       <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb" />
                     </marker>
                   </defs>
-                  {/* Arrow pointing from top-right toward bottom-left (toward Ob-L from START) */}
                   <line
-                    x1={swapCorners ? 15 : 80}
-                    y1={swapCorners ? 15 : 15}
-                    x2={swapCorners ? 80 : 20}
-                    y2={swapCorners ? 80 : 80}
+                    x1={swapCorners ? 50 : 30}
+                    y1={swapCorners ? 90 : 10}
+                    x2={swapCorners ? 30 : 30}
+                    y2={swapCorners ? 10 : 90}
                     stroke="#2563eb"
                     strokeWidth="8"
                     strokeLinecap="round"
                     markerEnd="url(#arrowhead-blue)"
                   />
                 </svg>
-                {/* Teleport indicator for Zone 1 obelisk - dynamic from roster */}
+                {/* Teleport indicator for Zone 1 obelisk */}
                 {teleportersByZone[1].first.length > 0 && (
                   <div
                     className="absolute px-1.5 py-0.5 rounded bg-blue-800/80 text-blue-200 text-[9px] font-medium shadow"
                     style={{
-                      left: swapCorners ? '88%' : '5%',
-                      top: swapCorners ? '50%' : '42%',
+                      left: swapCorners ? '96%' : '10%',
+                      top: swapCorners ? '50%' : '35%',
                       transform: 'translate(-50%, 0)',
                       zIndex: 15
                     }}
