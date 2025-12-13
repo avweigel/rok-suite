@@ -29,36 +29,36 @@ export type { MapAssignments };
 // Adjusted based on visual alignment with actual building structures
 const buildings: Building[] = [
   // Obelisks - positioned on the actual obelisk structures
-  { id: 'obelisk-1', name: 'Obelisk (Upper)', shortName: 'Ob-Upper', x: 50, y: 18 },
-  { id: 'obelisk-2', name: 'Obelisk (Left)', shortName: 'Ob-Left', x: 8, y: 45 },
-  { id: 'obelisk-3', name: 'Obelisk (Right)', shortName: 'Ob-Right', x: 87, y: 53 },
-  { id: 'obelisk-4', name: 'Obelisk (Lower)', shortName: 'Ob-Lower', x: 42, y: 86 },
+  { id: 'obelisk-1', name: 'Obelisk (Upper)', shortName: 'Ob-Up', x: 50, y: 21 },
+  { id: 'obelisk-2', name: 'Obelisk (Left)', shortName: 'Ob-L', x: 11, y: 47 },
+  { id: 'obelisk-3', name: 'Obelisk (Right)', shortName: 'Ob-R', x: 85, y: 50 },
+  { id: 'obelisk-4', name: 'Obelisk (Lower)', shortName: 'Ob-Lo', x: 44, y: 81 },
 
   // Outposts of Iset (your side - upper left)
-  { id: 'iset-1', name: 'Outpost of Iset 1', shortName: 'Iset-1', x: 32, y: 18 },
-  { id: 'iset-2', name: 'Outpost of Iset 2', shortName: 'Iset-2', x: 15, y: 30 },
-  { id: 'iset-3', name: 'Outpost of Iset 3', shortName: 'Iset-3', x: 33, y: 34 },
+  { id: 'iset-1', name: 'Outpost of Iset 1', shortName: 'Iset-1', x: 35, y: 20 },
+  { id: 'iset-2', name: 'Outpost of Iset 2', shortName: 'Iset-2', x: 18, y: 28 },
+  { id: 'iset-3', name: 'Outpost of Iset 3', shortName: 'Iset-3', x: 35, y: 36 },
 
   // Outposts of Seth (enemy side - lower right)
-  { id: 'seth-1', name: 'Outpost of Seth 1', shortName: 'Seth-1', x: 61, y: 62 },
-  { id: 'seth-2', name: 'Outpost of Seth 2', shortName: 'Seth-2', x: 82, y: 62 },
-  { id: 'seth-3', name: 'Outpost of Seth 3', shortName: 'Seth-3', x: 62, y: 80 },
+  { id: 'seth-1', name: 'Outpost of Seth 1', shortName: 'Seth-1', x: 60, y: 60 },
+  { id: 'seth-2', name: 'Outpost of Seth 2', shortName: 'Seth-2', x: 80, y: 60 },
+  { id: 'seth-3', name: 'Outpost of Seth 3', shortName: 'Seth-3', x: 62, y: 76 },
 
   // Shrines of War
-  { id: 'war-1', name: 'Shrine of War (Left)', shortName: 'War-L', x: 27, y: 52 },
-  { id: 'war-2', name: 'Shrine of War (Right)', shortName: 'War-R', x: 70, y: 47 },
+  { id: 'war-1', name: 'Shrine of War (Left)', shortName: 'War-L', x: 28, y: 50 },
+  { id: 'war-2', name: 'Shrine of War (Right)', shortName: 'War-R', x: 68, y: 47 },
 
   // Shrines of Life
-  { id: 'life-1', name: 'Shrine of Life (Right)', shortName: 'Life-R', x: 72, y: 24 },
-  { id: 'life-2', name: 'Shrine of Life (Left)', shortName: 'Life-L', x: 24, y: 76 },
+  { id: 'life-1', name: 'Shrine of Life (Right)', shortName: 'Life-R', x: 70, y: 21 },
+  { id: 'life-2', name: 'Shrine of Life (Left)', shortName: 'Life-L', x: 26, y: 73 },
 
   // Desert Altars
-  { id: 'desert-1', name: 'Desert Altar (Right)', shortName: 'Des-R', x: 55, y: 36 },
-  { id: 'desert-2', name: 'Desert Altar (Left)', shortName: 'Des-L', x: 42, y: 65 },
+  { id: 'desert-1', name: 'Desert Altar (Right)', shortName: 'Des-R', x: 54, y: 36 },
+  { id: 'desert-2', name: 'Desert Altar (Left)', shortName: 'Des-L', x: 42, y: 62 },
 
   // Sky Altars
-  { id: 'sky-1', name: 'Sky Altar (Right)', shortName: 'Sky-R', x: 83, y: 33 },
-  { id: 'sky-2', name: 'Sky Altar (Left)', shortName: 'Sky-L', x: 13, y: 58 },
+  { id: 'sky-1', name: 'Sky Altar (Right)', shortName: 'Sky-R', x: 82, y: 35 },
+  { id: 'sky-2', name: 'Sky Altar (Left)', shortName: 'Sky-L', x: 15, y: 60 },
 
   // Ark (center)
   { id: 'ark', name: 'Ark', shortName: 'Ark', x: 48, y: 50 },
@@ -71,30 +71,9 @@ const teamColors: Record<number, { bg: string; text: string; name: string }> = {
   3: { bg: '#7C3AED', text: 'white', name: 'Zone 3' },
 };
 
-// Conquer order by zone - shows RUSH (1) and 2nd phase (2) targets
-// Zone 1 (Blue) rushes left obelisk
-// Zone 3 (Purple) rushes upper obelisk
-// Zone 2 (Orange) secures Iset outposts
-const CONQUER_ORDER: Record<number, Record<string, number>> = {
-  // Zone 1 (Blue): Rush left obelisk, then sky-l and war-l
-  1: {
-    'obelisk-2': 1,  // Left obelisk - RUSH
-    'sky-2': 2,      // Sky Altar Left - 2nd phase
-    'war-1': 2,      // Shrine of War Left - 2nd phase
-  },
-  // Zone 2 (Orange): Secure Iset outposts
-  2: {
-    'iset-1': 1,     // Outpost of Iset 1
-    'iset-2': 1,     // Outpost of Iset 2
-    'iset-3': 2,     // Outpost of Iset 3 - 2nd phase
-  },
-  // Zone 3 (Purple): Rush upper obelisk, then des-r and life-r
-  3: {
-    'obelisk-1': 1,  // Upper obelisk - RUSH
-    'desert-1': 2,   // Desert Altar Right - 2nd phase
-    'life-1': 2,     // Shrine of Life Right - 2nd phase
-  },
-};
+// Conquer order by zone - NOT USED, assignments come from database mapAssignments
+// Keeping empty for now - admin assigns buildings to zones via UI
+const CONQUER_ORDER: Record<number, Record<string, number>> = {};
 
 // Building pairs that are mirrored across the map diagonal
 // When swapping corners, these buildings swap their strategic roles
