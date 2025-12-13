@@ -24,44 +24,44 @@ interface Props {
 // Re-export for backward compatibility
 export type { MapAssignments };
 
-// All buildings on the map with positions (percentages based on map image)
-// Mapped from actual aoo-map.jpg - coordinates are percentages of image dimensions
-// Your spawn: top-left corner, Enemy spawn: bottom-right corner
+// All buildings on the map with positions (percentages based on aoo-map-grid.jpg)
+// Grid: 20 columns × 15 rows, measured from grid overlay
+// Your spawn: top-left corner (~8%, 10%), Enemy spawn: bottom-right corner (~92%, 90%)
 const buildings: Building[] = [
   // Obelisks (4) - main teleport points
-  { id: 'obelisk-1', name: 'Obelisk (Upper)', shortName: 'Ob-Up', x: 55, y: 12 },
-  { id: 'obelisk-2', name: 'Obelisk (Left)', shortName: 'Ob-L', x: 10, y: 40 },
-  { id: 'obelisk-3', name: 'Obelisk (Right)', shortName: 'Ob-R', x: 96, y: 44 },
-  { id: 'obelisk-4', name: 'Obelisk (Lower)', shortName: 'Ob-Lo', x: 48, y: 75 },
+  { id: 'obelisk-1', name: 'Obelisk (Upper)', shortName: 'Ob-Up', x: 55, y: 13 },
+  { id: 'obelisk-2', name: 'Obelisk (Lower)', shortName: 'Ob-Lo', x: 10, y: 40 },
+  { id: 'obelisk-3', name: 'Obelisk (Right)', shortName: 'Ob-R', x: 98, y: 53 },
+  { id: 'obelisk-4', name: 'Obelisk (Bottom)', shortName: 'Ob-Bot', x: 50, y: 80 },
 
   // Outposts of Iset (3) - your side, upper-left quadrant
-  { id: 'iset-1', name: 'Outpost of Iset 1', shortName: 'Iset-1', x: 38, y: 16 },
-  { id: 'iset-2', name: 'Outpost of Iset 2', shortName: 'Iset-2', x: 15, y: 24 },
-  { id: 'iset-3', name: 'Outpost of Iset 3', shortName: 'Iset-3', x: 38, y: 28 },
+  { id: 'iset-1', name: 'Outpost of Iset 1', shortName: 'Iset-1', x: 40, y: 13 },
+  { id: 'iset-2', name: 'Outpost of Iset 2', shortName: 'Iset-2', x: 15, y: 27 },
+  { id: 'iset-3', name: 'Outpost of Iset 3', shortName: 'Iset-3', x: 35, y: 33 },
 
   // Outposts of Seth (3) - enemy side, lower-right quadrant
-  { id: 'seth-1', name: 'Outpost of Seth 1', shortName: 'Seth-1', x: 68, y: 56 },
-  { id: 'seth-2', name: 'Outpost of Seth 2', shortName: 'Seth-2', x: 90, y: 56 },
-  { id: 'seth-3', name: 'Outpost of Seth 3', shortName: 'Seth-3', x: 68, y: 68 },
+  { id: 'seth-1', name: 'Outpost of Seth 1', shortName: 'Seth-1', x: 65, y: 60 },
+  { id: 'seth-2', name: 'Outpost of Seth 2', shortName: 'Seth-2', x: 90, y: 60 },
+  { id: 'seth-3', name: 'Outpost of Seth 3', shortName: 'Seth-3', x: 70, y: 73 },
 
   // Shrines of War (2) - attack buff
-  { id: 'war-1', name: 'Shrine of War (Left)', shortName: 'War-L', x: 30, y: 45 },
-  { id: 'war-2', name: 'Shrine of War (Right)', shortName: 'War-R', x: 76, y: 38 },
+  { id: 'war-1', name: 'Shrine of War (Upper)', shortName: 'War-Up', x: 30, y: 47 },
+  { id: 'war-2', name: 'Shrine of War (Lower)', shortName: 'War-Lo', x: 75, y: 40 },
 
   // Shrines of Life (2) - HP buff
-  { id: 'life-1', name: 'Shrine of Life (Right)', shortName: 'Life-R', x: 78, y: 17 },
-  { id: 'life-2', name: 'Shrine of Life (Left)', shortName: 'Life-L', x: 26, y: 70 },
+  { id: 'life-1', name: 'Shrine of Life (Upper)', shortName: 'Life-Up', x: 80, y: 20 },
+  { id: 'life-2', name: 'Shrine of Life (Lower)', shortName: 'Life-Lo', x: 25, y: 73 },
 
   // Desert Altars (2) - relic spawn
-  { id: 'desert-1', name: 'Desert Altar (Right)', shortName: 'Des-R', x: 58, y: 28 },
-  { id: 'desert-2', name: 'Desert Altar (Left)', shortName: 'Des-L', x: 45, y: 56 },
+  { id: 'desert-1', name: 'Desert Altar (Upper)', shortName: 'Des-Up', x: 55, y: 33 },
+  { id: 'desert-2', name: 'Desert Altar (Lower)', shortName: 'Des-Lo', x: 45, y: 60 },
 
   // Sky Altars (2) - relic spawn
-  { id: 'sky-1', name: 'Sky Altar (Right)', shortName: 'Sky-R', x: 92, y: 24 },
-  { id: 'sky-2', name: 'Sky Altar (Left)', shortName: 'Sky-L', x: 12, y: 55 },
+  { id: 'sky-1', name: 'Sky Altar (Upper)', shortName: 'Sky-Up', x: 90, y: 27 },
+  { id: 'sky-2', name: 'Sky Altar (Lower)', shortName: 'Sky-Lo', x: 15, y: 53 },
 
   // Ark - center, main objective
-  { id: 'ark', name: 'Ark', shortName: 'Ark', x: 50, y: 43 },
+  { id: 'ark', name: 'Ark', shortName: 'Ark', x: 50, y: 40 },
 ];
 
 // Zone colors - colorblind friendly
@@ -400,19 +400,18 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 </div>
 
                 {/* RUSH arrows showing zone flow directions */}
-                {/* Zone 3 (Purple): START (top-left) -> Ob-Up (upper, ~55% x, 12% y) */}
-                {/* Arrow should go horizontally right with slight downward angle */}
+                {/* Zone 3 (Purple): START (~8%,10%) -> Ob-Up (~55%,13%) - nearly horizontal right */}
                 <svg
                   className="absolute pointer-events-none"
                   style={{
-                    left: swapCorners ? '38%' : '20%',
-                    top: swapCorners ? '72%' : '8%',
-                    width: '120px',
-                    height: '60px',
+                    left: swapCorners ? '35%' : '15%',
+                    top: swapCorners ? '75%' : '8%',
+                    width: '140px',
+                    height: '40px',
                     zIndex: 15,
                     opacity: 0.5,
                   }}
-                  viewBox="0 0 120 60"
+                  viewBox="0 0 140 40"
                 >
                   <defs>
                     <marker id="arrowhead-purple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
@@ -420,10 +419,10 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                     </marker>
                   </defs>
                   <line
-                    x1={swapCorners ? 110 : 10}
-                    y1={swapCorners ? 10 : 20}
-                    x2={swapCorners ? 10 : 110}
-                    y2={swapCorners ? 50 : 40}
+                    x1={swapCorners ? 130 : 10}
+                    y1="20"
+                    x2={swapCorners ? 10 : 130}
+                    y2="20"
                     stroke="#9333ea"
                     strokeWidth="8"
                     strokeLinecap="round"
@@ -435,8 +434,8 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   <div
                     className="absolute px-1.5 py-0.5 rounded bg-purple-800/80 text-purple-200 text-[9px] font-medium shadow"
                     style={{
-                      left: swapCorners ? '48%' : '55%',
-                      top: swapCorners ? '80%' : '5%',
+                      left: swapCorners ? '50%' : '55%',
+                      top: swapCorners ? '85%' : '3%',
                       transform: 'translate(-50%, 0)',
                       zIndex: 15
                     }}
@@ -445,19 +444,18 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   </div>
                 )}
 
-                {/* Zone 1 (Blue): START (top-left) -> Ob-L (left, ~10% x, 40% y) */}
-                {/* Arrow should go straight down along left edge */}
+                {/* Zone 1 (Blue): START (~8%,10%) -> Ob-Lo (~10%,40%) - nearly vertical down */}
                 <svg
                   className="absolute pointer-events-none"
                   style={{
-                    left: swapCorners ? '88%' : '5%',
-                    top: swapCorners ? '20%' : '18%',
-                    width: '60px',
+                    left: swapCorners ? '90%' : '4%',
+                    top: swapCorners ? '48%' : '15%',
+                    width: '40px',
                     height: '100px',
                     zIndex: 15,
                     opacity: 0.5,
                   }}
-                  viewBox="0 0 60 100"
+                  viewBox="0 0 40 100"
                 >
                   <defs>
                     <marker id="arrowhead-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
@@ -465,9 +463,9 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                     </marker>
                   </defs>
                   <line
-                    x1={swapCorners ? 50 : 30}
+                    x1="20"
                     y1={swapCorners ? 90 : 10}
-                    x2={swapCorners ? 30 : 30}
+                    x2="20"
                     y2={swapCorners ? 10 : 90}
                     stroke="#2563eb"
                     strokeWidth="8"
@@ -480,8 +478,8 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   <div
                     className="absolute px-1.5 py-0.5 rounded bg-blue-800/80 text-blue-200 text-[9px] font-medium shadow"
                     style={{
-                      left: swapCorners ? '96%' : '10%',
-                      top: swapCorners ? '50%' : '35%',
+                      left: swapCorners ? '98%' : '3%',
+                      top: swapCorners ? '55%' : '35%',
                       transform: 'translate(-50%, 0)',
                       zIndex: 15
                     }}
