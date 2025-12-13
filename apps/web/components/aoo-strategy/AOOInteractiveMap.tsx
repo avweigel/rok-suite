@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Moon, Sun, RotateCcw, RotateCw } from 'lucide-react';
 import type { Player, MapAssignments, MapAssignment } from '@/lib/aoo-strategy/types';
 
@@ -114,25 +114,6 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
   const [filterTeam, setFilterTeam] = useState<TeamNumber | 'all'>('all');
   const [swapCorners, setSwapCorners] = useState(false);
   const [hoveredBuilding, setHoveredBuilding] = useState<Building | null>(null);
-
-  // Get teleporters for each zone dynamically from player data
-  const teleportersByZone = useMemo(() => {
-    const result: Record<number, { first: string[]; second: string[] }> = {
-      1: { first: [], second: [] },
-      2: { first: [], second: [] },
-      3: { first: [], second: [] },
-    };
-    players.forEach(p => {
-      if (p.team >= 1 && p.team <= 3) {
-        if (p.tags.includes('Teleport 1st')) {
-          result[p.team].first.push(p.name);
-        } else if (p.tags.includes('Teleport 2nd')) {
-          result[p.team].second.push(p.name);
-        }
-      }
-    });
-    return result;
-  }, [players]);
 
   // Update assignments when initialAssignments changes
   useEffect(() => {
@@ -363,7 +344,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 {/* Map Background */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/aoo-strategy/aoo-map.jpg"
+                  src="/aoo-strategy/aoo-map-dot.jpg"
                   alt="AOO Map"
                   className="absolute inset-0 w-full h-full object-cover"
                   style={{ opacity: isDark ? 0.8 : 1 }}
@@ -396,95 +377,6 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   <span>☠️</span>
                   <span>ENEMY</span>
                 </div>
-
-                {/* RUSH arrows showing zone flow directions */}
-                {/* Zone 3 (Purple): START (~10%,12%) -> Ob-Up (58%,20%) - horizontal right with slight down */}
-                <svg
-                  className="absolute pointer-events-none"
-                  style={{
-                    left: swapCorners ? '35%' : '18%',
-                    top: swapCorners ? '78%' : '12%',
-                    width: '150px',
-                    height: '50px',
-                    zIndex: 15,
-                    opacity: 0.5,
-                  }}
-                  viewBox="0 0 150 50"
-                >
-                  <defs>
-                    <marker id="arrowhead-purple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                      <polygon points="0 0, 10 3.5, 0 7" fill="#9333ea" />
-                    </marker>
-                  </defs>
-                  <line
-                    x1={swapCorners ? 140 : 10}
-                    y1={swapCorners ? 10 : 20}
-                    x2={swapCorners ? 10 : 140}
-                    y2={swapCorners ? 40 : 30}
-                    stroke="#9333ea"
-                    strokeWidth="8"
-                    strokeLinecap="round"
-                    markerEnd="url(#arrowhead-purple)"
-                  />
-                </svg>
-                {/* Teleport indicator for Zone 3 obelisk */}
-                {teleportersByZone[3].first.length > 0 && (
-                  <div
-                    className="absolute px-1.5 py-0.5 rounded bg-purple-800/80 text-purple-200 text-[9px] font-medium shadow"
-                    style={{
-                      left: swapCorners ? '50%' : '58%',
-                      top: swapCorners ? '90%' : '10%',
-                      transform: 'translate(-50%, 0)',
-                      zIndex: 15
-                    }}
-                  >
-                    Z3 TP: {teleportersByZone[3].first.slice(0, 3).join(', ')}
-                  </div>
-                )}
-
-                {/* Zone 1 (Blue): START (~10%,12%) -> Ob-Lo (12%,45%) - nearly vertical down */}
-                <svg
-                  className="absolute pointer-events-none"
-                  style={{
-                    left: swapCorners ? '88%' : '6%',
-                    top: swapCorners ? '42%' : '18%',
-                    width: '40px',
-                    height: '100px',
-                    zIndex: 15,
-                    opacity: 0.5,
-                  }}
-                  viewBox="0 0 40 100"
-                >
-                  <defs>
-                    <marker id="arrowhead-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                      <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb" />
-                    </marker>
-                  </defs>
-                  <line
-                    x1="20"
-                    y1={swapCorners ? 90 : 10}
-                    x2="20"
-                    y2={swapCorners ? 10 : 90}
-                    stroke="#2563eb"
-                    strokeWidth="8"
-                    strokeLinecap="round"
-                    markerEnd="url(#arrowhead-blue)"
-                  />
-                </svg>
-                {/* Teleport indicator for Zone 1 obelisk */}
-                {teleportersByZone[1].first.length > 0 && (
-                  <div
-                    className="absolute px-1.5 py-0.5 rounded bg-blue-800/80 text-blue-200 text-[9px] font-medium shadow"
-                    style={{
-                      left: swapCorners ? '100%' : '4%',
-                      top: swapCorners ? '48%' : '40%',
-                      transform: 'translate(-50%, 0)',
-                      zIndex: 15
-                    }}
-                  >
-                    Z1 TP: {teleportersByZone[1].first.slice(0, 3).join(', ')}
-                  </div>
-                )}
 
                 {/* Building Markers */}
                 {buildings.map(building => {
