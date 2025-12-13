@@ -24,45 +24,42 @@ interface Props {
 // Re-export for backward compatibility
 export type { MapAssignments };
 
-// All buildings on the map with positions (percentages based on aoo-map-grid.jpg)
-// Grid: 26 columns × 20 rows, numbered grid overlay
-// Formula: X% = col/26*100, Y% = row/20*100
-// Your spawn: col 2-3, row 2-3 (~10%, 12%), Enemy spawn: col 23-25, row 17-19 (~92%, 90%)
+// All buildings on the map with positions (percentages from visual inspection of aoo-map.jpg)
 const buildings: Building[] = [
   // Obelisks (4) - main teleport points
-  { id: 'obelisk-1', name: 'Obelisk (Upper)', shortName: 'Ob-Up', x: 58, y: 20 },      // col 15, row 4
-  { id: 'obelisk-2', name: 'Obelisk (Lower)', shortName: 'Ob-Lo', x: 12, y: 45 },      // col 3, row 9
-  { id: 'obelisk-3', name: 'Obelisk (Right)', shortName: 'Ob-R', x: 100, y: 50 },      // col 26, row 10
-  { id: 'obelisk-4', name: 'Obelisk (Bottom)', shortName: 'Ob-Bot', x: 50, y: 85 },    // col 13, row 17
+  { id: 'obelisk-1', name: 'Obelisk (Upper)', shortName: 'Ob-Up', x: 54, y: 12 },
+  { id: 'obelisk-2', name: 'Obelisk (Left)', shortName: 'Ob-L', x: 10, y: 42 },
+  { id: 'obelisk-3', name: 'Obelisk (Right)', shortName: 'Ob-R', x: 95, y: 45 },
+  { id: 'obelisk-4', name: 'Obelisk (Bottom)', shortName: 'Ob-Bot', x: 45, y: 80 },
 
   // Outposts of Iset (3) - your side, upper-left quadrant
-  { id: 'iset-1', name: 'Outpost of Iset 1', shortName: 'Iset-1', x: 38, y: 20 },      // col 10, row 4
-  { id: 'iset-2', name: 'Outpost of Iset 2', shortName: 'Iset-2', x: 15, y: 30 },      // col 4, row 6
-  { id: 'iset-3', name: 'Outpost of Iset 3', shortName: 'Iset-3', x: 35, y: 35 },      // col 9, row 7
+  { id: 'iset-1', name: 'Outpost of Iset 1', shortName: 'Iset-1', x: 38, y: 15 },
+  { id: 'iset-2', name: 'Outpost of Iset 2', shortName: 'Iset-2', x: 14, y: 25 },
+  { id: 'iset-3', name: 'Outpost of Iset 3', shortName: 'Iset-3', x: 32, y: 28 },
 
   // Outposts of Seth (3) - enemy side, lower-right quadrant
-  { id: 'seth-1', name: 'Outpost of Seth 1', shortName: 'Seth-1', x: 65, y: 65 },      // col 17, row 13
-  { id: 'seth-2', name: 'Outpost of Seth 2', shortName: 'Seth-2', x: 88, y: 65 },      // col 23, row 13
-  { id: 'seth-3', name: 'Outpost of Seth 3', shortName: 'Seth-3', x: 69, y: 75 },      // col 18, row 15
+  { id: 'seth-1', name: 'Outpost of Seth 1', shortName: 'Seth-1', x: 65, y: 58 },
+  { id: 'seth-2', name: 'Outpost of Seth 2', shortName: 'Seth-2', x: 88, y: 58 },
+  { id: 'seth-3', name: 'Outpost of Seth 3', shortName: 'Seth-3', x: 68, y: 72 },
 
   // Shrines of War (2) - attack buff
-  { id: 'war-1', name: 'Shrine of War (Upper)', shortName: 'War-Up', x: 31, y: 55 },   // col 8, row 11
-  { id: 'war-2', name: 'Shrine of War (Lower)', shortName: 'War-Lo', x: 77, y: 45 },   // col 20, row 9
+  { id: 'war-1', name: 'Shrine of War (Upper)', shortName: 'War-Up', x: 28, y: 48 },
+  { id: 'war-2', name: 'Shrine of War (Lower)', shortName: 'War-Lo', x: 75, y: 40 },
 
   // Shrines of Life (2) - HP buff
-  { id: 'life-1', name: 'Shrine of Life (Upper)', shortName: 'Life-Up', x: 81, y: 25 }, // col 21, row 5
-  { id: 'life-2', name: 'Shrine of Life (Lower)', shortName: 'Life-Lo', x: 27, y: 80 }, // col 7, row 16
+  { id: 'life-1', name: 'Shrine of Life (Upper)', shortName: 'Life-Up', x: 78, y: 18 },
+  { id: 'life-2', name: 'Shrine of Life (Lower)', shortName: 'Life-Lo', x: 24, y: 75 },
 
   // Desert Altars (2) - relic spawn
-  { id: 'desert-1', name: 'Desert Altar (Upper)', shortName: 'Des-Up', x: 58, y: 35 }, // col 15, row 7
-  { id: 'desert-2', name: 'Desert Altar (Lower)', shortName: 'Des-Lo', x: 46, y: 65 }, // col 12, row 13
+  { id: 'desert-1', name: 'Desert Altar (Upper)', shortName: 'Des-Up', x: 55, y: 28 },
+  { id: 'desert-2', name: 'Desert Altar (Lower)', shortName: 'Des-Lo', x: 42, y: 60 },
 
   // Sky Altars (2) - relic spawn
-  { id: 'sky-1', name: 'Sky Altar (Upper)', shortName: 'Sky-Up', x: 92, y: 30 },       // col 24, row 6
-  { id: 'sky-2', name: 'Sky Altar (Lower)', shortName: 'Sky-Lo', x: 15, y: 60 },       // col 4, row 12
+  { id: 'sky-1', name: 'Sky Altar (Upper)', shortName: 'Sky-Up', x: 90, y: 22 },
+  { id: 'sky-2', name: 'Sky Altar (Lower)', shortName: 'Sky-Lo', x: 12, y: 55 },
 
   // Ark - center, main objective
-  { id: 'ark', name: 'Ark', shortName: 'Ark', x: 50, y: 45 },                          // col 13, row 9
+  { id: 'ark', name: 'Ark', shortName: 'Ark', x: 50, y: 47 },
 ];
 
 // Zone colors - colorblind friendly
