@@ -34,7 +34,7 @@ const buildings: Building[] = [
 
   // Outposts of Iset (your side - upper)
   { id: 'iset-1', name: 'Outpost of Iset 1', shortName: 'Iset-1', x: 33.8, y: 17.5 },       // (846, 334)
-  { id: 'iset-2', name: 'Outpost of Iset 2', shortName: 'Iset-2', x: 13.0, y: 10.7 },       // (324, 204)
+  { id: 'iset-2', name: 'Outpost of Iset 2', shortName: 'Iset-2', x: 18.2, y: 28.5 },       // (454, 546)
   { id: 'iset-3', name: 'Outpost of Iset 3', shortName: 'Iset-3', x: 33.2, y: 31.5 },       // (830, 602)
 
   // Outposts of Seth (enemy side - lower)
