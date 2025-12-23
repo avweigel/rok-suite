@@ -305,11 +305,11 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
 
   const getRarityColor = (rarity: string) => {
     switch (rarity) {
-      case 'legendary': return 'text-yellow-500 bg-yellow-500/20';
-      case 'epic': return 'text-purple-400 bg-purple-500/20';
-      case 'elite': return 'text-blue-400 bg-blue-500/20';
-      case 'advanced': return 'text-green-400 bg-green-500/20';
-      default: return 'text-stone-400 bg-stone-500/20';
+      case 'legendary': return 'text-[#ffb547] bg-[#ffb547]/20';
+      case 'epic': return 'text-[#9f7aea] bg-[#9f7aea]/20';
+      case 'elite': return 'text-[#21d4fd] bg-[#0075ff]/20';
+      case 'advanced': return 'text-[#01b574] bg-[#01b574]/20';
+      default: return 'text-[#a0aec0] bg-[#a0aec0]/20';
     }
   };
 
@@ -328,18 +328,18 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
     <>
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50" onClick={onClose} />
 
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[95vw] max-w-2xl max-h-[90vh] rounded-xl bg-gradient-to-br from-stone-800 to-stone-900 border border-green-600/20 overflow-hidden flex flex-col">
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[95vw] max-w-2xl max-h-[90vh] rounded-xl bg-[rgba(6,11,40,0.98)] backdrop-blur-xl border border-white/10 overflow-hidden flex flex-col">
 
         {/* Header */}
-        <div className="p-4 border-b border-stone-700">
+        <div className="p-4 border-b border-white/10">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Package className="w-5 h-5 text-green-500" />
-              <h2 className="text-lg font-semibold text-green-400">Bag Scanner</h2>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400">Beta</span>
+              <Package className="w-5 h-5 text-[#01b574]" />
+              <h2 className="text-lg font-semibold text-[#01b574]">Bag Scanner</h2>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-[#ffb547]/20 text-[#ffb547]">Beta</span>
             </div>
-            <button onClick={onClose} className="p-2 rounded-lg hover:bg-stone-700 transition-colors">
-              <X className="w-5 h-5 text-stone-400" />
+            <button onClick={onClose} className="p-2 rounded-lg hover:bg-[#1a1f3c] transition-colors">
+              <X className="w-5 h-5 text-[#a0aec0]" />
             </button>
           </div>
 
@@ -348,17 +348,17 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
               <div key={s} className="flex items-center">
                 <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${
                   step === s
-                    ? 'bg-green-600 text-white font-semibold'
+                    ? 'bg-[#01b574] text-white font-semibold'
                     : i < ['upload', 'scan', 'verify'].indexOf(step)
-                    ? 'bg-green-600/30 text-green-400'
-                    : 'bg-stone-700 text-stone-500'
+                    ? 'bg-[#01b574]/30 text-[#01b574]'
+                    : 'bg-[#1a1f3c] text-[#718096]'
                 }`}>
                   <span className="w-5 h-5 rounded-full bg-current/20 flex items-center justify-center text-xs">
                     {i < ['upload', 'scan', 'verify'].indexOf(step) ? '✓' : i + 1}
                   </span>
                   <span className="capitalize">{s}</span>
                 </div>
-                {i < 2 && <ArrowRight className="w-4 h-4 text-stone-600 mx-1" />}
+                {i < 2 && <ArrowRight className="w-4 h-4 text-[#718096] mx-1" />}
               </div>
             ))}
           </div>
@@ -370,16 +370,16 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
             <div className="space-y-4">
               <div
                 className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${
-                  dragActive ? 'border-green-500 bg-green-500/10' : 'border-stone-600 hover:border-green-600'
+                  dragActive ? 'border-[#01b574] bg-[#01b574]/10' : 'border-white/10 hover:border-[#01b574]'
                 }`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
               >
-                <Upload className="w-12 h-12 text-green-500/50 mx-auto mb-3" />
-                <p className="text-stone-300 mb-1">Drop bag screenshots here</p>
-                <p className="text-stone-500 text-sm mb-4">Screenshot items from your inventory</p>
+                <Upload className="w-12 h-12 text-[#01b574]/50 mx-auto mb-3" />
+                <p className="text-white mb-1">Drop bag screenshots here</p>
+                <p className="text-[#718096] text-sm mb-4">Screenshot items from your inventory</p>
                 <input
                   type="file"
                   accept="image/*"
@@ -390,18 +390,18 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
                 />
                 <label
                   htmlFor="bag-screenshot-upload"
-                  className="inline-block px-4 py-2 rounded-lg bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold cursor-pointer hover:from-green-500 hover:to-green-600 transition-all"
+                  className="inline-block px-4 py-2 rounded-lg bg-gradient-to-r from-[#01b574] to-[#00a86b] text-white font-semibold cursor-pointer hover:from-[#02c982] hover:to-[#01b574] transition-all"
                 >
                   <Images className="w-4 h-4 inline mr-2" />
                   Select Images
                 </label>
               </div>
 
-              <div className="p-3 rounded-lg bg-stone-800/50 border border-stone-700">
-                <h4 className="text-sm font-medium text-stone-300 mb-2">Supported Items</h4>
+              <div className="p-3 rounded-lg bg-[rgba(6,11,40,0.5)] border border-white/10">
+                <h4 className="text-sm font-medium text-white mb-2">Supported Items</h4>
                 <div className="flex flex-wrap gap-2">
                   {categories.map(cat => (
-                    <span key={cat.id} className="px-2 py-1 rounded bg-stone-700 text-xs text-stone-400">
+                    <span key={cat.id} className="px-2 py-1 rounded bg-[#1a1f3c] text-xs text-[#a0aec0]">
                       {cat.name}
                     </span>
                   ))}
@@ -410,7 +410,7 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
 
               {images.length > 0 && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-stone-400">
+                  <h3 className="text-sm font-semibold text-[#a0aec0]">
                     {images.length} image{images.length !== 1 ? 's' : ''} ready to scan
                   </h3>
                   <div className="grid grid-cols-4 gap-2">
@@ -419,7 +419,7 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
                         <img
                           src={img.src}
                           alt={`Upload ${i + 1}`}
-                          className="w-full aspect-square object-cover rounded-lg border border-stone-600"
+                          className="w-full aspect-square object-cover rounded-lg border border-white/10"
                         />
                         <button
                           onClick={() => removeImage(i)}
@@ -437,14 +437,14 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
 
           {step === 'scan' && (
             <div className="text-center py-8">
-              <Loader2 className="w-12 h-12 text-green-500 animate-spin mx-auto mb-4" />
-              <p className="text-stone-300 text-lg mb-2">
+              <Loader2 className="w-12 h-12 text-[#01b574] animate-spin mx-auto mb-4" />
+              <p className="text-white text-lg mb-2">
                 Scanning image {(processingIndex ?? 0) + 1} of {images.length}
               </p>
-              <p className="text-stone-500 text-sm mb-4">Reading item information...</p>
-              <div className="w-64 h-2 bg-stone-700 rounded-full mx-auto overflow-hidden">
+              <p className="text-[#718096] text-sm mb-4">Reading item information...</p>
+              <div className="w-64 h-2 bg-[#1a1f3c] rounded-full mx-auto overflow-hidden">
                 <div
-                  className="h-full bg-green-500 transition-all duration-300"
+                  className="h-full bg-[#01b574] transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -454,20 +454,20 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
           {step === 'verify' && currentItem && (
             <div className="space-y-4">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-stone-400">
+                <span className="text-[#a0aec0]">
                   Item {currentVerifyIndex + 1} of {detected.length}
                 </span>
-                <span className="text-green-400">{acceptedCount} accepted</span>
+                <span className="text-[#01b574]">{acceptedCount} accepted</span>
               </div>
 
-              <div className="h-1 bg-stone-700 rounded-full overflow-hidden">
+              <div className="h-1 bg-[#1a1f3c] rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-green-500 transition-all"
+                  className="h-full bg-[#01b574] transition-all"
                   style={{ width: `${((currentVerifyIndex + 1) / detected.length) * 100}%` }}
                 />
               </div>
 
-              <div className="relative bg-stone-900 rounded-xl overflow-hidden">
+              <div className="relative bg-[#0a0d1f] rounded-xl overflow-hidden">
                 {images[currentItem.imageIndex] && (
                   <img
                     src={images[currentItem.imageIndex].src}
@@ -479,19 +479,19 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
 
               <div className={`p-4 rounded-xl border ${
                 currentItem.matchedItem
-                  ? 'bg-stone-800/50 border-stone-600'
-                  : 'bg-yellow-900/20 border-yellow-600/30'
+                  ? 'bg-[rgba(6,11,40,0.5)] border-white/10'
+                  : 'bg-[#ffb547]/10 border-[#ffb547]/30'
               }`}>
                 {/* Category filter */}
                 <div className="mb-3">
-                  <label className="text-sm text-stone-400 block mb-1.5">Category</label>
+                  <label className="text-sm text-[#a0aec0] block mb-1.5">Category</label>
                   <select
                     value={selectedCategory}
                     onChange={(e) => {
                       setSelectedCategory(e.target.value);
                       setSelectedItemId('');
                     }}
-                    className="w-full px-3 py-2 rounded-lg bg-stone-700 border border-stone-600 text-stone-200 focus:border-green-500 focus:outline-none"
+                    className="w-full px-3 py-2 rounded-lg bg-[#1a1f3c] border border-white/10 text-white focus:border-[#01b574] focus:outline-none"
                   >
                     <option value="">All categories</option>
                     {categories.map(cat => (
@@ -502,11 +502,11 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
 
                 {/* Item selector */}
                 <div className="mb-4">
-                  <label className="text-sm text-stone-400 block mb-1.5">Item</label>
+                  <label className="text-sm text-[#a0aec0] block mb-1.5">Item</label>
                   <select
                     value={selectedItemId}
                     onChange={(e) => updateCurrentItem(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-lg bg-stone-700 border border-stone-600 text-stone-200 focus:border-green-500 focus:outline-none"
+                    className="w-full px-3 py-2.5 rounded-lg bg-[#1a1f3c] border border-white/10 text-white focus:border-[#01b574] focus:outline-none"
                   >
                     <option value="">Select item...</option>
                     {filteredItems.map(item => (
@@ -516,7 +516,7 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
                     ))}
                   </select>
                   {!currentItem.matchedItem && (
-                    <p className="text-xs text-yellow-500 mt-1.5 flex items-center gap-1">
+                    <p className="text-xs text-[#ffb547] mt-1.5 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />
                       Could not auto-detect - please select manually
                     </p>
@@ -525,17 +525,17 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
 
                 {/* Quantity */}
                 <div className="mb-4">
-                  <label className="text-sm text-stone-400 block mb-1.5">Quantity</label>
+                  <label className="text-sm text-[#a0aec0] block mb-1.5">Quantity</label>
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => updateQuantity(-10)}
-                      className="px-3 py-2 rounded-lg bg-stone-700 text-stone-300 hover:bg-stone-600"
+                      className="px-3 py-2 rounded-lg bg-[#1a1f3c] text-white hover:bg-[#252b4d]"
                     >
                       -10
                     </button>
                     <button
                       onClick={() => updateQuantity(-1)}
-                      className="p-2 rounded-lg bg-stone-700 text-stone-300 hover:bg-stone-600"
+                      className="p-2 rounded-lg bg-[#1a1f3c] text-white hover:bg-[#252b4d]"
                     >
                       <Minus className="w-4 h-4" />
                     </button>
@@ -544,17 +544,17 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
                       min="1"
                       value={currentItem.quantity}
                       onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                      className="w-24 px-3 py-2 rounded-lg bg-stone-700 border border-stone-600 text-stone-200 text-center focus:border-green-500 focus:outline-none"
+                      className="w-24 px-3 py-2 rounded-lg bg-[#1a1f3c] border border-white/10 text-white text-center focus:border-[#01b574] focus:outline-none"
                     />
                     <button
                       onClick={() => updateQuantity(1)}
-                      className="p-2 rounded-lg bg-stone-700 text-stone-300 hover:bg-stone-600"
+                      className="p-2 rounded-lg bg-[#1a1f3c] text-white hover:bg-[#252b4d]"
                     >
                       <Plus className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => updateQuantity(10)}
-                      className="px-3 py-2 rounded-lg bg-stone-700 text-stone-300 hover:bg-stone-600"
+                      className="px-3 py-2 rounded-lg bg-[#1a1f3c] text-white hover:bg-[#252b4d]"
                     >
                       +10
                     </button>
@@ -566,7 +566,7 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
                     <span className={`px-2 py-1 rounded text-xs font-medium ${getRarityColor(currentItem.matchedItem.rarity)}`}>
                       {currentItem.matchedItem.rarity}
                     </span>
-                    <span className="text-xs text-stone-500">{currentItem.matchedItem.description}</span>
+                    <span className="text-xs text-[#718096]">{currentItem.matchedItem.description}</span>
                   </div>
                 )}
               </div>
@@ -575,7 +575,7 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
                 <button
                   onClick={goToPrev}
                   disabled={currentVerifyIndex === 0}
-                  className="px-4 py-3 rounded-xl border-2 border-stone-600 text-stone-400 disabled:opacity-30 transition-all flex items-center gap-2"
+                  className="px-4 py-3 rounded-xl border-2 border-white/10 text-[#a0aec0] disabled:opacity-30 transition-all flex items-center gap-2"
                 >
                   <ChevronLeft className="w-5 h-5" />
                   Back
@@ -583,7 +583,7 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
 
                 <button
                   onClick={skipCurrent}
-                  className="px-5 py-3 rounded-xl border-2 border-orange-500/30 bg-orange-500/10 text-orange-400 transition-all flex items-center gap-2"
+                  className="px-5 py-3 rounded-xl border-2 border-[#ffb547]/30 bg-[#ffb547]/10 text-[#ffb547] transition-all flex items-center gap-2"
                 >
                   <SkipForward className="w-5 h-5" />
                   Skip
@@ -592,7 +592,7 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
                 <button
                   onClick={acceptCurrent}
                   disabled={!currentItem.matchedItem}
-                  className="flex-1 px-6 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold disabled:opacity-50 transition-all flex items-center justify-center gap-3"
+                  className="flex-1 px-6 py-3 rounded-xl bg-gradient-to-r from-[#01b574] to-[#00a86b] text-white font-bold disabled:opacity-50 transition-all flex items-center justify-center gap-3"
                 >
                   <Check className="w-6 h-6" />
                   {isLastOne ? 'Accept & Finish!' : 'Accept'}
@@ -602,18 +602,18 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
           )}
 
           {step === 'verify' && allReviewed && (
-            <div className="mt-6 p-4 rounded-xl bg-stone-800/50 border border-stone-600">
-              <h3 className="text-lg font-semibold text-green-400 mb-2">Review Complete</h3>
-              <p className="text-stone-400 mb-4">
+            <div className="mt-6 p-4 rounded-xl bg-[rgba(6,11,40,0.5)] border border-white/10">
+              <h3 className="text-lg font-semibold text-[#01b574] mb-2">Review Complete</h3>
+              <p className="text-[#a0aec0] mb-4">
                 {acceptedCount} item{acceptedCount !== 1 ? 's' : ''} ready to save
               </p>
 
               {acceptedCount > 0 && (
                 <div className="space-y-2">
                   {detected.filter(d => d.status === 'accepted' && d.matchedItem).map((d, i) => (
-                    <div key={i} className="flex items-center justify-between text-sm bg-stone-700/50 rounded px-3 py-2">
-                      <span className="text-stone-300">{d.matchedItem?.name}</span>
-                      <span className="text-green-400 font-medium">x{d.quantity}</span>
+                    <div key={i} className="flex items-center justify-between text-sm bg-[#1a1f3c]/50 rounded px-3 py-2">
+                      <span className="text-white">{d.matchedItem?.name}</span>
+                      <span className="text-[#01b574] font-medium">x{d.quantity}</span>
                     </div>
                   ))}
                 </div>
@@ -623,12 +623,12 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-stone-700 flex justify-between">
+        <div className="p-4 border-t border-white/10 flex justify-between">
           {step === 'upload' && (
             <>
               <button
                 onClick={onClose}
-                className="px-4 py-2 rounded-lg border border-stone-600 text-stone-400 hover:bg-stone-700 transition-colors"
+                className="px-4 py-2 rounded-lg border border-white/10 text-[#a0aec0] hover:bg-[#1a1f3c] transition-colors"
               >
                 Cancel
               </button>
@@ -638,7 +638,7 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
                   processAllImages();
                 }}
                 disabled={images.length === 0}
-                className="px-6 py-2 rounded-lg bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold disabled:opacity-50 transition-all flex items-center gap-2"
+                className="px-6 py-2 rounded-lg bg-gradient-to-r from-[#01b574] to-[#00a86b] text-white font-semibold disabled:opacity-50 transition-all flex items-center gap-2"
               >
                 <Scan className="w-4 h-4" />
                 Scan {images.length} Image{images.length !== 1 ? 's' : ''}
@@ -654,14 +654,14 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
                   setDetected([]);
                   setImages([]);
                 }}
-                className="px-4 py-2 rounded-lg border border-stone-600 text-stone-400 hover:bg-stone-700 transition-colors"
+                className="px-4 py-2 rounded-lg border border-white/10 text-[#a0aec0] hover:bg-[#1a1f3c] transition-colors"
               >
                 Start Over
               </button>
               <button
                 onClick={handleImport}
                 disabled={acceptedCount === 0}
-                className="px-6 py-2 rounded-lg bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold disabled:opacity-50 transition-all flex items-center gap-2"
+                className="px-6 py-2 rounded-lg bg-gradient-to-r from-[#01b574] to-[#00a86b] text-white font-semibold disabled:opacity-50 transition-all flex items-center gap-2"
               >
                 <Check className="w-4 h-4" />
                 Save {acceptedCount} Item{acceptedCount !== 1 ? 's' : ''}
