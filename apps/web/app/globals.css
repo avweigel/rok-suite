@@ -1,8 +1,41 @@
 @import "tailwindcss";
 
+/**
+ * Vision UI-inspired theme
+ * Dark glassmorphism design with gradient accents
+ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Background colors */
+  --background: #0f1535;
+  --background-secondary: #1a1f37;
+  --background-card: rgba(6, 11, 40, 0.94);
+
+  /* Primary gradient colors */
+  --primary: #4318ff;
+  --primary-light: #9f7aea;
+
+  /* Info/accent */
+  --info: #0075ff;
+  --info-light: #21d4fd;
+
+  /* Success */
+  --success: #01b574;
+  --success-light: #c9fbd5;
+
+  /* Warning */
+  --warning: #ffb547;
+
+  /* Error */
+  --error: #e31a1a;
+
+  /* Text colors */
+  --foreground: #ffffff;
+  --text-secondary: #a0aec0;
+  --text-muted: #718096;
+
+  /* Border */
+  --border: rgba(255, 255, 255, 0.1);
 }
 
 @theme inline {
@@ -12,15 +45,77 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Selection color */
+::selection {
+  background: rgba(67, 24, 255, 0.3);
+  color: white;
+}
+
+/* Focus styles */
+*:focus-visible {
+  outline: 2px solid rgba(67, 24, 255, 0.5);
+  outline-offset: 2px;
+}
+
+/* Glassmorphism utility classes */
+.glass {
+  background: rgba(6, 11, 40, 0.94);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-hover:hover {
+  background: rgba(10, 14, 35, 0.98);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Gradient text utility */
+.gradient-text {
+  background: linear-gradient(135deg, #4318ff 0%, #9f7aea 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glow effects */
+.glow-primary {
+  box-shadow: 0 0 40px rgba(67, 24, 255, 0.15);
+}
+
+.glow-info {
+  box-shadow: 0 0 40px rgba(0, 117, 255, 0.15);
+}
+
+.glow-success {
+  box-shadow: 0 0 40px rgba(1, 181, 116, 0.15);
 }

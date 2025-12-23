@@ -1,220 +1,198 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { UserMenu } from '@/components/auth/UserMenu';
+import {
+  Swords,
+  Sun,
+  Calculator,
+  Scan,
+  BookOpen,
+  ArrowRight,
+  Github,
+  ExternalLink,
+  Sparkles,
+} from 'lucide-react';
 
 export default function Home() {
-  const [darkMode, setDarkMode] = useState(true);
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('aoo-theme');
-    if (savedTheme) setDarkMode(savedTheme === 'dark');
-  }, []);
-
-  const toggleTheme = () => {
-    const newMode = !darkMode;
-    setDarkMode(newMode);
-    localStorage.setItem('aoo-theme', newMode ? 'dark' : 'light');
-  };
-
-  const theme = {
-    bg: darkMode ? 'bg-zinc-950' : 'bg-gray-50',
-    card: darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200',
-    text: darkMode ? 'text-zinc-100' : 'text-gray-900',
-    textMuted: darkMode ? 'text-zinc-400' : 'text-gray-500',
-    textAccent: darkMode ? 'text-emerald-400' : 'text-emerald-600',
-    border: darkMode ? 'border-zinc-800' : 'border-gray-200',
-    button: darkMode ? 'bg-zinc-800 hover:bg-zinc-700 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-900',
-    buttonPrimary: 'bg-emerald-600 hover:bg-emerald-700 text-white',
-  };
+  const tools = [
+    {
+      href: '/aoo-strategy',
+      title: 'AoO Battle Planner',
+      description: 'Interactive 30v30 team assignments, drag-drop battle maps, and match planning',
+      icon: Swords,
+      gradient: 'from-[#01b574] to-[#01b574]',
+      shadowColor: 'shadow-[#01b574]/25',
+      hoverBorder: 'hover:border-[#01b574]/50',
+      badge: { text: 'Tool', color: 'bg-[#01b574]/20 text-[#01b574]' },
+    },
+    {
+      href: '/sunset-canyon',
+      title: 'Sunset Canyon Simulator',
+      description: 'Commander scanner, formation optimizer, and battle simulation',
+      icon: Sun,
+      gradient: 'from-[#ffb547] to-[#ffd97a]',
+      shadowColor: 'shadow-[#ffb547]/25',
+      hoverBorder: 'hover:border-[#ffb547]/50',
+      badge: { text: 'Tool', color: 'bg-[#ffb547]/20 text-[#ffb547]' },
+    },
+    {
+      href: '/upgrade-calculator',
+      title: 'Upgrade Calculator',
+      description: 'Building dependency graph and resource planning for City Hall upgrades',
+      icon: Calculator,
+      gradient: 'from-[#0075ff] to-[#21d4fd]',
+      shadowColor: 'shadow-[#0075ff]/25',
+      hoverBorder: 'hover:border-[#0075ff]/50',
+      badge: { text: 'Tool', color: 'bg-[#0075ff]/20 text-[#21d4fd]' },
+    },
+    {
+      href: '/scanners',
+      title: 'Scanners',
+      description: 'Scan screenshots to inventory commanders, equipment, and bag items',
+      icon: Scan,
+      gradient: 'from-[#4318ff] to-[#9f7aea]',
+      shadowColor: 'shadow-[#4318ff]/25',
+      hoverBorder: 'hover:border-[#4318ff]/50',
+      badge: { text: 'Tool', color: 'bg-[#4318ff]/20 text-[#9f7aea]' },
+    },
+  ];
 
   return (
-    <div className={`min-h-screen ${theme.bg} ${theme.text} transition-colors duration-200`}>
-      <div className="max-w-4xl mx-auto p-6">
+    <div className="min-h-screen bg-[#0f1535]">
+      {/* Grid background */}
+      <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px] pointer-events-none" />
+
+      {/* Gradient orbs for visual interest */}
+      <div className="fixed top-0 left-1/4 w-96 h-96 bg-[#4318ff]/10 rounded-full blur-[128px] pointer-events-none" />
+      <div className="fixed bottom-0 right-1/4 w-96 h-96 bg-[#01b574]/10 rounded-full blur-[128px] pointer-events-none" />
+
+      <div className="relative max-w-5xl mx-auto px-6 py-8">
         {/* Header */}
-        <header className={`flex items-center justify-between mb-12 pb-4 border-b ${theme.border}`}>
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">Angmar Nazgul Guards</h1>
+        <header className="flex items-center justify-between mb-16 pb-6 border-b border-white/5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#4318ff] to-[#9f7aea] flex items-center justify-center shadow-lg shadow-[#4318ff]/25">
+              <Swords className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold text-white">RoK Suite</h1>
+              <p className="text-xs text-[#718096]">Angmar Nazgul Guards</p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <a
               href="https://github.com/avweigel/rok-suite"
               target="_blank"
               rel="noopener noreferrer"
-              className={`p-2 rounded-lg ${theme.button} transition-colors`}
+              className="p-2.5 rounded-lg bg-white/5 border border-white/10 text-[#a0aec0] hover:text-white hover:bg-white/10 transition-all"
               title="View on GitHub"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-              </svg>
+              <Github className="w-5 h-5" />
             </a>
-            <button
-              onClick={toggleTheme}
-              className={`p-2 rounded-lg ${theme.button} transition-colors`}
-              title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {darkMode ? '☀️' : '🌙'}
-            </button>
             <UserMenu />
           </div>
         </header>
 
         {/* Hero */}
-        <section className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
+        <section className="text-center mb-20">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#4318ff]/10 border border-[#4318ff]/20 mb-6">
+            <Sparkles className="w-4 h-4 text-[#9f7aea]" />
+            <span className="text-sm font-medium text-[#9f7aea]">Strategy Tools for RoK</span>
+          </div>
+          <h2 className="text-5xl md:text-6xl font-bold text-white mb-4 tracking-tight">
             Rise of Kingdoms
           </h2>
-          <p className={`text-lg ${theme.textMuted} mb-2`}>
+          <p className="text-xl text-[#a0aec0] mb-2">
             Strategy Tools & Battle Planning
           </p>
-          <p className={`text-sm ${theme.textAccent}`}>
-            Angmar Nazgul Guards
+          <p className="text-sm text-[#4318ff]">
+            Built for Angmar Nazgul Guards
           </p>
         </section>
 
         {/* Interactive Tools */}
-        <section className="mb-12">
-          <h3 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted} mb-4`}>
-            Interactive Tools
-          </h3>
+        <section className="mb-16">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#718096] px-4">
+              Interactive Tools
+            </h3>
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          </div>
 
           <div className="grid gap-4">
-            {/* Ark of Osiris Planner Card */}
-            <Link href="/aoo-strategy">
-              <div className={`${theme.card} border rounded-xl p-6 transition-all hover:border-emerald-500/50 cursor-pointer group`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="text-lg font-semibold group-hover:text-emerald-400 transition-colors">
-                        AoO Battle Planner
-                      </h4>
-                      <span className={`text-xs px-2 py-0.5 rounded ${darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700'}`}>
-                        Tool
-                      </span>
-                    </div>
-                    <p className={`text-sm ${theme.textMuted}`}>
-                      Interactive 30v30 team assignments, drag-drop battle maps, and match planning
-                    </p>
-                  </div>
-                  <div className={`${theme.textMuted} group-hover:text-emerald-400 transition-colors`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 12h14M12 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </Link>
+            {tools.map((tool) => {
+              const Icon = tool.icon;
+              return (
+                <Link key={tool.href} href={tool.href}>
+                  <div className={`group relative p-5 rounded-xl bg-[rgba(6,11,40,0.94)] border border-white/10 ${tool.hoverBorder} backdrop-blur-xl transition-all duration-300 cursor-pointer overflow-hidden`}>
+                    {/* Hover glow effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
-            {/* Sunset Canyon Simulator Card */}
-            <Link href="/sunset-canyon">
-              <div className={`${theme.card} border rounded-xl p-6 transition-all hover:border-amber-500/50 cursor-pointer group`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="text-lg font-semibold group-hover:text-amber-400 transition-colors">
-                        Sunset Canyon Simulator
-                      </h4>
-                      <span className={`text-xs px-2 py-0.5 rounded ${darkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'}`}>
-                        Tool
-                      </span>
-                    </div>
-                    <p className={`text-sm ${theme.textMuted}`}>
-                      Commander scanner, formation optimizer, and battle simulation
-                    </p>
-                  </div>
-                  <div className={`${theme.textMuted} group-hover:text-amber-400 transition-colors`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 12h14M12 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </Link>
+                    <div className="relative flex items-center gap-5">
+                      {/* Icon */}
+                      <div className={`p-3 rounded-xl bg-gradient-to-br ${tool.gradient} shadow-lg ${tool.shadowColor}`}>
+                        <Icon className="w-6 h-6 text-white" />
+                      </div>
 
-            {/* Upgrade Calculator Card */}
-            <Link href="/upgrade-calculator">
-              <div className={`${theme.card} border rounded-xl p-6 transition-all hover:border-blue-500/50 cursor-pointer group`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="text-lg font-semibold group-hover:text-blue-400 transition-colors">
-                        Upgrade Calculator
-                      </h4>
-                      <span className={`text-xs px-2 py-0.5 rounded ${darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-700'}`}>
-                        Tool
-                      </span>
-                    </div>
-                    <p className={`text-sm ${theme.textMuted}`}>
-                      Building dependency graph and resource planning for City Hall upgrades
-                    </p>
-                  </div>
-                  <div className={`${theme.textMuted} group-hover:text-blue-400 transition-colors`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 12h14M12 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </Link>
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-1">
+                          <h4 className="text-base font-semibold text-white group-hover:text-white transition-colors">
+                            {tool.title}
+                          </h4>
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wider ${tool.badge.color}`}>
+                            {tool.badge.text}
+                          </span>
+                        </div>
+                        <p className="text-sm text-[#a0aec0]">{tool.description}</p>
+                      </div>
 
-            {/* Scanners Hub Card */}
-            <Link href="/scanners">
-              <div className={`${theme.card} border rounded-xl p-6 transition-all hover:border-purple-500/50 cursor-pointer group`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="text-lg font-semibold group-hover:text-purple-400 transition-colors">
-                        Scanners
-                      </h4>
-                      <span className={`text-xs px-2 py-0.5 rounded ${darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-700'}`}>
-                        Tool
-                      </span>
+                      {/* Arrow */}
+                      <ArrowRight className="w-5 h-5 text-[#718096] group-hover:text-white group-hover:translate-x-1 transition-all" />
                     </div>
-                    <p className={`text-sm ${theme.textMuted}`}>
-                      Scan screenshots to inventory commanders, equipment, and bag items
-                    </p>
                   </div>
-                  <div className={`${theme.textMuted} group-hover:text-purple-400 transition-colors`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 12h14M12 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </Link>
+                </Link>
+              );
+            })}
           </div>
         </section>
 
         {/* Guides & Documentation */}
-        <section className="mb-16">
-          <h3 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted} mb-4`}>
-            Guides & Documentation
-          </h3>
+        <section className="mb-20">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#718096] px-4">
+              Guides & Documentation
+            </h3>
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          </div>
 
           <div className="grid gap-4">
-            {/* Strategy Guide Card */}
             <Link href="/guide">
-              <div className={`${theme.card} border rounded-xl p-6 transition-all hover:border-purple-500/50 cursor-pointer group`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="text-lg font-semibold group-hover:text-purple-400 transition-colors">
+              <div className="group relative p-5 rounded-xl bg-[rgba(6,11,40,0.94)] border border-white/10 hover:border-[#9f7aea]/50 backdrop-blur-xl transition-all duration-300 cursor-pointer overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                <div className="relative flex items-center gap-5">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-[#9f7aea] to-[#4318ff] shadow-lg shadow-[#9f7aea]/25">
+                    <BookOpen className="w-6 h-6 text-white" />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h4 className="text-base font-semibold text-white">
                         Strategy Guide
                       </h4>
-                      <span className={`text-xs px-2 py-0.5 rounded ${darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-700'}`}>
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wider bg-[#9f7aea]/20 text-[#9f7aea]">
                         Docs
                       </span>
                     </div>
-                    <p className={`text-sm ${theme.textMuted}`}>
+                    <p className="text-sm text-[#a0aec0]">
                       Event strategies, alliance protocols, commander guides, and checklists
                     </p>
                   </div>
-                  <div className={`${theme.textMuted} group-hover:text-purple-400 transition-colors`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 12h14M12 5l7 7-7 7" />
-                    </svg>
-                  </div>
+
+                  <ArrowRight className="w-5 h-5 text-[#718096] group-hover:text-white group-hover:translate-x-1 transition-all" />
                 </div>
               </div>
             </Link>
@@ -222,38 +200,33 @@ export default function Home() {
         </section>
 
         {/* Footer */}
-        <footer className={`pt-8 border-t ${theme.border} text-center`}>
-          <div className="flex items-center justify-center gap-4 mb-3">
+        <footer className="pt-8 border-t border-white/5 text-center">
+          <div className="flex items-center justify-center gap-6 mb-4">
             <a
               href="https://github.com/avweigel/rok-suite"
               target="_blank"
               rel="noopener noreferrer"
-              className={`text-sm ${theme.textMuted} hover:${theme.textAccent} transition-colors flex items-center gap-1.5`}
+              className="text-sm text-[#718096] hover:text-white transition-colors flex items-center gap-2"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-              </svg>
+              <Github className="w-4 h-4" />
               GitHub
             </a>
-            <span className={theme.textMuted}>•</span>
+            <span className="text-[#718096]/30">•</span>
             <a
               href="https://avweigel.github.io/rok-suite/"
               target="_blank"
               rel="noopener noreferrer"
-              className={`text-sm ${theme.textMuted} hover:${theme.textAccent} transition-colors flex items-center gap-1.5`}
+              className="text-sm text-[#718096] hover:text-white transition-colors flex items-center gap-2"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-              </svg>
-              Docs
+              <ExternalLink className="w-4 h-4" />
+              Documentation
             </a>
           </div>
-          <p className={`text-xs ${theme.textMuted}`}>
+          <p className="text-xs text-[#718096]">
             Angmar Nazgul Guards • Rise of Kingdoms
           </p>
-          <p className={`text-[10px] ${theme.textMuted} mt-2 opacity-50`}>
-            🐰 Fluffy approved • Not medical advice (despite what Moon claims)
+          <p className="text-[10px] text-[#718096]/50 mt-2">
+            Built with Claude Code
           </p>
         </footer>
       </div>
