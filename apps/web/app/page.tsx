@@ -27,6 +27,16 @@ export default function Home() {
       badge: { text: 'Tool', color: 'bg-[#01b574]/20 text-[#01b574]' },
     },
     {
+      href: '/scanners',
+      title: 'Scanners',
+      description: 'Scan screenshots to inventory commanders, equipment, and bag items',
+      icon: Scan,
+      gradient: 'from-[#4318ff] to-[#9f7aea]',
+      shadowColor: 'shadow-[#4318ff]/25',
+      hoverBorder: 'hover:border-[#4318ff]/50',
+      badge: { text: 'Tool', color: 'bg-[#4318ff]/20 text-[#9f7aea]' },
+    },
+    {
       href: '/sunset-canyon',
       title: 'Sunset Canyon Simulator',
       description: 'Commander scanner, formation optimizer, and battle simulation',
@@ -45,16 +55,6 @@ export default function Home() {
       shadowColor: 'shadow-[#0075ff]/25',
       hoverBorder: 'hover:border-[#0075ff]/50',
       badge: { text: 'Tool', color: 'bg-[#0075ff]/20 text-[#21d4fd]' },
-    },
-    {
-      href: '/scanners',
-      title: 'Scanners',
-      description: 'Scan screenshots to inventory commanders, equipment, and bag items',
-      icon: Scan,
-      gradient: 'from-[#4318ff] to-[#9f7aea]',
-      shadowColor: 'shadow-[#4318ff]/25',
-      hoverBorder: 'hover:border-[#4318ff]/50',
-      badge: { text: 'Tool', color: 'bg-[#4318ff]/20 text-[#9f7aea]' },
     },
   ];
 
