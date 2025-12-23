@@ -166,7 +166,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
     if (savedTheme) setDarkMode(savedTheme === 'dark');
   }, []);
 
-  const theme = getTheme(darkMode);
+  const theme = getTheme();
   const event = getEventData(slug);
 
   if (!event) {

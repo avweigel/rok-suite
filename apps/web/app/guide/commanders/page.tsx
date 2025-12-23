@@ -41,7 +41,7 @@ export default function CommanderStrategyPage() {
     if (savedTheme) setDarkMode(savedTheme === 'dark');
   }, []);
 
-  const theme = getTheme(darkMode);
+  const theme = getTheme();
 
   const troopPaths = [
     {

@@ -64,7 +64,7 @@ export default function EventsPage() {
     if (savedTheme) setDarkMode(savedTheme === 'dark');
   }, []);
 
-  const theme = getTheme(darkMode);
+  const theme = getTheme();
 
   return (
     <div>

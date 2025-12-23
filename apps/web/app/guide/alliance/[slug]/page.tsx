@@ -32,7 +32,7 @@ export default function AlliancePageView({ params }: { params: Promise<{ slug: s
     if (savedTheme) setDarkMode(savedTheme === 'dark');
   }, []);
 
-  const theme = getTheme(darkMode);
+  const theme = getTheme();
 
   // Use DB data if available, otherwise static fallback
   const pageData = dbPage || staticPage;

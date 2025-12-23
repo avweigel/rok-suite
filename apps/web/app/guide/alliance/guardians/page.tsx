@@ -25,7 +25,7 @@ export default function GuardiansPage() {
     if (savedTheme) setDarkMode(savedTheme === 'dark');
   }, []);
 
-  const theme = getTheme(darkMode);
+  const theme = getTheme();
 
   // Use DB data if available, otherwise static fallback
   const content = dbPage?.content || staticPage?.content || '';

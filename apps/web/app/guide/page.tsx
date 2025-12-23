@@ -1,19 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Calendar, Shield, Sparkles, ArrowRight, BookOpen } from 'lucide-react';
 import { getTheme } from '@/lib/guide/theme';
 
 export default function GuidePage() {
-  const [darkMode, setDarkMode] = useState(true);
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('aoo-theme');
-    if (savedTheme) setDarkMode(savedTheme === 'dark');
-  }, []);
-
-  const theme = getTheme(darkMode);
+  const theme = getTheme();
 
   const sections = [
     {
@@ -44,19 +36,19 @@ export default function GuidePage() {
 
   const colorClasses: Record<string, { border: string; text: string; bg: string }> = {
     emerald: {
-      border: 'hover:border-emerald-500/50',
-      text: 'group-hover:text-emerald-400',
-      bg: darkMode ? 'bg-emerald-500/10' : 'bg-emerald-50',
+      border: 'hover:border-[#01b574]/50',
+      text: 'group-hover:text-[#01b574]',
+      bg: 'bg-[#01b574]/10',
     },
     purple: {
-      border: 'hover:border-purple-500/50',
-      text: 'group-hover:text-purple-400',
-      bg: darkMode ? 'bg-purple-500/10' : 'bg-purple-50',
+      border: 'hover:border-[#9f7aea]/50',
+      text: 'group-hover:text-[#9f7aea]',
+      bg: 'bg-[#9f7aea]/10',
     },
     amber: {
-      border: 'hover:border-amber-500/50',
-      text: 'group-hover:text-amber-400',
-      bg: darkMode ? 'bg-amber-500/10' : 'bg-amber-50',
+      border: 'hover:border-[#ffb547]/50',
+      text: 'group-hover:text-[#ffb547]',
+      bg: 'bg-[#ffb547]/10',
     },
   };
 
@@ -65,7 +57,7 @@ export default function GuidePage() {
       {/* Hero */}
       <div className="mb-10">
         <div className="flex items-center gap-3 mb-4">
-          <div className={`p-2 rounded-lg ${darkMode ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
+          <div className="p-2 rounded-lg bg-[#01b574]/10">
             <BookOpen size={24} className={theme.textAccent} />
           </div>
           <h1 className="text-3xl font-bold">Strategy Guide</h1>

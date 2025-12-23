@@ -68,7 +68,7 @@ export default function AooStrategyPage() {
     const [editorPassword, setEditorPassword] = useState('');
     const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
     const [strategyId, setStrategyId] = useState<number | null>(null);
-    const [darkMode, setDarkMode] = useState(true);
+    // Vision UI theme is always dark - no toggle needed
     const [strategyExpanded, setStrategyExpanded] = useState(false);
     const [eventMode, setEventMode] = useState<EventMode>('main');
 
@@ -92,8 +92,6 @@ export default function AooStrategyPage() {
         const initialMode = savedMode || 'main';
         setEventMode(initialMode);
         loadData(initialMode);
-        const savedTheme = localStorage.getItem('aoo-theme');
-        if (savedTheme) setDarkMode(savedTheme === 'dark');
     }, []);
 
     // Handle event mode changes
@@ -114,11 +112,6 @@ export default function AooStrategyPage() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const toggleTheme = () => {
-        const newMode = !darkMode;
-        setDarkMode(newMode);
-        localStorage.setItem('aoo-theme', newMode ? 'dark' : 'light');
-    };
 
     const loadData = async (mode: EventMode = eventMode) => {
         setIsLoading(true);
@@ -509,29 +502,30 @@ export default function AooStrategyPage() {
         link.click();
     }, [players, teams, substitutes, sortPlayers, powerByName, eventMode]);
 
+    // Vision UI-inspired theme (always dark)
     const theme = {
-        bg: darkMode ? 'bg-zinc-950' : 'bg-gray-50',
-        card: darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200',
-        text: darkMode ? 'text-zinc-100' : 'text-gray-900',
-        textMuted: darkMode ? 'text-zinc-400' : 'text-gray-500',
-        textAccent: darkMode ? 'text-emerald-400' : 'text-emerald-600',
-        border: darkMode ? 'border-zinc-800' : 'border-gray-200',
-        input: darkMode ? 'bg-zinc-800 border-zinc-700 text-white placeholder-zinc-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400',
-        button: darkMode ? 'bg-zinc-800 hover:bg-zinc-700 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-900',
-        buttonPrimary: 'bg-emerald-600 hover:bg-emerald-700 text-white',
-        tag: darkMode ? 'bg-zinc-800 text-zinc-300' : 'bg-gray-100 text-gray-700',
-        tagActive: 'bg-emerald-600 text-white',
-        dropdown: darkMode ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-gray-300',
-        dropdownHover: darkMode ? 'hover:bg-zinc-700' : 'hover:bg-gray-100',
-        tabActive: darkMode ? 'bg-zinc-800 text-white' : 'bg-white text-gray-900 shadow',
-        tabInactive: darkMode ? 'text-zinc-400 hover:text-zinc-200' : 'text-gray-500 hover:text-gray-700',
+        bg: 'bg-[#0f1535]',
+        card: 'bg-[rgba(6,11,40,0.94)] border-white/10 backdrop-blur-xl',
+        text: 'text-white',
+        textMuted: 'text-[#a0aec0]',
+        textAccent: 'text-[#01b574]',
+        border: 'border-white/10',
+        input: 'bg-[rgba(6,11,40,0.94)] border-white/10 text-white placeholder-[#718096]',
+        button: 'bg-white/5 hover:bg-white/10 text-white border border-white/10',
+        buttonPrimary: 'bg-gradient-to-r from-[#01b574] to-[#01b574] hover:opacity-90 text-white',
+        tag: 'bg-white/10 text-[#a0aec0]',
+        tagActive: 'bg-[#01b574] text-white',
+        dropdown: 'bg-[#1a1f37] border-white/10',
+        dropdownHover: 'hover:bg-white/5',
+        tabActive: 'bg-[rgba(6,11,40,0.94)] text-white border-b-2 border-[#01b574]',
+        tabInactive: 'text-[#718096] hover:text-white',
     };
 
     if (isLoading) {
         return (
             <div className={`min-h-screen ${theme.bg} ${theme.text} flex items-center justify-center`}>
                 <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-5 h-5 border-2 border-[#01b574] border-t-transparent rounded-full animate-spin"></div>
                     <span className={theme.textMuted}>Loading...</span>
                 </div>
             </div>
@@ -540,8 +534,11 @@ export default function AooStrategyPage() {
 
     return (
         <div className={`min-h-screen ${theme.bg} ${theme.text} transition-colors duration-200`}>
+            {/* Grid background */}
+            <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px] pointer-events-none" />
+
             {/* Header */}
-            <header className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'} border-b sticky top-0 z-40`}>
+            <header className="bg-[#0f1535]/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-40">
                 <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -568,13 +565,13 @@ export default function AooStrategyPage() {
                         </div>
                         <div className="flex items-center gap-2 md:gap-3">
                             {/* Event Mode Toggle */}
-                            <div className={`flex rounded-lg p-0.5 ${darkMode ? 'bg-zinc-800' : 'bg-gray-200'}`}>
+                            <div className="flex rounded-lg p-0.5 bg-white/5 border border-white/10">
                                 <button
                                     onClick={() => handleEventModeChange('main')}
                                     className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                                         eventMode === 'main'
-                                            ? 'bg-emerald-600 text-white'
-                                            : darkMode ? 'text-zinc-400 hover:text-zinc-200' : 'text-gray-600 hover:text-gray-800'
+                                            ? 'bg-[#01b574] text-white'
+                                            : 'text-[#718096] hover:text-white'
                                     }`}
                                 >
                                     Main
@@ -584,15 +581,12 @@ export default function AooStrategyPage() {
                                     className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                                         eventMode === 'training'
                                             ? 'bg-amber-600 text-white'
-                                            : darkMode ? 'text-zinc-400 hover:text-zinc-200' : 'text-gray-600 hover:text-gray-800'
+                                            : 'text-[#718096] hover:text-white'
                                     }`}
                                 >
                                     Training
                                 </button>
                             </div>
-                            <button onClick={toggleTheme} className={`p-2 rounded-lg ${theme.button}`}>
-                                {darkMode ? '☀️' : '🌙'}
-                            </button>
                             {!isEditor ? (
                                 <button onClick={() => setShowPasswordPrompt(true)} className={`px-4 py-2 rounded-lg text-sm font-medium ${theme.button}`}>
                                     Edit Mode
@@ -684,8 +678,8 @@ export default function AooStrategyPage() {
 
                         {/* Key Rules */}
                         <div className={`grid md:grid-cols-2 gap-4 mb-4`}>
-                            <div className={`p-3 rounded-lg ${darkMode ? 'bg-emerald-900/20' : 'bg-emerald-50'}`}>
-                                <h3 className={`font-bold text-emerald-500 text-sm mb-2`}>📌 IMPORTANT</h3>
+                            <div className="p-3 rounded-lg bg-[#01b574]/10 border border-[#01b574]/20">
+                                <h3 className="font-bold text-[#01b574] text-sm mb-2">📌 IMPORTANT</h3>
                                 <ul className={`text-xs space-y-1 ${theme.text}`}>
                                     <li>• Pay attention to your lane assignment</li>
                                     <li>• Everyone rush their obelisk first</li>
@@ -695,7 +689,7 @@ export default function AooStrategyPage() {
                                     <li>• Work as a unit, not individual</li>
                                 </ul>
                             </div>
-                            <div className={`p-3 rounded-lg ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+                            <div className="p-3 rounded-lg bg-white/5 border border-white/10">
                                 <h3 className={`font-bold ${theme.textMuted} text-sm mb-2`}>🎯 TROOP DEPLOYMENT</h3>
                                 <ul className={`text-xs space-y-1 ${theme.text}`}>
                                     <li>🐴 <strong>Cavalry</strong> → For rallies</li>
@@ -872,7 +866,7 @@ export default function AooStrategyPage() {
                                             <p className={`text-sm ${theme.textMuted} text-center py-6`}>No players</p>
                                         ) : (
                                             teamPlayers.map((player) => (
-                                                <div key={player.id} className={`rounded-lg p-3 ${darkMode ? 'bg-zinc-800/50' : 'bg-gray-50'}`}>
+                                                <div key={player.id} className="rounded-lg p-3 bg-white/5 border border-white/5">
                                                     <div className="flex items-center justify-between mb-2">
                                                         <div className="flex items-center gap-2">
                                                             {player.tags.includes('Confirmed') && (
@@ -950,7 +944,7 @@ export default function AooStrategyPage() {
                                 <p className={`text-sm ${theme.textMuted}`}>No substitutes added</p>
                             ) : (
                                 substitutes.map(sub => (
-                                    <div key={sub.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+                                    <div key={sub.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
                                         <span className="text-sm">{sub.name}</span>
                                         {isEditor && (
                                             <button 
@@ -983,7 +977,7 @@ export default function AooStrategyPage() {
                         <h2 className={`text-xl font-bold text-center mb-4 text-emerald-500`}>⚔️ Battle Instructions</h2>
 
                         {/* Important Rules */}
-                        <div className={`p-4 rounded-lg ${darkMode ? 'bg-emerald-900/30' : 'bg-emerald-50'} border-2 border-emerald-500 mb-4`}>
+                        <div className="p-4 rounded-lg bg-[#01b574]/10 border-2 border-[#01b574] mb-4">
                             <h3 className="font-bold text-emerald-500 mb-3">📌 IMPORTANT</h3>
                             <ul className={`space-y-2 ${theme.text}`}>
                                 <li className="flex items-start gap-2">
@@ -1010,22 +1004,22 @@ export default function AooStrategyPage() {
                         </div>
 
                         {/* Troop Deployment */}
-                        <div className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+                        <div className="p-4 rounded-lg bg-white/5 border border-white/10">
                             <h3 className={`font-bold ${theme.textMuted} mb-3`}>🎯 IF YOU CAN</h3>
                             <div className="grid grid-cols-3 gap-3 text-center text-sm">
-                                <div className={`p-3 rounded-lg ${darkMode ? 'bg-red-900/30' : 'bg-red-50'} border border-red-500/50`}>
+                                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
                                     <div className="text-2xl mb-1">🐴</div>
                                     <div className="font-bold text-red-500">Cavalry</div>
                                     <div className={`text-xs ${theme.textMuted}`}>For rallies</div>
                                 </div>
-                                <div className={`p-3 rounded-lg ${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'} border border-blue-500/50`}>
+                                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
                                     <div className="text-2xl mb-1">🛡️</div>
                                     <div className="font-bold text-blue-500">Infantry</div>
                                     <div className={`text-xs ${theme.textMuted}`}>To garrison</div>
                                 </div>
-                                <div className={`p-3 rounded-lg ${darkMode ? 'bg-yellow-900/30' : 'bg-yellow-50'} border border-yellow-500/50`}>
+                                <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
                                     <div className="text-2xl mb-1">🌾</div>
-                                    <div className="font-bold text-yellow-600">Else</div>
+                                    <div className="font-bold text-yellow-500">Else</div>
                                     <div className={`text-xs ${theme.textMuted}`}>Gather tiles</div>
                                 </div>
                             </div>
@@ -1059,12 +1053,12 @@ export default function AooStrategyPage() {
                                     3: 'text-purple-500'
                                 };
                                 const zoneBgColors: Record<number, string> = {
-                                    1: darkMode ? 'bg-blue-900/30 border-blue-500/50' : 'bg-blue-100 border-blue-300',
-                                    2: darkMode ? 'bg-orange-900/30 border-orange-500/50' : 'bg-orange-100 border-orange-300',
-                                    3: darkMode ? 'bg-purple-900/30 border-purple-500/50' : 'bg-purple-100 border-purple-300'
+                                    1: 'bg-blue-500/10 border-blue-500/30',
+                                    2: 'bg-orange-500/10 border-orange-500/30',
+                                    3: 'bg-purple-500/10 border-purple-500/30'
                                 };
                                 return (
-                                    <div className={`mt-6 p-6 rounded-xl ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+                                    <div className="mt-6 p-6 rounded-xl bg-white/5 border border-white/10">
                                         {/* Print Button */}
                                         <div className="flex justify-end mb-4">
                                             <button
@@ -1105,7 +1099,7 @@ export default function AooStrategyPage() {
                                                     📋 YOUR BATTLE PLAN
                                                 </h4>
                                                 <div className="grid gap-4">
-                                                    <div className={`p-4 rounded-xl ${darkMode ? 'bg-zinc-900' : 'bg-white'} border-4 border-yellow-500 shadow-lg`}>
+                                                    <div className="p-4 rounded-xl bg-[rgba(6,11,40,0.94)] border-4 border-yellow-500 shadow-lg">
                                                         <div className="flex items-center justify-between mb-3">
                                                             <div className="flex items-center gap-2">
                                                                 <span className="text-3xl">🏃</span>
@@ -1117,7 +1111,7 @@ export default function AooStrategyPage() {
                                                         </div>
                                                         <p className={`font-semibold text-base ${theme.text}`}>{foundPlayer.assignments.phase1}</p>
                                                     </div>
-                                                    <div className={`p-4 rounded-xl ${darkMode ? 'bg-zinc-900' : 'bg-white'} border-4 border-yellow-600 shadow-lg`}>
+                                                    <div className="p-4 rounded-xl bg-[rgba(6,11,40,0.94)] border-4 border-yellow-600 shadow-lg">
                                                         <div className="flex items-center justify-between mb-3">
                                                             <div className="flex items-center gap-2">
                                                                 <span className="text-3xl">📍</span>
@@ -1129,7 +1123,7 @@ export default function AooStrategyPage() {
                                                         </div>
                                                         <p className={`font-semibold text-base ${theme.text}`}>{foundPlayer.assignments.phase2}</p>
                                                     </div>
-                                                    <div className={`p-4 rounded-xl ${darkMode ? 'bg-zinc-900' : 'bg-white'} border-4 border-orange-500 shadow-lg`}>
+                                                    <div className="p-4 rounded-xl bg-[rgba(6,11,40,0.94)] border-4 border-orange-500 shadow-lg">
                                                         <div className="flex items-center justify-between mb-3">
                                                             <div className="flex items-center gap-2">
                                                                 <span className="text-3xl">⚔️</span>
@@ -1141,7 +1135,7 @@ export default function AooStrategyPage() {
                                                         </div>
                                                         <p className={`font-semibold text-base ${theme.text}`}>{foundPlayer.assignments.phase3}</p>
                                                     </div>
-                                                    <div className={`p-4 rounded-xl ${darkMode ? 'bg-zinc-900' : 'bg-white'} border-4 border-red-500 shadow-lg`}>
+                                                    <div className="p-4 rounded-xl bg-[rgba(6,11,40,0.94)] border-4 border-red-500 shadow-lg">
                                                         <div className="flex items-center justify-between mb-3">
                                                             <div className="flex items-center gap-2">
                                                                 <span className="text-3xl">💥</span>
@@ -1158,7 +1152,7 @@ export default function AooStrategyPage() {
                                         )}
 
                                         {/* Mini Map showing assigned buildings */}
-                                        <div className={`mt-4 p-4 rounded-lg ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
+                                        <div className="mt-4 p-4 rounded-lg bg-[rgba(6,11,40,0.94)] border border-white/10">
                                             <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>🗺️ Your Buildings</h4>
                                             <div className="relative w-full rounded-lg overflow-hidden" style={{ aspectRatio: '1275 / 891' }}>
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1166,7 +1160,7 @@ export default function AooStrategyPage() {
                                                     src="/aoo-strategy/aoo-map.jpg"
                                                     alt="AOO Map"
                                                     className="absolute inset-0 w-full h-full object-cover"
-                                                    style={{ opacity: darkMode ? 0.6 : 0.8 }}
+                                                    style={{ opacity: 0.6 }}
                                                 />
                                                 {/* Highlight assigned buildings */}
                                                 {foundPlayer.assignments && (() => {
@@ -1237,7 +1231,7 @@ export default function AooStrategyPage() {
                                         </div>
 
                                         {/* Role instructions */}
-                                        <div className={`mt-4 p-4 rounded-lg ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
+                                        <div className="mt-4 p-4 rounded-lg bg-[rgba(6,11,40,0.94)] border border-white/10">
                                             <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>💡 Role Tips</h4>
                                             <ul className={`space-y-2 text-sm ${theme.text}`}>
                                                 {foundPlayer.tags.includes('Rally Leader') && (
@@ -1267,10 +1261,10 @@ export default function AooStrategyPage() {
                                         </div>
 
                                         {/* March Deployment Guide */}
-                                        <div className={`mt-4 p-4 rounded-lg ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
+                                        <div className="mt-4 p-4 rounded-lg bg-[rgba(6,11,40,0.94)] border border-white/10">
                                             <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>🎖️ March Deployment</h4>
                                             <div className={`space-y-3 text-sm ${theme.text}`}>
-                                                <div className={`p-2 rounded ${darkMode ? 'bg-zinc-800' : 'bg-gray-50'}`}>
+                                                <div className="p-2 rounded bg-white/5">
                                                     <p className="font-medium mb-1">Recommended: 3 Marches</p>
                                                     <ul className={`text-xs ${theme.textMuted} space-y-1`}>
                                                         <li>• <strong>March 1:</strong> In a building (garrison/obelisk)</li>
@@ -1279,7 +1273,7 @@ export default function AooStrategyPage() {
                                                     </ul>
                                                 </div>
                                                 {foundPlayer.tags.includes('Rally Leader') && (
-                                                    <div className={`p-2 rounded border-l-2 border-red-500 ${darkMode ? 'bg-red-900/20' : 'bg-red-50'}`}>
+                                                    <div className="p-2 rounded border-l-2 border-red-500 bg-red-500/10">
                                                         <p className="font-medium text-red-500">Rally Leader Marches:</p>
                                                         <ul className={`text-xs ${theme.textMuted}`}>
                                                             <li>• Lead rally with your strongest march</li>
@@ -1288,7 +1282,7 @@ export default function AooStrategyPage() {
                                                     </div>
                                                 )}
                                                 {foundPlayer.tags.includes('Garrison') && (
-                                                    <div className={`p-2 rounded border-l-2 border-orange-500 ${darkMode ? 'bg-orange-900/20' : 'bg-orange-50'}`}>
+                                                    <div className="p-2 rounded border-l-2 border-orange-500 bg-orange-500/10">
                                                         <p className="font-medium text-orange-500">Garrison Marches:</p>
                                                         <ul className={`text-xs ${theme.textMuted}`}>
                                                             <li>• Keep marches IN buildings at all times</li>
@@ -1298,7 +1292,7 @@ export default function AooStrategyPage() {
                                                     </div>
                                                 )}
                                                 {foundPlayer.tags.includes('Conquer') && (
-                                                    <div className={`p-2 rounded border-l-2 border-purple-500 ${darkMode ? 'bg-purple-900/20' : 'bg-purple-50'}`}>
+                                                    <div className="p-2 rounded border-l-2 border-purple-500 bg-purple-500/10">
                                                         <p className="font-medium text-purple-500">Conquer Marches:</p>
                                                         <ul className={`text-xs ${theme.textMuted}`}>
                                                             <li>• March 1: T1 cavalry (fastest) for captures</li>
@@ -1307,7 +1301,7 @@ export default function AooStrategyPage() {
                                                     </div>
                                                 )}
                                                 {foundPlayer.tags.includes('Farm') && (
-                                                    <div className={`p-2 rounded border-l-2 border-yellow-500 ${darkMode ? 'bg-yellow-900/20' : 'bg-yellow-50'}`}>
+                                                    <div className="p-2 rounded border-l-2 border-yellow-500 bg-yellow-500/10">
                                                         <p className="font-medium text-yellow-600">Farmer Marches:</p>
                                                         <ul className={`text-xs ${theme.textMuted}`}>
                                                             <li>• All 5 marches gathering resources</li>
@@ -1317,7 +1311,7 @@ export default function AooStrategyPage() {
                                                     </div>
                                                 )}
                                                 {foundPlayer.tags.includes('Teleport 1st') && (
-                                                    <div className={`p-2 rounded border-l-2 border-blue-500 ${darkMode ? 'bg-blue-900/20' : 'bg-blue-50'}`}>
+                                                    <div className="p-2 rounded border-l-2 border-blue-500 bg-blue-500/10">
                                                         <p className="font-medium text-blue-500">Teleport Marches:</p>
                                                         <ul className={`text-xs ${theme.textMuted}`}>
                                                             <li>• Before teleport: All troops in city OR in buildings</li>
@@ -1326,8 +1320,8 @@ export default function AooStrategyPage() {
                                                     </div>
                                                 )}
                                                 {foundPlayer.tags.includes('Hold Obelisks') && (
-                                                    <div className={`p-2 rounded border-l-2 border-cyan-500 ${darkMode ? 'bg-cyan-900/20' : 'bg-cyan-50'}`}>
-                                                        <p className="font-medium text-cyan-600">Hold Strategy:</p>
+                                                    <div className="p-2 rounded border-l-2 border-cyan-500 bg-cyan-500/10">
+                                                        <p className="font-medium text-cyan-500">Hold Strategy:</p>
                                                         <ul className={`text-xs ${theme.textMuted}`}>
                                                             <li>• Send 1 troop (any type) to Obelisk 3</li>
                                                             <li>• Send 1 troop (any type) to Obelisk 4</li>
@@ -1342,13 +1336,13 @@ export default function AooStrategyPage() {
                             } else if (foundSub) {
                                 const subPower = foundSub.power || powerByName[foundSub.name];
                                 return (
-                                    <div className={`mt-6 p-6 rounded-xl ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'} text-center`}>
+                                    <div className="mt-6 p-6 rounded-xl bg-white/5 border border-white/10 text-center">
                                         <h3 className="text-2xl font-bold text-yellow-500">{foundSub.name}</h3>
                                         {subPower && (
                                             <p className={`text-sm ${theme.textMuted}`}>⚔️ {formatPower(subPower)} Power</p>
                                         )}
                                         <p className={`text-lg ${theme.textMuted} mt-2`}>📋 Substitute</p>
-                                        <div className={`mt-4 p-4 rounded-lg ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
+                                        <div className="mt-4 p-4 rounded-lg bg-[rgba(6,11,40,0.94)] border border-white/10">
                                             <p className={theme.text}>You are on the substitute list.</p>
                                             <p className={`mt-2 text-sm ${theme.textMuted}`}>Be ready to join if a spot opens up! Make sure you:</p>
                                             <ul className={`mt-2 text-sm ${theme.textMuted} text-left max-w-xs mx-auto`}>
@@ -1361,7 +1355,7 @@ export default function AooStrategyPage() {
                                 );
                             } else {
                                 return (
-                                    <div className={`mt-6 p-6 rounded-xl ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'} text-center`}>
+                                    <div className="mt-6 p-6 rounded-xl bg-white/5 border border-white/10 text-center">
                                         <p className={`text-lg ${theme.textMuted}`}>❌ Player not found</p>
                                         <p className={`mt-2 text-sm ${theme.textMuted}`}>Try checking the Zone Roster tab or contact your alliance leader.</p>
                                     </div>
@@ -1411,7 +1405,7 @@ export default function AooStrategyPage() {
                                     </li>
                                 </ul>
                             </div>
-                            <div className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+                            <div className="p-4 rounded-lg bg-white/5 border border-white/10">
                                 <h3 className={`font-bold ${theme.textMuted} mb-3`}>🎯 TROOP DEPLOYMENT</h3>
                                 <div className="space-y-3">
                                     <div className="flex items-center gap-3">
@@ -1445,12 +1439,12 @@ export default function AooStrategyPage() {
                         <h2 className="text-xl font-bold text-center mb-4">👑 Zone Leaders</h2>
                         <div className="grid md:grid-cols-3 gap-4">
                             {/* Zone 1 */}
-                            <div className={`p-4 rounded-xl border-4 ${darkMode ? 'bg-blue-900/20 border-blue-500' : 'bg-blue-50 border-blue-400'}`}>
+                            <div className="p-4 rounded-xl border-4 bg-blue-500/10 border-blue-500">
                                 <div className="text-center">
                                     <div className="text-3xl mb-1">🔵</div>
                                     <h3 className="text-xl font-bold text-blue-500">ZONE 1</h3>
                                     <p className={`text-sm ${theme.textMuted} mb-2`}>Left Side → Push Down</p>
-                                    <div className={`p-2 rounded-lg ${darkMode ? 'bg-blue-800/50' : 'bg-blue-200'}`}>
+                                    <div className="p-2 rounded-lg bg-blue-500/20">
                                         <div className="font-bold text-blue-300">👑 FnDuke</div>
                                     </div>
                                     <div className={`text-xs ${theme.textMuted} mt-2`}>
@@ -1461,12 +1455,12 @@ export default function AooStrategyPage() {
                             </div>
 
                             {/* Zone 2 */}
-                            <div className={`p-4 rounded-xl border-4 ${darkMode ? 'bg-orange-900/20 border-orange-500' : 'bg-orange-50 border-orange-400'}`}>
+                            <div className="p-4 rounded-xl border-4 bg-orange-500/10 border-orange-500">
                                 <div className="text-center">
                                     <div className="text-3xl mb-1">🟠</div>
                                     <h3 className="text-xl font-bold text-orange-500">ZONE 2</h3>
                                     <p className={`text-sm ${theme.textMuted} mb-2`}>Center / Flex Support</p>
-                                    <div className={`p-2 rounded-lg ${darkMode ? 'bg-orange-800/50' : 'bg-orange-200'}`}>
+                                    <div className="p-2 rounded-lg bg-orange-500/20">
                                         <div className="font-bold text-orange-300">👑 Sysstm & Fluffy</div>
                                     </div>
                                     <div className={`text-xs ${theme.textMuted} mt-2`}>
@@ -1477,12 +1471,12 @@ export default function AooStrategyPage() {
                             </div>
 
                             {/* Zone 3 */}
-                            <div className={`p-4 rounded-xl border-4 ${darkMode ? 'bg-purple-900/20 border-purple-500' : 'bg-purple-50 border-purple-400'}`}>
+                            <div className="p-4 rounded-xl border-4 bg-purple-500/10 border-purple-500">
                                 <div className="text-center">
                                     <div className="text-3xl mb-1">🟣</div>
                                     <h3 className="text-xl font-bold text-purple-500">ZONE 3</h3>
                                     <p className={`text-sm ${theme.textMuted} mb-2`}>Upper Side → Push Down</p>
-                                    <div className={`p-2 rounded-lg ${darkMode ? 'bg-purple-800/50' : 'bg-purple-200'}`}>
+                                    <div className="p-2 rounded-lg bg-purple-500/20">
                                         <div className="font-bold text-purple-300">👑 Suntzu</div>
                                     </div>
                                     <div className={`text-xs ${theme.textMuted} mt-2`}>
@@ -1499,7 +1493,7 @@ export default function AooStrategyPage() {
                         <h2 className="text-xl font-bold text-center mb-4">📅 Battle Flow</h2>
                         <div className="space-y-4">
                             {/* Rush */}
-                            <div className={`p-4 rounded-lg ${darkMode ? 'bg-yellow-900/30' : 'bg-yellow-50'} border-l-4 border-yellow-500`}>
+                            <div className="p-4 rounded-lg bg-yellow-500/10 border-l-4 border-yellow-500">
                                 <div className="flex items-center gap-3">
                                     <span className="text-3xl">🏃</span>
                                     <div>
@@ -1510,18 +1504,18 @@ export default function AooStrategyPage() {
                             </div>
 
                             {/* Garrison */}
-                            <div className={`p-4 rounded-lg ${darkMode ? 'bg-green-900/30' : 'bg-green-50'} border-l-4 border-green-500`}>
+                            <div className="p-4 rounded-lg bg-[#01b574]/10 border-l-4 border-[#01b574]">
                                 <div className="flex items-center gap-3">
                                     <span className="text-3xl">🛡️</span>
                                     <div>
-                                        <div className="font-bold text-green-500 text-lg">CAPTURE → GARRISON</div>
+                                        <div className="font-bold text-[#01b574] text-lg">CAPTURE → GARRISON</div>
                                         <div className={`text-sm ${theme.text}`}>Infantry stays in building. Don&apos;t move until fully garrisoned!</div>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Push */}
-                            <div className={`p-4 rounded-lg ${darkMode ? 'bg-orange-900/30' : 'bg-orange-50'} border-l-4 border-orange-500`}>
+                            <div className="p-4 rounded-lg bg-orange-500/10 border-l-4 border-orange-500">
                                 <div className="flex items-center gap-3">
                                     <span className="text-3xl">⚔️</span>
                                     <div>
@@ -1532,7 +1526,7 @@ export default function AooStrategyPage() {
                             </div>
 
                             {/* Farm */}
-                            <div className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'} border-l-4 border-gray-500`}>
+                            <div className="p-4 rounded-lg bg-white/5 border-l-4 border-[#718096]">
                                 <div className="flex items-center gap-3">
                                     <span className="text-3xl">🌾</span>
                                     <div>
@@ -1549,7 +1543,7 @@ export default function AooStrategyPage() {
                         <h2 className="text-xl font-bold text-center mb-4">🎭 Role Quick Reference</h2>
                         <div className="grid md:grid-cols-3 gap-4">
                             {/* Rally Leader */}
-                            <div className={`p-4 rounded-xl ${darkMode ? 'bg-red-900/30 border-2 border-red-500' : 'bg-red-50 border-2 border-red-400'}`}>
+                            <div className="p-4 rounded-xl bg-red-500/10 border-2 border-red-500">
                                 <div className="text-2xl mb-1">🎯</div>
                                 <h3 className="font-bold text-red-500 mb-2">Rally Leader</h3>
                                 <ul className={`text-sm ${theme.text} space-y-1`}>
@@ -1560,7 +1554,7 @@ export default function AooStrategyPage() {
                             </div>
 
                             {/* Garrison */}
-                            <div className={`p-4 rounded-xl ${darkMode ? 'bg-blue-900/30 border-2 border-blue-500' : 'bg-blue-50 border-2 border-blue-400'}`}>
+                            <div className="p-4 rounded-xl bg-blue-500/10 border-2 border-blue-500">
                                 <div className="text-2xl mb-1">🛡️</div>
                                 <h3 className="font-bold text-blue-500 mb-2">Garrison</h3>
                                 <ul className={`text-sm ${theme.text} space-y-1`}>
@@ -1571,7 +1565,7 @@ export default function AooStrategyPage() {
                             </div>
 
                             {/* Farm */}
-                            <div className={`p-4 rounded-xl ${darkMode ? 'bg-yellow-900/30 border-2 border-yellow-500' : 'bg-yellow-50 border-2 border-yellow-400'}`}>
+                            <div className="p-4 rounded-xl bg-yellow-500/10 border-2 border-yellow-500">
                                 <div className="text-2xl mb-1">🌾</div>
                                 <h3 className="font-bold text-yellow-600 mb-2">Farm</h3>
                                 <ul className={`text-sm ${theme.text} space-y-1`}>
@@ -1599,7 +1593,7 @@ export default function AooStrategyPage() {
                                         navigator.clipboard.writeText(text);
                                         alert('Copied to clipboard!');
                                     }}
-                                    className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border-2 border-emerald-500/30 transition-colors`}
+                                    className="p-4 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer border-2 border-[#01b574]/30 transition-colors"
                                 >
                                     <div className={`font-mono text-sm ${theme.text} whitespace-pre-line`}>
 {`⚔️ AOO IN 30 MIN ⚔️
@@ -1619,7 +1613,7 @@ Z1 (Blue) • Z2 (Orange) • Z3 (Purple)`}
                                         navigator.clipboard.writeText(text);
                                         alert('Copied to clipboard!');
                                     }}
-                                    className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border-2 border-emerald-500/30 transition-colors`}
+                                    className="p-4 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer border-2 border-[#01b574]/30 transition-colors"
                                 >
                                     <div className={`font-mono text-sm ${theme.text} whitespace-pre-line`}>
 {`📌 IMPORTANT:
@@ -1643,7 +1637,7 @@ Z1 (Blue) • Z2 (Orange) • Z3 (Purple)`}
                                         navigator.clipboard.writeText(text);
                                         alert('Copied to clipboard!');
                                     }}
-                                    className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border-2 border-yellow-500/50 transition-colors`}
+                                    className="p-4 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer border-2 border-yellow-500/30 transition-colors"
                                 >
                                     <div className={`font-mono text-sm ${theme.text} whitespace-pre-line`}>
 {`🔵 Z1 → Obelisk LEFT → War-L, Sky-L
@@ -1664,7 +1658,7 @@ Garrison each building before moving!`}
                                         navigator.clipboard.writeText(text);
                                         alert('Copied to clipboard!');
                                     }}
-                                    className={`p-4 rounded-lg ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'} cursor-pointer border-2 border-red-500/50 transition-colors`}
+                                    className="p-4 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer border-2 border-red-500/30 transition-colors"
                                 >
                                     <div className={`font-mono text-sm ${theme.text} whitespace-pre-line`}>
 {`🚨 FILL RALLIES NOW!

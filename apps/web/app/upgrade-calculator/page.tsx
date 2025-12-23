@@ -103,11 +103,11 @@ const CATEGORY_STYLES = {
     icon: 'text-blue-400',
   },
   other: {
-    bg: 'bg-zinc-500/8',
-    border: 'border-zinc-500/30',
-    borderHover: 'hover:border-zinc-500/50',
-    text: 'text-zinc-400',
-    icon: 'text-zinc-400',
+    bg: 'bg-white/5',
+    border: 'border-white/20',
+    borderHover: 'hover:border-white/30',
+    text: 'text-[#a0aec0]',
+    icon: 'text-[#a0aec0]',
   },
 };
 
@@ -154,7 +154,7 @@ function BuildingRow({
   const hasChildren = prerequisites.length > 0;
 
   return (
-    <div className={depth > 0 ? 'pl-4 md:pl-6 border-l-2 border-zinc-700/50' : ''}>
+    <div className={depth > 0 ? 'pl-4 md:pl-6 border-l-2 border-white/10' : ''}>
       <div
         className={`
           flex items-center gap-2 p-2.5 rounded-lg mb-1.5 transition-all cursor-pointer
@@ -164,7 +164,7 @@ function BuildingRow({
       >
         {/* Expand indicator */}
         {hasChildren ? (
-          <ChevronRight className={`w-4 h-4 text-zinc-500 transition-transform flex-shrink-0 ${expanded ? 'rotate-90' : ''}`} />
+          <ChevronRight className={`w-4 h-4 text-[#718096] transition-transform flex-shrink-0 ${expanded ? 'rotate-90' : ''}`} />
         ) : (
           <div className="w-4 flex-shrink-0" />
         )}
@@ -182,30 +182,30 @@ function BuildingRow({
           <button
             onClick={() => onLevelChange(buildingId, currentLevel - 1)}
             disabled={currentLevel <= 0}
-            className="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="w-6 h-6 rounded bg-white/10 hover:bg-white/20 text-[#a0aec0] text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
             -
           </button>
           <div className="w-14 text-center">
-            <span className={`text-base font-bold ${isMet ? 'text-emerald-400' : 'text-amber-400'}`}>
+            <span className={`text-base font-bold ${isMet ? 'text-emerald-400' : 'text-[#ffb547]'}`}>
               {currentLevel}
             </span>
-            <span className="text-zinc-600 mx-1">/</span>
-            <span className={`text-sm ${isMet ? 'text-emerald-500/70' : 'text-amber-500/70'}`}>
+            <span className="text-[#718096] mx-1">/</span>
+            <span className={`text-sm ${isMet ? 'text-emerald-500/70' : 'text-[#ffb547]/70'}`}>
               {requiredLevel}
             </span>
           </div>
           <button
             onClick={() => onLevelChange(buildingId, currentLevel + 1)}
             disabled={currentLevel >= 25}
-            className="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="w-6 h-6 rounded bg-white/10 hover:bg-white/20 text-[#a0aec0] text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
             +
           </button>
           {!isMet && (
             <button
               onClick={() => onLevelChange(buildingId, requiredLevel)}
-              className="ml-1 px-2 py-1 text-[10px] font-medium rounded bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 transition-colors"
+              className="ml-1 px-2 py-1 text-[10px] font-medium rounded bg-[#ffb547]/20 text-[#ffb547] hover:bg-[#ffb547]/30 transition-colors"
             >
               Set
             </button>
@@ -233,7 +233,7 @@ function BuildingRow({
 }
 
 export default function UpgradeCalculator() {
-  const [darkMode, setDarkMode] = useState(true);
+  // Vision UI theme is always dark - no toggle needed
   const [currentCityHall, setCurrentCityHall] = useState(23);
   const [targetCityHall, setTargetCityHall] = useState(24);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -263,8 +263,6 @@ export default function UpgradeCalculator() {
     } else {
       setCurrentLevels(getMinBuildingLevelsForCH(23));
     }
-    const savedTheme = localStorage.getItem('aoo-theme');
-    if (savedTheme) setDarkMode(savedTheme === 'dark');
   }, []);
 
   // Save state to localStorage
@@ -369,22 +367,17 @@ export default function UpgradeCalculator() {
     return fullRequirements.every(req => (currentLevels[req.buildingId] || 0) >= req.requiredLevel);
   }, [fullRequirements, currentLevels]);
 
+  // Vision UI Theme
   const theme = {
-    bg: darkMode ? 'bg-zinc-950' : 'bg-gray-50',
-    card: darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200',
-    text: darkMode ? 'text-zinc-100' : 'text-gray-900',
-    textMuted: darkMode ? 'text-zinc-400' : 'text-gray-500',
-    textAccent: darkMode ? 'text-blue-400' : 'text-blue-600',
-    border: darkMode ? 'border-zinc-800' : 'border-gray-200',
-    input: darkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-100' : 'bg-white border-gray-300 text-gray-900',
-    button: darkMode ? 'bg-zinc-800 hover:bg-zinc-700 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-900',
-    cardInner: darkMode ? 'bg-zinc-800' : 'bg-gray-100',
-  };
-
-  const toggleTheme = () => {
-    const newMode = !darkMode;
-    setDarkMode(newMode);
-    localStorage.setItem('aoo-theme', newMode ? 'dark' : 'light');
+    bg: 'bg-[#0f1535]',
+    card: 'bg-[rgba(6,11,40,0.94)] border-white/10 backdrop-blur-xl',
+    text: 'text-white',
+    textMuted: 'text-[#a0aec0]',
+    textAccent: 'text-[#0075ff]',
+    border: 'border-white/10',
+    input: 'bg-[rgba(6,11,40,0.94)] border-white/10 text-white placeholder-[#718096]',
+    button: 'bg-white/5 hover:bg-white/10 text-white border border-white/10',
+    cardInner: 'bg-white/5',
   };
 
   // Update building level
@@ -396,8 +389,11 @@ export default function UpgradeCalculator() {
   }, []);
 
   return (
-    <div className={`min-h-screen ${theme.bg} ${theme.text} transition-colors duration-200`}>
-      <div className="max-w-4xl mx-auto p-4 md:p-6">
+    <div className={`min-h-screen ${theme.bg} ${theme.text}`}>
+      {/* Grid background */}
+      <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px] pointer-events-none" />
+
+      <div className="relative max-w-4xl mx-auto p-4 md:p-6">
         {/* Header */}
         <header className={`flex items-center justify-between mb-6 pb-4 border-b ${theme.border}`}>
           <div className="flex items-center gap-3">
@@ -408,21 +404,17 @@ export default function UpgradeCalculator() {
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <div>
-              <h1 className="text-lg md:text-xl font-semibold tracking-tight">Upgrade Calculator</h1>
-              <p className={`text-xs md:text-sm ${theme.textMuted}`}>Plan your City Hall upgrades</p>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0075ff] to-[#21d4fd] flex items-center justify-center shadow-lg shadow-[#0075ff]/25">
+                <Castle className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-lg md:text-xl font-semibold tracking-tight">Upgrade Calculator</h1>
+                <p className={`text-xs md:text-sm ${theme.textMuted}`}>Plan your City Hall upgrades</p>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={toggleTheme}
-              className={`p-2 rounded-lg ${theme.button} transition-colors`}
-              title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {darkMode ? '☀️' : '🌙'}
-            </button>
-            <UserMenu />
-          </div>
+          <UserMenu />
         </header>
 
         {/* City Hall Level Selector */}
@@ -463,7 +455,7 @@ export default function UpgradeCalculator() {
                   resetToDefaults(val);
                 }}
                 className="w-full h-2 md:h-3 rounded-full appearance-none cursor-pointer
-                  bg-gradient-to-r from-zinc-700 via-blue-600 to-blue-400
+                  bg-gradient-to-r from-[#1a1f37] via-[#0075ff] to-[#21d4fd]
                   [&::-webkit-slider-thumb]:appearance-none
                   [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5
                   [&::-webkit-slider-thumb]:md:w-6 [&::-webkit-slider-thumb]:md:h-6
@@ -488,7 +480,7 @@ export default function UpgradeCalculator() {
                 value={targetCityHall}
                 onChange={(e) => setTargetCityHall(Number(e.target.value))}
                 className="w-full h-2 md:h-3 rounded-full appearance-none cursor-pointer
-                  bg-gradient-to-r from-zinc-700 via-emerald-600 to-emerald-400
+                  bg-gradient-to-r from-[#1a1f37] via-[#01b574] to-[#01b574]
                   [&::-webkit-slider-thumb]:appearance-none
                   [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5
                   [&::-webkit-slider-thumb]:md:w-6 [&::-webkit-slider-thumb]:md:h-6
@@ -545,17 +537,17 @@ export default function UpgradeCalculator() {
             </div>
             <div className="flex items-center gap-2">
               {/* View toggle */}
-              <div className="flex rounded-lg overflow-hidden border border-zinc-700">
+              <div className="flex rounded-lg overflow-hidden border border-white/10">
                 <button
                   onClick={() => setViewMode('graph')}
-                  className={`p-2 transition-colors ${viewMode === 'graph' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}
+                  className={`p-2 transition-colors ${viewMode === 'graph' ? 'bg-blue-600 text-white' : 'bg-white/10 text-[#a0aec0] hover:text-white'}`}
                   title="Graph view"
                 >
                   <Network className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}
+                  className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-white/10 text-[#a0aec0] hover:text-white'}`}
                   title="List view"
                 >
                   <List className="w-4 h-4" />
@@ -614,10 +606,10 @@ export default function UpgradeCalculator() {
             </div>
             <div className={`p-3 md:p-4 rounded-xl ${theme.cardInner}`}>
               <div className="flex items-center gap-2 mb-1">
-                <TreePine className="w-4 h-4 md:w-5 md:h-5 text-amber-500" />
+                <TreePine className="w-4 h-4 md:w-5 md:h-5 text-[#ffb547]" />
                 <span className={`text-xs md:text-sm ${theme.textMuted}`}>Wood</span>
               </div>
-              <div className="text-lg md:text-xl font-bold text-amber-500">{formatNumber(totalResources.wood)}</div>
+              <div className="text-lg md:text-xl font-bold text-[#ffb547]">{formatNumber(totalResources.wood)}</div>
               <div className={`text-[10px] md:text-xs ${theme.textMuted} truncate`}>{formatNumberFull(totalResources.wood)}</div>
             </div>
             <div className={`p-3 md:p-4 rounded-xl ${theme.cardInner}`}>
@@ -673,7 +665,7 @@ export default function UpgradeCalculator() {
         <section className={`${theme.card} border rounded-xl overflow-hidden mb-4`}>
           <button
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className={`w-full p-4 flex items-center justify-between ${darkMode ? 'hover:bg-zinc-800' : 'hover:bg-gray-50'} transition-colors`}
+            className="w-full p-4 flex items-center justify-between hover:bg-white/10 transition-colors"
           >
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-yellow-500" />
