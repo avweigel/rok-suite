@@ -41,5 +41,5 @@
   * [Sources & Credits](sources.md)
 
 * **Links**
-  * [Live App](https://rok-suite.vercel.app)
+  * [Live App](https://rok-suite-web.vercel.app)
   * [GitHub](https://github.com/avweigel/rok-suite)

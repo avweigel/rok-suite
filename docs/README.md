@@ -51,7 +51,7 @@ Comprehensive strategy guides for events, alliance coordination, and commander p
 
 | | |
 |---|---|
-| **[Live App](https://rok-suite.vercel.app)** | Start using the tools |
+| **[Live App](https://rok-suite-web.vercel.app)** | Start using the tools |
 | **[GitHub](https://github.com/avweigel/rok-suite)** | Source code |
 | **[Sources](sources.md)** | Research credits |
 
