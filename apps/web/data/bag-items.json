@@ -1,0 +1,981 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "lastUpdated": "2025-12-22",
+    "sources": [
+      "Rise of Kingdoms Fandom Wiki",
+      "In-game research"
+    ]
+  },
+  "categories": [
+    {
+      "id": "resources",
+      "name": "Resources",
+      "icon": "Package"
+    },
+    {
+      "id": "speedups",
+      "name": "Speedups",
+      "icon": "Clock"
+    },
+    {
+      "id": "boosts",
+      "name": "Boosts & Buffs",
+      "icon": "Zap"
+    },
+    {
+      "id": "materials",
+      "name": "Crafting Materials",
+      "icon": "Hammer"
+    },
+    {
+      "id": "sculptures",
+      "name": "Sculptures",
+      "icon": "User"
+    },
+    {
+      "id": "special",
+      "name": "Special Items",
+      "icon": "Star"
+    },
+    {
+      "id": "keys",
+      "name": "Keys & Chests",
+      "icon": "Key"
+    },
+    {
+      "id": "teleports",
+      "name": "Teleports",
+      "icon": "Navigation"
+    }
+  ],
+  "items": [
+    {
+      "id": "food-pack-1k",
+      "name": "Food Pack (1K)",
+      "category": "resources",
+      "rarity": "normal",
+      "value": 1000,
+      "resourceType": "food",
+      "description": "Contains 1,000 food"
+    },
+    {
+      "id": "food-pack-10k",
+      "name": "Food Pack (10K)",
+      "category": "resources",
+      "rarity": "normal",
+      "value": 10000,
+      "resourceType": "food",
+      "description": "Contains 10,000 food"
+    },
+    {
+      "id": "food-pack-50k",
+      "name": "Food Pack (50K)",
+      "category": "resources",
+      "rarity": "advanced",
+      "value": 50000,
+      "resourceType": "food",
+      "description": "Contains 50,000 food"
+    },
+    {
+      "id": "food-pack-150k",
+      "name": "Food Pack (150K)",
+      "category": "resources",
+      "rarity": "advanced",
+      "value": 150000,
+      "resourceType": "food",
+      "description": "Contains 150,000 food"
+    },
+    {
+      "id": "food-pack-500k",
+      "name": "Food Pack (500K)",
+      "category": "resources",
+      "rarity": "elite",
+      "value": 500000,
+      "resourceType": "food",
+      "description": "Contains 500,000 food"
+    },
+    {
+      "id": "food-pack-1500k",
+      "name": "Food Pack (1.5M)",
+      "category": "resources",
+      "rarity": "epic",
+      "value": 1500000,
+      "resourceType": "food",
+      "description": "Contains 1,500,000 food"
+    },
+    {
+      "id": "food-pack-3m",
+      "name": "Food Pack (3M)",
+      "category": "resources",
+      "rarity": "epic",
+      "value": 3000000,
+      "resourceType": "food",
+      "description": "Contains 3,000,000 food"
+    },
+    {
+      "id": "wood-pack-1k",
+      "name": "Wood Pack (1K)",
+      "category": "resources",
+      "rarity": "normal",
+      "value": 1000,
+      "resourceType": "wood",
+      "description": "Contains 1,000 wood"
+    },
+    {
+      "id": "wood-pack-10k",
+      "name": "Wood Pack (10K)",
+      "category": "resources",
+      "rarity": "normal",
+      "value": 10000,
+      "resourceType": "wood",
+      "description": "Contains 10,000 wood"
+    },
+    {
+      "id": "wood-pack-50k",
+      "name": "Wood Pack (50K)",
+      "category": "resources",
+      "rarity": "advanced",
+      "value": 50000,
+      "resourceType": "wood",
+      "description": "Contains 50,000 wood"
+    },
+    {
+      "id": "wood-pack-150k",
+      "name": "Wood Pack (150K)",
+      "category": "resources",
+      "rarity": "advanced",
+      "value": 150000,
+      "resourceType": "wood",
+      "description": "Contains 150,000 wood"
+    },
+    {
+      "id": "wood-pack-500k",
+      "name": "Wood Pack (500K)",
+      "category": "resources",
+      "rarity": "elite",
+      "value": 500000,
+      "resourceType": "wood",
+      "description": "Contains 500,000 wood"
+    },
+    {
+      "id": "wood-pack-1500k",
+      "name": "Wood Pack (1.5M)",
+      "category": "resources",
+      "rarity": "epic",
+      "value": 1500000,
+      "resourceType": "wood",
+      "description": "Contains 1,500,000 wood"
+    },
+    {
+      "id": "stone-pack-1k",
+      "name": "Stone Pack (1K)",
+      "category": "resources",
+      "rarity": "normal",
+      "value": 1000,
+      "resourceType": "stone",
+      "description": "Contains 1,000 stone"
+    },
+    {
+      "id": "stone-pack-10k",
+      "name": "Stone Pack (10K)",
+      "category": "resources",
+      "rarity": "normal",
+      "value": 10000,
+      "resourceType": "stone",
+      "description": "Contains 10,000 stone"
+    },
+    {
+      "id": "stone-pack-50k",
+      "name": "Stone Pack (50K)",
+      "category": "resources",
+      "rarity": "advanced",
+      "value": 50000,
+      "resourceType": "stone",
+      "description": "Contains 50,000 stone"
+    },
+    {
+      "id": "stone-pack-150k",
+      "name": "Stone Pack (150K)",
+      "category": "resources",
+      "rarity": "advanced",
+      "value": 150000,
+      "resourceType": "stone",
+      "description": "Contains 150,000 stone"
+    },
+    {
+      "id": "stone-pack-500k",
+      "name": "Stone Pack (500K)",
+      "category": "resources",
+      "rarity": "elite",
+      "value": 500000,
+      "resourceType": "stone",
+      "description": "Contains 500,000 stone"
+    },
+    {
+      "id": "gold-pack-1k",
+      "name": "Gold Pack (1K)",
+      "category": "resources",
+      "rarity": "normal",
+      "value": 1000,
+      "resourceType": "gold",
+      "description": "Contains 1,000 gold"
+    },
+    {
+      "id": "gold-pack-10k",
+      "name": "Gold Pack (10K)",
+      "category": "resources",
+      "rarity": "advanced",
+      "value": 10000,
+      "resourceType": "gold",
+      "description": "Contains 10,000 gold"
+    },
+    {
+      "id": "gold-pack-50k",
+      "name": "Gold Pack (50K)",
+      "category": "resources",
+      "rarity": "elite",
+      "value": 50000,
+      "resourceType": "gold",
+      "description": "Contains 50,000 gold"
+    },
+    {
+      "id": "gold-pack-200k",
+      "name": "Gold Pack (200K)",
+      "category": "resources",
+      "rarity": "epic",
+      "value": 200000,
+      "resourceType": "gold",
+      "description": "Contains 200,000 gold"
+    },
+    {
+      "id": "gems-100",
+      "name": "Gems (100)",
+      "category": "resources",
+      "rarity": "advanced",
+      "value": 100,
+      "resourceType": "gems",
+      "description": "Contains 100 gems"
+    },
+    {
+      "id": "gems-200",
+      "name": "Gems (200)",
+      "category": "resources",
+      "rarity": "elite",
+      "value": 200,
+      "resourceType": "gems",
+      "description": "Contains 200 gems"
+    },
+    {
+      "id": "gems-500",
+      "name": "Gems (500)",
+      "category": "resources",
+      "rarity": "epic",
+      "value": 500,
+      "resourceType": "gems",
+      "description": "Contains 500 gems"
+    },
+    {
+      "id": "gems-1000",
+      "name": "Gems (1000)",
+      "category": "resources",
+      "rarity": "epic",
+      "value": 1000,
+      "resourceType": "gems",
+      "description": "Contains 1000 gems"
+    },
+    {
+      "id": "vip-points-100",
+      "name": "VIP Points (100)",
+      "category": "resources",
+      "rarity": "advanced",
+      "value": 100,
+      "resourceType": "vip",
+      "description": "Contains 100 VIP points"
+    },
+    {
+      "id": "vip-points-200",
+      "name": "VIP Points (200)",
+      "category": "resources",
+      "rarity": "elite",
+      "value": 200,
+      "resourceType": "vip",
+      "description": "Contains 200 VIP points"
+    },
+    {
+      "id": "vip-points-500",
+      "name": "VIP Points (500)",
+      "category": "resources",
+      "rarity": "epic",
+      "value": 500,
+      "resourceType": "vip",
+      "description": "Contains 500 VIP points"
+    },
+    {
+      "id": "vip-points-1000",
+      "name": "VIP Points (1000)",
+      "category": "resources",
+      "rarity": "legendary",
+      "value": 1000,
+      "resourceType": "vip",
+      "description": "Contains 1000 VIP points"
+    },
+    {
+      "id": "universal-speedup-1m",
+      "name": "Universal Speedup (1m)",
+      "category": "speedups",
+      "rarity": "normal",
+      "value": 1,
+      "speedupType": "universal",
+      "description": "Speeds up any timer by 1 minute"
+    },
+    {
+      "id": "universal-speedup-5m",
+      "name": "Universal Speedup (5m)",
+      "category": "speedups",
+      "rarity": "normal",
+      "value": 5,
+      "speedupType": "universal",
+      "description": "Speeds up any timer by 5 minutes"
+    },
+    {
+      "id": "universal-speedup-10m",
+      "name": "Universal Speedup (10m)",
+      "category": "speedups",
+      "rarity": "normal",
+      "value": 10,
+      "speedupType": "universal",
+      "description": "Speeds up any timer by 10 minutes"
+    },
+    {
+      "id": "universal-speedup-15m",
+      "name": "Universal Speedup (15m)",
+      "category": "speedups",
+      "rarity": "normal",
+      "value": 15,
+      "speedupType": "universal",
+      "description": "Speeds up any timer by 15 minutes"
+    },
+    {
+      "id": "universal-speedup-30m",
+      "name": "Universal Speedup (30m)",
+      "category": "speedups",
+      "rarity": "advanced",
+      "value": 30,
+      "speedupType": "universal",
+      "description": "Speeds up any timer by 30 minutes"
+    },
+    {
+      "id": "universal-speedup-60m",
+      "name": "Universal Speedup (60m)",
+      "category": "speedups",
+      "rarity": "advanced",
+      "value": 60,
+      "speedupType": "universal",
+      "description": "Speeds up any timer by 60 minutes"
+    },
+    {
+      "id": "universal-speedup-3h",
+      "name": "Universal Speedup (3h)",
+      "category": "speedups",
+      "rarity": "elite",
+      "value": 180,
+      "speedupType": "universal",
+      "description": "Speeds up any timer by 3 hours"
+    },
+    {
+      "id": "universal-speedup-8h",
+      "name": "Universal Speedup (8h)",
+      "category": "speedups",
+      "rarity": "epic",
+      "value": 480,
+      "speedupType": "universal",
+      "description": "Speeds up any timer by 8 hours"
+    },
+    {
+      "id": "universal-speedup-15h",
+      "name": "Universal Speedup (15h)",
+      "category": "speedups",
+      "rarity": "epic",
+      "value": 900,
+      "speedupType": "universal",
+      "description": "Speeds up any timer by 15 hours"
+    },
+    {
+      "id": "universal-speedup-24h",
+      "name": "Universal Speedup (24h)",
+      "category": "speedups",
+      "rarity": "legendary",
+      "value": 1440,
+      "speedupType": "universal",
+      "description": "Speeds up any timer by 24 hours"
+    },
+    {
+      "id": "building-speedup-1m",
+      "name": "Building Speedup (1m)",
+      "category": "speedups",
+      "rarity": "normal",
+      "value": 1,
+      "speedupType": "building",
+      "description": "Speeds up building by 1 minute"
+    },
+    {
+      "id": "building-speedup-5m",
+      "name": "Building Speedup (5m)",
+      "category": "speedups",
+      "rarity": "normal",
+      "value": 5,
+      "speedupType": "building",
+      "description": "Speeds up building by 5 minutes"
+    },
+    {
+      "id": "building-speedup-10m",
+      "name": "Building Speedup (10m)",
+      "category": "speedups",
+      "rarity": "normal",
+      "value": 10,
+      "speedupType": "building",
+      "description": "Speeds up building by 10 minutes"
+    },
+    {
+      "id": "building-speedup-60m",
+      "name": "Building Speedup (60m)",
+      "category": "speedups",
+      "rarity": "advanced",
+      "value": 60,
+      "speedupType": "building",
+      "description": "Speeds up building by 60 minutes"
+    },
+    {
+      "id": "building-speedup-3h",
+      "name": "Building Speedup (3h)",
+      "category": "speedups",
+      "rarity": "elite",
+      "value": 180,
+      "speedupType": "building",
+      "description": "Speeds up building by 3 hours"
+    },
+    {
+      "id": "building-speedup-8h",
+      "name": "Building Speedup (8h)",
+      "category": "speedups",
+      "rarity": "epic",
+      "value": 480,
+      "speedupType": "building",
+      "description": "Speeds up building by 8 hours"
+    },
+    {
+      "id": "research-speedup-1m",
+      "name": "Research Speedup (1m)",
+      "category": "speedups",
+      "rarity": "normal",
+      "value": 1,
+      "speedupType": "research",
+      "description": "Speeds up research by 1 minute"
+    },
+    {
+      "id": "research-speedup-5m",
+      "name": "Research Speedup (5m)",
+      "category": "speedups",
+      "rarity": "normal",
+      "value": 5,
+      "speedupType": "research",
+      "description": "Speeds up research by 5 minutes"
+    },
+    {
+      "id": "research-speedup-60m",
+      "name": "Research Speedup (60m)",
+      "category": "speedups",
+      "rarity": "advanced",
+      "value": 60,
+      "speedupType": "research",
+      "description": "Speeds up research by 60 minutes"
+    },
+    {
+      "id": "research-speedup-3h",
+      "name": "Research Speedup (3h)",
+      "category": "speedups",
+      "rarity": "elite",
+      "value": 180,
+      "speedupType": "research",
+      "description": "Speeds up research by 3 hours"
+    },
+    {
+      "id": "training-speedup-1m",
+      "name": "Training Speedup (1m)",
+      "category": "speedups",
+      "rarity": "normal",
+      "value": 1,
+      "speedupType": "training",
+      "description": "Speeds up training by 1 minute"
+    },
+    {
+      "id": "training-speedup-5m",
+      "name": "Training Speedup (5m)",
+      "category": "speedups",
+      "rarity": "normal",
+      "value": 5,
+      "speedupType": "training",
+      "description": "Speeds up training by 5 minutes"
+    },
+    {
+      "id": "training-speedup-60m",
+      "name": "Training Speedup (60m)",
+      "category": "speedups",
+      "rarity": "advanced",
+      "value": 60,
+      "speedupType": "training",
+      "description": "Speeds up training by 60 minutes"
+    },
+    {
+      "id": "training-speedup-3h",
+      "name": "Training Speedup (3h)",
+      "category": "speedups",
+      "rarity": "elite",
+      "value": 180,
+      "speedupType": "training",
+      "description": "Speeds up training by 3 hours"
+    },
+    {
+      "id": "healing-speedup-1m",
+      "name": "Healing Speedup (1m)",
+      "category": "speedups",
+      "rarity": "normal",
+      "value": 1,
+      "speedupType": "healing",
+      "description": "Speeds up healing by 1 minute"
+    },
+    {
+      "id": "healing-speedup-60m",
+      "name": "Healing Speedup (60m)",
+      "category": "speedups",
+      "rarity": "advanced",
+      "value": 60,
+      "speedupType": "healing",
+      "description": "Speeds up healing by 60 minutes"
+    },
+    {
+      "id": "peace-shield-8h",
+      "name": "Peace Shield (8h)",
+      "category": "boosts",
+      "rarity": "elite",
+      "value": 480,
+      "boostType": "peace",
+      "description": "Protects city for 8 hours"
+    },
+    {
+      "id": "peace-shield-24h",
+      "name": "Peace Shield (24h)",
+      "category": "boosts",
+      "rarity": "epic",
+      "value": 1440,
+      "boostType": "peace",
+      "description": "Protects city for 24 hours"
+    },
+    {
+      "id": "peace-shield-3d",
+      "name": "Peace Shield (3d)",
+      "category": "boosts",
+      "rarity": "legendary",
+      "value": 4320,
+      "boostType": "peace",
+      "description": "Protects city for 3 days"
+    },
+    {
+      "id": "enhanced-attack-20",
+      "name": "Enhanced Attack (20%)",
+      "category": "boosts",
+      "rarity": "elite",
+      "duration": 60,
+      "boostType": "attack",
+      "bonus": 20,
+      "description": "Increases attack by 20% for 60 minutes"
+    },
+    {
+      "id": "enhanced-defense-20",
+      "name": "Enhanced Defense (20%)",
+      "category": "boosts",
+      "rarity": "elite",
+      "duration": 60,
+      "boostType": "defense",
+      "bonus": 20,
+      "description": "Increases defense by 20% for 60 minutes"
+    },
+    {
+      "id": "enhanced-gathering-25",
+      "name": "Enhanced Gathering (25%)",
+      "category": "boosts",
+      "rarity": "advanced",
+      "duration": 480,
+      "boostType": "gathering",
+      "bonus": 25,
+      "description": "Increases gathering speed by 25% for 8 hours"
+    },
+    {
+      "id": "enhanced-gathering-50",
+      "name": "Enhanced Gathering (50%)",
+      "category": "boosts",
+      "rarity": "elite",
+      "duration": 480,
+      "boostType": "gathering",
+      "bonus": 50,
+      "description": "Increases gathering speed by 50% for 8 hours"
+    },
+    {
+      "id": "army-expansion-10",
+      "name": "Army Expansion (10%)",
+      "category": "boosts",
+      "rarity": "elite",
+      "duration": 480,
+      "boostType": "army",
+      "bonus": 10,
+      "description": "Increases troop capacity by 10% for 8 hours"
+    },
+    {
+      "id": "food-production-boost-25",
+      "name": "Food Production Boost (25%)",
+      "category": "boosts",
+      "rarity": "advanced",
+      "duration": 1440,
+      "boostType": "production",
+      "bonus": 25,
+      "description": "Increases food production by 25% for 24 hours"
+    },
+    {
+      "id": "wood-production-boost-25",
+      "name": "Wood Production Boost (25%)",
+      "category": "boosts",
+      "rarity": "advanced",
+      "duration": 1440,
+      "boostType": "production",
+      "bonus": 25,
+      "description": "Increases wood production by 25% for 24 hours"
+    },
+    {
+      "id": "iron-ore-normal",
+      "name": "Iron Ore (Normal)",
+      "category": "materials",
+      "rarity": "normal",
+      "materialType": "iron",
+      "description": "Basic crafting material"
+    },
+    {
+      "id": "iron-ore-advanced",
+      "name": "Iron Ore (Advanced)",
+      "category": "materials",
+      "rarity": "advanced",
+      "materialType": "iron",
+      "description": "Quality crafting material"
+    },
+    {
+      "id": "iron-ore-elite",
+      "name": "Iron Ore (Elite)",
+      "category": "materials",
+      "rarity": "elite",
+      "materialType": "iron",
+      "description": "Superior crafting material"
+    },
+    {
+      "id": "iron-ore-epic",
+      "name": "Iron Ore (Epic)",
+      "category": "materials",
+      "rarity": "epic",
+      "materialType": "iron",
+      "description": "Rare crafting material"
+    },
+    {
+      "id": "iron-ore-legendary",
+      "name": "Iron Ore (Legendary)",
+      "category": "materials",
+      "rarity": "legendary",
+      "materialType": "iron",
+      "description": "Legendary crafting material"
+    },
+    {
+      "id": "leather-normal",
+      "name": "Leather (Normal)",
+      "category": "materials",
+      "rarity": "normal",
+      "materialType": "leather",
+      "description": "Basic crafting material"
+    },
+    {
+      "id": "leather-advanced",
+      "name": "Leather (Advanced)",
+      "category": "materials",
+      "rarity": "advanced",
+      "materialType": "leather",
+      "description": "Quality crafting material"
+    },
+    {
+      "id": "leather-elite",
+      "name": "Leather (Elite)",
+      "category": "materials",
+      "rarity": "elite",
+      "materialType": "leather",
+      "description": "Superior crafting material"
+    },
+    {
+      "id": "leather-epic",
+      "name": "Leather (Epic)",
+      "category": "materials",
+      "rarity": "epic",
+      "materialType": "leather",
+      "description": "Rare crafting material"
+    },
+    {
+      "id": "leather-legendary",
+      "name": "Leather (Legendary)",
+      "category": "materials",
+      "rarity": "legendary",
+      "materialType": "leather",
+      "description": "Legendary crafting material"
+    },
+    {
+      "id": "animal-bone-normal",
+      "name": "Animal Bone (Normal)",
+      "category": "materials",
+      "rarity": "normal",
+      "materialType": "bone",
+      "description": "Basic crafting material"
+    },
+    {
+      "id": "animal-bone-advanced",
+      "name": "Animal Bone (Advanced)",
+      "category": "materials",
+      "rarity": "advanced",
+      "materialType": "bone",
+      "description": "Quality crafting material"
+    },
+    {
+      "id": "animal-bone-elite",
+      "name": "Animal Bone (Elite)",
+      "category": "materials",
+      "rarity": "elite",
+      "materialType": "bone",
+      "description": "Superior crafting material"
+    },
+    {
+      "id": "animal-bone-epic",
+      "name": "Animal Bone (Epic)",
+      "category": "materials",
+      "rarity": "epic",
+      "materialType": "bone",
+      "description": "Rare crafting material"
+    },
+    {
+      "id": "animal-bone-legendary",
+      "name": "Animal Bone (Legendary)",
+      "category": "materials",
+      "rarity": "legendary",
+      "materialType": "bone",
+      "description": "Legendary crafting material"
+    },
+    {
+      "id": "ebony-normal",
+      "name": "Ebony (Normal)",
+      "category": "materials",
+      "rarity": "normal",
+      "materialType": "ebony",
+      "description": "Basic crafting material"
+    },
+    {
+      "id": "ebony-advanced",
+      "name": "Ebony (Advanced)",
+      "category": "materials",
+      "rarity": "advanced",
+      "materialType": "ebony",
+      "description": "Quality crafting material"
+    },
+    {
+      "id": "ebony-elite",
+      "name": "Ebony (Elite)",
+      "category": "materials",
+      "rarity": "elite",
+      "materialType": "ebony",
+      "description": "Superior crafting material"
+    },
+    {
+      "id": "ebony-epic",
+      "name": "Ebony (Epic)",
+      "category": "materials",
+      "rarity": "epic",
+      "materialType": "ebony",
+      "description": "Rare crafting material"
+    },
+    {
+      "id": "ebony-legendary",
+      "name": "Ebony (Legendary)",
+      "category": "materials",
+      "rarity": "legendary",
+      "materialType": "ebony",
+      "description": "Legendary crafting material"
+    },
+    {
+      "id": "universal-sculpture",
+      "name": "Universal Sculpture",
+      "category": "sculptures",
+      "rarity": "epic",
+      "sculptureType": "universal",
+      "description": "Can be used for any commander"
+    },
+    {
+      "id": "epic-sculpture",
+      "name": "Epic Commander Sculpture",
+      "category": "sculptures",
+      "rarity": "epic",
+      "sculptureType": "epic",
+      "description": "Used to upgrade epic commanders"
+    },
+    {
+      "id": "legendary-sculpture",
+      "name": "Legendary Commander Sculpture",
+      "category": "sculptures",
+      "rarity": "legendary",
+      "sculptureType": "legendary",
+      "description": "Used to upgrade legendary commanders"
+    },
+    {
+      "id": "starlight-sculpture",
+      "name": "Starlight Sculpture",
+      "category": "sculptures",
+      "rarity": "legendary",
+      "sculptureType": "starlight",
+      "description": "Used to awaken commanders"
+    },
+    {
+      "id": "tome-of-knowledge-s",
+      "name": "Tome of Knowledge (S)",
+      "category": "special",
+      "rarity": "normal",
+      "value": 1000,
+      "specialType": "exp",
+      "description": "Grants 1,000 commander EXP"
+    },
+    {
+      "id": "tome-of-knowledge-m",
+      "name": "Tome of Knowledge (M)",
+      "category": "special",
+      "rarity": "advanced",
+      "value": 10000,
+      "specialType": "exp",
+      "description": "Grants 10,000 commander EXP"
+    },
+    {
+      "id": "tome-of-knowledge-l",
+      "name": "Tome of Knowledge (L)",
+      "category": "special",
+      "rarity": "elite",
+      "value": 50000,
+      "specialType": "exp",
+      "description": "Grants 50,000 commander EXP"
+    },
+    {
+      "id": "action-point-recovery-10",
+      "name": "Action Point Recovery (10)",
+      "category": "special",
+      "rarity": "normal",
+      "value": 10,
+      "specialType": "ap",
+      "description": "Restores 10 action points"
+    },
+    {
+      "id": "action-point-recovery-50",
+      "name": "Action Point Recovery (50)",
+      "category": "special",
+      "rarity": "advanced",
+      "value": 50,
+      "specialType": "ap",
+      "description": "Restores 50 action points"
+    },
+    {
+      "id": "action-point-recovery-100",
+      "name": "Action Point Recovery (100)",
+      "category": "special",
+      "rarity": "elite",
+      "value": 100,
+      "specialType": "ap",
+      "description": "Restores 100 action points"
+    },
+    {
+      "id": "talent-reset",
+      "name": "Talent Reset",
+      "category": "special",
+      "rarity": "epic",
+      "specialType": "reset",
+      "description": "Resets commander talents"
+    },
+    {
+      "id": "book-of-covenant",
+      "name": "Book of Covenant",
+      "category": "special",
+      "rarity": "legendary",
+      "specialType": "alliance",
+      "description": "Used to create an alliance"
+    },
+    {
+      "id": "arrow-of-resistance",
+      "name": "Arrow of Resistance",
+      "category": "special",
+      "rarity": "epic",
+      "specialType": "kvk",
+      "description": "Used in KvK to attack objectives"
+    },
+    {
+      "id": "silver-key",
+      "name": "Silver Key",
+      "category": "keys",
+      "rarity": "advanced",
+      "keyType": "silver",
+      "description": "Opens silver chests in the tavern"
+    },
+    {
+      "id": "golden-key",
+      "name": "Golden Key",
+      "category": "keys",
+      "rarity": "epic",
+      "keyType": "golden",
+      "description": "Opens golden chests in the tavern"
+    },
+    {
+      "id": "gold-chest",
+      "name": "Gold Chest",
+      "category": "keys",
+      "rarity": "epic",
+      "keyType": "chest",
+      "description": "Contains valuable rewards"
+    },
+    {
+      "id": "teleport-territory",
+      "name": "Territorial Teleport",
+      "category": "teleports",
+      "rarity": "advanced",
+      "teleportType": "territory",
+      "description": "Teleport within alliance territory"
+    },
+    {
+      "id": "teleport-random",
+      "name": "Random Teleport",
+      "category": "teleports",
+      "rarity": "advanced",
+      "teleportType": "random",
+      "description": "Teleport to random location"
+    },
+    {
+      "id": "teleport-targeted",
+      "name": "Targeted Teleport",
+      "category": "teleports",
+      "rarity": "epic",
+      "teleportType": "targeted",
+      "description": "Teleport to specific coordinates"
+    },
+    {
+      "id": "passport-page",
+      "name": "Passport Page",
+      "category": "teleports",
+      "rarity": "legendary",
+      "teleportType": "migration",
+      "description": "Used for kingdom migration"
+    }
+  ]
+}

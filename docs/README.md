@@ -31,6 +31,14 @@ Plan your City Hall progression with an interactive dependency graph.
 - [Resource Planning](upgrade-calculator/resources.md) - Efficient upgrade strategies
 - [Graph Navigation](upgrade-calculator/graph.md) - Using the interactive visualization
 
+### [Scanners](scanners/README.md)
+
+Screenshot analysis tools to build your in-game inventory.
+
+- [Commander Scanner](scanners/commander.md) - Extract commander stats from screenshots
+- [Equipment Scanner](scanners/equipment.md) - Build your gear inventory
+- [Bag Scanner](scanners/bag.md) - Inventory resources, speedups, and items
+
 ### [Game Guides](guide/README.md)
 
 Comprehensive strategy guides for events, alliance coordination, and commander progression.
@@ -53,6 +61,7 @@ RoK Suite is a toolkit for Rise of Kingdoms strategy planning, built for the **A
 
 ### Recent Updates
 
+- **Scanners Hub** - New screenshot analysis tools for commanders, equipment, and bag items
 - **Training Polls** - Schedule AoO training with drag-to-select availability polls
 - **Corner Swap** - Toggle map strategy for different spawn positions
 - **Zone Colors** - Consistent Blue/Orange/Purple matching in-game zones

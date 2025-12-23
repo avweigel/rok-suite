@@ -1,0 +1,646 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "lastUpdated": "2025-12-22",
+    "sources": [
+      "Rise of Kingdoms Fandom Wiki",
+      "rok.guide",
+      "riseofkingdomsguides.com"
+    ]
+  },
+  "equipment": [
+    {
+      "id": "trial-of-the-lost-kingdom",
+      "name": "Trial of the Lost Kingdom",
+      "type": "weapon",
+      "rarity": "legendary",
+      "requiredLevel": 40,
+      "stats": {
+        "cavalryDefense": 10,
+        "infantryHealth": 5,
+        "archerAttack": 5
+      },
+      "set": null,
+      "description": "Legendary weapon with balanced stats for all troop types"
+    },
+    {
+      "id": "rifle-of-the-hellish-wasteland",
+      "name": "Rifle of the Hellish Wasteland",
+      "type": "weapon",
+      "rarity": "legendary",
+      "requiredLevel": 50,
+      "stats": {
+        "cavalryAttack": 8,
+        "cavalryDefense": 5,
+        "cavalryHealth": 5
+      },
+      "set": "Hellish Wasteland",
+      "description": "Top-tier cavalry weapon with massive stat boosts"
+    },
+    {
+      "id": "scepter-of-the-forest-guardian",
+      "name": "Scepter of the Forest Guardian",
+      "type": "weapon",
+      "rarity": "epic",
+      "requiredLevel": 40,
+      "stats": {
+        "cavalryAttack": 6,
+        "siegeDefense": 6,
+        "gatheringSpeed": 10
+      },
+      "set": "Forest Guardian",
+      "description": "Gathering-focused weapon with siege defense"
+    },
+    {
+      "id": "golden-age",
+      "name": "Golden Age",
+      "type": "weapon",
+      "rarity": "epic",
+      "requiredLevel": 40,
+      "stats": {
+        "cavalryAttack": 4,
+        "infantryDefense": 6,
+        "archerDefense": 8
+      },
+      "set": null,
+      "description": "Balanced defensive weapon"
+    },
+    {
+      "id": "heart-of-the-saint",
+      "name": "Heart of the Saint",
+      "type": "weapon",
+      "rarity": "epic",
+      "requiredLevel": 40,
+      "stats": {
+        "cavalryDefense": 8,
+        "infantryHealth": 4,
+        "archerHealth": 6
+      },
+      "set": null,
+      "description": "Health-focused weapon for tanky builds"
+    },
+    {
+      "id": "staff-of-the-lost",
+      "name": "Staff of the Lost",
+      "type": "weapon",
+      "rarity": "elite",
+      "requiredLevel": 30,
+      "stats": {
+        "cavalryDefense": 3,
+        "infantryDefense": 5,
+        "archerDefense": 5
+      },
+      "set": null,
+      "description": "Well-rounded elite defensive weapon"
+    },
+    {
+      "id": "blazing-axe",
+      "name": "Blazing Axe",
+      "type": "weapon",
+      "rarity": "elite",
+      "requiredLevel": 30,
+      "stats": {
+        "cavalryAttack": 5,
+        "infantryAttack": 3
+      },
+      "set": null,
+      "description": "Offensive elite weapon"
+    },
+    {
+      "id": "vanguard-halberd",
+      "name": "Vanguard Halberd",
+      "type": "weapon",
+      "rarity": "advanced",
+      "requiredLevel": 20,
+      "stats": {
+        "cavalryDefense": 5,
+        "cavalryHealth": 4
+      },
+      "set": null,
+      "description": "Cavalry-focused advanced weapon"
+    },
+    {
+      "id": "sharp-longsword",
+      "name": "Sharp Longsword",
+      "type": "weapon",
+      "rarity": "normal",
+      "requiredLevel": 10,
+      "stats": {
+        "cavalryDefense": 5,
+        "gatheringSpeed": 2
+      },
+      "set": null,
+      "description": "Basic starter weapon"
+    },
+    {
+      "id": "shadow-legions-retribution",
+      "name": "Shadow Legion's Retribution",
+      "type": "chest",
+      "rarity": "legendary",
+      "requiredLevel": 40,
+      "stats": {
+        "cavalryAttack": 5,
+        "infantryAttack": 5,
+        "archerAttack": 5
+      },
+      "set": "Shadow Legion",
+      "description": "All-around offensive chest armor"
+    },
+    {
+      "id": "hope-cloak",
+      "name": "Hope Cloak",
+      "type": "chest",
+      "rarity": "legendary",
+      "requiredLevel": 50,
+      "stats": {
+        "infantryDefense": 8,
+        "infantryHealth": 6,
+        "marchSpeed": 3
+      },
+      "set": null,
+      "description": "Infantry-focused legendary chest"
+    },
+    {
+      "id": "the-milky-way",
+      "name": "The Milky Way",
+      "type": "chest",
+      "rarity": "legendary",
+      "requiredLevel": 40,
+      "stats": {
+        "cavalryHealth": 6,
+        "archerHealth": 6,
+        "commanderExpGain": 5
+      },
+      "set": null,
+      "description": "Health and EXP boost chest armor"
+    },
+    {
+      "id": "robe-of-the-forest-guardian",
+      "name": "Robe of the Forest Guardian",
+      "type": "chest",
+      "rarity": "epic",
+      "requiredLevel": 40,
+      "stats": {
+        "archerAttack": 4,
+        "siegeAttack": 4,
+        "gatheringSpeed": 8
+      },
+      "set": "Forest Guardian",
+      "description": "Gathering set chest piece"
+    },
+    {
+      "id": "quinns-soul",
+      "name": "Quinn's Soul",
+      "type": "chest",
+      "rarity": "epic",
+      "requiredLevel": 40,
+      "stats": {
+        "infantryAttack": 4,
+        "archerHealth": 4,
+        "barbarianDamage": 5
+      },
+      "set": null,
+      "description": "PvE-focused chest armor"
+    },
+    {
+      "id": "commanders-heavy-armor",
+      "name": "Commander's Heavy Armor",
+      "type": "chest",
+      "rarity": "elite",
+      "requiredLevel": 30,
+      "stats": {
+        "infantryAttack": 3,
+        "archerHealth": 3,
+        "commanderExpGain": 3
+      },
+      "set": null,
+      "description": "Balanced elite chest armor"
+    },
+    {
+      "id": "infantry-breastplate",
+      "name": "Infantry Breastplate",
+      "type": "chest",
+      "rarity": "advanced",
+      "requiredLevel": 20,
+      "stats": {
+        "cavalryHealth": 2,
+        "infantryDefense": 2,
+        "barbarianDamage": 3
+      },
+      "set": null,
+      "description": "Basic infantry armor"
+    },
+    {
+      "id": "milanese-plate",
+      "name": "Milanese Plate",
+      "type": "chest",
+      "rarity": "advanced",
+      "requiredLevel": 20,
+      "stats": {
+        "cavalryDefense": 3,
+        "archerAttack": 2
+      },
+      "set": null,
+      "description": "Mixed cavalry/archer chest"
+    },
+    {
+      "id": "chain-mail",
+      "name": "Chain Mail",
+      "type": "chest",
+      "rarity": "normal",
+      "requiredLevel": 10,
+      "stats": {
+        "archerAttack": 3
+      },
+      "set": null,
+      "description": "Basic starter armor"
+    },
+    {
+      "id": "helm-of-the-conquerer",
+      "name": "Helm of the Conqueror",
+      "type": "helm",
+      "rarity": "legendary",
+      "requiredLevel": 50,
+      "stats": {
+        "cavalryAttack": 6,
+        "cavalryDefense": 4,
+        "cavalryHealth": 4
+      },
+      "set": null,
+      "description": "Top-tier cavalry helm"
+    },
+    {
+      "id": "mask-of-the-forest-guardian",
+      "name": "Mask of the Forest Guardian",
+      "type": "helm",
+      "rarity": "epic",
+      "requiredLevel": 40,
+      "stats": {
+        "infantryAttack": 4,
+        "siegeDefense": 4,
+        "gatheringSpeed": 8
+      },
+      "set": "Forest Guardian",
+      "description": "Gathering set helm"
+    },
+    {
+      "id": "abyssal-visage",
+      "name": "Abyssal Visage",
+      "type": "helm",
+      "rarity": "epic",
+      "requiredLevel": 40,
+      "stats": {
+        "cavalryAttack": 4,
+        "infantryAttack": 3,
+        "archerAttack": 3
+      },
+      "set": null,
+      "description": "Balanced offensive helm"
+    },
+    {
+      "id": "windswept-war-helm",
+      "name": "Windswept War Helm",
+      "type": "helm",
+      "rarity": "epic",
+      "requiredLevel": 40,
+      "stats": {
+        "cavalryDefense": 5,
+        "infantryDefense": 4,
+        "marchSpeed": 3
+      },
+      "set": null,
+      "description": "Defensive helm with march speed"
+    },
+    {
+      "id": "helm-of-the-phoenix",
+      "name": "Helm of the Phoenix",
+      "type": "helm",
+      "rarity": "advanced",
+      "requiredLevel": 20,
+      "stats": {
+        "infantryHealth": 2,
+        "archerDefense": 2,
+        "barbarianDamage": 3
+      },
+      "set": null,
+      "description": "PvE advanced helm"
+    },
+    {
+      "id": "iron-helm",
+      "name": "Iron Helm",
+      "type": "helm",
+      "rarity": "normal",
+      "requiredLevel": 10,
+      "stats": {
+        "infantryAttack": 3
+      },
+      "set": null,
+      "description": "Basic starter helm"
+    },
+    {
+      "id": "sacred-grips",
+      "name": "Sacred Grips",
+      "type": "gloves",
+      "rarity": "legendary",
+      "requiredLevel": 45,
+      "stats": {
+        "infantryDefense": 5,
+        "archerAttack": 5
+      },
+      "set": null,
+      "description": "Mixed infantry/archer gloves"
+    },
+    {
+      "id": "ians-choice",
+      "name": "Ian's Choice",
+      "type": "gloves",
+      "rarity": "legendary",
+      "requiredLevel": 45,
+      "stats": {
+        "archerAttack": 8,
+        "commanderExpGain": 5
+      },
+      "set": null,
+      "description": "Archer-focused gloves with EXP bonus"
+    },
+    {
+      "id": "gatekeepers-gloves",
+      "name": "Gatekeeper's Gloves",
+      "type": "gloves",
+      "rarity": "legendary",
+      "requiredLevel": 50,
+      "stats": {
+        "infantryAttack": 6,
+        "infantryDefense": 4,
+        "infantryHealth": 3
+      },
+      "set": null,
+      "description": "Full infantry gloves"
+    },
+    {
+      "id": "claws-of-the-forest-guardian",
+      "name": "Claws of the Forest Guardian",
+      "type": "gloves",
+      "rarity": "epic",
+      "requiredLevel": 40,
+      "stats": {
+        "siegeAttack": 2,
+        "siegeDefense": 2,
+        "gatheringSpeed": 6
+      },
+      "set": "Forest Guardian",
+      "description": "Gathering set gloves"
+    },
+    {
+      "id": "isets-sufferance",
+      "name": "Iset's Sufferance",
+      "type": "gloves",
+      "rarity": "epic",
+      "requiredLevel": 40,
+      "stats": {
+        "cavalryAttack": 3,
+        "cavalryHealth": 3
+      },
+      "set": null,
+      "description": "Cavalry-focused epic gloves"
+    },
+    {
+      "id": "kalanis-cuffs",
+      "name": "Kalani's Cuffs",
+      "type": "gloves",
+      "rarity": "epic",
+      "requiredLevel": 40,
+      "stats": {
+        "archerDefense": 4,
+        "archerHealth": 4
+      },
+      "set": null,
+      "description": "Archer defensive gloves"
+    },
+    {
+      "id": "leather-gloves",
+      "name": "Leather Gloves",
+      "type": "gloves",
+      "rarity": "normal",
+      "requiredLevel": 10,
+      "stats": {
+        "cavalryAttack": 2
+      },
+      "set": null,
+      "description": "Basic starter gloves"
+    },
+    {
+      "id": "boots-of-the-hellish-wasteland",
+      "name": "Boots of the Hellish Wasteland",
+      "type": "boots",
+      "rarity": "legendary",
+      "requiredLevel": 50,
+      "stats": {
+        "cavalryDefense": 5,
+        "cavalryHealth": 5,
+        "marchSpeed": 5
+      },
+      "set": "Hellish Wasteland",
+      "description": "Top cavalry boots with march speed"
+    },
+    {
+      "id": "vanguard-greaves",
+      "name": "Vanguard Greaves",
+      "type": "boots",
+      "rarity": "legendary",
+      "requiredLevel": 50,
+      "stats": {
+        "infantryDefense": 6,
+        "infantryHealth": 5,
+        "marchSpeed": 3
+      },
+      "set": null,
+      "description": "Infantry tank boots"
+    },
+    {
+      "id": "greaves-of-the-forest-guardian",
+      "name": "Greaves of the Forest Guardian",
+      "type": "boots",
+      "rarity": "epic",
+      "requiredLevel": 40,
+      "stats": {
+        "siegeHealth": 4,
+        "gatheringSpeed": 8,
+        "troopLoad": 5
+      },
+      "set": "Forest Guardian",
+      "description": "Gathering set boots"
+    },
+    {
+      "id": "windswept-boots",
+      "name": "Windswept Boots",
+      "type": "boots",
+      "rarity": "epic",
+      "requiredLevel": 40,
+      "stats": {
+        "cavalryDefense": 4,
+        "marchSpeed": 6
+      },
+      "set": null,
+      "description": "Speed-focused boots"
+    },
+    {
+      "id": "coarse-breeches",
+      "name": "Coarse Breeches",
+      "type": "boots",
+      "rarity": "normal",
+      "requiredLevel": 10,
+      "stats": {
+        "cavalryAttack": 2,
+        "gatheringSpeed": 2
+      },
+      "set": null,
+      "description": "Basic starter boots"
+    },
+    {
+      "id": "ring-of-doom",
+      "name": "Ring of Doom",
+      "type": "accessory",
+      "rarity": "legendary",
+      "requiredLevel": 50,
+      "stats": {
+        "allTroopAttack": 3,
+        "allTroopDefense": 3,
+        "skillDamage": 5
+      },
+      "set": null,
+      "description": "Top-tier offensive accessory"
+    },
+    {
+      "id": "horn-of-fury",
+      "name": "Horn of Fury",
+      "type": "accessory",
+      "rarity": "legendary",
+      "requiredLevel": 50,
+      "stats": {
+        "allTroopAttack": 4,
+        "rageGeneration": 5
+      },
+      "set": null,
+      "description": "Rage-focused legendary accessory"
+    },
+    {
+      "id": "endless-dream",
+      "name": "Endless Dream",
+      "type": "accessory",
+      "rarity": "legendary",
+      "requiredLevel": 50,
+      "stats": {
+        "archerAttack": 6,
+        "archerDefense": 3,
+        "skillDamage": 3
+      },
+      "set": null,
+      "description": "Archer-focused accessory"
+    },
+    {
+      "id": "concealed-dagger",
+      "name": "Concealed Dagger",
+      "type": "accessory",
+      "rarity": "epic",
+      "requiredLevel": 40,
+      "stats": {
+        "cavalryAttack": 4,
+        "marchSpeed": 3
+      },
+      "set": null,
+      "description": "Cavalry mobility accessory"
+    },
+    {
+      "id": "lohars-lucky-coin",
+      "name": "Lohar's Lucky Coin",
+      "type": "accessory",
+      "rarity": "epic",
+      "requiredLevel": 40,
+      "stats": {
+        "barbarianDamage": 10,
+        "actionPointRecovery": 5
+      },
+      "set": null,
+      "description": "PvE farming accessory"
+    },
+    {
+      "id": "ash-of-the-dawn",
+      "name": "Ash of the Dawn",
+      "type": "accessory",
+      "rarity": "epic",
+      "requiredLevel": 40,
+      "stats": {
+        "infantryAttack": 4,
+        "infantryDefense": 3
+      },
+      "set": null,
+      "description": "Infantry accessory"
+    },
+    {
+      "id": "tome-of-knowledge",
+      "name": "Tome of Knowledge",
+      "type": "accessory",
+      "rarity": "epic",
+      "requiredLevel": 30,
+      "stats": {
+        "commanderExpGain": 15,
+        "researchSpeed": 3
+      },
+      "set": null,
+      "description": "Experience and research accessory"
+    },
+    {
+      "id": "lucky-charm",
+      "name": "Lucky Charm",
+      "type": "accessory",
+      "rarity": "advanced",
+      "requiredLevel": 20,
+      "stats": {
+        "gatheringSpeed": 5,
+        "troopLoad": 3
+      },
+      "set": null,
+      "description": "Basic gathering accessory"
+    },
+    {
+      "id": "copper-ring",
+      "name": "Copper Ring",
+      "type": "accessory",
+      "rarity": "normal",
+      "requiredLevel": 10,
+      "stats": {
+        "allTroopHealth": 2
+      },
+      "set": null,
+      "description": "Basic starter accessory"
+    }
+  ],
+  "sets": {
+    "forest-guardian": {
+      "id": "forest-guardian",
+      "name": "Forest Guardian",
+      "pieces": ["scepter-of-the-forest-guardian", "mask-of-the-forest-guardian", "robe-of-the-forest-guardian", "claws-of-the-forest-guardian", "greaves-of-the-forest-guardian"],
+      "bonuses": {
+        "2": { "gatheringSpeed": 5 },
+        "4": { "gatheringSpeed": 10, "troopLoad": 10 }
+      }
+    },
+    "hellish-wasteland": {
+      "id": "hellish-wasteland",
+      "name": "Hellish Wasteland",
+      "pieces": ["rifle-of-the-hellish-wasteland", "boots-of-the-hellish-wasteland"],
+      "bonuses": {
+        "2": { "cavalryAttack": 3, "cavalryHealth": 3 }
+      }
+    },
+    "shadow-legion": {
+      "id": "shadow-legion",
+      "name": "Shadow Legion",
+      "pieces": ["shadow-legions-retribution"],
+      "bonuses": {}
+    }
+  },
+  "types": ["weapon", "helm", "chest", "gloves", "boots", "accessory"],
+  "rarities": ["normal", "advanced", "elite", "epic", "legendary"]
+}

@@ -25,6 +25,12 @@
   * [Resource Planning](upgrade-calculator/resources.md)
   * [Graph Navigation](upgrade-calculator/graph.md)
 
+* **Scanners**
+  * [Overview](scanners/README.md)
+  * [Commander Scanner](scanners/commander.md)
+  * [Equipment Scanner](scanners/equipment.md)
+  * [Bag Scanner](scanners/bag.md)
+
 * **Game Guides**
   * [Overview](guide/README.md)
   * [Event Guides](guide/events.md)

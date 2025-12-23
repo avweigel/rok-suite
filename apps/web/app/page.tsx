@@ -157,6 +157,32 @@ export default function Home() {
                 </div>
               </div>
             </Link>
+
+            {/* Scanners Hub Card */}
+            <Link href="/scanners">
+              <div className={`${theme.card} border rounded-xl p-6 transition-all hover:border-purple-500/50 cursor-pointer group`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="text-lg font-semibold group-hover:text-purple-400 transition-colors">
+                        Scanners
+                      </h4>
+                      <span className={`text-xs px-2 py-0.5 rounded ${darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-700'}`}>
+                        Tool
+                      </span>
+                    </div>
+                    <p className={`text-sm ${theme.textMuted}`}>
+                      Scan screenshots to inventory commanders, equipment, and bag items
+                    </p>
+                  </div>
+                  <div className={`${theme.textMuted} group-hover:text-purple-400 transition-colors`}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </Link>
           </div>
         </section>
 
