@@ -35,14 +35,28 @@ interface ImageItem {
   error?: string;
 }
 
+interface PreloadedCommander {
+  id: string;
+  name: string;
+  title?: string;
+  rarity: string;
+  types: string[];
+  level: number;
+  skills: number[];
+  stars?: number;
+  power?: number;
+  unitCapacity?: number;
+}
+
 interface CommanderScannerProps {
   onClose: () => void;
   onImport?: (commanders: { commander: Commander; level: number; skillLevels: number[]; stars: number }[]) => void;
+  preloadedCommanders?: PreloadedCommander[];
 }
 
 type Step = 'upload' | 'scan' | 'verify';
 
-export function CommanderScanner({ onClose, onImport }: CommanderScannerProps) {
+export function CommanderScanner({ onClose, onImport, preloadedCommanders }: CommanderScannerProps) {
   const [step, setStep] = useState<Step>('upload');
   const [dragActive, setDragActive] = useState(false);
   const [images, setImages] = useState<ImageItem[]>([]);

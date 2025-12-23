@@ -1,8 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Users, Shield, Package, Scan, ChevronRight } from 'lucide-react';
+import {
+  ArrowLeft,
+  Users,
+  Shield,
+  Package,
+  Scan,
+  ChevronRight,
+  Upload,
+  FileJson,
+  Sparkles,
+  Zap,
+  Info
+} from 'lucide-react';
 import { UserMenu } from '@/components/auth/UserMenu';
 import { CommanderScanner } from '@/components/scanners/CommanderScanner';
 import { EquipmentScanner } from '@/components/scanners/EquipmentScanner';
@@ -10,145 +22,230 @@ import { BagScanner } from '@/components/scanners/BagScanner';
 
 type ScannerType = 'commander' | 'equipment' | 'bag' | null;
 
+interface Commander {
+  id: string;
+  name: string;
+  title?: string;
+  rarity: string;
+  types: string[];
+  level: number;
+  skills: number[];
+  stars?: number;
+  power?: number;
+  unitCapacity?: number;
+}
+
 export default function ScannersPage() {
   const [activeScanner, setActiveScanner] = useState<ScannerType>(null);
+  const [importedCommanders, setImportedCommanders] = useState<Commander[]>([]);
+  const [showImportSuccess, setShowImportSuccess] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleJsonImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(e.target?.result as string);
+        const commanders = json.commanders || json;
+        if (Array.isArray(commanders)) {
+          setImportedCommanders(commanders);
+          setShowImportSuccess(true);
+          setTimeout(() => setShowImportSuccess(false), 3000);
+          // Store in localStorage for persistence
+          localStorage.setItem('rok-commanders', JSON.stringify(commanders));
+        }
+      } catch {
+        alert('Invalid JSON file. Please check the format.');
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const scanners = [
     {
       id: 'commander' as const,
       name: 'Commander Scanner',
-      description: 'Scan commander screenshots to extract level, skills, and stars',
+      description: 'Extract commander stats from screenshots using OCR',
       icon: Users,
-      color: 'amber',
+      gradient: 'from-amber-500/20 to-orange-600/20',
+      iconBg: 'bg-gradient-to-br from-amber-500 to-orange-600',
       status: 'stable' as const,
+      stats: importedCommanders.length > 0 ? `${importedCommanders.length} loaded` : null,
     },
     {
       id: 'equipment' as const,
       name: 'Equipment Scanner',
-      description: 'Scan your equipment to build an inventory of your gear',
+      description: 'Build your gear inventory from equipment screenshots',
       icon: Shield,
-      color: 'blue',
+      gradient: 'from-blue-500/20 to-cyan-600/20',
+      iconBg: 'bg-gradient-to-br from-blue-500 to-cyan-600',
       status: 'beta' as const,
+      stats: null,
     },
     {
       id: 'bag' as const,
       name: 'Bag Scanner',
-      description: 'Scan your bag to inventory resources, speedups, and items',
+      description: 'Inventory resources, speedups, and items',
       icon: Package,
-      color: 'green',
+      gradient: 'from-emerald-500/20 to-teal-600/20',
+      iconBg: 'bg-gradient-to-br from-emerald-500 to-teal-600',
       status: 'beta' as const,
+      stats: null,
     },
   ];
 
-  const getColorClasses = (color: string) => {
-    switch (color) {
-      case 'amber':
-        return {
-          bg: 'bg-amber-500/10',
-          border: 'border-amber-500/30 hover:border-amber-500/60',
-          icon: 'text-amber-500',
-          badge: 'bg-amber-500/20 text-amber-400',
-        };
-      case 'blue':
-        return {
-          bg: 'bg-blue-500/10',
-          border: 'border-blue-500/30 hover:border-blue-500/60',
-          icon: 'text-blue-500',
-          badge: 'bg-blue-500/20 text-blue-400',
-        };
-      case 'green':
-        return {
-          bg: 'bg-green-500/10',
-          border: 'border-green-500/30 hover:border-green-500/60',
-          icon: 'text-green-500',
-          badge: 'bg-green-500/20 text-green-400',
-        };
-      default:
-        return {
-          bg: 'bg-stone-500/10',
-          border: 'border-stone-500/30 hover:border-stone-500/60',
-          icon: 'text-stone-500',
-          badge: 'bg-stone-500/20 text-stone-400',
-        };
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-stone-900 to-stone-950">
+    <div className="min-h-screen bg-[#0a0a0b]">
+      {/* Subtle grid background */}
+      <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px] pointer-events-none" />
+
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-amber-600/20 bg-stone-900/95 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <header className="sticky top-0 z-40 border-b border-white/5 bg-[#0a0a0b]/80 backdrop-blur-xl">
+        <div className="max-w-6xl mx-auto px-6">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-6">
               <Link
                 href="/"
-                className="flex items-center gap-2 text-stone-400 hover:text-amber-500 transition-colors"
+                className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors"
               >
-                <ArrowLeft className="w-5 h-5" />
-                <span className="text-sm">Back</span>
+                <ArrowLeft className="w-4 h-4" />
+                <span className="text-sm font-medium">Back</span>
               </Link>
+              <div className="h-6 w-px bg-white/10" />
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center shadow-lg">
-                  <Scan className="w-5 h-5 text-white" />
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+                  <Scan className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-semibold text-purple-400">Scanners</h1>
-                  <p className="text-xs text-stone-500">Screenshot Analysis Tools</p>
+                  <h1 className="text-sm font-semibold text-white">Scanners</h1>
+                  <p className="text-xs text-zinc-500">Screenshot Analysis</p>
                 </div>
               </div>
             </div>
-
             <UserMenu />
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Introduction */}
-        <div className="mb-8 text-center">
-          <h2 className="text-2xl font-bold text-stone-100 mb-2">
-            Rise of Kingdoms Scanners
+      <main className="relative max-w-6xl mx-auto px-6 py-12">
+        {/* Hero Section */}
+        <div className="mb-12">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-4 h-4 text-violet-400" />
+            <span className="text-xs font-medium text-violet-400 uppercase tracking-wider">Analysis Tools</span>
+          </div>
+          <h2 className="text-3xl font-bold text-white mb-3">
+            Screenshot Scanners
           </h2>
-          <p className="text-stone-400 max-w-2xl mx-auto">
-            Use these tools to scan your in-game screenshots and build an inventory of your
-            commanders, equipment, and bag items. Data is stored locally and synced when logged in.
+          <p className="text-zinc-400 max-w-xl">
+            Extract data from your Rise of Kingdoms screenshots. Build inventories of commanders, equipment, and resources.
           </p>
         </div>
 
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
+          {/* JSON Import Card */}
+          <div className="group relative p-5 rounded-xl bg-white/[0.02] border border-white/5 hover:border-violet-500/30 transition-all">
+            <div className="flex items-start gap-4">
+              <div className="p-2.5 rounded-lg bg-violet-500/10">
+                <FileJson className="w-5 h-5 text-violet-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-white mb-1">Import Commanders</h3>
+                <p className="text-xs text-zinc-500 mb-3">
+                  Load commanders from a JSON file to skip scanning
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={handleJsonImport}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 text-xs font-medium transition-colors"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  Choose File
+                </button>
+                {showImportSuccess && (
+                  <span className="ml-3 text-xs text-emerald-400">
+                    {importedCommanders.length} commanders imported!
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* OCR Info Card */}
+          <div className="group relative p-5 rounded-xl bg-white/[0.02] border border-white/5">
+            <div className="flex items-start gap-4">
+              <div className="p-2.5 rounded-lg bg-amber-500/10">
+                <Zap className="w-5 h-5 text-amber-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-white mb-1">OCR Scanning</h3>
+                <p className="text-xs text-zinc-500">
+                  Uses Tesseract OCR to extract text from screenshots. For best results, use high-resolution screenshots with clear text.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Scanner Cards */}
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           {scanners.map((scanner) => {
-            const colors = getColorClasses(scanner.color);
             const Icon = scanner.icon;
 
             return (
               <button
                 key={scanner.id}
                 onClick={() => setActiveScanner(scanner.id)}
-                className={`w-full p-6 rounded-xl border-2 ${colors.border} ${colors.bg} transition-all text-left group`}
+                className="group relative w-full text-left"
               >
-                <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-xl bg-stone-800 ${colors.icon}`}>
-                    <Icon className="w-8 h-8" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-lg font-semibold text-stone-100">
-                        {scanner.name}
-                      </h3>
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full ${
-                          scanner.status === 'stable'
-                            ? 'bg-green-500/20 text-green-400'
-                            : 'bg-yellow-500/20 text-yellow-400'
-                        }`}
-                      >
-                        {scanner.status === 'stable' ? 'Stable' : 'Beta'}
-                      </span>
+                {/* Card */}
+                <div className={`relative p-5 rounded-xl bg-gradient-to-r ${scanner.gradient} border border-white/5 hover:border-white/10 transition-all overflow-hidden`}>
+                  {/* Subtle glow on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                  <div className="relative flex items-center gap-5">
+                    {/* Icon */}
+                    <div className={`p-3 rounded-xl ${scanner.iconBg} shadow-lg`}>
+                      <Icon className="w-6 h-6 text-white" />
                     </div>
-                    <p className="text-sm text-stone-400">{scanner.description}</p>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-1">
+                        <h3 className="text-base font-semibold text-white">
+                          {scanner.name}
+                        </h3>
+                        <span
+                          className={`text-[10px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                            scanner.status === 'stable'
+                              ? 'bg-emerald-500/20 text-emerald-400'
+                              : 'bg-amber-500/20 text-amber-400'
+                          }`}
+                        >
+                          {scanner.status}
+                        </span>
+                        {scanner.stats && (
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-400">
+                            {scanner.stats}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-zinc-400">{scanner.description}</p>
+                    </div>
+
+                    {/* Arrow */}
+                    <ChevronRight className="w-5 h-5 text-zinc-600 group-hover:text-zinc-400 group-hover:translate-x-0.5 transition-all" />
                   </div>
-                  <ChevronRight className="w-6 h-6 text-stone-600 group-hover:text-stone-400 transition-colors" />
                 </div>
               </button>
             );
@@ -156,31 +253,50 @@ export default function ScannersPage() {
         </div>
 
         {/* Tips Section */}
-        <div className="mt-8 p-4 rounded-xl bg-stone-800/50 border border-stone-700">
-          <h3 className="text-sm font-semibold text-stone-300 mb-3">Scanning Tips</h3>
-          <ul className="text-sm text-stone-400 space-y-2">
-            <li className="flex gap-2">
-              <span className="text-purple-400">1.</span>
-              Take clear screenshots with the item/commander info fully visible
-            </li>
-            <li className="flex gap-2">
-              <span className="text-purple-400">2.</span>
-              For best results, use screenshots at full resolution (no cropping)
-            </li>
-            <li className="flex gap-2">
-              <span className="text-purple-400">3.</span>
-              The scanner uses OCR - verify detected values before accepting
-            </li>
-            <li className="flex gap-2">
-              <span className="text-purple-400">4.</span>
-              You can manually adjust any incorrectly detected values
-            </li>
-          </ul>
+        <div className="mt-10 p-5 rounded-xl bg-white/[0.02] border border-white/5">
+          <div className="flex items-center gap-2 mb-4">
+            <Info className="w-4 h-4 text-zinc-400" />
+            <h3 className="text-sm font-semibold text-white">Tips for Better Results</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex gap-3">
+              <div className="w-6 h-6 rounded-full bg-violet-500/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-xs font-semibold text-violet-400">1</span>
+              </div>
+              <p className="text-sm text-zinc-400">
+                Use full-resolution screenshots without cropping
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <div className="w-6 h-6 rounded-full bg-violet-500/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-xs font-semibold text-violet-400">2</span>
+              </div>
+              <p className="text-sm text-zinc-400">
+                Ensure all text and stats are fully visible
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <div className="w-6 h-6 rounded-full bg-violet-500/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-xs font-semibold text-violet-400">3</span>
+              </div>
+              <p className="text-sm text-zinc-400">
+                Review and adjust detected values before saving
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <div className="w-6 h-6 rounded-full bg-violet-500/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-xs font-semibold text-violet-400">4</span>
+              </div>
+              <p className="text-sm text-zinc-400">
+                Or import commanders directly via JSON file
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Footer */}
-        <footer className="mt-12 pt-6 border-t border-stone-800 text-center">
-          <p className="text-xs text-stone-500">
+        <footer className="mt-16 pt-6 border-t border-white/5 text-center">
+          <p className="text-xs text-zinc-600">
             Angmar Nazgul Guards • Rise of Kingdoms
           </p>
         </footer>
@@ -188,7 +304,10 @@ export default function ScannersPage() {
 
       {/* Scanner Modals */}
       {activeScanner === 'commander' && (
-        <CommanderScanner onClose={() => setActiveScanner(null)} />
+        <CommanderScanner
+          onClose={() => setActiveScanner(null)}
+          preloadedCommanders={importedCommanders.length > 0 ? importedCommanders : undefined}
+        />
       )}
       {activeScanner === 'equipment' && (
         <EquipmentScanner onClose={() => setActiveScanner(null)} />
