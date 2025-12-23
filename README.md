@@ -6,7 +6,7 @@ A comprehensive toolkit for **Rise of Kingdoms** strategy planning, built for th
 <tr>
 <td align="center" width="50%">
 
-### [Live App](https://rok-suite.vercel.app)
+### [Live App](https://rok-suite-web.vercel.app)
 Start using the tools now
 
 </td>
