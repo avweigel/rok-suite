@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Upload, Scan, Check, X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Images, SkipForward, ArrowRight, Package, Plus, Minus } from 'lucide-react';
 import bagItemsData from '@/data/bag-items.json';
+import { processImageWithOCR } from '@/lib/ocr-utils';
 
 interface BagItem {
   id: string;
@@ -205,10 +206,8 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
       setProgress(((i + 1) / images.length) * 100);
 
       try {
-        const { createWorker } = await import('tesseract.js');
-        const worker = await createWorker('eng');
-        const { data: { text } } = await worker.recognize(images[i].src);
-        await worker.terminate();
+        // Use preprocessed OCR for better accuracy
+        const text = await processImageWithOCR(images[i].src);
 
         const info = parseItemInfo(text, i);
         newDetected.push(info);

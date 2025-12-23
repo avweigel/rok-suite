@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Upload, Scan, Check, X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Images, SkipForward, ArrowRight, Shield } from 'lucide-react';
 import equipmentData from '@/data/equipment.json';
+import { processImageWithOCR } from '@/lib/ocr-utils';
 
 interface Equipment {
   id: string;
@@ -189,10 +190,8 @@ export function EquipmentScanner({ onClose, onImport }: EquipmentScannerProps) {
       setProgress(((i + 1) / images.length) * 100);
 
       try {
-        const { createWorker } = await import('tesseract.js');
-        const worker = await createWorker('eng');
-        const { data: { text } } = await worker.recognize(images[i].src);
-        await worker.terminate();
+        // Use preprocessed OCR for better accuracy
+        const text = await processImageWithOCR(images[i].src);
 
         const info = parseEquipmentInfo(text, i);
         newDetected.push(info);

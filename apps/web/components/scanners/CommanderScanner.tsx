@@ -15,6 +15,7 @@ import {
   isDetectionConfigured,
   type CommanderDetection,
 } from '@/lib/sunset-canyon/roboflow-detect';
+import { processImageWithOCR } from '@/lib/ocr-utils';
 
 interface DetectedCommander {
   name: string;
@@ -279,10 +280,8 @@ export function CommanderScanner({ onClose, onImport, preloadedCommanders }: Com
             });
           }
         } else {
-          const { createWorker } = await import('tesseract.js');
-          const worker = await createWorker('eng');
-          const { data: { text } } = await worker.recognize(images[i].src);
-          await worker.terminate();
+          // Use preprocessed OCR for better accuracy
+          const text = await processImageWithOCR(images[i].src);
 
           const info = parseCommanderInfo(text, i);
           if (info) {
