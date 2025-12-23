@@ -1,9 +1,11 @@
-name: Deploy Next.js static site to GitHub Pages
+name: Deploy Documentation to GitHub Pages
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'docs/**'
   workflow_dispatch:
 
 permissions:
@@ -12,42 +14,20 @@ permissions:
   id-token: write
 
 jobs:
-  build_and_deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install pnpm globally
-        run: npm install -g pnpm@latest
-
-      - name: Verify pnpm
-        run: |
-          which pnpm
-          pnpm --version
-
-      - name: Install dependencies (workspace root)
-        working-directory: .
-        run: |
-          pnpm install --no-frozen-lockfile
-
-      - name: Build site
-        working-directory: apps/web
-        run: pnpm build
-
-      - name: Upload static files for deployment
+      - name: Upload docs folder for deployment
         uses: actions/upload-pages-artifact@v3
         with:
-          path: apps/web/out
-          name: site-artifact
+          path: docs
+          name: docs-artifact
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: site-artifact
+          artifact_name: docs-artifact
