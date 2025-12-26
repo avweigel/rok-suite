@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
-import type { MapAssignments, Player, Team, StrategyData as ImportedStrategyData, EventMode } from '@/lib/aoo-strategy/types';
+import type { MapAssignments, Player, Team, StrategyData as ImportedStrategyData, EventMode, AooTeam } from '@/lib/aoo-strategy/types';
 import { defaultStrategyData } from '@/lib/aoo-strategy/strategy-data';
 import { TrainingPolls } from '@/components/aoo-strategy/TrainingPolls';
 import { useAllianceRoster, formatPower } from '@/lib/supabase/use-alliance-roster';
@@ -71,6 +71,7 @@ export default function AooStrategyPage() {
     // Vision UI theme is always dark - no toggle needed
     const [strategyExpanded, setStrategyExpanded] = useState(false);
     const [eventMode, setEventMode] = useState<EventMode>('main');
+    const [aooTeam, setAooTeam] = useState<AooTeam>('team1');
 
     const [playerSearch, setPlayerSearch] = useState('');
     const [showDropdown, setShowDropdown] = useState(false);
@@ -87,11 +88,14 @@ export default function AooStrategyPage() {
     const EDITOR_PASSWORD = 'carn-dum';
 
     useEffect(() => {
-        // Load data for the initial event mode (check URL or localStorage)
+        // Load data for the initial event mode and team (check URL or localStorage)
         const savedMode = localStorage.getItem('aoo-event-mode') as EventMode | null;
+        const savedTeam = localStorage.getItem('aoo-team') as AooTeam | null;
         const initialMode = savedMode || 'main';
+        const initialTeam = savedTeam || 'team1';
         setEventMode(initialMode);
-        loadData(initialMode);
+        setAooTeam(initialTeam);
+        loadData(initialMode, initialTeam);
     }, []);
 
     // Handle event mode changes
@@ -99,7 +103,15 @@ export default function AooStrategyPage() {
         if (newMode === eventMode) return;
         setEventMode(newMode);
         localStorage.setItem('aoo-event-mode', newMode);
-        loadData(newMode);
+        loadData(newMode, aooTeam);
+    };
+
+    // Handle AoO team changes (Team 1 / Team 2)
+    const handleAooTeamChange = (newTeam: AooTeam) => {
+        if (newTeam === aooTeam) return;
+        setAooTeam(newTeam);
+        localStorage.setItem('aoo-team', newTeam);
+        loadData(eventMode, newTeam);
     };
 
     useEffect(() => {
@@ -113,14 +125,15 @@ export default function AooStrategyPage() {
     }, []);
 
 
-    const loadData = async (mode: EventMode = eventMode) => {
+    const loadData = async (mode: EventMode = eventMode, team: AooTeam = aooTeam) => {
         setIsLoading(true);
         try {
-            // Query for the specific event mode, fall back to any record for backwards compatibility
+            // Query for the specific event mode and team
             const { data, error } = await supabase
                 .from('aoo_strategy')
                 .select('*')
                 .eq('event_mode', mode)
+                .eq('aoo_team', team)
                 .limit(1)
                 .maybeSingle();
 
@@ -170,7 +183,7 @@ export default function AooStrategyPage() {
             } else {
                 const { data: newData, error } = await supabase
                     .from('aoo_strategy')
-                    .insert([{ data, event_mode: eventMode }])
+                    .insert([{ data, event_mode: eventMode, aoo_team: aooTeam }])
                     .select()
                     .single();
                 if (error) throw error;
@@ -552,6 +565,11 @@ export default function AooStrategyPage() {
                             <div>
                                 <div className="flex items-center gap-2">
                                     <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Ark of Osiris</h1>
+                                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                                        aooTeam === 'team1' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white'
+                                    }`}>
+                                        {aooTeam === 'team1' ? 'Team 1' : 'Team 2'}
+                                    </span>
                                     {eventMode === 'training' && (
                                         <span className="px-2 py-0.5 text-xs font-medium bg-amber-600 text-white rounded-full">
                                             Training
@@ -564,6 +582,29 @@ export default function AooStrategyPage() {
                             </div>
                         </div>
                         <div className="flex items-center gap-2 md:gap-3">
+                            {/* AoO Team Selector */}
+                            <div className="flex rounded-lg p-0.5 bg-white/5 border border-white/10">
+                                <button
+                                    onClick={() => handleAooTeamChange('team1')}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                        aooTeam === 'team1'
+                                            ? 'bg-blue-600 text-white'
+                                            : 'text-[#718096] hover:text-white'
+                                    }`}
+                                >
+                                    Team 1
+                                </button>
+                                <button
+                                    onClick={() => handleAooTeamChange('team2')}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                        aooTeam === 'team2'
+                                            ? 'bg-purple-600 text-white'
+                                            : 'text-[#718096] hover:text-white'
+                                    }`}
+                                >
+                                    Team 2
+                                </button>
+                            </div>
                             {/* Event Mode Toggle */}
                             <div className="flex rounded-lg p-0.5 bg-white/5 border border-white/10">
                                 <button

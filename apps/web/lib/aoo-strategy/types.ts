@@ -1,4 +1,5 @@
 export type EventMode = 'main' | 'training';
+export type AooTeam = 'team1' | 'team2';
 
 export interface PlayerAssignments {
   phase1: string;
