@@ -35,18 +35,35 @@ interface ImageItem {
   error?: string;
 }
 
+interface PreloadedBagInventory {
+  bagInventory: {
+    chests?: Record<string, number>;
+    equipment?: Record<string, Array<{ id: string; slot: string; type: string; craftable: boolean }>>;
+    blueprints?: Record<string, Array<{ name: string; quantity: number }>>;
+    materials?: Record<string, Record<string, number>>;
+  };
+  metadata?: {
+    lastUpdated?: string;
+    source?: string;
+    version?: string;
+    playerPower?: number;
+    vipLevel?: number;
+  };
+}
+
 interface BagScannerProps {
   onClose: () => void;
   onImport?: (items: { item: BagItem; quantity: number }[]) => void;
+  preloadedInventory?: PreloadedBagInventory;
 }
 
-type Step = 'upload' | 'scan' | 'verify';
+type Step = 'upload' | 'scan' | 'verify' | 'view';
 
 const bagItems: BagItem[] = bagItemsData.items as BagItem[];
 const categories = bagItemsData.categories;
 
-export function BagScanner({ onClose, onImport }: BagScannerProps) {
-  const [step, setStep] = useState<Step>('upload');
+export function BagScanner({ onClose, onImport, preloadedInventory }: BagScannerProps) {
+  const [step, setStep] = useState<Step>(preloadedInventory ? 'view' : 'upload');
   const [dragActive, setDragActive] = useState(false);
   const [images, setImages] = useState<ImageItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -344,23 +361,30 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            {['upload', 'scan', 'verify'].map((s, i) => (
-              <div key={s} className="flex items-center">
-                <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${
-                  step === s
-                    ? 'bg-[#01b574] text-white font-semibold'
-                    : i < ['upload', 'scan', 'verify'].indexOf(step)
-                    ? 'bg-[#01b574]/30 text-[#01b574]'
-                    : 'bg-[#1a1f3c] text-[#718096]'
-                }`}>
-                  <span className="w-5 h-5 rounded-full bg-current/20 flex items-center justify-center text-xs">
-                    {i < ['upload', 'scan', 'verify'].indexOf(step) ? '✓' : i + 1}
-                  </span>
-                  <span className="capitalize">{s}</span>
-                </div>
-                {i < 2 && <ArrowRight className="w-4 h-4 text-[#718096] mx-1" />}
+            {step === 'view' ? (
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full text-sm bg-[#01b574] text-white font-semibold">
+                <Package className="w-4 h-4" />
+                <span>Imported Inventory</span>
               </div>
-            ))}
+            ) : (
+              ['upload', 'scan', 'verify'].map((s, i) => (
+                <div key={s} className="flex items-center">
+                  <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${
+                    step === s
+                      ? 'bg-[#01b574] text-white font-semibold'
+                      : i < ['upload', 'scan', 'verify'].indexOf(step)
+                      ? 'bg-[#01b574]/30 text-[#01b574]'
+                      : 'bg-[#1a1f3c] text-[#718096]'
+                  }`}>
+                    <span className="w-5 h-5 rounded-full bg-current/20 flex items-center justify-center text-xs">
+                      {i < ['upload', 'scan', 'verify'].indexOf(step) ? '✓' : i + 1}
+                    </span>
+                    <span className="capitalize">{s}</span>
+                  </div>
+                  {i < 2 && <ArrowRight className="w-4 h-4 text-[#718096] mx-1" />}
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -620,6 +644,111 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
               )}
             </div>
           )}
+
+          {step === 'view' && preloadedInventory && (
+            <div className="space-y-6">
+              {/* Metadata */}
+              {preloadedInventory.metadata && (
+                <div className="p-4 rounded-xl bg-[rgba(6,11,40,0.5)] border border-white/10">
+                  <h3 className="text-sm font-semibold text-[#a0aec0] mb-3">Inventory Info</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    {preloadedInventory.metadata.lastUpdated && (
+                      <div>
+                        <span className="text-[#718096]">Last Updated:</span>
+                        <span className="text-white ml-2">{preloadedInventory.metadata.lastUpdated}</span>
+                      </div>
+                    )}
+                    {preloadedInventory.metadata.playerPower && (
+                      <div>
+                        <span className="text-[#718096]">Power:</span>
+                        <span className="text-white ml-2">{preloadedInventory.metadata.playerPower.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {preloadedInventory.metadata.vipLevel && (
+                      <div>
+                        <span className="text-[#718096]">VIP Level:</span>
+                        <span className="text-[#ffb547] ml-2">{preloadedInventory.metadata.vipLevel}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Chests */}
+              {preloadedInventory.bagInventory.chests && Object.keys(preloadedInventory.bagInventory.chests).length > 0 && (
+                <div className="p-4 rounded-xl bg-[rgba(6,11,40,0.5)] border border-white/10">
+                  <h3 className="text-sm font-semibold text-[#9f7aea] mb-3">Equipment Chests</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {Object.entries(preloadedInventory.bagInventory.chests).map(([key, value]) => (
+                      <div key={key} className="flex items-center justify-between bg-[#1a1f3c]/50 rounded px-3 py-2">
+                        <span className="text-[#a0aec0] text-sm capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                        <span className="text-white font-medium">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Equipment */}
+              {preloadedInventory.bagInventory.equipment && Object.keys(preloadedInventory.bagInventory.equipment).length > 0 && (
+                <div className="p-4 rounded-xl bg-[rgba(6,11,40,0.5)] border border-white/10">
+                  <h3 className="text-sm font-semibold text-[#0075ff] mb-3">Equipment</h3>
+                  {Object.entries(preloadedInventory.bagInventory.equipment).map(([rarity, items]) => (
+                    <div key={rarity} className="mb-3 last:mb-0">
+                      <h4 className="text-xs text-[#718096] uppercase tracking-wider mb-2">{rarity} ({items.length})</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {items.map((item, i) => (
+                          <span key={i} className="px-2 py-1 rounded bg-[#1a1f3c] text-xs text-[#a0aec0]">
+                            {item.slot} ({item.type})
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Blueprints */}
+              {preloadedInventory.bagInventory.blueprints && Object.keys(preloadedInventory.bagInventory.blueprints).length > 0 && (
+                <div className="p-4 rounded-xl bg-[rgba(6,11,40,0.5)] border border-white/10">
+                  <h3 className="text-sm font-semibold text-[#ffb547] mb-3">Blueprints</h3>
+                  {Object.entries(preloadedInventory.bagInventory.blueprints).map(([rarity, items]) => (
+                    <div key={rarity} className="mb-3 last:mb-0">
+                      <h4 className="text-xs text-[#718096] uppercase tracking-wider mb-2">{rarity}</h4>
+                      <div className="grid grid-cols-1 gap-1">
+                        {items.map((item, i) => (
+                          <div key={i} className="flex items-center justify-between bg-[#1a1f3c]/50 rounded px-3 py-1.5 text-sm">
+                            <span className="text-[#a0aec0]">{item.name}</span>
+                            <span className="text-white font-medium">x{item.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Materials */}
+              {preloadedInventory.bagInventory.materials && Object.keys(preloadedInventory.bagInventory.materials).length > 0 && (
+                <div className="p-4 rounded-xl bg-[rgba(6,11,40,0.5)] border border-white/10">
+                  <h3 className="text-sm font-semibold text-[#01b574] mb-3">Crafting Materials</h3>
+                  {Object.entries(preloadedInventory.bagInventory.materials).map(([tier, materials]) => (
+                    <div key={tier} className="mb-3 last:mb-0">
+                      <h4 className="text-xs text-[#718096] uppercase tracking-wider mb-2">{tier.replace('tier', 'Tier ')}</h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {Object.entries(materials).map(([material, count]) => (
+                          <div key={material} className="flex items-center justify-between bg-[#1a1f3c]/50 rounded px-3 py-1.5">
+                            <span className="text-[#a0aec0] text-sm capitalize">{material}</span>
+                            <span className="text-white font-medium text-sm">{count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -665,6 +794,24 @@ export function BagScanner({ onClose, onImport }: BagScannerProps) {
               >
                 <Check className="w-4 h-4" />
                 Save {acceptedCount} Item{acceptedCount !== 1 ? 's' : ''}
+              </button>
+            </>
+          )}
+
+          {step === 'view' && (
+            <>
+              <button
+                onClick={() => setStep('upload')}
+                className="px-4 py-2 rounded-lg border border-white/10 text-[#a0aec0] hover:bg-[#1a1f3c] transition-colors"
+              >
+                Scan More Items
+              </button>
+              <button
+                onClick={onClose}
+                className="px-6 py-2 rounded-lg bg-gradient-to-r from-[#01b574] to-[#00a86b] text-white font-semibold transition-all flex items-center gap-2"
+              >
+                <Check className="w-4 h-4" />
+                Done
               </button>
             </>
           )}

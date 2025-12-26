@@ -1,6 +1,17 @@
 # Scanners
 
-Screenshot analysis tools to build your in-game inventory using OCR technology.
+Screenshot analysis tools to build your in-game inventory using OCR technology. You can also import data directly via JSON files.
+
+## Quick Import (Recommended)
+
+For faster and more accurate data entry, use **JSON import**:
+
+1. Go to `/scanners`
+2. Use the **Import Commanders** or **Import Bag Inventory** cards
+3. Select your JSON file
+4. Data is loaded instantly
+
+See [Commander Scanner](scanners/commander.md) and [Bag Scanner](scanners/bag.md) for JSON format details.
 
 ## Available Scanners
 

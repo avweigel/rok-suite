@@ -152,6 +152,92 @@ The app requires the following Supabase tables:
 
 ---
 
+## JSON Import Formats
+
+The scanners page supports JSON imports for commanders and bag inventory as an alternative to OCR scanning.
+
+### Commander JSON Format
+
+```json
+{
+  "commanders": [
+    {
+      "id": "richard-i",
+      "name": "Richard I",
+      "rarity": "legendary",
+      "types": ["infantry", "defender"],
+      "level": 60,
+      "skills": [5, 5, 5, 5, 4],
+      "stars": 5,
+      "power": 1234567
+    }
+  ]
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Unique identifier |
+| `name` | string | Yes | Commander name |
+| `rarity` | string | Yes | One of: `legendary`, `epic`, `elite`, `advanced`, `normal` |
+| `types` | string[] | Yes | Array of: `infantry`, `cavalry`, `archer`, `leadership`, `defender`, `attacker`, `support`, `gatherer`, `peacekeeping` |
+| `level` | number | Yes | Commander level (1-60) |
+| `skills` | number[] | Yes | Array of 4-5 skill levels |
+| `stars` | number | No | Star level (1-5) |
+| `power` | number | No | Commander power |
+
+### Bag Inventory JSON Format
+
+```json
+{
+  "bagInventory": {
+    "chests": {
+      "equipmentMaterialChoice": 51,
+      "eliteEquipment": 30,
+      "epicEquipment": 120,
+      "legendaryEquipment": 1
+    },
+    "equipment": {
+      "epic": [
+        { "id": "epic-helmet-1", "slot": "helmet", "type": "infantry", "craftable": false }
+      ],
+      "uncommon": [
+        { "id": "uncommon-boots-1", "slot": "boots", "type": "universal", "craftable": true }
+      ]
+    },
+    "blueprints": {
+      "legendary": [{ "name": "Legendary Weapon Blueprint", "quantity": 1 }],
+      "epic": [{ "name": "Epic Sword Blueprint", "quantity": 1 }],
+      "rare": [{ "name": "Rare Horn Blueprint", "quantity": 8 }],
+      "normal": [{ "name": "Normal Leather Blueprint", "quantity": 7 }],
+      "fragmentedBlueprints": [{ "name": "Fragmented Helmet Blueprint", "quantity": 15 }]
+    },
+    "materials": {
+      "tier4": { "leather": 447, "stone": 452, "hardwood": 437, "bone": 421 },
+      "tier3": { "leather": 60, "stone": 51, "hardwood": 47, "bone": 52 },
+      "tier2": { "leather": 29, "stone": 28, "hardwood": 44, "bone": 11 },
+      "tier1": { "leather": 19, "stone": 21, "hardwood": 17, "bone": 5 },
+      "special": { "fireCrystal": 1, "rockChunks": 1 }
+    }
+  },
+  "metadata": {
+    "lastUpdated": "2025-12-23",
+    "playerPower": 15750303,
+    "vipLevel": 9
+  }
+}
+```
+
+| Section | Description |
+|---------|-------------|
+| `chests` | Equipment chest counts by type |
+| `equipment` | Equipment items grouped by rarity, with slot/type/craftable |
+| `blueprints` | Blueprint items grouped by rarity, with name and quantity |
+| `materials` | Crafting materials grouped by tier (tier1-4 and special) |
+| `metadata` | Optional info: lastUpdated, playerPower, vipLevel |
+
+---
+
 ## Data Sources
 
 - **Building data**: [Rise of Kingdoms Fandom Wiki](https://riseofkingdoms.fandom.com/wiki/Buildings)

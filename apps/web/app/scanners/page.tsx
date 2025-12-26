@@ -35,11 +35,30 @@ interface Commander {
   unitCapacity?: number;
 }
 
+interface BagInventory {
+  bagInventory: {
+    chests?: Record<string, number>;
+    equipment?: Record<string, Array<{ id: string; slot: string; type: string; craftable: boolean }>>;
+    blueprints?: Record<string, Array<{ name: string; quantity: number }>>;
+    materials?: Record<string, Record<string, number>>;
+  };
+  metadata?: {
+    lastUpdated?: string;
+    source?: string;
+    version?: string;
+    playerPower?: number;
+    vipLevel?: number;
+  };
+}
+
 export default function ScannersPage() {
   const [activeScanner, setActiveScanner] = useState<ScannerType>(null);
   const [importedCommanders, setImportedCommanders] = useState<Commander[]>([]);
+  const [importedBagInventory, setImportedBagInventory] = useState<BagInventory | null>(null);
   const [showImportSuccess, setShowImportSuccess] = useState(false);
+  const [showBagImportSuccess, setShowBagImportSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bagFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleJsonImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -62,6 +81,54 @@ export default function ScannersPage() {
       }
     };
     reader.readAsText(file);
+  };
+
+  const handleBagJsonImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(e.target?.result as string);
+        // Support both wrapped and unwrapped formats
+        const bagData: BagInventory = json.bagInventory ? json : { bagInventory: json };
+        if (bagData.bagInventory) {
+          setImportedBagInventory(bagData);
+          setShowBagImportSuccess(true);
+          setTimeout(() => setShowBagImportSuccess(false), 3000);
+          // Store in localStorage for persistence
+          localStorage.setItem('rok-bag-inventory', JSON.stringify(bagData));
+        }
+      } catch {
+        alert('Invalid JSON file. Please check the format.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Count bag items for display
+  const getBagItemCount = () => {
+    if (!importedBagInventory?.bagInventory) return 0;
+    const bag = importedBagInventory.bagInventory;
+    let count = 0;
+    if (bag.chests) count += Object.keys(bag.chests).length;
+    if (bag.equipment) {
+      Object.values(bag.equipment).forEach(items => {
+        count += items.length;
+      });
+    }
+    if (bag.blueprints) {
+      Object.values(bag.blueprints).forEach(items => {
+        count += items.length;
+      });
+    }
+    if (bag.materials) {
+      Object.values(bag.materials).forEach(tier => {
+        count += Object.keys(tier).length;
+      });
+    }
+    return count;
   };
 
   const scanners = [
@@ -93,7 +160,7 @@ export default function ScannersPage() {
       gradient: 'from-[#01b574]/10 to-[#01b574]/5',
       iconBg: 'bg-gradient-to-br from-[#01b574] to-[#00a86b]',
       status: 'beta' as const,
-      stats: null,
+      stats: getBagItemCount() > 0 ? `${getBagItemCount()} items loaded` : null,
     },
   ];
 
@@ -150,8 +217,8 @@ export default function ScannersPage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
-          {/* JSON Import Card */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+          {/* Commander JSON Import Card */}
           <div className="group relative p-5 rounded-xl bg-[rgba(6,11,40,0.94)] backdrop-blur-xl border border-white/5 hover:border-[#4318ff]/30 transition-all">
             <div className="flex items-start gap-4">
               <div className="p-2.5 rounded-lg bg-[#4318ff]/10">
@@ -160,7 +227,7 @@ export default function ScannersPage() {
               <div className="flex-1">
                 <h3 className="text-sm font-semibold text-white mb-1">Import Commanders</h3>
                 <p className="text-xs text-[#718096] mb-3">
-                  Load commanders from a JSON file to skip scanning
+                  Load commanders from a JSON file
                 </p>
                 <input
                   ref={fileInputRef}
@@ -178,7 +245,41 @@ export default function ScannersPage() {
                 </button>
                 {showImportSuccess && (
                   <span className="ml-3 text-xs text-emerald-400">
-                    {importedCommanders.length} commanders imported!
+                    {importedCommanders.length} imported!
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Bag Inventory JSON Import Card */}
+          <div className="group relative p-5 rounded-xl bg-[rgba(6,11,40,0.94)] backdrop-blur-xl border border-white/5 hover:border-[#01b574]/30 transition-all">
+            <div className="flex items-start gap-4">
+              <div className="p-2.5 rounded-lg bg-[#01b574]/10">
+                <Package className="w-5 h-5 text-[#01b574]" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-white mb-1">Import Bag Inventory</h3>
+                <p className="text-xs text-[#718096] mb-3">
+                  Load bag items from a JSON file
+                </p>
+                <input
+                  ref={bagFileInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={handleBagJsonImport}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => bagFileInputRef.current?.click()}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#01b574]/10 hover:bg-[#01b574]/20 text-[#01b574] text-xs font-medium transition-colors"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  Choose File
+                </button>
+                {showBagImportSuccess && (
+                  <span className="ml-3 text-xs text-emerald-400">
+                    {getBagItemCount()} items imported!
                   </span>
                 )}
               </div>
@@ -194,7 +295,7 @@ export default function ScannersPage() {
               <div className="flex-1">
                 <h3 className="text-sm font-semibold text-white mb-1">OCR Scanning</h3>
                 <p className="text-xs text-[#718096]">
-                  Uses Tesseract OCR to extract text from screenshots. For best results, use high-resolution screenshots with clear text.
+                  Uses Tesseract OCR to extract text. For best results, use high-resolution screenshots.
                 </p>
               </div>
             </div>
@@ -317,7 +418,10 @@ export default function ScannersPage() {
         <EquipmentScanner onClose={() => setActiveScanner(null)} />
       )}
       {activeScanner === 'bag' && (
-        <BagScanner onClose={() => setActiveScanner(null)} />
+        <BagScanner
+          onClose={() => setActiveScanner(null)}
+          preloadedInventory={importedBagInventory || undefined}
+        />
       )}
     </div>
   );
