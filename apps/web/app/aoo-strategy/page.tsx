@@ -202,21 +202,28 @@ export default function AooStrategyPage() {
             substitutes: updatedData.substitutes ?? substitutes,
         };
         try {
+            console.log('saveData called', { strategyId, eventMode, aooTeam, dataKeys: Object.keys(data) });
             if (strategyId) {
+                console.log('Updating existing row:', strategyId);
                 const { error } = await supabase.from('aoo_strategy').update({ data }).eq('id', strategyId);
                 if (error) throw error;
+                console.log('Update successful');
             } else {
+                console.log('Inserting new row for', eventMode, aooTeam);
                 const { data: newData, error } = await supabase
                     .from('aoo_strategy')
                     .insert([{ data, event_mode: eventMode, aoo_team: aooTeam }])
                     .select()
                     .single();
                 if (error) throw error;
-                if (newData) setStrategyId(newData.id);
+                if (newData) {
+                    console.log('Insert successful, new id:', newData.id);
+                    setStrategyId(newData.id);
+                }
             }
         } catch (error) {
             console.error('Error saving data:', error);
-            alert('Error saving data. Please try again.');
+            alert('Error saving data: ' + (error instanceof Error ? error.message : String(error)));
         }
     };
 
@@ -350,6 +357,7 @@ export default function AooStrategyPage() {
     };
 
     const handleMapSave = (newAssignments: MapAssignments) => {
+        console.log('handleMapSave called', { newAssignments, strategyId, isEditor });
         setMapAssignments(newAssignments);
         saveData({ mapAssignments: newAssignments });
     };
