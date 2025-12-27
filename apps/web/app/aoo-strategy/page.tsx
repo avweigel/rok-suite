@@ -154,14 +154,37 @@ export default function AooStrategyPage() {
                 setNotes(strategyData?.notes || '');
                 setMapAssignments(strategyData?.mapAssignments || undefined);
             } else {
-                // No data for this mode - reset to defaults
+                // No data in Supabase - try to load from JSON files
                 setStrategyId(null);
-                setPlayers([]);
-                setSubstitutes([]);
-                setTeams(DEFAULT_TEAMS);
-                setMapImage(null);
-                setNotes('');
-                setMapAssignments(undefined);
+                try {
+                    const jsonFile = team === 'team1' ? '/data/aoo-team1.json' : '/data/aoo-team2.json';
+                    const response = await fetch(jsonFile);
+                    if (response.ok) {
+                        const jsonData = await response.json() as StrategyData;
+                        setPlayers(jsonData?.players || []);
+                        setSubstitutes(jsonData?.substitutes || []);
+                        setTeams(jsonData?.teams || DEFAULT_TEAMS);
+                        setMapImage(jsonData?.mapImage || null);
+                        setNotes(jsonData?.notes || '');
+                        setMapAssignments(jsonData?.mapAssignments || undefined);
+                    } else {
+                        // JSON file not found - use empty defaults
+                        setPlayers([]);
+                        setSubstitutes([]);
+                        setTeams(DEFAULT_TEAMS);
+                        setMapImage(null);
+                        setNotes('');
+                        setMapAssignments(undefined);
+                    }
+                } catch {
+                    // Error loading JSON - use empty defaults
+                    setPlayers([]);
+                    setSubstitutes([]);
+                    setTeams(DEFAULT_TEAMS);
+                    setMapImage(null);
+                    setNotes('');
+                    setMapAssignments(undefined);
+                }
             }
         } catch (error) {
             console.error('Error loading data:', error);
