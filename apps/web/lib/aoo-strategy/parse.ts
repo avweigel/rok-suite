@@ -151,13 +151,20 @@ export async function fetchAooRegistrationSheet(
 }
 
 /**
- * Parse the OL (Osiris League) sheet schema. Columns:
+ * Parse the OL (Osiris League) sheet schema. Columns (in sheet order):
  *   Name, Gov ID, Power, Confirmed, Lane, Rally Leader, Garrison Leader,
- *   Sub, Coordinator
+ *   Sub, Coordinator, Remove, Notes
+ *
+ * Columns are matched by name, not position, so the trailing Remove / Notes
+ * columns on the current OL page format need no special handling — they are
+ * intentionally NOT ingested:
+ *  - Remove: officer bookkeeping only. The planner does not track who was cut;
+ *    to drop a player from this week's pool, clear their Confirmed cell.
+ *  - Notes: free-text scratch space that stays in the sheet.
  *
  * Schema rules (validated by the sanity panel, not enforced here):
  *  - Lane: t / b / m for top/bottom/mid mains; blank means the row is a sub
- *  - Sub: x marks a substitute (and Lane must be blank for them)
+ *  - Sub: x marks this week's substitute (and Lane must be blank for them)
  *  - Rally Leader: t or b — overlay on a main; exactly one of each expected
  *  - Garrison Leader: t or b — overlay on a main; exactly one of each
  *  - Coordinator: x — overlay on a main; exactly 5 expected
