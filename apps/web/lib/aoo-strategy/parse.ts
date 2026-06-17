@@ -164,7 +164,8 @@ export async function fetchAooRegistrationSheet(
  *
  * Schema rules (validated by the sanity panel, not enforced here):
  *  - Lane: t / b / m for top/bottom/mid mains; blank means the row is a sub
- *  - Sub: x marks this week's substitute (and Lane must be blank for them)
+ *  - Sub: x marks this week's substitute (Lane must be blank; a Sub counts as
+ *    confirmed without needing a separate Confirmed tick)
  *  - Rally Leader: t or b — overlay on a main; exactly one of each expected
  *  - Garrison Leader: t or b — overlay on a main; exactly one of each
  *  - Coordinator: x — overlay on a main; exactly 5 expected
@@ -231,7 +232,9 @@ export function parseAooLeagueRegistrationCSV(text: string): AooRegistration[] {
       const rallyLane = parseLeaderLane(cols[iRallyLeader]);
       const garrisonLane = parseLeaderLane(cols[iGarrisonLeader]);
       const sub = isChecked(cols[iSub]);
-      const confirmed = confirmedColumnPresent ? isChecked(cols[iConfirmed]) : true;
+      // Subs are confirmed by definition: being marked as this week's sub is
+      // itself participation, so they don't need a separate Confirmed tick.
+      const confirmed = sub || (confirmedColumnPresent ? isChecked(cols[iConfirmed]) : true);
 
       return {
         name: (cols[iName] || '').trim(),
