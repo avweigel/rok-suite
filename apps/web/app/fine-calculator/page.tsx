@@ -38,12 +38,15 @@ function fmtCompact(n: number): string {
  *  pain, spread across the resources the player can actually stomach. */
 const RARITY = { food: 1.0, wood: 1.0, stone: 0.55, gold: 0.28 } as const;
 
+/** The current stronger formula: the base multiplier of 30 (up from the old
+ *  7) makes fines strong enough that pushing rules for +20 Golden Heads is
+ *  no longer profitable. Only two severity slots to keep the officer's
+ *  decision simple: never-broken-before vs done-it-before. */
+const BASE_MULTIPLIER = 30;
+
 const SEVERITY_OPTIONS: { value: number; labelKey: string; hint: string }[] = [
-  { value: 0.5, labelKey: 'Minor (×0.5)',    hint: 'Small accidental over, first time, player cooperated immediately' },
-  { value: 1.0, labelKey: 'Normal (×1.0)',   hint: 'Standard rule break, went over the limit' },
-  { value: 1.5, labelKey: 'Serious (×1.5)',  hint: 'Significant over, ignored previous warning, or affected others' },
-  { value: 2.0, labelKey: 'Major (×2.0)',    hint: "Large intentional over, ruined someone's run, or second offense" },
-  { value: 3.0, labelKey: 'Extreme (×3.0)',  hint: 'Repeated offenses, deliberate sabotage, or extreme overage' },
+  { value: 3, labelKey: 'First Offense (×3)',      hint: 'Player broke the rule for the first time' },
+  { value: 6, labelKey: 'Repeated Offender (×6)',  hint: 'Player already broke rules before — double the fine' },
 ];
 
 function clampIntensity(n: number): number {
@@ -55,7 +58,7 @@ export default function FineCalculatorPage() {
   const [power, setPower] = useState('');
   const [limit, setLimit] = useState('');
   const [actual, setActual] = useState('');
-  const [severity, setSeverity] = useState(1);
+  const [severity, setSeverity] = useState(3);
 
   /** Global intensity knob — the one tunable that scales every RSS bucket in
    *  the final fine. 1 = current formula unchanged, <1 = softer, >1 = harder. */
@@ -87,11 +90,11 @@ export default function FineCalculatorPage() {
     const over = parsed.actual - parsed.limit;
     if (over <= 0) return { withinLimit: true } as const;
     const ratio = over / parsed.limit;
-    // Multiplier of 7 keeps the fine painful enough that a mild overage still
-    // stings — tuned by the community to discourage "just a little over".
-    // `intensity` is the officer-tunable global scale: 1 keeps the classic
-    // formula, <1 softens, >1 punishes harder.
-    const base = ratio * parsed.power * severity * 7 * intensity;
+    // Base multiplier is 30 in the current formula (stronger than the old 7):
+    // needed so that the fine outweighs the reward of pushing over the limit
+    // for extra Golden Heads. Severity is either ×3 (first offense) or ×6
+    // (repeated), and `intensity` is the officer-tunable global scale on top.
+    const base = ratio * parsed.power * severity * BASE_MULTIPLIER * intensity;
     return {
       withinLimit: false,
       ratio,
@@ -117,7 +120,7 @@ export default function FineCalculatorPage() {
               Fine Calculator
             </h1>
             <p className="text-sm text-[var(--text-muted)] mt-1">
-              Painful mixed RSS fines · every event
+              Stronger ×30 formula · GH pushing no longer worth it
             </p>
           </div>
 
@@ -161,7 +164,7 @@ export default function FineCalculatorPage() {
             </div>
 
             <div className="mb-2">
-              <label className={labelCls}>Severity</label>
+              <label className={labelCls}>Punishment Level</label>
               <select
                 value={severity}
                 onChange={(e) => setSeverity(parseFloat(e.target.value))}
@@ -196,8 +199,11 @@ export default function FineCalculatorPage() {
                   <RssTile icon={<Coins size={16} />} label="Gold"  value={result.gold}  color="text-amber-300" />
                 </div>
                 <div className="mt-3 text-xs text-[var(--text-muted)] text-center leading-relaxed">
-                  Went <span className="font-semibold text-[var(--foreground)]">{(result.ratio * 100).toFixed(1)}%</span> over the limit.<br />
-                  Base value: <span className="font-semibold text-[var(--foreground)]">{fmtCompact(result.base)}</span>
+                  <span className="font-semibold text-[var(--foreground)]">
+                    {SEVERITY_OPTIONS.find((o) => o.value === severity)?.labelKey.replace(/\s*\(×\d+\)$/, '') ?? ''}
+                  </span><br />
+                  Went <span className="font-semibold text-[var(--foreground)]">{(result.ratio * 100).toFixed(1)}%</span> over the limit ·
+                  base <span className="font-semibold text-[var(--foreground)]">{fmtCompact(result.base)}</span>
                 </div>
               </div>
             )}
@@ -266,7 +272,8 @@ export default function FineCalculatorPage() {
             {/* Formula box — always visible so an officer defending a fine can
              *  point at the math on screen without opening a separate guide. */}
             <div className="mt-4 rounded-lg bg-[var(--background-secondary)]/60 border border-[var(--border)] px-3 py-2.5 text-[11px] text-[var(--text-muted)] text-center leading-relaxed">
-              <span className="text-[var(--foreground)] font-semibold">Base</span> = (Over ÷ Limit) × Power × Severity × <span className="text-[var(--foreground)] font-semibold">7</span>{intensity !== INTENSITY_DEFAULT && (<> × <span className="text-amber-400 font-semibold">{intensity.toFixed(2)}</span> intensity</>)}<br />
+              <span className="text-[var(--foreground)] font-semibold">Base</span> = (Over ÷ Limit) × Power × Multiplier × <span className="text-[var(--foreground)] font-semibold">{BASE_MULTIPLIER}</span>{intensity !== INTENSITY_DEFAULT && (<> × <span className="text-amber-400 font-semibold">{intensity.toFixed(2)}</span> intensity</>)}<br />
+              First Offense = ×3 · Repeated = ×6<br />
               Food & Wood = Base × 1.0 · Stone = Base × 0.55 · Gold = Base × 0.28
             </div>
           </section>
@@ -275,7 +282,7 @@ export default function FineCalculatorPage() {
           <section className="rounded-2xl bg-[var(--background-card)] border border-[var(--border)] p-5 sm:p-6 text-sm">
             <h2 className="text-amber-400 font-semibold mb-3 flex items-center gap-1.5">
               <HelpCircle size={16} />
-              Severity levels — when to use each
+              Punishment levels
             </h2>
             <table className="w-full text-xs">
               <thead>
@@ -295,6 +302,15 @@ export default function FineCalculatorPage() {
                 ))}
               </tbody>
             </table>
+
+            <h2 className="text-amber-400 font-semibold mt-4 mb-2 flex items-center gap-1.5">
+              <HelpCircle size={16} />
+              Why ×{BASE_MULTIPLIER}?
+            </h2>
+            <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+              Previous fines were still worth paying for 20 Golden Heads.
+              This stronger formula makes pushing for GH no longer profitable for most players.
+            </p>
 
             <h2 className="text-amber-400 font-semibold mt-4 mb-2 flex items-center gap-1.5">
               <HelpCircle size={16} />
