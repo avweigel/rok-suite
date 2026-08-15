@@ -49,7 +49,6 @@
     "kvkMap": "KvK 지도",
     "kingdomStats": "왕국 통계",
     "allianceCalculator": "동맹 계산기",
-
     "fineCalculator": "벌금 계산기",
     "dkp": "DKP 점수",
     "alliances": "Alliances",
@@ -135,6 +134,10 @@
       "applyLeader": {
         "title": "랠리/가리슨 리더 정보 제출",
         "description": "랠리·가리슨 리더 후보를 위한 페이지 — 사령관 정보를 공유하면 임원이 검토합니다."
+      },
+      "fineCalculator": {
+        "title": "Fine Calculator",
+        "description": "Turn an event overage into a painful mixed-RSS fine, scaled by power and severity."
       }
     },
     "guide": {
@@ -846,9 +849,7 @@
       "unflagAll": "이 KD의 모든 표시 해제",
       "openPage": "이전 페이지 열기 →",
       "replaceWithRejected": "Replace list with rejected ({count})",
-
       "flagAllFailing": "불합격 항목 모두 표시 ({count})",
-
       "replaceWithFailing": "목록을 불합격으로 교체 ({count})",
       "clearAllFlags": "Clear entire emigration list"
     },
@@ -871,15 +872,10 @@
       "removeRoster": "명단 제거",
       "targetKingdom": "대상 왕국",
       "process": "처리 및 저장",
-
       "reapplyCh25": "CH25 필터 다시 적용",
-
       "reapplyHint": "Stats를 다시 업로드하지 않고 로스터의 CH25 목록으로 현재 데이터셋을 잘라냅니다.",
-
       "reapplied": "{before}개 중 {kept}개 유지 · {removed}개 제거 · 로스터 내 {matched} · KD {kd}",
-
       "errPickRoster": "먼저 로스터 파일을 선택하세요.",
-
       "errNoDataset": "다시 필터링할 저장된 데이터셋이 없습니다. 먼저 Stats를 업로드하세요.",
       "processing": "처리 중…",
       "errPickStats": "먼저 .xlsx 통계 파일을 선택하세요",

@@ -49,7 +49,6 @@
     "kvkMap": "KvK Haritası",
     "kingdomStats": "Krallık İstatistikleri",
     "allianceCalculator": "İttifak Hesaplayıcı",
-
     "fineCalculator": "Ceza hesaplayıcı",
     "dkp": "DKP Puanı",
     "alliances": "Alliances",
@@ -135,6 +134,10 @@
       "applyLeader": {
         "title": "Rally/Garnizon lider bilgisi gönder",
         "description": "Aday rally ve garnizon liderleri için — komutanlarını paylaş, subaylar incelesin."
+      },
+      "fineCalculator": {
+        "title": "Fine Calculator",
+        "description": "Turn an event overage into a painful mixed-RSS fine, scaled by power and severity."
       }
     },
     "guide": {
@@ -846,9 +849,7 @@
       "unflagAll": "Bu KD'deki tüm işaretleri kaldır",
       "openPage": "Geçiş sayfasını aç →",
       "replaceWithRejected": "Replace list with rejected ({count})",
-
       "flagAllFailing": "Başarısızların tümünü işaretle ({count})",
-
       "replaceWithFailing": "Listeyi başarısızlarla değiştir ({count})",
       "clearAllFlags": "Clear entire emigration list"
     },
@@ -871,15 +872,10 @@
       "removeRoster": "Kadroyu kaldır",
       "targetKingdom": "Hedef Krallık",
       "process": "İşle ve kaydet",
-
       "reapplyCh25": "CH25 filtresini yeniden uygula",
-
       "reapplyHint": "Stats'ı yeniden yüklemeden mevcut veri kümesini roster'daki CH25 listesine indir.",
-
       "reapplied": "{before} içinden {kept} tutuldu · {removed} çıkarıldı · roster'da {matched} · KD {kd}",
-
       "errPickRoster": "Önce bir roster dosyası seç.",
-
       "errNoDataset": "Yeniden filtrelenecek kayıtlı veri kümesi yok. Önce stats yükle.",
       "processing": "İşleniyor…",
       "errPickStats": "Önce bir .xlsx istatistik dosyası seçin",

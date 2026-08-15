@@ -49,7 +49,6 @@
     "kvkMap": "خريطة KvK",
     "kingdomStats": "إحصائيات المملكة",
     "allianceCalculator": "حاسبة التحالف",
-
     "fineCalculator": "حاسبة الغرامات",
     "dkp": "نقاط DKP",
     "alliances": "Alliances",
@@ -135,6 +134,10 @@
       "applyLeader": {
         "title": "إرسال معلومات قائد الرالي/الحامية",
         "description": "للراغبين في قيادة الرالي والحامية — شارك قادتك ليراجعها الضباط."
+      },
+      "fineCalculator": {
+        "title": "Fine Calculator",
+        "description": "Turn an event overage into a painful mixed-RSS fine, scaled by power and severity."
       }
     },
     "guide": {
@@ -846,9 +849,7 @@
       "unflagAll": "إلغاء التعليم للجميع في هذه الـ KD",
       "openPage": "فتح صفحة الترحيل ←",
       "replaceWithRejected": "Replace list with rejected ({count})",
-
       "flagAllFailing": "تعليم كل الفاشلين ({count})",
-
       "replaceWithFailing": "استبدال القائمة بالفاشلين ({count})",
       "clearAllFlags": "Clear entire emigration list"
     },
@@ -871,15 +872,10 @@
       "removeRoster": "إزالة القائمة",
       "targetKingdom": "المملكة المستهدفة",
       "process": "معالجة وحفظ",
-
       "reapplyCh25": "إعادة تطبيق فلتر CH25",
-
       "reapplyHint": "قص مجموعة البيانات الحالية إلى قائمة CH25 من الروستر بدون تحميل الإحصائيات مرة أخرى.",
-
       "reapplied": "أُبقي {kept} من {before} · تم إزالة {removed} · {matched} في الروستر · KD {kd}",
-
       "errPickRoster": "اختر ملف الروستر أولاً.",
-
       "errNoDataset": "لا توجد بيانات محفوظة لإعادة التصفية. حمّل الإحصائيات أولاً.",
       "processing": "جارٍ المعالجة…",
       "errPickStats": "اختر ملف إحصائيات ‎.xlsx أولاً",

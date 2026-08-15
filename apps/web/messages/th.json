@@ -49,7 +49,6 @@
     "kvkMap": "แผนที่เควีเค",
     "kingdomStats": "สถิติอาณาจักร",
     "allianceCalculator": "เครื่องคิดเลขพันธมิตร",
-
     "fineCalculator": "เครื่องคำนวณค่าปรับ",
     "dkp": "คะแนน ดีเคพี",
     "alliances": "Alliances",
@@ -135,6 +134,10 @@
       "applyLeader": {
         "title": "ส่งข้อมูลหัวหน้ารวมพล/กองรักษาการณ์",
         "description": "สำหรับผู้สมัครหัวหน้ารวมพลและกองรักษาการณ์ — แชร์ผู้บัญชาการของคุณให้เจ้าหน้าที่ตรวจสอบ"
+      },
+      "fineCalculator": {
+        "title": "Fine Calculator",
+        "description": "Turn an event overage into a painful mixed-RSS fine, scaled by power and severity."
       }
     },
     "guide": {
@@ -846,9 +849,7 @@
       "unflagAll": "ยกเลิกเครื่องหมายทั้งหมดใน KD นี้",
       "openPage": "เปิดหน้าการย้าย →",
       "replaceWithRejected": "Replace list with rejected ({count})",
-
       "flagAllFailing": "ทำเครื่องหมายที่ไม่ผ่านทั้งหมด ({count})",
-
       "replaceWithFailing": "แทนที่รายการด้วยที่ไม่ผ่าน ({count})",
       "clearAllFlags": "Clear entire emigration list"
     },
@@ -871,15 +872,10 @@
       "removeRoster": "ลบบัญชีรายชื่อ",
       "targetKingdom": "อาณาจักรเป้าหมาย",
       "process": "ประมวลผลและบันทึก",
-
       "reapplyCh25": "ใช้ตัวกรอง CH25 อีกครั้ง",
-
       "reapplyHint": "ตัดชุดข้อมูลปัจจุบันให้เหลือเฉพาะรายชื่อ CH25 จาก roster โดยไม่ต้องอัปโหลดสถิติใหม่",
-
       "reapplied": "เก็บ {kept} จาก {before} · ลบ {removed} · CH25 ใน roster {matched} · KD {kd}",
-
       "errPickRoster": "กรุณาเลือกไฟล์ roster ก่อน",
-
       "errNoDataset": "ไม่มีชุดข้อมูลที่บันทึกไว้ให้กรองใหม่ กรุณาอัปโหลดสถิติก่อน",
       "processing": "กำลังประมวลผล…",
       "errPickStats": "เลือกไฟล์สถิติ .xlsx ก่อน",

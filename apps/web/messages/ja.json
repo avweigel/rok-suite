@@ -49,7 +49,6 @@
     "kvkMap": "KvKの地図",
     "kingdomStats": "王国の統計",
     "allianceCalculator": "同盟計算機",
-
     "fineCalculator": "罰金計算機",
     "dkp": "DKPスコア",
     "alliances": "Alliances",
@@ -135,6 +134,10 @@
       "applyLeader": {
         "title": "ラリー/ギャリソンリーダー情報を送信",
         "description": "ラリー・ギャリソンリーダー希望者向け — 司令官情報を共有すると役員が確認します。"
+      },
+      "fineCalculator": {
+        "title": "Fine Calculator",
+        "description": "Turn an event overage into a painful mixed-RSS fine, scaled by power and severity."
       }
     },
     "guide": {
@@ -846,9 +849,7 @@
       "unflagAll": "このKDのフラグをすべて解除",
       "openPage": "移行ページを開く →",
       "replaceWithRejected": "Replace list with rejected ({count})",
-
       "flagAllFailing": "不合格をすべてフラグ付け（{count}）",
-
       "replaceWithFailing": "リストを不合格に置き換え（{count}）",
       "clearAllFlags": "Clear entire emigration list"
     },
@@ -871,15 +872,10 @@
       "removeRoster": "名簿を削除",
       "targetKingdom": "対象の王国",
       "process": "処理して保存",
-
       "reapplyCh25": "CH25フィルタを再適用",
-
       "reapplyHint": "Statsを再アップロードせずに、ロースターのCH25リストに現在のデータセットを絞り込みます。",
-
       "reapplied": "{before}件中{kept}件保持 · {removed}件削除 · ロースター内CH25: {matched} · KD {kd}",
-
       "errPickRoster": "まずロースターファイルを選択してください。",
-
       "errNoDataset": "再フィルタする保存済みデータセットがありません。まずStatsをアップロードしてください。",
       "processing": "処理中…",
       "errPickStats": "先に.xlsx統計ファイルを選択してください",

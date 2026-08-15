@@ -49,7 +49,6 @@
     "kvkMap": "Mapa KvK",
     "kingdomStats": "Estatísticas do Reino",
     "allianceCalculator": "Calculadora de Aliança",
-
     "fineCalculator": "Calculadora de multas",
     "dkp": "Pontuação DKP",
     "alliances": "Alliances",
@@ -135,6 +134,10 @@
       "applyLeader": {
         "title": "Enviar info de líder de rally/guarnição",
         "description": "Para futuros líderes de rally e guarnição — partilhe os seus comandantes para análise dos oficiais."
+      },
+      "fineCalculator": {
+        "title": "Fine Calculator",
+        "description": "Turn an event overage into a painful mixed-RSS fine, scaled by power and severity."
       }
     },
     "guide": {
@@ -846,9 +849,7 @@
       "unflagAll": "Remover sinalização de todos neste KD",
       "openPage": "Abrir página de migração →",
       "replaceWithRejected": "Replace list with rejected ({count})",
-
       "flagAllFailing": "Sinalizar todos reprovados ({count})",
-
       "replaceWithFailing": "Substituir lista pelos reprovados ({count})",
       "clearAllFlags": "Clear entire emigration list"
     },
@@ -871,15 +872,10 @@
       "removeRoster": "Remover lista",
       "targetKingdom": "Reino alvo",
       "process": "Processar e salvar",
-
       "reapplyCh25": "Reaplicar filtro CH25",
-
       "reapplyHint": "Reduz o dataset atual à lista CH25 do roster sem reenviar as stats.",
-
       "reapplied": "Mantidos {kept} de {before} · {removed} removidos · {matched} no roster · KD {kd}",
-
       "errPickRoster": "Escolha primeiro um arquivo roster.",
-
       "errNoDataset": "Nenhum dataset salvo para refiltrar. Envie primeiro as stats.",
       "processing": "Processando…",
       "errPickStats": "Escolha primeiro um arquivo de estatísticas .xlsx",
