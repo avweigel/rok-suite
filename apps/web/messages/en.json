@@ -50,7 +50,6 @@
     "kvkMap": "KvK Map",
     "kingdomStats": "Kingdom Stats",
     "allianceCalculator": "Alliance Calculator",
-
     "fineCalculator": "Fine Calculator",
     "dkp": "DKP Score",
     "alliances": "Alliances",
@@ -140,6 +139,10 @@
       "applyLeader": {
         "title": "Submit rally/garrison lead info",
         "description": "For prospective rally and garrison leads — share your commanders so officers can review."
+      },
+      "fineCalculator": {
+        "title": "Fine Calculator",
+        "description": "Turn an event overage into a painful mixed-RSS fine, scaled by power and severity."
       }
     },
     "guide": {
@@ -851,9 +854,7 @@
       "unflagAll": "Unflag all in this KD",
       "openPage": "Open migration page →",
       "replaceWithRejected": "Replace list with rejected ({count})",
-
       "flagAllFailing": "Flag all failing ({count})",
-
       "replaceWithFailing": "Replace list with failing ({count})",
       "clearAllFlags": "Clear entire emigration list"
     },
@@ -876,15 +877,10 @@
       "removeRoster": "Remove roster",
       "targetKingdom": "Target Kingdom",
       "process": "Process & save",
-
       "reapplyCh25": "Re-apply CH25 filter",
-
       "reapplyHint": "Trim the current dataset down to the roster's CH25 list without re-uploading the stats.",
-
       "reapplied": "Kept {kept} of {before} · removed {removed} · {matched} CH25 in roster · KD {kd}",
-
       "errPickRoster": "Pick a roster file first.",
-
       "errNoDataset": "No saved dataset to re-filter. Upload stats first.",
       "processing": "Processing…",
       "errPickStats": "Pick an .xlsx stats file first",

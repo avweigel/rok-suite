@@ -49,7 +49,6 @@
     "kvkMap": "Bản đồ KvK",
     "kingdomStats": "Thống kê Vương quốc",
     "allianceCalculator": "Máy tính liên minh",
-
     "fineCalculator": "Máy tính tiền phạt",
     "dkp": "Điểm DKP",
     "alliances": "Alliances",
@@ -135,6 +134,10 @@
       "applyLeader": {
         "title": "Gửi thông tin trưởng rally/garrison",
         "description": "Dành cho ứng viên trưởng rally và garrison — chia sẻ tướng của bạn để sĩ quan xem."
+      },
+      "fineCalculator": {
+        "title": "Fine Calculator",
+        "description": "Turn an event overage into a painful mixed-RSS fine, scaled by power and severity."
       }
     },
     "guide": {
@@ -846,9 +849,7 @@
       "unflagAll": "Bỏ gắn cờ tất cả trong KD này",
       "openPage": "Mở trang di cư →",
       "replaceWithRejected": "Replace list with rejected ({count})",
-
       "flagAllFailing": "Gắn cờ tất cả không đạt ({count})",
-
       "replaceWithFailing": "Thay danh sách bằng không đạt ({count})",
       "clearAllFlags": "Clear entire emigration list"
     },
@@ -871,15 +872,10 @@
       "removeRoster": "Xóa danh sách",
       "targetKingdom": "Vương quốc mục tiêu",
       "process": "Xử lý & lưu",
-
       "reapplyCh25": "Áp dụng lại bộ lọc CH25",
-
       "reapplyHint": "Cắt dataset hiện tại theo danh sách CH25 trong roster mà không cần tải lại stats.",
-
       "reapplied": "Giữ {kept} trên {before} · loại bỏ {removed} · {matched} trong roster · KD {kd}",
-
       "errPickRoster": "Chọn file roster trước.",
-
       "errNoDataset": "Không có dataset đã lưu để lọc lại. Tải stats lên trước.",
       "processing": "Đang xử lý…",
       "errPickStats": "Hãy chọn tệp thống kê .xlsx trước",

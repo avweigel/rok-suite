@@ -49,7 +49,6 @@
     "kvkMap": "KvK-Karte",
     "kingdomStats": "Königreichsstatistiken",
     "allianceCalculator": "Allianzrechner",
-
     "fineCalculator": "Strafen-Rechner",
     "dkp": "DKP-Score",
     "alliances": "Alliances",
@@ -135,6 +134,10 @@
       "applyLeader": {
         "title": "Rally/Garnisons-Leiter-Info senden",
         "description": "Für angehende Rally- und Garnisons-Leiter — teile deine Kommandanten zur Prüfung durch Offiziere."
+      },
+      "fineCalculator": {
+        "title": "Fine Calculator",
+        "description": "Turn an event overage into a painful mixed-RSS fine, scaled by power and severity."
       }
     },
     "guide": {
@@ -846,9 +849,7 @@
       "unflagAll": "Alle Markierungen in diesem KD aufheben",
       "openPage": "Migrationsseite öffnen →",
       "replaceWithRejected": "Replace list with rejected ({count})",
-
       "flagAllFailing": "Alle unzureichenden markieren ({count})",
-
       "replaceWithFailing": "Liste durch unzureichende ersetzen ({count})",
       "clearAllFlags": "Clear entire emigration list"
     },
@@ -871,15 +872,10 @@
       "removeRoster": "Kader entfernen",
       "targetKingdom": "Ziel-Königreich",
       "process": "Verarbeiten & speichern",
-
       "reapplyCh25": "CH25-Filter erneut anwenden",
-
       "reapplyHint": "Aktuellen Datensatz auf die CH25-Liste aus dem Roster kürzen, ohne die Statistik neu hochzuladen.",
-
       "reapplied": "{kept} von {before} behalten · {removed} entfernt · {matched} im Roster · KD {kd}",
-
       "errPickRoster": "Wähle zuerst eine Roster-Datei.",
-
       "errNoDataset": "Kein gespeicherter Datensatz zum Neu-Filtern. Lade zuerst eine Statistik hoch.",
       "processing": "Verarbeitung…",
       "errPickStats": "Wählen Sie zuerst eine .xlsx-Statistikdatei",

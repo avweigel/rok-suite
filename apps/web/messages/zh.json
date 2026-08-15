@@ -49,7 +49,6 @@
     "kvkMap": "KvK 地图",
     "kingdomStats": "王国统计",
     "allianceCalculator": "联盟计算器",
-
     "fineCalculator": "罚款计算器",
     "dkp": "DKP分数",
     "alliances": "Alliances",
@@ -135,6 +134,10 @@
       "applyLeader": {
         "title": "提交集结/驻军指挥官信息",
         "description": "面向集结与驻军指挥官候选 — 分享你的将军，由王国官员审核。"
+      },
+      "fineCalculator": {
+        "title": "Fine Calculator",
+        "description": "Turn an event overage into a painful mixed-RSS fine, scaled by power and severity."
       }
     },
     "guide": {
@@ -846,9 +849,7 @@
       "unflagAll": "取消标记此 KD 中的所有",
       "openPage": "打开迁移页面 →",
       "replaceWithRejected": "Replace list with rejected ({count})",
-
       "flagAllFailing": "标记所有未达标（{count}）",
-
       "replaceWithFailing": "将列表替换为未达标（{count}）",
       "clearAllFlags": "Clear entire emigration list"
     },
@@ -871,15 +872,10 @@
       "removeRoster": "移除名册",
       "targetKingdom": "目标王国",
       "process": "处理并保存",
-
       "reapplyCh25": "重新应用 CH25 过滤",
-
       "reapplyHint": "将当前数据集裁剪到花名册的 CH25 列表，无需重新上传统计数据。",
-
       "reapplied": "保留 {kept}/{before} · 移除 {removed} · 花名册中 {matched} 个 CH25 · KD {kd}",
-
       "errPickRoster": "请先选择花名册文件。",
-
       "errNoDataset": "没有已保存的数据集可重新过滤。请先上传统计数据。",
       "processing": "处理中…",
       "errPickStats": "请先选择一个 .xlsx 统计文件",

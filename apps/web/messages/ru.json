@@ -49,7 +49,6 @@
     "kvkMap": "Карта КВК",
     "kingdomStats": "Статистика королевства",
     "allianceCalculator": "Калькулятор Альянса",
-
     "fineCalculator": "Калькулятор штрафов",
     "dkp": "Оценка ДКП",
     "alliances": "Alliances",
@@ -135,6 +134,10 @@
       "applyLeader": {
         "title": "Отправить инфо лидера ралли/гарнизона",
         "description": "Для будущих лидеров ралли и гарнизона — поделитесь командирами для проверки офицерами."
+      },
+      "fineCalculator": {
+        "title": "Fine Calculator",
+        "description": "Turn an event overage into a painful mixed-RSS fine, scaled by power and severity."
       }
     },
     "guide": {
@@ -846,9 +849,7 @@
       "unflagAll": "Снять все отметки в этом КД",
       "openPage": "Открыть страницу миграции →",
       "replaceWithRejected": "Replace list with rejected ({count})",
-
       "flagAllFailing": "Отметить всех неуспешных ({count})",
-
       "replaceWithFailing": "Заменить список неуспешными ({count})",
       "clearAllFlags": "Clear entire emigration list"
     },
@@ -871,15 +872,10 @@
       "removeRoster": "Удалить состав",
       "targetKingdom": "Целевое королевство",
       "process": "Обработать и сохранить",
-
       "reapplyCh25": "Заново применить фильтр CH25",
-
       "reapplyHint": "Обрежьте текущий датасет до списка CH25 из ростера без повторной загрузки статистики.",
-
       "reapplied": "Сохранено {kept} из {before} · {removed} удалено · {matched} в ростере · KD {kd}",
-
       "errPickRoster": "Сначала выберите файл ростера.",
-
       "errNoDataset": "Нет сохранённого датасета для перефильтрации. Сначала загрузите статистику.",
       "processing": "Обработка…",
       "errPickStats": "Сначала выберите .xlsx-файл статистики",
