@@ -14,6 +14,11 @@ import {
     KVK_CALENDAR_LABEL,
     KVK_CALENDAR_COLOR,
 } from '@/lib/calendar/kvk-events';
+import {
+    getAooOccurrences,
+    AOO_CALENDAR_LABEL,
+    AOO_CALENDAR_COLOR,
+} from '@/lib/calendar/aoo-teams';
 
 // ——— Calendar configuration ————————————————————————————————————————————
 // Google-calendar-backed feeds (curated upstream, pulled via the iCal proxy).
@@ -40,11 +45,16 @@ const ROK_EVENTS_CALENDAR_ID = 'rok-events:internal';
  *  Unlike ROK Events these are timed, not all-day. */
 const KVK_EVENTS_CALENDAR_ID = 'kvk-events:internal';
 
+/** Angmar's AoO team slots (lib/calendar/aoo-teams.ts) — timed, and
+ *  recurring fortnightly. */
+const AOO_TEAMS_CALENDAR_ID = 'aoo-teams:internal';
+
 /** Synthetic calendars are served by our own ICS endpoints instead of
  *  Google's public iCal URL. Maps calendar id -> feed path. */
 const LOCAL_FEED_PATHS: Record<string, string> = {
     [ROK_EVENTS_CALENDAR_ID]: '/api/calendar/rok-events.ics',
     [KVK_EVENTS_CALENDAR_ID]: '/api/calendar/kvk-events.ics',
+    [AOO_TEAMS_CALENDAR_ID]: '/api/calendar/aoo-teams.ics',
 };
 
 const ADMIN_CALENDAR = {
@@ -858,8 +868,30 @@ function MonthView({ events, timezone, currentMonth, currentYear, onChangeMonth 
             const weekStartKey = weekDates[0].dateKey;
             const weekEndKey = weekDates[6].dateKey;
 
-            // All-day events that overlap this week.
             const segs: WeekEventSegment[] = [];
+
+            // Timed events (KvK milestones, AoO team slots) occupy the single
+            // cell they start in, keyed in the viewer's timezone so a 20:00
+            // UTC match lands on the right local day. Labelled with the time
+            // since a bare title in a month cell says nothing useful.
+            for (const ev of events) {
+                if (ev.allDay) continue;
+                const key = getDateKey(ev.start, false, timezone);
+                const col = weekDates.findIndex((c) => c.dateKey === key);
+                if (col === -1) continue;
+                segs.push({
+                    eventId: ev.id,
+                    title: `${formatTime(ev.start, timezone)} ${ev.summary}`,
+                    color: ev.calendarColor,
+                    startCol: col + 1,
+                    endCol: col + 1,
+                    continuesLeft: false,
+                    continuesRight: false,
+                    lane: 0,
+                });
+            }
+
+            // All-day events that overlap this week.
             for (const ev of events) {
                 if (!ev.allDay) continue;
                 const evStart = ev.start.slice(0, 10);
@@ -902,7 +934,7 @@ function MonthView({ events, timezone, currentMonth, currentYear, onChangeMonth 
             }
             return { segments: segs, laneCount: laneLastEnd.length };
         });
-    }, [weeks, events]);
+    }, [weeks, events, timezone]);
 
     const selectedEvents = selectedDate ? (eventsByDate.get(selectedDate) || []) : [];
 
@@ -1093,10 +1125,17 @@ export default function CalendarPage() {
         [],
     );
 
+    // Angmar's own AoO team match times, inside the game-wide AoO window
+    // that ROK Events already shows as an all-day block.
+    const AOO_TEAMS_CALENDAR = useMemo(
+        () => ({ id: AOO_TEAMS_CALENDAR_ID, name: AOO_CALENDAR_LABEL, color: AOO_CALENDAR_COLOR }),
+        [],
+    );
+
     const CALENDARS = useMemo(() => {
-        const base = [...PUBLIC_CALENDARS, KVK_EVENTS_CALENDAR, ROK_EVENTS_CALENDAR];
+        const base = [...PUBLIC_CALENDARS, KVK_EVENTS_CALENDAR, AOO_TEAMS_CALENDAR, ROK_EVENTS_CALENDAR];
         return isAdmin ? [...base, ADMIN_CALENDAR] : base;
-    }, [isAdmin, KVK_EVENTS_CALENDAR, ROK_EVENTS_CALENDAR]);
+    }, [isAdmin, KVK_EVENTS_CALENDAR, AOO_TEAMS_CALENDAR, ROK_EVENTS_CALENDAR]);
 
     // ——— Generate ROK events locally (hardcoded catalogue) ——————————————
     const generateRokEvents = useCallback((): CalEvent[] => {
@@ -1140,6 +1179,23 @@ export default function CalendarPage() {
         }));
     }, [KVK_EVENTS_CALENDAR.name, KVK_EVENTS_CALENDAR.color]);
 
+    // ——— Generate AoO team events locally (hardcoded, fortnightly) ————————
+    const generateAooEvents = useCallback((): CalEvent[] => {
+        const now = new Date();
+        const from = new Date(now.getTime() - 180 * 86_400_000);
+        const to = new Date(now.getTime() + 540 * 86_400_000);
+        return getAooOccurrences(from, to).map((occ) => ({
+            id: occ.occurrenceId,
+            summary: occ.title,
+            description: occ.description,
+            start: occ.startIso,
+            end: occ.endIso,
+            allDay: false,
+            calendarName: AOO_TEAMS_CALENDAR.name,
+            calendarColor: AOO_TEAMS_CALENDAR.color,
+        }));
+    }, [AOO_TEAMS_CALENDAR.name, AOO_TEAMS_CALENDAR.color]);
+
     // ——— Fetch iCal feeds (client-side, no cookies needed) ——————————————
     const fetchAll = useCallback(async () => {
         setLoading(true);
@@ -1150,6 +1206,7 @@ export default function CalendarPage() {
         // Hardcoded feeds first (synchronous, never fail).
         newMap.set(ROK_EVENTS_CALENDAR.id, generateRokEvents());
         newMap.set(KVK_EVENTS_CALENDAR.id, generateKvkEvents());
+        newMap.set(AOO_TEAMS_CALENDAR.id, generateAooEvents());
 
         const results = await Promise.allSettled(
             googleCals.map(async (cal) => {
@@ -1160,7 +1217,8 @@ export default function CalendarPage() {
 
         let totalEvents =
             (newMap.get(ROK_EVENTS_CALENDAR.id)?.length ?? 0) +
-            (newMap.get(KVK_EVENTS_CALENDAR.id)?.length ?? 0);
+            (newMap.get(KVK_EVENTS_CALENDAR.id)?.length ?? 0) +
+            (newMap.get(AOO_TEAMS_CALENDAR.id)?.length ?? 0);
         for (const r of results) {
             if (r.status === 'fulfilled') {
                 newMap.set(r.value.calId, r.value.events);
@@ -1174,7 +1232,11 @@ export default function CalendarPage() {
 
         setAllEvents(newMap);
         setLoading(false);
-    }, [isAdmin, generateRokEvents, generateKvkEvents, ROK_EVENTS_CALENDAR.id, KVK_EVENTS_CALENDAR.id]);
+    }, [
+        isAdmin,
+        generateRokEvents, generateKvkEvents, generateAooEvents,
+        ROK_EVENTS_CALENDAR.id, KVK_EVENTS_CALENDAR.id, AOO_TEAMS_CALENDAR.id,
+    ]);
 
     useEffect(() => { fetchAll(); }, [fetchAll]);
 
