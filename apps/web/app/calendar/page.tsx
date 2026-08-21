@@ -9,6 +9,11 @@ import {
     ROK_CALENDAR_LABEL,
     ROK_CALENDAR_COLOR,
 } from '@/lib/calendar/rok-events';
+import {
+    getKvkOccurrences,
+    KVK_CALENDAR_LABEL,
+    KVK_CALENDAR_COLOR,
+} from '@/lib/calendar/kvk-events';
 
 // ——— Calendar configuration ————————————————————————————————————————————
 // Google-calendar-backed feeds (curated upstream, pulled via the iCal proxy).
@@ -30,6 +35,17 @@ const PUBLIC_CALENDARS = [
  *  Google calendars. The `/api/calendar?id=...` proxy does NOT need to
  *  whitelist this — we never fetch it from the proxy. */
 const ROK_EVENTS_CALENDAR_ID = 'rok-events:internal';
+
+/** Same trick for our own hardcoded KvK schedule (lib/calendar/kvk-events.ts).
+ *  Unlike ROK Events these are timed, not all-day. */
+const KVK_EVENTS_CALENDAR_ID = 'kvk-events:internal';
+
+/** Synthetic calendars are served by our own ICS endpoints instead of
+ *  Google's public iCal URL. Maps calendar id -> feed path. */
+const LOCAL_FEED_PATHS: Record<string, string> = {
+    [ROK_EVENTS_CALENDAR_ID]: '/api/calendar/rok-events.ics',
+    [KVK_EVENTS_CALENDAR_ID]: '/api/calendar/kvk-events.ics',
+};
 
 const ADMIN_CALENDAR = {
     id: 'ef47386caa3f7c72112843b965a4db91dc20c1b785836db69b064bf49a50aede@group.calendar.google.com',
@@ -1070,10 +1086,17 @@ export default function CalendarPage() {
         [],
     );
 
+    // Our own KvK schedule — hardcoded rather than living on the Kingdom 23
+    // Google Calendar, which needs owner access to edit.
+    const KVK_EVENTS_CALENDAR = useMemo(
+        () => ({ id: KVK_EVENTS_CALENDAR_ID, name: KVK_CALENDAR_LABEL, color: KVK_CALENDAR_COLOR }),
+        [],
+    );
+
     const CALENDARS = useMemo(() => {
-        const base = [...PUBLIC_CALENDARS, ROK_EVENTS_CALENDAR];
+        const base = [...PUBLIC_CALENDARS, KVK_EVENTS_CALENDAR, ROK_EVENTS_CALENDAR];
         return isAdmin ? [...base, ADMIN_CALENDAR] : base;
-    }, [isAdmin, ROK_EVENTS_CALENDAR]);
+    }, [isAdmin, KVK_EVENTS_CALENDAR, ROK_EVENTS_CALENDAR]);
 
     // ——— Generate ROK events locally (hardcoded catalogue) ——————————————
     const generateRokEvents = useCallback((): CalEvent[] => {
@@ -1097,6 +1120,26 @@ export default function CalendarPage() {
         }));
     }, [ROK_EVENTS_CALENDAR.name]);
 
+    // ——— Generate KvK events locally (hardcoded schedule) ————————————————
+    const generateKvkEvents = useCallback((): CalEvent[] => {
+        // Wider back-window than ROK Events: a KvK runs for months and the
+        // already-passed milestones stay useful as a season record.
+        const now = new Date();
+        const from = new Date(now.getTime() - 365 * 86_400_000);
+        const to = new Date(now.getTime() + 540 * 86_400_000);
+        return getKvkOccurrences(from, to).map((occ) => ({
+            id: occ.uid,
+            summary: occ.title,
+            description: occ.description,
+            // Timed events — full ISO instants, not the 10-char all-day keys.
+            start: occ.startIso,
+            end: occ.endIso,
+            allDay: false,
+            calendarName: KVK_EVENTS_CALENDAR.name,
+            calendarColor: KVK_EVENTS_CALENDAR.color,
+        }));
+    }, [KVK_EVENTS_CALENDAR.name, KVK_EVENTS_CALENDAR.color]);
+
     // ——— Fetch iCal feeds (client-side, no cookies needed) ——————————————
     const fetchAll = useCallback(async () => {
         setLoading(true);
@@ -1104,8 +1147,9 @@ export default function CalendarPage() {
         const googleCals = isAdmin ? [...PUBLIC_CALENDARS, ADMIN_CALENDAR] : PUBLIC_CALENDARS;
         const newMap = new Map<string, CalEvent[]>();
 
-        // Hardcoded ROK feed first (synchronous, never fails).
+        // Hardcoded feeds first (synchronous, never fail).
         newMap.set(ROK_EVENTS_CALENDAR.id, generateRokEvents());
+        newMap.set(KVK_EVENTS_CALENDAR.id, generateKvkEvents());
 
         const results = await Promise.allSettled(
             googleCals.map(async (cal) => {
@@ -1114,7 +1158,9 @@ export default function CalendarPage() {
             })
         );
 
-        let totalEvents = newMap.get(ROK_EVENTS_CALENDAR.id)?.length ?? 0;
+        let totalEvents =
+            (newMap.get(ROK_EVENTS_CALENDAR.id)?.length ?? 0) +
+            (newMap.get(KVK_EVENTS_CALENDAR.id)?.length ?? 0);
         for (const r of results) {
             if (r.status === 'fulfilled') {
                 newMap.set(r.value.calId, r.value.events);
@@ -1128,7 +1174,7 @@ export default function CalendarPage() {
 
         setAllEvents(newMap);
         setLoading(false);
-    }, [isAdmin, generateRokEvents, ROK_EVENTS_CALENDAR.id]);
+    }, [isAdmin, generateRokEvents, generateKvkEvents, ROK_EVENTS_CALENDAR.id, KVK_EVENTS_CALENDAR.id]);
 
     useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -1351,15 +1397,17 @@ export default function CalendarPage() {
                         <p className={`text-xs ${theme.textMuted} text-center mb-4`}>Choose which calendars to add to your calendar app</p>
                         <div className="space-y-4">
                             {CALENDARS.map((cal, index) => {
-                                // ROK Events is served by our own dynamic ICS endpoint;
-                                // the Google calendars resolve to the standard public iCal URL.
-                                const isRok = cal.id === ROK_EVENTS_CALENDAR_ID;
-                                const icalUrl = isRok
+                                // ROK Events and the KvK schedule are served by our own
+                                // dynamic ICS endpoints; the Google calendars resolve to the
+                                // standard public iCal URL.
+                                const localFeedPath = LOCAL_FEED_PATHS[cal.id];
+                                const isLocal = Boolean(localFeedPath);
+                                const icalUrl = isLocal
                                     ? (typeof window !== 'undefined'
-                                        ? `${window.location.origin}/api/calendar/rok-events.ics`
-                                        : '/api/calendar/rok-events.ics')
+                                        ? `${window.location.origin}${localFeedPath}`
+                                        : localFeedPath)
                                     : `https://calendar.google.com/calendar/ical/${cal.id}/public/basic.ics`;
-                                const addToGoogleHref = isRok
+                                const addToGoogleHref = isLocal
                                     // Google Calendar's "add by URL" flow accepts an external ICS via cid parameter.
                                     ? `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(icalUrl)}`
                                     : `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(cal.id)}`;
@@ -1368,7 +1416,7 @@ export default function CalendarPage() {
                                         <div className="flex items-center gap-2 mb-3">
                                             <span className="w-3 h-3 rounded-full" style={{ backgroundColor: cal.color }} />
                                             <h4 className="font-medium">{cal.name}</h4>
-                                            {isRok && (
+                                            {isLocal && (
                                                 <span className="ml-1 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-violet-500/30 bg-violet-500/10 text-violet-300">
                                                     auto
                                                 </span>

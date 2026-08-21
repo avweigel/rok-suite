@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Swords } from 'lucide-react';
+import { getAllKvkOccurrences } from '@/lib/calendar/kvk-events';
 
 // ——— ICS parsing (minimal, shared logic with calendar page) ———
 
@@ -98,6 +99,19 @@ const SHOW_AFTER_START_MS = 60 * 60 * 1000; // keep showing 1h after event start
 const MAX_EVENTS = 2;
 const REFETCH_INTERVAL = 10 * 60 * 1000; // refetch every 10 min
 
+// Our own schedule, straight from the hardcoded catalogue — no fetch, no
+// permissions, available on first paint. Already curated, so it skips the
+// keyword filter the Google feed needs.
+const HARDCODED_EVENTS: KvkEvent[] = getAllKvkOccurrences()
+  .filter(occ => occ.countdown)
+  .map(occ => ({ summary: occ.title, start: new Date(occ.startIso) }));
+
+/** Identity for de-duping the two sources. If leadership also puts an event
+ *  on the Google calendar, we'd otherwise count down to it twice. */
+function eventKey(e: KvkEvent): string {
+  return `${e.summary.toLowerCase().replace(/\s+/g, ' ').trim()}|${e.start.getTime()}`;
+}
+
 export function KvkCountdownBanner() {
   const [icsText, setIcsText] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
@@ -129,8 +143,11 @@ export function KvkCountdownBanner() {
   }, []);
 
   const allEvents = useMemo(() => {
-    if (!icsText) return [];
-    return parseKvkEvents(icsText);
+    const fromGoogle = icsText ? parseKvkEvents(icsText) : [];
+    // Hardcoded entries win on a collision — they're the source of truth.
+    const seen = new Set(HARDCODED_EVENTS.map(eventKey));
+    return [...HARDCODED_EVENTS, ...fromGoogle.filter(e => !seen.has(eventKey(e)))]
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
   }, [icsText]);
 
   const visibleEvents = useMemo(() => {
