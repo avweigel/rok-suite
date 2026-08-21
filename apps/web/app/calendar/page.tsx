@@ -175,7 +175,9 @@ function parseICSDate(line: string): { iso: string; allDay: boolean } {
 function formatTime(isoString: string, tz: string): string {
     try {
         const d = new Date(isoString);
-        return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz, hour12: true });
+        // hourCycle h23 rather than hour12:false — the latter can render
+        // midnight as 24:00 in en-US.
+        return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: tz, hourCycle: 'h23' });
     } catch {
         return '';
     }
@@ -229,7 +231,7 @@ function NowLine({ timezone, label }: { timezone: string; label?: boolean }) {
     }, []);
 
     const now = getNowInTimezone(timezone);
-    const timeStr = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: timezone, hour12: true });
+    const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: timezone, hourCycle: 'h23' });
 
     return (
         <div className="flex items-center gap-2 px-3 py-0.5">
@@ -583,7 +585,7 @@ function DayView({ events, timezone, dayOffset, onChangeDay }: {
                     <div className="shrink-0 w-14 sm:w-16" style={{ height: HOUR_HEIGHT * 24 }}>
                         {HOURS.map(h => (
                             <div key={h} className="text-[10px] text-[var(--text-muted)] tabular-nums text-right pr-2 -mt-[5px]" style={{ height: HOUR_HEIGHT }}>
-                                {h === 0 ? '' : new Date(2000, 0, 1, h).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })}
+                                {h === 0 ? '' : new Date(2000, 0, 1, h).toLocaleTimeString('en-US', { hour: '2-digit', hourCycle: 'h23' })}
                             </div>
                         ))}
                     </div>
@@ -714,7 +716,7 @@ function WeekView({ events, timezone, weekOffset, onChangeWeek }: {
                     <div className="shrink-0 w-14 sm:w-16" style={{ height: HOUR_HEIGHT * 24 }}>
                         {HOURS.map(h => (
                             <div key={h} className="text-[10px] text-[var(--text-muted)] tabular-nums text-right pr-2 -mt-[5px]" style={{ height: HOUR_HEIGHT }}>
-                                {h === 0 ? '' : new Date(2000, 0, 1, h).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })}
+                                {h === 0 ? '' : new Date(2000, 0, 1, h).toLocaleTimeString('en-US', { hour: '2-digit', hourCycle: 'h23' })}
                             </div>
                         ))}
                     </div>
