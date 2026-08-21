@@ -17,6 +17,8 @@
 //   - /api/calendar/kvk-events.ics (subscribable feed for phone/laptop)
 //   - KvkCountdownBanner (merged with the K23 Google feed)
 
+import { expandInterval, MS_PER_HOUR } from './recurring';
+
 export const KVK_CALENDAR_LABEL = 'KvK 4';
 export const KVK_CALENDAR_COLOR = '#f97316';
 
@@ -53,8 +55,52 @@ export const KVK_EVENTS: KvkScheduleEvent[] = [
   { uid: 'kvk4-pass-4-unsealed',  title: 'Pass 4 Unsealed',                   startUtc: '2026-09-24T16:31:00Z', durationMinutes: 60 },
 ];
 
+/** When KvK 4 ends — derived from the last scheduled milestone rather than
+ *  hardcoded, so adding a later milestone extends the recurring series with
+ *  it instead of needing a second edit. */
+export const KVK_END_UTC: string = new Date(
+  Math.max(
+    ...KVK_EVENTS.map(
+      (ev) => new Date(ev.startUtc).getTime() + Math.max(1, ev.durationMinutes) * 60_000,
+    ),
+  ),
+).toISOString();
+
+// ─── Recurring milestones ────────────────────────────────────────────────
+// Ancient Ruins reopens on a fixed 39-hour cycle, so it walks around the
+// clock rather than landing at a fixed time of day. Anchored on the first
+// opening we were given rather than back-filled to the start of KvK.
+
+export interface KvkRecurringEvent {
+  uid: string;
+  title: string;
+  /** First occurrence — exact UTC instant. */
+  anchorUtc: string;
+  /** Gap between openings, in hours. */
+  intervalHours: number;
+  durationMinutes: number;
+  /** Optional exclusive end. Unset = runs until the catalogue is updated. */
+  untilUtc?: string;
+  countdown?: boolean;
+  description?: string;
+}
+
+export const KVK_RECURRING_EVENTS: KvkRecurringEvent[] = [
+  {
+    uid: 'kvk4-ancient-ruins',
+    title: 'Ancient Ruins',
+    anchorUtc: '2026-08-21T16:30:00Z',
+    intervalHours: 39,
+    durationMinutes: 60,
+    // Ruins stop when KvK does.
+    untilUtc: KVK_END_UTC,
+  },
+];
+
 export interface KvkOccurrence {
   uid: string;
+  /** Unique per occurrence — recurring series repeat the same `uid`. */
+  occurrenceId: string;
   title: string;
   description: string;
   startIso: string;
@@ -67,6 +113,7 @@ function toOccurrence(ev: KvkScheduleEvent): KvkOccurrence {
   const end = new Date(start.getTime() + Math.max(1, ev.durationMinutes) * 60_000);
   return {
     uid: ev.uid,
+    occurrenceId: `${ev.uid}-${start.toISOString().slice(0, 10)}`,
     title: ev.title,
     description: ev.description ?? `${KVK_SEASON_LABEL}. Times are UTC (game time).`,
     startIso: start.toISOString(),
@@ -75,8 +122,33 @@ function toOccurrence(ev: KvkScheduleEvent): KvkOccurrence {
   };
 }
 
-/** All KvK events overlapping `[from, to]`, date-sorted. */
-export function getKvkOccurrences(from: Date, to: Date): KvkOccurrence[] {
+function expandRecurring(ev: KvkRecurringEvent, from: Date, to: Date): KvkOccurrence[] {
+  const description =
+    ev.description ?? `${KVK_SEASON_LABEL}. Reopens every ${ev.intervalHours}h. Times are UTC (game time).`;
+  return expandInterval(
+    {
+      anchorUtc: ev.anchorUtc,
+      stepMs: ev.intervalHours * MS_PER_HOUR,
+      durationMs: Math.max(1, ev.durationMinutes) * 60_000,
+      untilUtc: ev.untilUtc,
+    },
+    from,
+    to,
+  ).map((occ) => ({
+    uid: ev.uid,
+    // Minute precision: a 39h cycle can put two openings on the same date.
+    occurrenceId: `${ev.uid}-${occ.startIso.slice(0, 16)}`,
+    title: ev.title,
+    description,
+    startIso: occ.startIso,
+    endIso: occ.endIso,
+    countdown: ev.countdown !== false,
+  }));
+}
+
+/** The one-shot milestones overlapping `[from, to]`. Kept separate from the
+ *  recurring series so the ICS feed can emit those as an RRULE instead. */
+export function getKvkOneShotOccurrences(from: Date, to: Date): KvkOccurrence[] {
   return KVK_EVENTS
     .map(toOccurrence)
     .filter((occ) => {
@@ -87,8 +159,28 @@ export function getKvkOccurrences(from: Date, to: Date): KvkOccurrence[] {
     .sort((a, b) => a.startIso.localeCompare(b.startIso));
 }
 
-/** Every event, unfiltered — for the countdown banner, which does its own
- *  time-window filtering against a live clock. */
+/** All KvK events overlapping `[from, to]` — one-shot and recurring alike,
+ *  date-sorted. */
+export function getKvkOccurrences(from: Date, to: Date): KvkOccurrence[] {
+  const out = getKvkOneShotOccurrences(from, to);
+  for (const ev of KVK_RECURRING_EVENTS) out.push(...expandRecurring(ev, from, to));
+  return out.sort((a, b) => a.startIso.localeCompare(b.startIso));
+}
+
+/** Every one-shot milestone, unfiltered and unbounded.
+ *
+ *  Deliberately excludes the recurring series: those are open-ended, so
+ *  there's no sensible "all" without a window. Callers that want Ancient
+ *  Ruins too should use getKvkCountdownEvents(now), and key on
+ *  `occurrenceId` rather than `uid` — a recurring series repeats its uid. */
 export function getAllKvkOccurrences(): KvkOccurrence[] {
   return KVK_EVENTS.map(toOccurrence).sort((a, b) => a.startIso.localeCompare(b.startIso));
+}
+
+/** Events for the countdown banner. Takes `now` rather than reading the
+ *  clock so the caller controls recomputation; recurring series need a
+ *  bounded forward window since they'd otherwise expand indefinitely. */
+export function getKvkCountdownEvents(now: Date): KvkOccurrence[] {
+  const to = new Date(now.getTime() + 60 * 86_400_000);
+  return getKvkOccurrences(now, to).filter((occ) => occ.countdown);
 }

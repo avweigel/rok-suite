@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Swords } from 'lucide-react';
-import { getAllKvkOccurrences } from '@/lib/calendar/kvk-events';
+import { getKvkCountdownEvents } from '@/lib/calendar/kvk-events';
 
 // ——— ICS parsing (minimal, shared logic with calendar page) ———
 
@@ -99,13 +99,6 @@ const SHOW_AFTER_START_MS = 60 * 60 * 1000; // keep showing 1h after event start
 const MAX_EVENTS = 2;
 const REFETCH_INTERVAL = 10 * 60 * 1000; // refetch every 10 min
 
-// Our own schedule, straight from the hardcoded catalogue — no fetch, no
-// permissions, available on first paint. Already curated, so it skips the
-// keyword filter the Google feed needs.
-const HARDCODED_EVENTS: KvkEvent[] = getAllKvkOccurrences()
-  .filter(occ => occ.countdown)
-  .map(occ => ({ summary: occ.title, start: new Date(occ.startIso) }));
-
 /** Identity for de-duping the two sources. If leadership also puts an event
  *  on the Google calendar, we'd otherwise count down to it twice. */
 function eventKey(e: KvkEvent): string {
@@ -143,12 +136,17 @@ export function KvkCountdownBanner() {
   }, []);
 
   const allEvents = useMemo(() => {
+    // Recomputed as the clock ticks: Ancient Ruins recurs every 39h, so the
+    // window has to move rather than being frozen at module load. Cheap —
+    // a bounded forward expansion of a handful of series.
+    const hardcoded: KvkEvent[] = getKvkCountdownEvents(now)
+      .map(occ => ({ summary: occ.title, start: new Date(occ.startIso) }));
     const fromGoogle = icsText ? parseKvkEvents(icsText) : [];
     // Hardcoded entries win on a collision — they're the source of truth.
-    const seen = new Set(HARDCODED_EVENTS.map(eventKey));
-    return [...HARDCODED_EVENTS, ...fromGoogle.filter(e => !seen.has(eventKey(e)))]
+    const seen = new Set(hardcoded.map(eventKey));
+    return [...hardcoded, ...fromGoogle.filter(e => !seen.has(eventKey(e)))]
       .sort((a, b) => a.start.getTime() - b.start.getTime());
-  }, [icsText]);
+  }, [icsText, now]);
 
   const visibleEvents = useMemo(() => {
     const cutoff = new Date(now.getTime() - SHOW_AFTER_START_MS);

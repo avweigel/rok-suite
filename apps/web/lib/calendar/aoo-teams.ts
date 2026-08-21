@@ -13,6 +13,8 @@
 //   - the Calendar page (own toggle chip)
 //   - /api/calendar/aoo-teams.ics (subscribable feed, emitted as an RRULE)
 
+import { expandInterval, MS_PER_DAY } from './recurring';
+
 export const AOO_CALENDAR_LABEL = 'Angmar AoO';
 export const AOO_CALENDAR_COLOR = '#14b8a6';
 
@@ -51,39 +53,25 @@ function describe(slot: AooTeamSlot): string {
   return slot.description ?? `Ark of Osiris - Angmar Team ${slot.team}. Times are UTC (game time).`;
 }
 
-const MS_PER_DAY = 86_400_000;
-
-/** Expand one team's slot into every occurrence overlapping `[from, to]`.
- *  Never emits anything before the anchor. */
+/** Expand one team's slot into every occurrence overlapping `[from, to]`. */
 function expandSlot(slot: AooTeamSlot, from: Date, to: Date): AooOccurrence[] {
-  const out: AooOccurrence[] = [];
-  const anchor = new Date(slot.anchorUtc);
-  const stepMs = AOO_INTERVAL_DAYS * MS_PER_DAY;
-  const durationMs = Math.max(1, slot.durationMinutes) * 60_000;
-
-  // Jump straight to the first occurrence at or after `from` instead of
-  // looping from the anchor — the window can start years later.
-  const elapsed = from.getTime() - anchor.getTime();
-  const skipped = elapsed > 0 ? Math.floor(elapsed / stepMs) : 0;
-  let cur = anchor.getTime() + skipped * stepMs;
-
-  while (cur <= to.getTime()) {
-    const end = cur + durationMs;
-    if (end > from.getTime()) {
-      const startIso = new Date(cur).toISOString();
-      out.push({
-        uid: slot.uid,
-        occurrenceId: `${slot.uid}-${startIso.slice(0, 10)}`,
-        team: slot.team,
-        title: slot.title,
-        description: describe(slot),
-        startIso,
-        endIso: new Date(end).toISOString(),
-      });
-    }
-    cur += stepMs;
-  }
-  return out;
+  return expandInterval(
+    {
+      anchorUtc: slot.anchorUtc,
+      stepMs: AOO_INTERVAL_DAYS * MS_PER_DAY,
+      durationMs: Math.max(1, slot.durationMinutes) * 60_000,
+    },
+    from,
+    to,
+  ).map((occ) => ({
+    uid: slot.uid,
+    occurrenceId: `${slot.uid}-${occ.startIso.slice(0, 10)}`,
+    team: slot.team,
+    title: slot.title,
+    description: describe(slot),
+    startIso: occ.startIso,
+    endIso: occ.endIso,
+  }));
 }
 
 /** All AoO team matches overlapping `[from, to]`, date-sorted. */
