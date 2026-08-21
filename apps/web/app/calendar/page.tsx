@@ -19,7 +19,7 @@ const KINGDOM_23_CALENDAR_ID = 'e1ef35a9b7dd39094f70f7065b2c20e86685b9f7e1e62f17
 
 const PUBLIC_CALENDARS = [
     { id: ANGMAR_CALENDAR_ID, name: 'Angmar Alliance', color: '#ef4444' },
-    { id: KINGDOM_23_CALENDAR_ID, name: 'Kingdom 23', color: '#3b82f6' },
+    { id: KINGDOM_23_CALENDAR_ID, name: 'Kingdom 23', color: '#22c55e' },
 ];
 
 /** Synthetic calendar id for the hardcoded ROK events list. Lets the rest
@@ -48,7 +48,8 @@ function isGoogleCalendar(id: string): boolean {
 const ADMIN_CALENDAR = {
     id: 'ef47386caa3f7c72112843b965a4db91dc20c1b785836db69b064bf49a50aede@group.calendar.google.com',
     name: 'Leadership',
-    color: '#22c55e',
+    // Teal, not green — Kingdom 23 owns green now, and admins see both.
+    color: '#14b8a6',
 };
 
 const TIMEZONE_OPTIONS = [
