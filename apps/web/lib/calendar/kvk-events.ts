@@ -45,9 +45,15 @@ export interface KvkScheduleEvent {
 
 /** Times from this instant on depend on the Siege the Land (200 flags)
  *  chronicle, which the source sheet currently models as taking 0h. They
- *  slide later once the flags actually land, so they're published with a
- *  caveat rather than as fixed times. */
-export const KVK_PROVISIONAL_FROM_UTC = '2026-09-08T16:31:00Z';
+ *  slide later once the flags actually land.
+ *
+ *  Everything at or after this instant is WITHHELD — not shown on the
+ *  calendar, not in the feeds, not in the countdown banner. A time people
+ *  plan around and then miss is worse than no time at all. The events stay
+ *  in the catalogue below so that publishing them, once the real schedule
+ *  is known, is a matter of correcting the times and moving this cutoff
+ *  (or setting it to null to publish everything). */
+export const KVK_PROVISIONAL_FROM_UTC: string | null = '2026-09-08T16:31:00Z';
 
 export const KVK_EVENTS: KvkScheduleEvent[] = [
   // Pre-KvK chapters (48h each).
@@ -150,13 +156,11 @@ export interface KvkOccurrence {
   countdown: boolean;
 }
 
-/** Times gated on the Siege the Land chronicle carry a caveat. */
-function provisionalNote(startIso: string): string {
-  // Compare instants, not strings: '...00.000Z' and '...00Z' are the same
-  // moment but sort in the wrong order lexically.
-  return new Date(startIso).getTime() >= new Date(KVK_PROVISIONAL_FROM_UTC).getTime()
-    ? ' Provisional - shifts later with the Siege the Land (200 flags) chronicle.'
-    : '';
+/** Upper bound on what we publish: the provisional cutoff, if set. */
+function publishLimit(to: Date): Date {
+  if (!KVK_PROVISIONAL_FROM_UTC) return to;
+  const cutoff = new Date(KVK_PROVISIONAL_FROM_UTC);
+  return cutoff.getTime() < to.getTime() ? cutoff : to;
 }
 
 function toOccurrence(ev: KvkScheduleEvent): KvkOccurrence {
@@ -166,9 +170,7 @@ function toOccurrence(ev: KvkScheduleEvent): KvkOccurrence {
     uid: ev.uid,
     occurrenceId: `${ev.uid}-${start.toISOString().slice(0, 10)}`,
     title: ev.title,
-    description:
-      (ev.description ?? `${KVK_SEASON_LABEL}. Times are UTC (game time).`) +
-      provisionalNote(start.toISOString()),
+    description: ev.description ?? `${KVK_SEASON_LABEL}. Times are UTC (game time).`,
     startIso: start.toISOString(),
     endIso: end.toISOString(),
     countdown: ev.countdown !== false,
@@ -186,13 +188,13 @@ function expandRecurring(ev: KvkRecurringEvent, from: Date, to: Date): KvkOccurr
       untilUtc: ev.untilUtc,
     },
     from,
-    to,
+    publishLimit(to),
   ).map((occ) => ({
     uid: ev.uid,
     // Minute precision: a 39h cycle can put two openings on the same date.
     occurrenceId: `${ev.uid}-${occ.startIso.slice(0, 16)}`,
     title: ev.title,
-    description: base + provisionalNote(occ.startIso),
+    description: base,
     startIso: occ.startIso,
     endIso: occ.endIso,
     countdown: ev.countdown !== false,
@@ -202,12 +204,14 @@ function expandRecurring(ev: KvkRecurringEvent, from: Date, to: Date): KvkOccurr
 /** The one-shot milestones overlapping `[from, to]`. Kept separate from the
  *  recurring series so the ICS feed can emit those as an RRULE instead. */
 export function getKvkOneShotOccurrences(from: Date, to: Date): KvkOccurrence[] {
+  const limit = publishLimit(to);
   return KVK_EVENTS
     .map(toOccurrence)
     .filter((occ) => {
       const start = new Date(occ.startIso).getTime();
       const end = new Date(occ.endIso).getTime();
-      return end > from.getTime() && start <= to.getTime();
+      // `<` not `<=`: an event starting exactly at the cutoff is withheld.
+      return end > from.getTime() && start < limit.getTime();
     })
     .sort((a, b) => a.startIso.localeCompare(b.startIso));
 }
@@ -227,7 +231,11 @@ export function getKvkOccurrences(from: Date, to: Date): KvkOccurrence[] {
  *  Ruins too should use getKvkCountdownEvents(now), and key on
  *  `occurrenceId` rather than `uid` — a recurring series repeats its uid. */
 export function getAllKvkOccurrences(): KvkOccurrence[] {
-  return KVK_EVENTS.map(toOccurrence).sort((a, b) => a.startIso.localeCompare(b.startIso));
+  const limit = KVK_PROVISIONAL_FROM_UTC ? new Date(KVK_PROVISIONAL_FROM_UTC).getTime() : Infinity;
+  return KVK_EVENTS
+    .map(toOccurrence)
+    .filter((occ) => new Date(occ.startIso).getTime() < limit)
+    .sort((a, b) => a.startIso.localeCompare(b.startIso));
 }
 
 /** Events for the countdown banner. Takes `now` rather than reading the

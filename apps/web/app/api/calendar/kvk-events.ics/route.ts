@@ -3,6 +3,7 @@ import { buildCalendar, escapeIcsText, toIcsUtc } from '@/lib/calendar/ics';
 import {
   getKvkOneShotOccurrences,
   KVK_RECURRING_EVENTS,
+  KVK_PROVISIONAL_FROM_UTC,
   KVK_CALENDAR_LABEL,
   KVK_SEASON_LABEL,
 } from '@/lib/calendar/kvk-events';
@@ -46,7 +47,12 @@ export async function GET() {
   for (const ev of KVK_RECURRING_EVENTS) {
     const start = new Date(ev.anchorUtc);
     const end = new Date(start.getTime() + Math.max(1, ev.durationMinutes) * 60_000);
-    const until = ev.untilUtc ? `;UNTIL=${toIcsUtc(ev.untilUtc)}` : '';
+    // Bound the rule by whichever comes first: the series' own end, or the
+    // provisional cutoff. Without this a subscribed client would happily
+    // generate the withheld occurrences from the rule itself.
+    const bounds = [ev.untilUtc, KVK_PROVISIONAL_FROM_UTC].filter(Boolean) as string[];
+    const untilMs = bounds.length ? Math.min(...bounds.map((b) => new Date(b).getTime())) : null;
+    const until = untilMs ? `;UNTIL=${toIcsUtc(new Date(untilMs).toISOString())}` : '';
     events.push('BEGIN:VEVENT');
     events.push(`UID:${ev.uid}@rok-suite`);
     events.push(`DTSTAMP:${stamp}`);
