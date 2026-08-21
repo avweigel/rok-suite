@@ -38,21 +38,54 @@ export interface KvkScheduleEvent {
   description?: string;
 }
 
-// ─── KvK 4 — Fogged Heroic Anthem (LK opened 12 Aug 2026) ────────────────
+// ─── KvK 4 — Fogged Heroic Anthem ────────────────────────────────────────
+// Source: the community KvK 4 timeline sheet (Evil Ciro, v1.1), which is
+// the authority for these times — it derives everything from the LK opening
+// plus the First Steps / Siege the Land chronicle durations.
+
+/** Times from this instant on depend on the Siege the Land (200 flags)
+ *  chronicle, which the source sheet currently models as taking 0h. They
+ *  slide later once the flags actually land, so they're published with a
+ *  caveat rather than as fixed times. */
+export const KVK_PROVISIONAL_FROM_UTC = '2026-09-08T16:31:00Z';
+
 export const KVK_EVENTS: KvkScheduleEvent[] = [
-  { uid: 'kvk4-lk-opening',       title: 'LK Opening',                        startUtc: '2026-08-12T00:00:00Z', durationMinutes: 60, countdown: false },
-  { uid: 'kvk4-ancient-ruins-1',  title: 'Ancient Ruins (1st)',               startUtc: '2026-08-16T16:31:00Z', durationMinutes: 60 },
-  { uid: 'kvk4-pass-4-z5',        title: 'Pass 4 (Z5)',                       startUtc: '2026-08-19T16:31:00Z', durationMinutes: 60 },
-  { uid: 'kvk4-pass-5-free-z6',   title: 'Pass 5 (Free Z6)',                  startUtc: '2026-08-27T16:31:00Z', durationMinutes: 60 },
-  { uid: 'kvk4-altar-1',          title: 'Altar of Darkness (1st)',           startUtc: '2026-08-29T16:31:00Z', durationMinutes: 60 },
-  { uid: 'kvk4-altar-2',          title: 'Altar of Darkness (2nd)',           startUtc: '2026-09-02T06:31:00Z', durationMinutes: 60 },
-  { uid: 'kvk4-altar-3',          title: 'Altar of Darkness (3rd)',           startUtc: '2026-09-05T20:31:00Z', durationMinutes: 60 },
-  { uid: 'kvk4-fog-removed',      title: 'Fog Removed - LK can be spectated', startUtc: '2026-09-06T04:31:00Z', durationMinutes: 60, countdown: false },
-  { uid: 'kvk4-pass-7-clash',     title: 'Pass 7 Clash',                      startUtc: '2026-09-08T16:31:00Z', durationMinutes: 60 },
-  { uid: 'kvk4-pass-8-kl',        title: 'Pass 8 (KL)',                       startUtc: '2026-09-11T16:31:00Z', durationMinutes: 60 },
-  { uid: 'kvk4-ziggurat-capture', title: 'Ziggurat Capture',                  startUtc: '2026-09-17T16:31:00Z', durationMinutes: 60 },
-  { uid: 'kvk4-pass-5-unsealed',  title: 'Pass 5 Unsealed',                   startUtc: '2026-09-20T16:31:00Z', durationMinutes: 60 },
-  { uid: 'kvk4-pass-4-unsealed',  title: 'Pass 4 Unsealed',                   startUtc: '2026-09-24T16:31:00Z', durationMinutes: 60 },
+  // Pre-KvK chapters (48h each).
+  { uid: 'kvk4-prekvk-marauders',   title: 'Pre-KvK: Marauders',        startUtc: '2026-08-06T00:00:00Z', durationMinutes: 2880, countdown: false },
+  { uid: 'kvk4-prekvk-encampments', title: 'Pre-KvK: Encampments',      startUtc: '2026-08-08T00:00:00Z', durationMinutes: 2880, countdown: false },
+  { uid: 'kvk4-prekvk-training',    title: 'Pre-KvK: Troop Training',   startUtc: '2026-08-10T00:00:00Z', durationMinutes: 2880, countdown: false },
+
+  { uid: 'kvk4-lk-opening',      title: 'LK Opening',              startUtc: '2026-08-12T00:00:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-karuak-easy',     title: 'Karuak Trial (Easy)',     startUtc: '2026-08-12T04:31:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-camps-capture',   title: 'Camps Capture',           startUtc: '2026-08-12T16:31:00Z', durationMinutes: 60 },
+  { uid: 'kvk4-rcf',             title: 'RCF - Coalition 4+1',     startUtc: '2026-08-14T16:31:00Z', durationMinutes: 60 },
+  { uid: 'kvk4-mw-1',            title: '1st MW Bundle',           startUtc: '2026-08-19T04:31:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-pass-4-z5',       title: 'Pass 4 (Z5)',             startUtc: '2026-08-19T16:31:00Z', durationMinutes: 60 },
+  { uid: 'kvk4-sanctuary',       title: 'Sanctuary Capture',       startUtc: '2026-08-21T16:31:00Z', durationMinutes: 60 },
+  { uid: 'kvk4-karuak-normal',   title: 'Karuak Trial (Normal)',   startUtc: '2026-08-23T04:31:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-forts-12',        title: 'Forts lvl 12',            startUtc: '2026-08-23T04:31:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-mw-2',            title: '2nd MW Bundle',           startUtc: '2026-08-27T04:31:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-pass-5-free-z6',  title: 'Pass 5 (Free Z6)',        startUtc: '2026-08-27T16:31:00Z', durationMinutes: 60 },
+  { uid: 'kvk4-mw-3',            title: '3rd MW Bundle',           startUtc: '2026-08-28T04:31:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-pass-6-altars',   title: 'Pass 6 (Altars)',         startUtc: '2026-08-28T16:31:00Z', durationMinutes: 60 },
+  { uid: 'kvk4-forts-13',        title: 'Forts lvl 13',            startUtc: '2026-08-30T04:31:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-circle-capture',  title: 'Circle Capture',          startUtc: '2026-09-03T16:31:00Z', durationMinutes: 60 },
+  { uid: 'kvk4-forts-14',        title: 'Forts lvl 14',            startUtc: '2026-09-05T04:31:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-fog-removed',     title: 'Fog Removed - LK can be spectated', startUtc: '2026-09-06T04:31:00Z', durationMinutes: 60, countdown: false },
+
+  // ─ Provisional from here: gated on Siege the Land (200 flags) ─
+  { uid: 'kvk4-mw-4',            title: '4th MW Bundle',           startUtc: '2026-09-08T04:31:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-pass-7-clash',    title: 'Pass 7 Clash',            startUtc: '2026-09-08T16:31:00Z', durationMinutes: 60 },
+  { uid: 'kvk4-karuak-hard',     title: 'Karuak Trial (Hard)',     startUtc: '2026-09-11T04:31:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-mw-5',            title: '5th MW Bundle',           startUtc: '2026-09-11T04:31:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-pass-8-kl',       title: 'Pass 8 (KL)',             startUtc: '2026-09-11T16:31:00Z', durationMinutes: 60 },
+  { uid: 'kvk4-forts-15',        title: 'Forts lvl 15',            startUtc: '2026-09-15T04:31:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-karuak-nightmare',title: 'Karuak Trial (Nightmare)',startUtc: '2026-09-17T04:31:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-bop-bundle',      title: 'Battle of Peaks Bundle',  startUtc: '2026-09-17T04:31:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-ziggurat-capture',title: 'Ziggurat Capture',        startUtc: '2026-09-17T16:31:00Z', durationMinutes: 60 },
+  { uid: 'kvk4-pass-5-unsealed', title: 'Pass 5 Unsealed',         startUtc: '2026-09-20T16:31:00Z', durationMinutes: 60 },
+  { uid: 'kvk4-pass-4-unsealed', title: 'Pass 4 Unsealed',         startUtc: '2026-09-24T16:31:00Z', durationMinutes: 60 },
+  { uid: 'kvk4-lk-ends',         title: 'LK Ends',                 startUtc: '2026-10-01T00:00:00Z', durationMinutes: 60, countdown: false },
 ];
 
 /** When KvK 4 ends — derived from the last scheduled milestone rather than
@@ -67,9 +100,9 @@ export const KVK_END_UTC: string = new Date(
 ).toISOString();
 
 // ─── Recurring milestones ────────────────────────────────────────────────
-// Ancient Ruins reopens on a fixed 39-hour cycle, so it walks around the
-// clock rather than landing at a fixed time of day. Anchored on the first
-// opening we were given rather than back-filled to the start of KvK.
+// Both cycles run on a fixed hour offset, so they walk around the clock
+// rather than landing at a set time of day. Each interval and anchor was
+// checked against every occurrence the source sheet prints.
 
 export interface KvkRecurringEvent {
   uid: string;
@@ -89,10 +122,19 @@ export const KVK_RECURRING_EVENTS: KvkRecurringEvent[] = [
   {
     uid: 'kvk4-ancient-ruins',
     title: 'Ancient Ruins',
-    anchorUtc: '2026-08-21T16:30:00Z',
-    intervalHours: 39,
+    // First opening of the KvK — the cycle runs from here, not from the
+    // date it happened to be noticed.
+    anchorUtc: '2026-08-16T16:31:00Z',
+    intervalHours: 40,
     durationMinutes: 60,
-    // Ruins stop when KvK does.
+    untilUtc: KVK_END_UTC,
+  },
+  {
+    uid: 'kvk4-altar-of-darkness',
+    title: 'Altar of Darkness',
+    anchorUtc: '2026-08-29T16:31:00Z',
+    intervalHours: 86,
+    durationMinutes: 60,
     untilUtc: KVK_END_UTC,
   },
 ];
@@ -108,6 +150,15 @@ export interface KvkOccurrence {
   countdown: boolean;
 }
 
+/** Times gated on the Siege the Land chronicle carry a caveat. */
+function provisionalNote(startIso: string): string {
+  // Compare instants, not strings: '...00.000Z' and '...00Z' are the same
+  // moment but sort in the wrong order lexically.
+  return new Date(startIso).getTime() >= new Date(KVK_PROVISIONAL_FROM_UTC).getTime()
+    ? ' Provisional - shifts later with the Siege the Land (200 flags) chronicle.'
+    : '';
+}
+
 function toOccurrence(ev: KvkScheduleEvent): KvkOccurrence {
   const start = new Date(ev.startUtc);
   const end = new Date(start.getTime() + Math.max(1, ev.durationMinutes) * 60_000);
@@ -115,7 +166,9 @@ function toOccurrence(ev: KvkScheduleEvent): KvkOccurrence {
     uid: ev.uid,
     occurrenceId: `${ev.uid}-${start.toISOString().slice(0, 10)}`,
     title: ev.title,
-    description: ev.description ?? `${KVK_SEASON_LABEL}. Times are UTC (game time).`,
+    description:
+      (ev.description ?? `${KVK_SEASON_LABEL}. Times are UTC (game time).`) +
+      provisionalNote(start.toISOString()),
     startIso: start.toISOString(),
     endIso: end.toISOString(),
     countdown: ev.countdown !== false,
@@ -123,7 +176,7 @@ function toOccurrence(ev: KvkScheduleEvent): KvkOccurrence {
 }
 
 function expandRecurring(ev: KvkRecurringEvent, from: Date, to: Date): KvkOccurrence[] {
-  const description =
+  const base =
     ev.description ?? `${KVK_SEASON_LABEL}. Reopens every ${ev.intervalHours}h. Times are UTC (game time).`;
   return expandInterval(
     {
@@ -139,7 +192,7 @@ function expandRecurring(ev: KvkRecurringEvent, from: Date, to: Date): KvkOccurr
     // Minute precision: a 39h cycle can put two openings on the same date.
     occurrenceId: `${ev.uid}-${occ.startIso.slice(0, 16)}`,
     title: ev.title,
-    description,
+    description: base + provisionalNote(occ.startIso),
     startIso: occ.startIso,
     endIso: occ.endIso,
     countdown: ev.countdown !== false,
