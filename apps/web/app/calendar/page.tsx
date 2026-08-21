@@ -9,30 +9,17 @@ import {
     ROK_CALENDAR_LABEL,
     ROK_CALENDAR_COLOR,
 } from '@/lib/calendar/rok-events';
-import {
-    getKvkOccurrences,
-    KVK_CALENDAR_LABEL,
-    KVK_CALENDAR_COLOR,
-} from '@/lib/calendar/kvk-events';
-import {
-    getAooOccurrences,
-    AOO_CALENDAR_LABEL,
-    AOO_CALENDAR_COLOR,
-} from '@/lib/calendar/aoo-teams';
+import { getKvkOccurrences } from '@/lib/calendar/kvk-events';
+import { getAooOccurrences } from '@/lib/calendar/aoo-teams';
 
 // ——— Calendar configuration ————————————————————————————————————————————
 // Google-calendar-backed feeds (curated upstream, pulled via the iCal proxy).
+const ANGMAR_CALENDAR_ID = '2aed069b30c3f3501b64ef982441f597b833e3db8b855488f734efe1b9552040@group.calendar.google.com';
+const KINGDOM_23_CALENDAR_ID = 'e1ef35a9b7dd39094f70f7065b2c20e86685b9f7e1e62f17030298d0a3bbedca@group.calendar.google.com';
+
 const PUBLIC_CALENDARS = [
-    {
-        id: '2aed069b30c3f3501b64ef982441f597b833e3db8b855488f734efe1b9552040@group.calendar.google.com',
-        name: 'Angmar Alliance',
-        color: '#ef4444',
-    },
-    {
-        id: 'e1ef35a9b7dd39094f70f7065b2c20e86685b9f7e1e62f17030298d0a3bbedca@group.calendar.google.com',
-        name: 'Kingdom 23',
-        color: '#3b82f6',
-    },
+    { id: ANGMAR_CALENDAR_ID, name: 'Angmar Alliance', color: '#ef4444' },
+    { id: KINGDOM_23_CALENDAR_ID, name: 'Kingdom 23', color: '#3b82f6' },
 ];
 
 /** Synthetic calendar id for the hardcoded ROK events list. Lets the rest
@@ -41,21 +28,22 @@ const PUBLIC_CALENDARS = [
  *  whitelist this — we never fetch it from the proxy. */
 const ROK_EVENTS_CALENDAR_ID = 'rok-events:internal';
 
-/** Same trick for our own hardcoded KvK schedule (lib/calendar/kvk-events.ts).
- *  Unlike ROK Events these are timed, not all-day. */
-const KVK_EVENTS_CALENDAR_ID = 'kvk-events:internal';
-
-/** Angmar's AoO team slots (lib/calendar/aoo-teams.ts) — timed, and
- *  recurring fortnightly. */
-const AOO_TEAMS_CALENDAR_ID = 'aoo-teams:internal';
-
-/** Synthetic calendars are served by our own ICS endpoints instead of
- *  Google's public iCal URL. Maps calendar id -> feed path. */
+/** Hardcoded schedules we generate ourselves, keyed by the calendar they
+ *  belong to. The KvK schedule IS Kingdom 23's calendar and the AoO slots
+ *  ARE Angmar's, so they share those chips rather than getting their own —
+ *  the Google feeds carry the same calendars' history.
+ *  Maps calendar id -> the ICS endpoint that serves the generated half. */
 const LOCAL_FEED_PATHS: Record<string, string> = {
     [ROK_EVENTS_CALENDAR_ID]: '/api/calendar/rok-events.ics',
-    [KVK_EVENTS_CALENDAR_ID]: '/api/calendar/kvk-events.ics',
-    [AOO_TEAMS_CALENDAR_ID]: '/api/calendar/aoo-teams.ics',
+    [KINGDOM_23_CALENDAR_ID]: '/api/calendar/kvk-events.ics',
+    [ANGMAR_CALENDAR_ID]: '/api/calendar/aoo-teams.ics',
 };
+
+/** True for the real Google-backed calendars, which also have a public
+ *  iCal URL of their own. */
+function isGoogleCalendar(id: string): boolean {
+    return id.endsWith('@group.calendar.google.com');
+}
 
 const ADMIN_CALENDAR = {
     id: 'ef47386caa3f7c72112843b965a4db91dc20c1b785836db69b064bf49a50aede@group.calendar.google.com',
@@ -1094,7 +1082,7 @@ function MonthView({ events, timezone, currentMonth, currentYear, onChangeMonth 
 export default function CalendarPage() {
     useTheme();
     const [timezone, setTimezone] = useState('UTC');
-    const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+    const [copiedKey, setCopiedKey] = useState<string | null>(null);
     const [showSubscribe, setShowSubscribe] = useState(false);
     const [enabledCalendars, setEnabledCalendars] = useState<Set<number>>(new Set([0, 1, 2]));
     const [isAdmin, setIsAdmin] = useState(false);
@@ -1118,24 +1106,13 @@ export default function CalendarPage() {
         [],
     );
 
-    // Our own KvK schedule — hardcoded rather than living on the Kingdom 23
-    // Google Calendar, which needs owner access to edit.
-    const KVK_EVENTS_CALENDAR = useMemo(
-        () => ({ id: KVK_EVENTS_CALENDAR_ID, name: KVK_CALENDAR_LABEL, color: KVK_CALENDAR_COLOR }),
-        [],
-    );
-
-    // Angmar's own AoO team match times, inside the game-wide AoO window
-    // that ROK Events already shows as an all-day block.
-    const AOO_TEAMS_CALENDAR = useMemo(
-        () => ({ id: AOO_TEAMS_CALENDAR_ID, name: AOO_CALENDAR_LABEL, color: AOO_CALENDAR_COLOR }),
-        [],
-    );
-
     const CALENDARS = useMemo(() => {
-        const base = [...PUBLIC_CALENDARS, KVK_EVENTS_CALENDAR, AOO_TEAMS_CALENDAR, ROK_EVENTS_CALENDAR];
+        const base = [...PUBLIC_CALENDARS, ROK_EVENTS_CALENDAR];
         return isAdmin ? [...base, ADMIN_CALENDAR] : base;
-    }, [isAdmin, KVK_EVENTS_CALENDAR, AOO_TEAMS_CALENDAR, ROK_EVENTS_CALENDAR]);
+    }, [isAdmin, ROK_EVENTS_CALENDAR]);
+
+    const angmar = PUBLIC_CALENDARS[0];
+    const kingdom23 = PUBLIC_CALENDARS[1];
 
     // ——— Generate ROK events locally (hardcoded catalogue) ——————————————
     const generateRokEvents = useCallback((): CalEvent[] => {
@@ -1174,10 +1151,10 @@ export default function CalendarPage() {
             start: occ.startIso,
             end: occ.endIso,
             allDay: false,
-            calendarName: KVK_EVENTS_CALENDAR.name,
-            calendarColor: KVK_EVENTS_CALENDAR.color,
+            calendarName: kingdom23.name,
+            calendarColor: kingdom23.color,
         }));
-    }, [KVK_EVENTS_CALENDAR.name, KVK_EVENTS_CALENDAR.color]);
+    }, [kingdom23.name, kingdom23.color]);
 
     // ——— Generate AoO team events locally (hardcoded, fortnightly) ————————
     const generateAooEvents = useCallback((): CalEvent[] => {
@@ -1191,10 +1168,10 @@ export default function CalendarPage() {
             start: occ.startIso,
             end: occ.endIso,
             allDay: false,
-            calendarName: AOO_TEAMS_CALENDAR.name,
-            calendarColor: AOO_TEAMS_CALENDAR.color,
+            calendarName: angmar.name,
+            calendarColor: angmar.color,
         }));
-    }, [AOO_TEAMS_CALENDAR.name, AOO_TEAMS_CALENDAR.color]);
+    }, [angmar.name, angmar.color]);
 
     // ——— Fetch iCal feeds (client-side, no cookies needed) ——————————————
     const fetchAll = useCallback(async () => {
@@ -1203,10 +1180,15 @@ export default function CalendarPage() {
         const googleCals = isAdmin ? [...PUBLIC_CALENDARS, ADMIN_CALENDAR] : PUBLIC_CALENDARS;
         const newMap = new Map<string, CalEvent[]>();
 
-        // Hardcoded feeds first (synchronous, never fail).
+        // Hardcoded feeds first (synchronous, never fail). The KvK schedule
+        // and AoO slots are merged into their own calendars' buckets below,
+        // so they show under the Kingdom 23 / Angmar chips rather than
+        // separate ones.
         newMap.set(ROK_EVENTS_CALENDAR.id, generateRokEvents());
-        newMap.set(KVK_EVENTS_CALENDAR.id, generateKvkEvents());
-        newMap.set(AOO_TEAMS_CALENDAR.id, generateAooEvents());
+        const generated: Record<string, CalEvent[]> = {
+            [KINGDOM_23_CALENDAR_ID]: generateKvkEvents(),
+            [ANGMAR_CALENDAR_ID]: generateAooEvents(),
+        };
 
         const results = await Promise.allSettled(
             googleCals.map(async (cal) => {
@@ -1215,15 +1197,18 @@ export default function CalendarPage() {
             })
         );
 
-        let totalEvents =
-            (newMap.get(ROK_EVENTS_CALENDAR.id)?.length ?? 0) +
-            (newMap.get(KVK_EVENTS_CALENDAR.id)?.length ?? 0) +
-            (newMap.get(AOO_TEAMS_CALENDAR.id)?.length ?? 0);
+        let totalEvents = newMap.get(ROK_EVENTS_CALENDAR.id)?.length ?? 0;
         for (const r of results) {
             if (r.status === 'fulfilled') {
                 newMap.set(r.value.calId, r.value.events);
                 totalEvents += r.value.events.length;
             }
+        }
+        // Merge in the generated half — even if the Google fetch failed, so
+        // a dead feed never hides our own schedule.
+        for (const [calId, events] of Object.entries(generated)) {
+            newMap.set(calId, [...(newMap.get(calId) ?? []), ...events]);
+            totalEvents += events.length;
         }
 
         if (totalEvents === 0 && results.every(r => r.status === 'rejected')) {
@@ -1232,11 +1217,7 @@ export default function CalendarPage() {
 
         setAllEvents(newMap);
         setLoading(false);
-    }, [
-        isAdmin,
-        generateRokEvents, generateKvkEvents, generateAooEvents,
-        ROK_EVENTS_CALENDAR.id, KVK_EVENTS_CALENDAR.id, AOO_TEAMS_CALENDAR.id,
-    ]);
+    }, [isAdmin, generateRokEvents, generateKvkEvents, generateAooEvents, ROK_EVENTS_CALENDAR.id]);
 
     useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -1315,7 +1296,7 @@ export default function CalendarPage() {
         setEnabledCalendars(newEnabled);
     };
 
-    const copyToClipboard = async (url: string, index: number) => {
+    const copyToClipboard = async (url: string, key: string) => {
         try {
             await navigator.clipboard.writeText(url);
         } catch {
@@ -1326,8 +1307,8 @@ export default function CalendarPage() {
             document.execCommand('copy');
             document.body.removeChild(textArea);
         }
-        setCopiedIndex(index);
-        setTimeout(() => setCopiedIndex(null), 2000);
+        setCopiedKey(key);
+        setTimeout(() => setCopiedKey(null), 2000);
     };
 
     const theme = {
@@ -1463,41 +1444,62 @@ export default function CalendarPage() {
                                 // dynamic ICS endpoints; the Google calendars resolve to the
                                 // standard public iCal URL.
                                 const localFeedPath = LOCAL_FEED_PATHS[cal.id];
-                                const isLocal = Boolean(localFeedPath);
-                                const icalUrl = isLocal
-                                    ? (typeof window !== 'undefined'
-                                        ? `${window.location.origin}${localFeedPath}`
-                                        : localFeedPath)
-                                    : `https://calendar.google.com/calendar/ical/${cal.id}/public/basic.ics`;
-                                const addToGoogleHref = isLocal
-                                    // Google Calendar's "add by URL" flow accepts an external ICS via cid parameter.
-                                    ? `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(icalUrl)}`
-                                    : `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(cal.id)}`;
+                                const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                                // A calendar can have both halves: the Google feed carries
+                                // its history, our endpoint carries the live schedule. Offer
+                                // each separately rather than silently picking one.
+                                const feeds: { label: string; url: string }[] = [];
+                                if (localFeedPath) {
+                                    feeds.push({
+                                        label: isGoogleCalendar(cal.id) ? `${cal.name} schedule` : cal.name,
+                                        url: `${origin}${localFeedPath}`,
+                                    });
+                                }
+                                if (isGoogleCalendar(cal.id)) {
+                                    feeds.push({
+                                        label: localFeedPath ? `${cal.name} (Google, past events)` : cal.name,
+                                        url: `https://calendar.google.com/calendar/ical/${cal.id}/public/basic.ics`,
+                                    });
+                                }
                                 return (
                                     <div key={cal.id} className={`p-4 rounded-lg border ${theme.border}`}>
                                         <div className="flex items-center gap-2 mb-3">
                                             <span className="w-3 h-3 rounded-full" style={{ backgroundColor: cal.color }} />
                                             <h4 className="font-medium">{cal.name}</h4>
-                                            {isLocal && (
+                                            {localFeedPath && (
                                                 <span className="ml-1 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-violet-500/30 bg-violet-500/10 text-violet-300">
                                                     auto
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="grid gap-3 md:grid-cols-2">
-                                            <div>
-                                                <p className={`text-xs ${theme.textMuted} mb-2`}>Google Calendar</p>
-                                                <a href={addToGoogleHref} target="_blank" rel="noopener noreferrer" className={`inline-block px-3 py-2 rounded-lg text-xs font-medium ${theme.button}`}>Add to Google Calendar</a>
-                                            </div>
-                                            <div>
-                                                <p className={`text-xs ${theme.textMuted} mb-2`}>Apple / Outlook / Other</p>
-                                                <div className="flex gap-2">
-                                                    <input type="text" value={icalUrl} readOnly className={`flex-1 px-2 py-2 rounded-lg text-xs ${theme.button} bg-[var(--background)] font-mono truncate min-w-0`} />
-                                                    <button onClick={() => copyToClipboard(icalUrl, index)} className={`px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap ${copiedIndex === index ? 'bg-green-600 text-white' : theme.button}`}>
-                                                        {copiedIndex === index ? 'Copied!' : 'Copy'}
-                                                    </button>
-                                                </div>
-                                            </div>
+                                        <div className="space-y-3">
+                                            {feeds.map((feed, fi) => {
+                                                const key = `${index}-${fi}`;
+                                                // Google's "add by URL" flow takes an external ICS via cid.
+                                                const addHref = `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(feed.url)}`;
+                                                return (
+                                                    <div key={feed.url}>
+                                                        {feeds.length > 1 && (
+                                                            <p className={`text-xs ${theme.textMuted} mb-2`}>{feed.label}</p>
+                                                        )}
+                                                        <div className="grid gap-3 md:grid-cols-2">
+                                                            <div>
+                                                                <p className={`text-xs ${theme.textMuted} mb-2`}>Google Calendar</p>
+                                                                <a href={addHref} target="_blank" rel="noopener noreferrer" className={`inline-block px-3 py-2 rounded-lg text-xs font-medium ${theme.button}`}>Add to Google Calendar</a>
+                                                            </div>
+                                                            <div>
+                                                                <p className={`text-xs ${theme.textMuted} mb-2`}>Apple / Outlook / Other</p>
+                                                                <div className="flex gap-2">
+                                                                    <input type="text" value={feed.url} readOnly className={`flex-1 px-2 py-2 rounded-lg text-xs ${theme.button} bg-[var(--background)] font-mono truncate min-w-0`} />
+                                                                    <button onClick={() => copyToClipboard(feed.url, key)} className={`px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap ${copiedKey === key ? 'bg-green-600 text-white' : theme.button}`}>
+                                                                        {copiedKey === key ? 'Copied!' : 'Copy'}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 );
