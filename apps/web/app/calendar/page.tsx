@@ -1167,7 +1167,7 @@ export default function CalendarPage() {
         const from = new Date(now.getTime() - 365 * 86_400_000);
         const to = new Date(now.getTime() + 540 * 86_400_000);
         return getKvkOccurrences(from, to).map((occ) => ({
-            id: occ.uid,
+            id: occ.occurrenceId,
             summary: occ.title,
             description: occ.description,
             // Timed events — full ISO instants, not the 10-char all-day keys.

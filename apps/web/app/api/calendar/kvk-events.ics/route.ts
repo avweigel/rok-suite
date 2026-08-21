@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { buildCalendar, escapeIcsText, toIcsUtc } from '@/lib/calendar/ics';
 import {
-  getKvkOccurrences,
+  getKvkOneShotOccurrences,
+  KVK_RECURRING_EVENTS,
   KVK_CALENDAR_LABEL,
   KVK_SEASON_LABEL,
 } from '@/lib/calendar/kvk-events';
@@ -21,7 +22,7 @@ export async function GET() {
   const from = new Date(now.getTime() - 365 * 86_400_000);
   const to = new Date(now.getTime() + 540 * 86_400_000);
 
-  const occurrences = getKvkOccurrences(from, to);
+  const occurrences = getKvkOneShotOccurrences(from, to);
   const stamp = toIcsUtc(now.toISOString());
 
   const events: string[] = [];
@@ -35,6 +36,29 @@ export async function GET() {
     events.push(`SUMMARY:${escapeIcsText(ev.title)}`);
     events.push(`DESCRIPTION:${escapeIcsText(ev.description)}`);
     // Kingdom events shouldn't make anyone look busy in their work calendar.
+    events.push('TRANSP:TRANSPARENT');
+    events.push('END:VEVENT');
+  }
+
+  // Recurring milestones go out as an RRULE rather than expanded. Ancient
+  // Ruins on a 39h cycle would otherwise be several hundred VEVENTs, and a
+  // pre-expanded series eventually runs dry on a subscribed device.
+  for (const ev of KVK_RECURRING_EVENTS) {
+    const start = new Date(ev.anchorUtc);
+    const end = new Date(start.getTime() + Math.max(1, ev.durationMinutes) * 60_000);
+    const until = ev.untilUtc ? `;UNTIL=${toIcsUtc(ev.untilUtc)}` : '';
+    events.push('BEGIN:VEVENT');
+    events.push(`UID:${ev.uid}@rok-suite`);
+    events.push(`DTSTAMP:${stamp}`);
+    events.push(`DTSTART:${toIcsUtc(start.toISOString())}`);
+    events.push(`DTEND:${toIcsUtc(end.toISOString())}`);
+    events.push(`RRULE:FREQ=HOURLY;INTERVAL=${ev.intervalHours}${until}`);
+    events.push(`SUMMARY:${escapeIcsText(ev.title)}`);
+    events.push(
+      `DESCRIPTION:${escapeIcsText(
+        ev.description ?? `${KVK_SEASON_LABEL}. Reopens every ${ev.intervalHours}h. Times are UTC (game time).`,
+      )}`,
+    );
     events.push('TRANSP:TRANSPARENT');
     events.push('END:VEVENT');
   }
