@@ -47,6 +47,7 @@ export interface RecurringEvent {
   uid: string;
   title: string;
   description?: string;
+  /** Upstream rokhub colour. Kept as provenance — display uses rokColor(). */
   color: string;
   /** List of patterns. Multiple entries allow expressing offset cadences
    *  (e.g. 4× eight-weeks patterns offset by 2 weeks = effective biweekly). */
@@ -57,6 +58,7 @@ export interface ManualEvent {
   uid: string;
   title: string;
   description?: string;
+  /** Upstream rokhub colour. Kept as provenance — display uses rokColor(). */
   color: string;
   startDate: string;
   duration: number;
@@ -191,6 +193,42 @@ export const ROK_MANUAL_EVENTS: ManualEvent[] = [
   { uid: 'tgk-2026-03-25', title: 'The Golden Kingdom',       description: 'The Golden Kingdom event.',                                                            color: '#d6d602', startDate: '2026-03-25', duration: 3 },
 ];
 
+// ─── Display colour ──────────────────────────────────────────────────────
+// The upstream catalogue gives every event its own arbitrary colour, which
+// made this one layer read as a dozen unrelated calendars. Everything now
+// renders in the chip's hue (#8b5cf6 is hsl(258 89% 66%)) and varies only
+// by lightness, so the events stay distinguishable but obviously related.
+//
+// Keyed by title, not uid, so repeated occurrences of the same event — the
+// Golden Kingdom entries each have their own uid — always share a shade.
+
+// Hex, not hsl() — the calendar renders bars through a hex-only parser.
+// Lightness runs 34% -> 69%, which keeps white label text at 3.3:1 contrast
+// or better on the lightest step.
+const ROK_SHADES = [
+  '#3d1698', // hsl(258 75% 34%)
+  '#491ab7', // hsl(258 75% 41%)
+  '#5722d3', // hsl(258 72% 48%)
+  '#6c3cdd', // hsl(258 70% 55%)
+  '#845ce0', // hsl(258 68% 62%)
+  '#9b7ce4', // hsl(258 66% 69%)
+];
+
+const ROK_TITLE_SHADES: Map<string, string> = (() => {
+  const titles: string[] = [];
+  for (const ev of [...ROK_RECURRING_EVENTS, ...ROK_MANUAL_EVENTS]) {
+    if (!titles.includes(ev.title)) titles.push(ev.title);
+  }
+  // Index order, not a hash: adjacent entries land on adjacent shades
+  // rather than clumping arbitrarily.
+  return new Map(titles.map((t, i) => [t, ROK_SHADES[i % ROK_SHADES.length]]));
+})();
+
+/** Display colour for a ROK event. */
+export function rokColor(title: string): string {
+  return ROK_TITLE_SHADES.get(title) ?? ROK_CALENDAR_COLOR;
+}
+
 export interface RokOccurrence {
   uid: string;
   occurrenceId: string;
@@ -274,7 +312,7 @@ function expandPattern(
         occurrenceId: `${ev.uid}-${startKey}`,
         title: ev.title,
         description: ev.description,
-        color: ev.color,
+        color: rokColor(ev.title),
         startIso: `${startKey}T00:00:00Z`,
         endIso: `${toIsoDateOnly(occEnd)}T00:00:00Z`,
         allDay: true,
@@ -296,7 +334,7 @@ function expandManual(ev: ManualEvent, from: Date, to: Date): RokOccurrence[] {
     occurrenceId: `${ev.uid}-${ev.startDate}`,
     title: ev.title,
     description: ev.description,
-    color: ev.color,
+    color: rokColor(ev.title),
     startIso: `${ev.startDate}T00:00:00Z`,
     endIso: `${toIsoDateOnly(end)}T00:00:00Z`,
     allDay: true,
