@@ -43,17 +43,20 @@ export interface KvkScheduleEvent {
 // the authority for these times — it derives everything from the LK opening
 // plus the First Steps / Siege the Land chronicle durations.
 
-/** Times from this instant on depend on the Siege the Land (200 flags)
- *  chronicle, which the source sheet currently models as taking 0h. They
- *  slide later once the flags actually land.
+/** Cutoff for withholding provisional times — null while every time below
+ *  is confirmed.
  *
- *  Everything at or after this instant is WITHHELD — not shown on the
- *  calendar, not in the feeds, not in the countdown banner. A time people
- *  plan around and then miss is worse than no time at all. The events stay
- *  in the catalogue below so that publishing them, once the real schedule
- *  is known, is a matter of correcting the times and moving this cutoff
- *  (or setting it to null to publish everything). */
-export const KVK_PROVISIONAL_FROM_UTC: string | null = '2026-09-08T16:31:00Z';
+ *  Set it to an ISO instant to withhold everything at or after that point:
+ *  nothing past the cutoff reaches the calendar, the feeds, the countdown
+ *  banner or the Discord alerts. A time people plan around and then miss is
+ *  worse than no time at all.
+ *
+ *  It last sat at 2026-09-08T16:31:00Z while Siege the Land (200 flags) was
+ *  still open and the sheet modeled that chronicle as taking 0h. The flags
+ *  landed on 28 Aug and it ran 12h27m, pushing every milestone from the 3rd
+ *  MW bundle onward back by exactly that much — the times below are the
+ *  corrected ones. */
+export const KVK_PROVISIONAL_FROM_UTC: string | null = null;
 
 export const KVK_EVENTS: KvkScheduleEvent[] = [
   // Pre-KvK chapters (48h each).
@@ -72,25 +75,26 @@ export const KVK_EVENTS: KvkScheduleEvent[] = [
   { uid: 'kvk4-forts-12',        title: 'Forts lvl 12',            startUtc: '2026-08-23T04:31:00Z', durationMinutes: 60, countdown: false },
   { uid: 'kvk4-mw-2',            title: '2nd MW Bundle',           startUtc: '2026-08-27T04:31:00Z', durationMinutes: 60, countdown: false },
   { uid: 'kvk4-pass-5-free-z6',  title: 'Pass 5 (Free Z6)',        startUtc: '2026-08-27T16:31:00Z', durationMinutes: 60 },
-  { uid: 'kvk4-mw-3',            title: '3rd MW Bundle',           startUtc: '2026-08-28T04:31:00Z', durationMinutes: 60, countdown: false },
-  { uid: 'kvk4-pass-6-altars',   title: 'Pass 6 (Altars)',         startUtc: '2026-08-28T16:31:00Z', durationMinutes: 60 },
-  { uid: 'kvk4-forts-13',        title: 'Forts lvl 13',            startUtc: '2026-08-30T04:31:00Z', durationMinutes: 60, countdown: false },
-  { uid: 'kvk4-circle-capture',  title: 'Circle Capture',          startUtc: '2026-09-03T16:31:00Z', durationMinutes: 60 },
-  { uid: 'kvk4-forts-14',        title: 'Forts lvl 14',            startUtc: '2026-09-05T04:31:00Z', durationMinutes: 60, countdown: false },
-  { uid: 'kvk4-fog-removed',     title: 'Fog Removed - LK can be spectated', startUtc: '2026-09-06T04:31:00Z', durationMinutes: 60, countdown: false },
+  // ─ Siege the Land (200 flags) ran 12h27m: everything below is that much
+  // later than the original sheet printed. Ancient Ruins is unaffected. ─
+  { uid: 'kvk4-mw-3',            title: '3rd MW Bundle',           startUtc: '2026-08-28T16:58:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-pass-6-altars',   title: 'Pass 6 (Altars)',         startUtc: '2026-08-29T04:58:00Z', durationMinutes: 60 },
+  { uid: 'kvk4-forts-13',        title: 'Forts lvl 13',            startUtc: '2026-08-30T16:58:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-circle-capture',  title: 'Circle Capture',          startUtc: '2026-09-04T04:58:00Z', durationMinutes: 60 },
+  { uid: 'kvk4-forts-14',        title: 'Forts lvl 14',            startUtc: '2026-09-05T16:58:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-fog-removed',     title: 'Fog Removed - LK can be spectated', startUtc: '2026-09-06T16:58:00Z', durationMinutes: 60, countdown: false },
 
-  // ─ Provisional from here: gated on Siege the Land (200 flags) ─
-  { uid: 'kvk4-mw-4',            title: '4th MW Bundle',           startUtc: '2026-09-08T04:31:00Z', durationMinutes: 60, countdown: false },
-  { uid: 'kvk4-pass-7-clash',    title: 'Pass 7 Clash',            startUtc: '2026-09-08T16:31:00Z', durationMinutes: 60 },
-  { uid: 'kvk4-karuak-hard',     title: 'Karuak Trial (Hard)',     startUtc: '2026-09-11T04:31:00Z', durationMinutes: 60, countdown: false },
-  { uid: 'kvk4-mw-5',            title: '5th MW Bundle',           startUtc: '2026-09-11T04:31:00Z', durationMinutes: 60, countdown: false },
-  { uid: 'kvk4-pass-8-kl',       title: 'Pass 8 (KL)',             startUtc: '2026-09-11T16:31:00Z', durationMinutes: 60 },
-  { uid: 'kvk4-forts-15',        title: 'Forts lvl 15',            startUtc: '2026-09-15T04:31:00Z', durationMinutes: 60, countdown: false },
-  { uid: 'kvk4-karuak-nightmare',title: 'Karuak Trial (Nightmare)',startUtc: '2026-09-17T04:31:00Z', durationMinutes: 60, countdown: false },
-  { uid: 'kvk4-bop-bundle',      title: 'Battle of Peaks Bundle',  startUtc: '2026-09-17T04:31:00Z', durationMinutes: 60, countdown: false },
-  { uid: 'kvk4-ziggurat-capture',title: 'Ziggurat Capture',        startUtc: '2026-09-17T16:31:00Z', durationMinutes: 60 },
-  { uid: 'kvk4-pass-5-unsealed', title: 'Pass 5 Unsealed',         startUtc: '2026-09-20T16:31:00Z', durationMinutes: 60 },
-  { uid: 'kvk4-pass-4-unsealed', title: 'Pass 4 Unsealed',         startUtc: '2026-09-24T16:31:00Z', durationMinutes: 60 },
+  { uid: 'kvk4-mw-4',            title: '4th MW Bundle',           startUtc: '2026-09-08T16:58:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-pass-7-clash',    title: 'Pass 7 Clash',            startUtc: '2026-09-09T04:58:00Z', durationMinutes: 60 },
+  { uid: 'kvk4-karuak-hard',     title: 'Karuak Trial (Hard)',     startUtc: '2026-09-11T16:58:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-mw-5',            title: '5th MW Bundle',           startUtc: '2026-09-11T16:58:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-pass-8-kl',       title: 'Pass 8 (KL)',             startUtc: '2026-09-12T04:58:00Z', durationMinutes: 60 },
+  { uid: 'kvk4-forts-15',        title: 'Forts lvl 15',            startUtc: '2026-09-15T16:58:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-karuak-nightmare',title: 'Karuak Trial (Nightmare)',startUtc: '2026-09-17T16:58:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-bop-bundle',      title: 'Battle of Peaks Bundle',  startUtc: '2026-09-17T16:58:00Z', durationMinutes: 60, countdown: false },
+  { uid: 'kvk4-ziggurat-capture',title: 'Ziggurat Capture',        startUtc: '2026-09-18T04:58:00Z', durationMinutes: 60 },
+  { uid: 'kvk4-pass-5-unsealed', title: 'Pass 5 Unsealed',         startUtc: '2026-09-21T04:58:00Z', durationMinutes: 60 },
+  { uid: 'kvk4-pass-4-unsealed', title: 'Pass 4 Unsealed',         startUtc: '2026-09-25T04:58:00Z', durationMinutes: 60 },
   { uid: 'kvk4-lk-ends',         title: 'LK Ends',                 startUtc: '2026-10-01T00:00:00Z', durationMinutes: 60, countdown: false },
 ];
 
@@ -138,7 +142,7 @@ export const KVK_RECURRING_EVENTS: KvkRecurringEvent[] = [
   {
     uid: 'kvk4-altar-of-darkness',
     title: 'Altar of Darkness',
-    anchorUtc: '2026-08-29T16:31:00Z',
+    anchorUtc: '2026-08-30T04:58:00Z',
     intervalHours: 86,
     durationMinutes: 60,
     untilUtc: KVK_END_UTC,
