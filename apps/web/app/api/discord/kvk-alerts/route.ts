@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getKvkOccurrences, KVK_SEASON_LABEL, KVK_CALENDAR_COLOR } from '@/lib/calendar/kvk-events';
 import { getAooOccurrences, AOO_CALENDAR_COLOR } from '@/lib/calendar/aoo-teams';
+import { getAngmarOccurrences, ANGMAR_CALENDAR_COLOR } from '@/lib/calendar/angmar-events';
 
 // Discord reminders for the hardcoded timed calendars:
 //   - Kingdom 23 KvK milestones   (lib/calendar/kvk-events.ts, countdown: true)
 //   - Angmar AoO team slots        (lib/calendar/aoo-teams.ts)
+//   - Angmar one-off events        (lib/calendar/angmar-events.ts, countdown: true)
 //
 // A scheduler (Supabase pg_cron, see lib/supabase/migrations/discord-kvk-alerts.sql)
 // hits this route every 5 minutes. Each call expands both calendars over a
@@ -39,7 +41,7 @@ const LOOKBACK_MINUTES = 15;
 
 const SITE_URL = 'https://rok-suite-web.vercel.app/calendar';
 
-type Source = 'kvk' | 'aoo';
+type Source = 'kvk' | 'aoo' | 'angmar';
 
 interface DueAlert {
   alertKey: string;
@@ -82,6 +84,10 @@ function findDueAlerts(now: Date): DueAlert[] {
   }
   for (const occ of getAooOccurrences(from, to)) {
     candidates.push({ source: 'aoo', occurrenceId: occ.occurrenceId, title: occ.title, startIso: occ.startIso, team: occ.team });
+  }
+  for (const occ of getAngmarOccurrences(from, to)) {
+    if (!occ.countdown) continue;
+    candidates.push({ source: 'angmar', occurrenceId: occ.occurrenceId, title: occ.title, startIso: occ.startIso });
   }
 
   const due: DueAlert[] = [];
@@ -131,25 +137,63 @@ function offsetLabel(minutes: number): string {
   return minutes >= 60 ? `${minutes / 60}h warning` : `${minutes}min warning`;
 }
 
+/** How each calendar presents itself in Discord. Keeping it a table rather
+ *  than branching inside buildPayload means adding a fourth source is one
+ *  entry, not another pass of ternaries. */
+const SOURCE_STYLE: Record<Source, {
+  emoji: string;
+  verb: string;
+  color: string;
+  context: string;
+  footer: string;
+}> = {
+  kvk: {
+    emoji: '\u2694\ufe0f',
+    verb: 'Opens',
+    color: KVK_CALENDAR_COLOR,
+    context: KVK_SEASON_LABEL,
+    footer: 'Kingdom 23 \u00b7 rok-suite calendar',
+  },
+  aoo: {
+    emoji: '\ud83c\udffa',
+    verb: 'Match starts',
+    color: AOO_CALENDAR_COLOR,
+    context: 'Ark of Osiris \u2014 Angmar',
+    footer: 'Angmar \u00b7 rok-suite calendar',
+  },
+  angmar: {
+    emoji: '\ud83d\udc09',
+    verb: 'Starts',
+    color: ANGMAR_CALENDAR_COLOR,
+    context: 'Angmar alliance event',
+    footer: 'Angmar \u00b7 rok-suite calendar',
+  },
+};
+
+function mentionFor(alert: DueAlert): Mention {
+  // AoO pings its team roles; everything else follows the kingdom-wide rule.
+  return alert.source === 'aoo' ? aooMention(alert.team) : kingdomMention();
+}
+
 function buildPayload(alert: DueAlert) {
   const unix = Math.floor(new Date(alert.startIso).getTime() / 1000);
   const utc = alert.startIso.slice(11, 16);
-  const mention = alert.source === 'kvk' ? kingdomMention() : aooMention(alert.team);
-  const isKvk = alert.source === 'kvk';
+  const style = SOURCE_STYLE[alert.source];
+  const mention = mentionFor(alert);
 
   return {
     content: mention.content,
     allowed_mentions: mention.allowed_mentions,
     embeds: [
       {
-        title: `${isKvk ? '⚔️' : '🏺'} ${alert.title} — ${offsetLabel(alert.offsetMinutes)}`,
+        title: `${style.emoji} ${alert.title} \u2014 ${offsetLabel(alert.offsetMinutes)}`,
         // <t:unix:t> renders in each reader's local time; <t:unix:R> is a live countdown.
         description:
-          `${isKvk ? 'Opens' : 'Match starts'} <t:${unix}:R> at **${utc} UTC** (<t:${unix}:t> your time).\n` +
-          (isKvk ? KVK_SEASON_LABEL : 'Ark of Osiris — Angmar'),
-        color: hexToInt(isKvk ? KVK_CALENDAR_COLOR : AOO_CALENDAR_COLOR),
+          `${style.verb} <t:${unix}:R> at **${utc} UTC** (<t:${unix}:t> your time).\n` +
+          style.context,
+        color: hexToInt(style.color),
         url: SITE_URL,
-        footer: { text: isKvk ? 'Kingdom 23 · rok-suite calendar' : 'Angmar · rok-suite calendar' },
+        footer: { text: style.footer },
         timestamp: alert.startIso,
       },
     ],
@@ -192,12 +236,12 @@ export async function GET(request: NextRequest) {
       alertKey: 'test',
       source,
       occurrenceId: 'test',
-      title: source === 'kvk' ? 'TEST — Pass 5 (Free Z6)' : 'TEST — AoO Team 1',
+      title: { kvk: 'TEST — Pass 7 Clash', aoo: 'TEST — AoO Team 1', angmar: 'TEST — Karuak Boss' }[source],
       offsetMinutes: 60,
       startIso: new Date(now.getTime() + 3_600_000).toISOString(),
       team: 1,
     });
-    for (const source of ['kvk', 'aoo'] as Source[]) {
+    for (const source of ['kvk', 'aoo', 'angmar'] as Source[]) {
       const url = webhookFor(source);
       if (!url) { results[source] = 'no webhook configured'; continue; }
       try {

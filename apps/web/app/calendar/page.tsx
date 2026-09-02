@@ -11,6 +11,7 @@ import {
 } from '@/lib/calendar/rok-events';
 import { getKvkOccurrences } from '@/lib/calendar/kvk-events';
 import { getAooOccurrences } from '@/lib/calendar/aoo-teams';
+import { getAngmarOccurrences } from '@/lib/calendar/angmar-events';
 
 // ——— Calendar configuration ————————————————————————————————————————————
 // Google-calendar-backed feeds (curated upstream, pulled via the iCal proxy).
@@ -1159,12 +1160,21 @@ export default function CalendarPage() {
         }));
     }, [kingdom23.name, kingdom23.color]);
 
-    // ——— Generate AoO team events locally (hardcoded, fortnightly) ————————
-    const generateAooEvents = useCallback((): CalEvent[] => {
+    // ——— Generate Angmar's local events ——————————————————————————————————
+    // Two sources, one chip: the fortnightly AoO team slots and the one-off
+    // alliance events (boss runs, training nights). Both are timed, so they
+    // merge into a single date-sorted list.
+    const generateAngmarEvents = useCallback((): CalEvent[] => {
         const now = new Date();
         const from = new Date(now.getTime() - 180 * 86_400_000);
         const to = new Date(now.getTime() + 540 * 86_400_000);
-        return getAooOccurrences(from, to).map((occ) => ({
+        const toCalEvent = (occ: {
+            occurrenceId: string;
+            title: string;
+            description: string;
+            startIso: string;
+            endIso: string;
+        }): CalEvent => ({
             id: occ.occurrenceId,
             summary: occ.title,
             description: occ.description,
@@ -1173,7 +1183,11 @@ export default function CalendarPage() {
             allDay: false,
             calendarName: angmar.name,
             calendarColor: angmar.color,
-        }));
+        });
+        return [
+            ...getAooOccurrences(from, to).map(toCalEvent),
+            ...getAngmarOccurrences(from, to).map(toCalEvent),
+        ].sort((a, b) => a.start.localeCompare(b.start));
     }, [angmar.name, angmar.color]);
 
     // ——— Fetch iCal feeds (client-side, no cookies needed) ——————————————
@@ -1190,7 +1204,7 @@ export default function CalendarPage() {
         newMap.set(ROK_EVENTS_CALENDAR.id, generateRokEvents());
         const generated: Record<string, CalEvent[]> = {
             [KINGDOM_23_CALENDAR_ID]: generateKvkEvents(),
-            [ANGMAR_CALENDAR_ID]: generateAooEvents(),
+            [ANGMAR_CALENDAR_ID]: generateAngmarEvents(),
         };
 
         const results = await Promise.allSettled(
@@ -1220,7 +1234,7 @@ export default function CalendarPage() {
 
         setAllEvents(newMap);
         setLoading(false);
-    }, [isAdmin, generateRokEvents, generateKvkEvents, generateAooEvents, ROK_EVENTS_CALENDAR.id]);
+    }, [isAdmin, generateRokEvents, generateKvkEvents, generateAngmarEvents, ROK_EVENTS_CALENDAR.id]);
 
     useEffect(() => { fetchAll(); }, [fetchAll]);
 
