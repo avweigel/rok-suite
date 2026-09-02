@@ -2,17 +2,21 @@ import { NextResponse } from 'next/server';
 import { buildCalendar, escapeIcsText, toIcsUtc } from '@/lib/calendar/ics';
 import {
   getAooSeries,
-  AOO_CALENDAR_LABEL,
   AOO_INTERVAL_DAYS,
 } from '@/lib/calendar/aoo-teams';
+import { getAllAngmarOccurrences } from '@/lib/calendar/angmar-events';
 
-// Subscribable feed for Angmar's AoO team slots.
+// Subscribable feed for everything Angmar schedules itself: the AoO team
+// slots and the one-off alliance events.
 //
-// Unlike the other two feeds this emits an RRULE rather than expanding the
-// series: AoO recurs indefinitely on a fixed fortnightly cadence, so one
-// VEVENT per team keeps the feed three events long and — more to the point
-// — means a subscribed device never runs off the end of a pre-expanded
-// window and silently stops showing matches.
+// The AoO slots emit an RRULE rather than an expanded series — AoO recurs
+// indefinitely on a fixed fortnightly cadence, so one VEVENT per team keeps
+// the feed short and, more to the point, means a subscribed device never
+// runs off the end of a pre-expanded window and silently stops showing
+// matches. The one-off events are finite, so they're listed literally.
+//
+// The path still says aoo-teams because people are already subscribed to
+// it; the feed's contents grew, its URL shouldn't.
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 3600;
@@ -20,7 +24,7 @@ export const revalidate = 3600;
 export async function GET() {
   const stamp = toIcsUtc(new Date().toISOString());
 
-  const events = getAooSeries().flatMap((slot) => [
+  const aooEvents = getAooSeries().flatMap((slot) => [
     'BEGIN:VEVENT',
     `UID:${slot.uid}@rok-suite`,
     `DTSTAMP:${stamp}`,
@@ -35,12 +39,25 @@ export async function GET() {
     'END:VEVENT',
   ]);
 
+  // One-off alliance events — no RRULE, each listed once.
+  const allianceEvents = getAllAngmarOccurrences().flatMap((occ) => [
+    'BEGIN:VEVENT',
+    `UID:${occ.uid}@rok-suite`,
+    `DTSTAMP:${stamp}`,
+    `DTSTART:${toIcsUtc(occ.startIso)}`,
+    `DTEND:${toIcsUtc(occ.endIso)}`,
+    `SUMMARY:${escapeIcsText(occ.title)}`,
+    `DESCRIPTION:${escapeIcsText(occ.description)}`,
+    'TRANSP:TRANSPARENT',
+    'END:VEVENT',
+  ]);
+
   return new NextResponse(
     buildCalendar({
-      prodId: '-//rok-suite//aoo-teams//EN',
-      name: `Angmar - ${AOO_CALENDAR_LABEL}`,
-      description: 'Ark of Osiris team match times (fortnightly)',
-      events,
+      prodId: '-//rok-suite//angmar//EN',
+      name: 'Angmar Alliance',
+      description: 'Ark of Osiris team match times and one-off alliance events',
+      events: [...aooEvents, ...allianceEvents],
     }),
     {
       headers: {
