@@ -52,8 +52,10 @@
     "fineCalculator": "Calculadora de multas",
     "dkp": "Pontuação DKP",
     "alliances": "Alliances",
+    "migration": "Emigração",
     "recognition": "Reconhecimento",
-    "applyLeader": "Enviar info de líder"
+    "applyLeader": "Enviar info de líder",
+    "scanUpload": "Enviar scan"
   },
   "home": {
     "tagline": "Reino 23 • Ascensão dos Reinos",
@@ -117,6 +119,10 @@
       "alliances": {
         "title": "Alliances",
         "description": "Kingdom alliances ranked by power, with their R5, officers, and counselors."
+      },
+      "migration": {
+        "title": "Emigração",
+        "description": "Zero List e Power Growers: quem zerar e quem está subindo poder, pelos últimos scans."
       },
       "recognition": {
         "title": "Reconhecimento",

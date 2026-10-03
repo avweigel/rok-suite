@@ -52,8 +52,10 @@
     "fineCalculator": "罚款计算器",
     "dkp": "DKP分数",
     "alliances": "Alliances",
+    "migration": "移民",
     "recognition": "认出",
-    "applyLeader": "提交指挥官信息"
+    "applyLeader": "提交指挥官信息",
+    "scanUpload": "上传扫描"
   },
   "home": {
     "tagline": "王国 23 • 万国崛起",
@@ -117,6 +119,10 @@
       "alliances": {
         "title": "Alliances",
         "description": "Kingdom alliances ranked by power, with their R5, officers, and counselors."
+      },
+      "migration": {
+        "title": "移民",
+        "description": "Zero List 与 Power Growers：根据最新扫描查看需要清零的玩家和正在冲战力的玩家。"
       },
       "recognition": {
         "title": "认出",

@@ -52,8 +52,10 @@
     "fineCalculator": "罰金計算機",
     "dkp": "DKPスコア",
     "alliances": "Alliances",
+    "migration": "移住",
     "recognition": "認識",
-    "applyLeader": "リーダー情報を送信"
+    "applyLeader": "リーダー情報を送信",
+    "scanUpload": "スキャンをアップロード"
   },
   "home": {
     "tagline": "キングダム 23 • ライズ オブ キングダム",
@@ -117,6 +119,10 @@
       "alliances": {
         "title": "Alliances",
         "description": "Kingdom alliances ranked by power, with their R5, officers, and counselors."
+      },
+      "migration": {
+        "title": "移住",
+        "description": "Zero List と Power Growers：最新スキャンから、ゼロにする相手と戦力を伸ばしているプレイヤーを確認。"
       },
       "recognition": {
         "title": "認識",

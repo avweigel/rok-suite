@@ -54,7 +54,8 @@
     "dkp": "DKP Score",
     "alliances": "Alliances",
     "migration": "Emigration",
-    "applyLeader": "Submit lead info"
+    "applyLeader": "Submit lead info",
+    "scanUpload": "Upload Scan"
   },
   "home": {
     "tagline": "Kingdom 23 • Rise of Kingdoms",
@@ -134,7 +135,7 @@
       },
       "migration": {
         "title": "Emigration",
-        "description": "Track players flagged on DKP through claim, contact, emigration, and zeroing outcomes"
+        "description": "Zero List and Power Growers: who to zero and who is pushing power, from the latest scans."
       },
       "applyLeader": {
         "title": "Submit rally/garrison lead info",

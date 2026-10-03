@@ -5,7 +5,6 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  ArrowLeft,
   BookOpen,
   ChevronDown,
   Flag,
@@ -21,6 +20,8 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { WarRoomAuthProvider, useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
 import { ZeroListTab } from '@/components/migration/ZeroListTab';
 import { ScansTab } from '@/components/migration/ScansTab';
+import { PowerGrowersTab } from '@/components/migration/PowerGrowersTab';
+import { FEATURES } from '@/lib/feature-flags';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
 import { SortableTh, type SortDir } from '@/components/migration/SortableTh';
 import {
@@ -118,6 +119,28 @@ import {
   subscribeToCycles,
   subscribeToCases,
 } from '@/lib/supabase/use-migration-cases';
+
+type EmigrationTab = 'cycle' | 'zero_list' | 'power_growers' | 'scans';
+
+/** Tabs currently switched on (see lib/feature-flags.ts), in display order. */
+const ENABLED_TABS: EmigrationTab[] = [
+  ...(FEATURES.emigrationCycle ? ['cycle' as const] : []),
+  'zero_list',
+  'power_growers',
+  ...(FEATURES.emigrationScans ? ['scans' as const] : []),
+];
+
+const TAB_LABELS: Record<EmigrationTab, string> = {
+  cycle: 'Cycle',
+  zero_list: 'Zero List',
+  power_growers: 'Power Growers',
+  scans: 'Scans',
+};
+
+function asEnabledTab(raw: string | null | undefined): EmigrationTab | null {
+  const norm = raw?.replace(/-/g, '_');
+  return ENABLED_TABS.find((t) => t === norm) ?? null;
+}
 
 const STATE_LABELS: Record<MigrationState, string> = {
   pending: 'Notified',
@@ -250,28 +273,22 @@ function MigrationPageInner() {
       window.localStorage.setItem('emigration-latest-scan', JSON.stringify({ totalPower, label, uploadedAt }));
     } catch { /* ignore */ }
   };
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(FEATURES.emigrationCycle);
   const [search, setSearch] = useState('');
   // Tab state — initial value priority:
   //   1. ?tab= query string (so a shared link wins)
   //   2. localStorage (returning user's last tab)
   //   3. zero_list (sensible default)
   // The URL `?tab` value is normalized to dashes (zero-list) and converted
-  // back to underscores internally so links read naturally.
-  const tabFromQuery = ((): 'cycle' | 'zero_list' | 'scans' | null => {
-    const raw = searchParams.get('tab');
-    const norm = raw?.replace(/-/g, '_');
-    if (norm === 'cycle' || norm === 'zero_list' || norm === 'scans') return norm;
-    return null;
-  })();
-  const [tab, setTabState] = useState<'cycle' | 'zero_list' | 'scans'>(() => {
+  // back to underscores internally so links read naturally. Tabs that are
+  // switched off fall back to the default.
+  const tabFromQuery = asEnabledTab(searchParams.get('tab'));
+  const [tab, setTabState] = useState<EmigrationTab>(() => {
     if (tabFromQuery) return tabFromQuery;
     if (typeof window === 'undefined') return 'zero_list';
-    const saved = window.localStorage.getItem('emigration-active-tab');
-    if (saved === 'cycle' || saved === 'zero_list' || saved === 'scans') return saved;
-    return 'zero_list';
+    return asEnabledTab(window.localStorage.getItem('emigration-active-tab')) ?? 'zero_list';
   });
-  const setTab = useCallback((next: 'cycle' | 'zero_list' | 'scans') => {
+  const setTab = useCallback((next: EmigrationTab) => {
     setTabState(next);
     try { window.localStorage.setItem('emigration-active-tab', next); } catch { /* ignore */ }
     const params = new URLSearchParams(searchParams.toString());
@@ -327,8 +344,10 @@ function MigrationPageInner() {
     return () => clearInterval(id);
   }, []);
 
-  // Load cycles + latest dataset + flagged list
+  // Load cycles + latest dataset + flagged list. Only the Cycle tab needs
+  // these (the Zero List tab runs its own name sync).
   useEffect(() => {
+    if (!FEATURES.emigrationCycle) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -676,20 +695,14 @@ function MigrationPageInner() {
     return (
       <div className="min-h-screen">
         <div className="max-w-[800px] mx-auto px-4 sm:px-6 py-10">
-          <Link href="/dkp" className="inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--foreground)] mb-6">
-            <ArrowLeft size={14} /> Back to DKP
-          </Link>
           <div className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-8 text-center">
             <Lock className="mx-auto text-[var(--text-muted)] mb-3" />
             <h1 className="text-lg font-semibold text-[var(--foreground)] mb-2">Sign in required</h1>
             <p className="text-sm text-[var(--text-muted)] mb-4">
-              Emigration tracking requires at least power-user access. Sign in on the DKP page or use the Sign in button to continue.
+              Emigration tracking requires at least power-user access. Use the Sign in button to continue.
             </p>
             <div className="flex items-center justify-center gap-2">
               <SessionBadge />
-              <Link href="/dkp" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors">
-                Back to DKP
-              </Link>
             </div>
           </div>
         </div>
@@ -703,12 +716,10 @@ function MigrationPageInner() {
         {/* Header */}
         <header className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
           <div>
-            <Link href="/dkp" className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] mb-1 sm:mb-2">
-              <ArrowLeft size={12} /> Back to DKP
-            </Link>
             <h1 className="text-lg sm:text-xl font-semibold text-[var(--foreground)]">Emigration</h1>
             <p className="hidden sm:block text-xs text-[var(--text-muted)] mt-1">
-              Track players flagged for emigration through claim → contact → outcome.
+              The kingdom kill queue and who&apos;s pushing power — fed by the scans on{' '}
+              <Link href="/upload" className="text-cyan-400 hover:underline">Upload Scan</Link>.
             </p>
           </div>
           <SessionBadge />
@@ -735,50 +746,32 @@ function MigrationPageInner() {
                   This is where Angmar leadership decides who shouldn&apos;t be in Kingdom 23 and tracks them through to leaving (emigrating) or being zeroed (attacked until their power drops to ~0). It works by:
                 </p>
                 <ol className="text-xs mt-2 space-y-1 list-decimal pl-5">
-                  <li><strong>Identifying targets</strong> — by looking at scans, comparing them, or cross-referencing the migrant-application sheet</li>
-                  <li><strong>Adding them to a list</strong> — either a time-bound <em>Cycle</em> (with a deadline, formal exception process) or a continuous <em>Zero List</em> (kingdom-wide kill queue)</li>
+                  <li><strong>Uploading scans</strong> — on <Link href="/upload" className="text-cyan-400 hover:underline">Upload Scan</Link>: the location scan (<code className="text-[var(--text-secondary)]">scan_3923.csv</code>) and the performance report (<code className="text-[var(--text-secondary)]">kd3923-performance-….xlsx</code>), matched by Gov ID</li>
+                  <li><strong>Picking targets</strong> — from <em>Power Growers</em> or with <em>+ Add players</em> on the Zero List (sort by Acclaim to find who didn&apos;t fight)</li>
                   <li><strong>Acting on the list</strong> — Power members go attack/zero in-game, admins record outcomes</li>
                 </ol>
               </div>
 
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-violet-300 mb-2">Three tabs, three jobs</div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-violet-300 mb-2">Two tabs</div>
                 <ul className="text-xs space-y-2 list-disc pl-5">
                   <li>
-                    <strong>Cycle</strong> — formal monthly emigration round. People flagged on DKP get put on this list, contacted via in-game mail, and either leave by the deadline or get zeroed. Has officer / admin / exception workflow.
+                    <strong>Zero List</strong> — the kingdom-wide kill queue. Continuous (no deadline). Power members come here to see who to attack and grab coords; each row shows the latest scan data (power, KP, CH, alliance, coords, shield) and the player&apos;s Acclaim. Admin manages.
                   </li>
                   <li>
-                    <strong>Zero List</strong> — the kingdom-wide kill queue. Continuous (no deadline). Power members come here to see who to attack and grab coords. Admin manages.
-                  </li>
-                  <li>
-                    <strong>Scans</strong> — where you <em>find</em> people to put on the Zero List. The default sub-tab <em>Find Candidates</em> shows four cards (power growers, illegal arrivals, didn&apos;t emigrate, suggested players to evaluate). Click a card → check rows → add to Zero List.
+                    <strong>Power Growers</strong> (officer+) — who&apos;s pushing power: compares two location scans and lists everyone who grew by at least the threshold, with their Acclaim. Admins can tick rows and add them to the Zero List.
                   </li>
                 </ul>
               </div>
 
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-violet-300 mb-2">Most common workflow (in 5 steps)</div>
-                <ol className="text-xs space-y-1.5 list-decimal pl-5">
-                  <li>Open the <strong>Scans</strong> tab. <em>Find Candidates</em> is the default sub-tab.</li>
-                  <li>Each of the 4 cards has a number on the right. That&apos;s how many candidates need attention. Open the one with the biggest number first.</li>
-                  <li>Look at the rows. Each shows: name, gov ID, power, alliance (if known), the migrant-sheet decision (Yes/No/Maybe/etc.), and coords (if known).</li>
-                  <li>Check the boxes next to people you want to attack. Click <strong>Add to Zero List</strong>. (Admin only — if you don&apos;t see checkboxes you&apos;re not signed in as admin.)</li>
-                  <li>Switch to the <strong>Zero List</strong> tab. Your additions are there. Power members can now click coordinates to copy <code className="text-[var(--text-secondary)]">x,y</code> and teleport in-game to attack.</li>
-                </ol>
-              </div>
-
-              <div>
                 <div className="text-xs font-semibold uppercase tracking-wider text-violet-300 mb-2">Glossary</div>
                 <div className="text-xs grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
-                  <div><strong>Scan</strong> — a snapshot of who&apos;s in the kingdom and what their stats are. Different scan types have different fields.</div>
-                  <div><strong>Auto-scrape</strong> — daily scan pulled by a script from the Lilith API. Always fresh but no coords / kills / alliance.</div>
-                  <div><strong>Kingdom (Davide) scan</strong> — power/stats snapshot uploaded via Migration Tracker. Has kills, deaths, gathered.</div>
-                  <div><strong>Location scan</strong> — coordinate-focused CSV (e.g. <code className="text-[var(--text-secondary)]">scan_3923.csv</code>). Only used to refresh Zero List coords; not saved.</div>
+                  <div><strong>Location scan</strong> — <code className="text-[var(--text-secondary)]">scan_3923.csv</code>: every city on the map with power, KP, CH, alliance, coords and shield.</div>
+                  <div><strong>Performance report</strong> — the KvK report XLSX (DKP score, deads, kills, <strong>Acclaim</strong>…), one row per Gov ID.</div>
+                  <div><strong>Acclaim</strong> — KvK contribution from the latest performance report. 0 = didn&apos;t take part in the report period.</div>
                   <div><strong>Gov ID</strong> — governor ID, the unique number for each player. Names can change; gov IDs don&apos;t.</div>
-                  <div><strong>Cycle</strong> — a time-bound emigration round (e.g. &quot;April 2026&quot;) with a deadline.</div>
                   <div><strong>Zero List</strong> — the continuous, no-deadline kingdom-wide kill queue.</div>
-                  <div><strong>DKP</strong> — kingdom contribution score. Players who don&apos;t hit thresholds get flagged → can&apos;t stay.</div>
-                  <div><strong>Migrant sheet</strong> — the Google Sheet where applicants apply to join K23. Decision = Yes / No / Maybe / Pending.</div>
                   <div><strong>Notified / To Zero / Zeroed / Emigrated / AFK / Excepted</strong> — the lifecycle states a target moves through.</div>
                   <div><strong>(x, y)</strong> — map coordinates. Click in any list to copy; paste into the in-game teleport / scout / attack dialog.</div>
                 </div>
@@ -787,9 +780,9 @@ function MigrationPageInner() {
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wider text-violet-300 mb-2">Who can do what</div>
                 <ul className="text-xs space-y-1 list-disc pl-5">
-                  <li><strong>Power</strong> (no real privileges, but signed in) — read everything, copy coords. <em>Cannot edit anything.</em></li>
-                  <li><strong>Officer</strong> — can claim/contact/mark cases <em>on the Cycle tab</em>. On the Zero List tab they can mark <em>Emigrated</em>, <em>Confirm Zeroed</em> after an attack, and toggle the <em>Delay</em> hold. Adding/removing entries, To Zero, Except, and AFK stay admin-only.</li>
-                  <li><strong>Admin</strong> — full access. Creates cycles, manages Zero List, approves exceptions, uploads scans, etc.</li>
+                  <li><strong>Power</strong> (no real privileges, but signed in) — read the Zero List, copy coords. <em>Cannot edit anything.</em></li>
+                  <li><strong>Officer</strong> — on the Zero List they can mark <em>Emigrated</em>, <em>Confirm Zeroed</em> after an attack, and toggle the <em>Delay</em> hold; they can also see Power Growers. Adding/removing entries, To Zero, Except, and AFK stay admin-only.</li>
+                  <li><strong>Admin</strong> — full access. Uploads scans, manages the Zero List.</li>
                 </ul>
               </div>
 
@@ -802,27 +795,33 @@ function MigrationPageInner() {
 
         {/* Tab strip */}
         <nav className="mb-4 flex gap-1 border-b border-[var(--border)] overflow-x-auto -mx-1 px-1 scrollbar-hide">
-          {([
-            { id: 'cycle', label: 'Cycle' },
-            { id: 'zero_list', label: 'Zero List' },
-            { id: 'scans', label: 'Scans' },
-          ] as const).map((t) => (
+          {ENABLED_TABS.map((id) => (
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
+              key={id}
+              onClick={() => setTab(id)}
               className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex-shrink-0 whitespace-nowrap ${
-                tab === t.id
+                tab === id
                   ? 'border-[#4318ff] text-[var(--foreground)]'
                   : 'border-transparent text-[var(--text-muted)] hover:text-[var(--foreground)]'
               }`}
             >
-              {t.label}
+              {TAB_LABELS[id]}
             </button>
           ))}
         </nav>
 
         {tab === 'zero_list' && (
           <ZeroListTab isOfficer={isOfficer} isAdmin={isAdmin} actorName={officerName ?? null} />
+        )}
+        {tab === 'power_growers' && (
+          isOfficer ? (
+            <PowerGrowersTab isAdmin={isAdmin} actorName={officerName ?? null} />
+          ) : (
+            <div className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-8 text-center text-sm text-[var(--text-muted)]">
+              <Lock className="mx-auto text-[var(--text-muted)] mb-3" />
+              Power Growers is visible at officer level and above.
+            </div>
+          )
         )}
         {tab === 'scans' && (
           <ScansTab isOfficer={isOfficer} isAdmin={isAdmin} actorName={officerName ?? null} />

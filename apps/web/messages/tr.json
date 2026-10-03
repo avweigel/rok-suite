@@ -52,8 +52,10 @@
     "fineCalculator": "Ceza hesaplayıcı",
     "dkp": "DKP Puanı",
     "alliances": "Alliances",
+    "migration": "Göç",
     "recognition": "Tanıma",
-    "applyLeader": "Lider bilgisi gönder"
+    "applyLeader": "Lider bilgisi gönder",
+    "scanUpload": "Tarama yükle"
   },
   "home": {
     "tagline": "Krallık 23 • Krallıkların Yükselişi",
@@ -117,6 +119,10 @@
       "alliances": {
         "title": "Alliances",
         "description": "Kingdom alliances ranked by power, with their R5, officers, and counselors."
+      },
+      "migration": {
+        "title": "Göç",
+        "description": "Zero List ve Power Growers: en son taramalara göre kim sıfırlanacak, kim güç kasıyor."
       },
       "recognition": {
         "title": "Tanıma",
