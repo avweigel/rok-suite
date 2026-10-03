@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronDown, Clock, Copy, Lock, Mail, RotateCcw, Trash2, Users } from 'lucide-react';
+import { ChevronDown, Clock, Copy, Lock, Mail, RotateCcw, Trash2, UserPlus, Users } from 'lucide-react';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
+import { AcclaimCell, ShieldCell, fmtCompact, useNow } from '@/components/migration/ScanCells';
+import { AddPlayersDialog } from '@/components/migration/AddPlayersDialog';
 import {
   type MigrationCase,
   type MigrationState,
@@ -27,8 +29,8 @@ import {
   undoLastStateChange,
   subscribeToZeroList,
 } from '@/lib/supabase/use-migration-cases';
-import { loadLatestLocationPoints, type LocationPoint } from '@/lib/zero-list/scan-data';
-import { SortableTh, useTableSort, type SortDir } from '@/components/migration/SortableTh';
+import { loadLatestKingdomData, type KingdomData, type KingdomPlayer } from '@/lib/scans/kingdom-data';
+import { SortableTh, useTableSort } from '@/components/migration/SortableTh';
 
 interface Props {
   isOfficer: boolean;
@@ -114,7 +116,7 @@ const DEFAULT_MAIL_FIELDS: MailFields = {
 
 function generateZeroListMail(args: {
   cases: MigrationCase[];
-  locationLookup: Map<number, LocationPoint>;
+  locationLookup: Map<number, KingdomPlayer>;
   headerKey: string;
   signOff: string;
   fields: MailFields;
@@ -166,12 +168,6 @@ function generateZeroListMail(args: {
   return lines.join('\n');
 }
 
-// Valid values for the `zlf` query-string filter, kept in sync with the
-// MigrationState enum + the two synthetic buckets ('active', 'all').
-const VALID_FILTERS: ReadonlyArray<'active' | 'all' | MigrationState> = [
-  'active', 'all', 'pending', 'claimed', 'contacted', 'excepted', 'migrated', 'marked_to_zero', 'zeroed', 'afk',
-];
-
 export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -203,36 +199,16 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   }, [cases]);
   const [loading, setLoading] = useState(true);
 
-  // Initialize filter + search from the URL so direct links (e.g. shared by
-  // an admin) restore state. We only persist non-default values to keep URLs
-  // tidy when nothing is set.
-  const [filter, setFilterState] = useState<'active' | 'all' | MigrationState>(() => {
-    const raw = searchParams.get('zlf');
-    return (raw && VALID_FILTERS.includes(raw as 'active' | 'all' | MigrationState))
-      ? (raw as 'active' | 'all' | MigrationState)
-      : 'active';
-  });
+  // Search is mirrored in the URL (?zls=) so a shared link restores it.
   const [search, setSearchState] = useState(() => searchParams.get('zls') ?? '');
-
-  // Wrappers that also push the change to the URL. Defaults ('active', '')
-  // are omitted from the query string so the URL stays clean by default.
-  const updateUrl = useCallback((nextFilter: typeof filter, nextSearch: string) => {
+  const setSearch = useCallback((next: string) => {
+    setSearchState(next);
     const params = new URLSearchParams(searchParams.toString());
-    if (nextFilter === 'active') params.delete('zlf'); else params.set('zlf', nextFilter);
-    if (!nextSearch) params.delete('zls'); else params.set('zls', nextSearch);
+    params.delete('zlf'); // legacy state filter — the list always shows active entries now
+    if (!next) params.delete('zls'); else params.set('zls', next);
     const qs = params.toString();
     router.replace(qs ? `?${qs}` : '?', { scroll: false });
   }, [router, searchParams]);
-
-  const setFilter = useCallback((next: 'active' | 'all' | MigrationState) => {
-    setFilterState(next);
-    updateUrl(next, search);
-  }, [updateUrl, search]);
-
-  const setSearch = useCallback((next: string) => {
-    setSearchState(next);
-    updateUrl(filter, next);
-  }, [updateUrl, filter]);
   const [guideOpen, setGuideOpen] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem('zero-list-guide-collapsed') === '0';
@@ -243,8 +219,14 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     return next;
   });
 
-  const [locationLookup, setLocationLookup] = useState<Map<number, LocationPoint>>(new Map());
-  const [locationLabel, setLocationLabel] = useState<string | null>(null);
+  // Latest uploads crossed by gov id (location scan + performance report).
+  // Fills coords, KP, CH, shield and Acclaim on each row.
+  const [kingdom, setKingdom] = useState<KingdomData | null>(null);
+  const locationLookup = useMemo(() => kingdom?.byGov ?? new Map<number, KingdomPlayer>(), [kingdom]);
+  const locationLabel = kingdom?.location?.label ?? null;
+  const scanAt = kingdom?.location?.created_at ?? null;
+  const now = useNow();
+  const [addOpen, setAddOpen] = useState(false);
 
   // Toolbar state — header preset + sign-off match the AOO planner mail flow
   // so leadership can pick the same banner per send. Fields control which
@@ -294,14 +276,11 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     try { window.localStorage.setItem('zero-list-mail-fields', JSON.stringify(mailFields)); } catch {}
   }, [mailFields]);
 
-  const refetch = useCallback(async () => {
+  // Case edits (realtime + row actions) only reload the cases; the scan data
+  // only changes on a new upload, so it's loaded on mount and on Refresh.
+  const refetchCases = useCallback(async () => {
     try {
-      const [rows, loc] = await Promise.all([listZeroListCases(), loadLatestLocationPoints()]);
-      setCases(rows);
-      const m = new Map<number, LocationPoint>();
-      for (const p of loc.points) m.set(p.governorId, p);
-      setLocationLookup(m);
-      setLocationLabel(loc.scan?.label ?? null);
+      setCases(await listZeroListCases());
     } catch (e) {
       console.error('Zero list refresh failed', e);
     } finally {
@@ -309,11 +288,21 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     }
   }, []);
 
+  const refetch = useCallback(async () => {
+    // Independent: a scan-data failure must not hide the list itself.
+    const [rows, kd] = await Promise.allSettled([listZeroListCases(), loadLatestKingdomData()]);
+    if (rows.status === 'fulfilled') setCases(rows.value);
+    else console.error('Zero list refresh failed', rows.reason);
+    if (kd.status === 'fulfilled') setKingdom(kd.value);
+    else console.warn('Scan data for the Zero List failed to load', kd.reason);
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
     void refetch();
-    const unsub = subscribeToZeroList(() => void refetch());
+    const unsub = subscribeToZeroList(() => void refetchCases());
     return () => unsub();
-  }, [refetch]);
+  }, [refetch, refetchCases]);
 
   // On mount, propagate any in-game name changes to the Zero List. Players
   // sometimes rename — the gov_id stays the same, so we use that to refresh
@@ -324,13 +313,13 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     (async () => {
       try {
         const { renamed } = await syncZeroListNamesFromLatestScans();
-        if (!cancelled && renamed > 0) void refetch();
+        if (!cancelled && renamed > 0) void refetchCases();
       } catch (e) {
         console.warn('Zero list name sync failed', e);
       }
     })();
     return () => { cancelled = true; };
-  }, [refetch]);
+  }, [refetchCases]);
 
   // Power-tier members shouldn't see entries that an officer/admin has put on
   // hold — the delay window is meant to give the player a chance to leave
@@ -348,27 +337,27 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     );
   }, [cases, isOfficer]);
 
-  type ZSortField = 'username' | 'power' | 'alliance' | 'state';
+  type ZSortField = 'username' | 'power' | 'kills' | 'ch' | 'alliance' | 'acclaim' | 'state';
   const sort = useTableSort<ZSortField>('power', {
     username: 'asc',
     power: 'desc',
+    kills: 'desc',
+    ch: 'desc',
     alliance: 'asc',
+    acclaim: 'asc',
     state: 'asc',
   });
 
+  // The list shows what still needs dealing with: every non-terminal entry,
+  // plus excepted ones for officers/admins so a prior "spare this person"
+  // decision stays visible. (Power tier never sees excepted at all.)
   const isInActive = useCallback(
     (c: MigrationCase) => !TERMINAL_STATES.includes(c.state) || (isOfficer && c.state === 'excepted'),
     [isOfficer],
   );
 
   const filtered = useMemo(() => {
-    let list = visibleCases;
-    if (filter === 'active') {
-      // For officers/admins, treat 'excepted' as still visible in the Active
-      // view so they can see at a glance that someone was on the list and was
-      // explicitly excepted. (Power tier never sees excepted at all.)
-      list = list.filter(isInActive);
-    } else if (filter !== 'all') list = list.filter((c) => c.state === filter);
+    let list = visibleCases.filter(isInActive);
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       const qDigits = q.replace(/\D/g, '');
@@ -378,12 +367,20 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       );
     }
     const sign = sort.dir === 'asc' ? 1 : -1;
+    const power = (c: MigrationCase) => c.last_seen_power ?? locationLookup.get(c.character_id)?.power ?? c.power_at_open;
+    // Missing numbers sort below any real value in both directions (the
+    // result is multiplied by `sign` below).
+    const numeric = (a: number | null | undefined, b: number | null | undefined) =>
+      a == null && b == null ? 0 : a == null ? sign * Infinity : b == null ? -sign * Infinity : a - b;
     const sorted = [...list].sort((a, b) => {
       let cmp = 0;
       const fa = locationLookup.get(a.character_id);
       const fb = locationLookup.get(b.character_id);
       if (sort.field === 'username') cmp = a.username.localeCompare(b.username, undefined, { sensitivity: 'base' });
-      else if (sort.field === 'power') cmp = (a.last_seen_power ?? a.power_at_open) - (b.last_seen_power ?? b.power_at_open);
+      else if (sort.field === 'power') cmp = power(a) - power(b);
+      else if (sort.field === 'kills') cmp = numeric(fa?.kills, fb?.kills);
+      else if (sort.field === 'ch') cmp = numeric(fa?.castleHall, fb?.castleHall);
+      else if (sort.field === 'acclaim') cmp = numeric(fa?.acclaim, fb?.acclaim);
       else if (sort.field === 'alliance') {
         const aa = (a.last_seen_alliance ?? fa?.alliance ?? '').toLowerCase();
         const bb = (b.last_seen_alliance ?? fb?.alliance ?? '').toLowerCase();
@@ -391,21 +388,12 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       }
       else if (sort.field === 'state') cmp = a.state.localeCompare(b.state);
       // Tiebreak on power desc so equal-key rows are stable
-      if (cmp === 0) cmp = (b.last_seen_power ?? b.power_at_open) - (a.last_seen_power ?? a.power_at_open);
+      if (cmp === 0) cmp = power(b) - power(a);
       else cmp *= sign;
       return cmp;
     });
     return sorted;
-  }, [visibleCases, filter, search, sort.field, sort.dir, locationLookup]);
-
-  const counts = useMemo(() => {
-    const out: Record<string, number> = { active: 0, all: visibleCases.length };
-    for (const c of visibleCases) {
-      if (isInActive(c)) out.active = (out.active ?? 0) + 1;
-      out[c.state] = (out[c.state] ?? 0) + 1;
-    }
-    return out;
-  }, [visibleCases, isInActive]);
+  }, [visibleCases, isInActive, search, sort.field, sort.dir, locationLookup]);
 
   const delayedCount = useMemo(() => {
     if (!isOfficer) return 0;
@@ -484,8 +472,8 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
             <div>
               <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Recipe — Power member, going on a hunt</div>
               <ol className="space-y-1 text-xs list-decimal pl-5">
-                <li>Open this Zero List tab. The default filter is &quot;Active&quot; — that&apos;s everyone who still needs to be dealt with.</li>
-                <li>Pick a target — usually highest power first, or whoever&apos;s closest to your city.</li>
+                <li>Open this Zero List tab. It lists everyone who still needs to be dealt with.</li>
+                <li>Pick a target — usually highest power first, or whoever&apos;s closest to your city. Skip anyone with an active <strong>Shield</strong>.</li>
                 <li>Click the <strong>(x, y)</strong> cell. It copies <code className="text-[var(--text-secondary)]">x,y</code> to your clipboard.</li>
                 <li>In game: open Map → click the magnifying glass → paste the coords → teleport / scout / attack.</li>
                 <li>You don&apos;t mark anything here — just attack. Admins update the status when the zero is confirmed.</li>
@@ -498,28 +486,23 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
                 <li>When admin commits power members to attack a target, they click <strong>To Zero</strong> on the row. State turns orange — &quot;decision made, action pending&quot;.</li>
                 <li>After the attack lands and the player is at near-zero power, <strong>any officer or admin</strong> can click <strong>Confirm Zeroed</strong>. State turns red — done.</li>
                 <li>If they bailed and left the kingdom before you finished, click <strong>Emigrated</strong> instead.</li>
-                <li>Confirmed-zeroed (and emigrated/excepted/afk) cases are filtered out of the default <em>Active</em> view. Switch the dropdown to <em>Zeroed</em> or <em>All</em> to see them — or use the inline link that appears below the filter bar when there are hidden terminal cases.</li>
+                <li>Confirmed-zeroed, emigrated and AFK entries leave the list.</li>
               </ol>
             </div>
 
             <div>
               <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Recipe — Admin, adding people</div>
-              <p className="text-xs">You don&apos;t add people <em>on this tab</em> — switch to the <strong>Scans</strong> tab. The default sub-tab there is <strong>Find Candidates</strong>:</p>
-              <ol className="space-y-1 text-xs list-decimal pl-5 mt-1">
-                <li>Each card has a count badge. The biggest number is where the work is.</li>
-                <li>Open the card, look at the rows.</li>
-                <li>Check the boxes you want, click <strong>Add to Zero List</strong>.</li>
-                <li>Come back here — they&apos;re queued.</li>
+              <ol className="space-y-1 text-xs list-decimal pl-5">
+                <li>Click <strong>+ Add players</strong> above the table: search by name, Gov ID or alliance — sort by Acclaim to find who didn&apos;t fight — tick the rows and add them.</li>
+                <li>Or open the <strong>Power Growers</strong> tab, tick who&apos;s pushing power and click <strong>Add to Zero List</strong>.</li>
               </ol>
             </div>
 
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Recipe — Admin, fresh coordinates before a war</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Recipe — Admin, fresh data</div>
               <ol className="space-y-1 text-xs list-decimal pl-5">
-                <li>Open <strong>Scans → Location Upload</strong>.</li>
-                <li>Drop your <code className="text-[var(--text-secondary)]">scan_3923.csv</code> file. Leave &quot;Save as kingdom scan&quot; checked.</li>
-                <li>Within a second, every Zero List entry whose Gov ID is in the file gets fresh coords + power + alliance.</li>
-                <li>Power members can now click coords on this tab and get accurate locations.</li>
+                <li>Open <a href="/upload" className="text-cyan-400 hover:underline">Upload Scan</a> and drop the location scan (<code className="text-[var(--text-secondary)]">scan_3923.csv</code>) and the performance report (<code className="text-[var(--text-secondary)]">kd3923-performance-….xlsx</code>).</li>
+                <li>Every entry here gets fresh coords, power, KP, CH, alliance and shield from the location scan, and <strong>Acclaim</strong> from the report — matched by Gov ID.</li>
               </ol>
             </div>
 
@@ -539,8 +522,8 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
               <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Things you might miss</div>
               <ul className="text-xs space-y-1 list-disc pl-5">
                 <li>The (x, y) cell is a <strong>button</strong> — click it to copy. The little copy icon turns into a green checkmark for ~1.5s when it works.</li>
-                <li>The Active filter (default) hides terminal cases. Switch to <em>Zeroed</em> or <em>All</em> to see history.</li>
-                <li>If the (x, y) cell is empty (em dash), the player was added from auto-scrape data. Run <em>Location Upload</em> to backfill from a fresh location CSV.</li>
+                <li><strong>Acclaim</strong> comes from the latest performance report: a red <em>0</em> means they earned none in the report period, <em>—</em> means they aren&apos;t in the report.</li>
+                <li>If the (x, y) cell is empty (em dash), the player wasn&apos;t in the latest location scan. Upload a fresh one on <a href="/upload" className="text-cyan-400 hover:underline">Upload Scan</a>.</li>
                 <li>Power and Officer roles are <strong>both view-only</strong> here. Only Admin sees action buttons.</li>
                 <li>Don&apos;t click the trash icon casually — it&apos;s a hard delete with no undo. Use a state like Excepted or AFK if you want to keep the record.</li>
               </ul>
@@ -552,12 +535,12 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       {/* Role-specific status line */}
       {!isOfficer && (
         <section className="mb-4 rounded-xl bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-300">
-          You're signed in as <strong>Power</strong> — view-only on this list. Use the coords to attack; ping an admin to mark targets zeroed.
+          You&apos;re signed in as <strong>Power</strong> — view-only on this list. Use the coords to attack; ping an admin to mark targets zeroed.
         </section>
       )}
       {isOfficer && !isAdmin && (
         <section className="mb-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-3 text-xs text-[var(--text-secondary)]">
-          You're signed in as <strong>Officer</strong> — you can mark people <em>Emigrated</em>, <em>Confirm Zeroed</em>, and put rows on <em>Delay</em>. Adding/removing entries, AFK, Except are admin-only — admins curate this list from the Scans tab.
+          You&apos;re signed in as <strong>Officer</strong> — you can mark people <em>Emigrated</em>, <em>Confirm Zeroed</em>, and put rows on <em>Delay</em>. Adding/removing entries, AFK, Except are admin-only.
         </section>
       )}
 
@@ -569,19 +552,6 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
           placeholder="Search name or governor ID…"
           className="px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--foreground)]/30 w-full sm:w-64"
         />
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value as 'active' | 'all' | MigrationState)}
-          className="px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
-        >
-          <option value="active">Active ({counts.active ?? 0})</option>
-          <option value="all">All ({counts.all ?? 0})</option>
-          <option value="marked_to_zero">To Zero ({counts.marked_to_zero ?? 0})</option>
-          <option value="zeroed">Zeroed ({counts.zeroed ?? 0})</option>
-          <option value="migrated">Emigrated ({counts.migrated ?? 0})</option>
-          <option value="excepted">Excepted ({counts.excepted ?? 0})</option>
-          <option value="afk">AFK ({counts.afk ?? 0})</option>
-        </select>
         <button
           onClick={() => void refetch()}
           className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-hover)] transition-colors"
@@ -589,6 +559,15 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
         >
           <RotateCcw size={14} />
         </button>
+        {isAdmin && (
+          <button
+            onClick={() => setAddOpen(true)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs bg-orange-500/15 text-orange-300 border border-orange-500/30 hover:bg-orange-500/25 transition-colors"
+            title="Pick players from the latest scan and add them to the Zero List"
+          >
+            <UserPlus size={12} /> Add players
+          </button>
+        )}
         {isAdmin && (
           <button
             onClick={() => void handleClearZeroList()}
@@ -608,14 +587,27 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
           {locationLabel && (
             <> · coords from <span className="text-[var(--text-secondary)]">{locationLabel}</span></>
           )}
+          {kingdom?.report && (
+            <> · acclaim from <span className="text-[var(--text-secondary)]">{kingdom.report.label ?? kingdom.report.file_name}</span></>
+          )}
         </span>
       </section>
 
-      {/* Send / mail toolbar — collapsible. Operates on whatever is currently
-       *  filtered, so admins can compose per-state mails (e.g. only the To
-       *  Zero set) by switching the filter dropdown above. Mail composer is
-       *  officer+ only; copying names is fine for anyone since the list is
-       *  already shared. */}
+      {addOpen && (
+        <AddPlayersDialog
+          players={kingdom?.players ?? []}
+          scanAt={scanAt}
+          locationScanId={kingdom?.location?.id ?? null}
+          onZeroList={new Set(cases.filter(isInActive).map((c) => c.character_id))}
+          actorName={actorName}
+          onClose={() => setAddOpen(false)}
+          onAdded={() => void refetchCases()}
+        />
+      )}
+
+      {/* Send / mail toolbar — collapsible. Operates on the rows currently
+       *  shown (the search narrows it). Mail composer is officer+ only;
+       *  copying names is fine for anyone since the list is already shared. */}
       <section className="mb-3 rounded-lg bg-[var(--background-card)] border border-[var(--border)] overflow-hidden">
         <button
           onClick={toggleToolbar}
@@ -732,23 +724,6 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
         )}
       </section>
 
-      {/* Hint when Active filter hides finished cases.
-       *  Officers see excepted in Active, so we don't list it as hidden for them. */}
-      {filter === 'active' && ((counts.zeroed ?? 0) + (counts.migrated ?? 0) + (isOfficer ? 0 : (counts.excepted ?? 0)) + (counts.afk ?? 0)) > 0 && (
-        <section className="mb-3 rounded-lg bg-[var(--background-card)] border border-[var(--border)] px-3 py-2 text-xs text-[var(--text-muted)] flex flex-wrap items-center gap-3">
-          <span>
-            Hidden by &quot;Active&quot; filter:
-            {(counts.zeroed ?? 0) > 0 && <> <button onClick={() => setFilter('zeroed')} className="text-rose-400 hover:underline">{counts.zeroed} zeroed</button></>}
-            {(counts.migrated ?? 0) > 0 && <> · <button onClick={() => setFilter('migrated')} className="text-green-400 hover:underline">{counts.migrated} emigrated</button></>}
-            {!isOfficer && (counts.excepted ?? 0) > 0 && <> · <button onClick={() => setFilter('excepted')} className="text-amber-400 hover:underline">{counts.excepted} excepted</button></>}
-            {(counts.afk ?? 0) > 0 && <> · <button onClick={() => setFilter('afk')} className="text-slate-300 hover:underline">{counts.afk} afk</button></>}
-          </span>
-          <button onClick={() => setFilter('all')} className="ml-auto text-[var(--text-secondary)] hover:text-[var(--foreground)] underline-offset-2 hover:underline">
-            Show all
-          </button>
-        </section>
-      )}
-
       {/* Table */}
       <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
         <div className="overflow-auto max-h-[calc(100vh-280px)] rounded-xl">
@@ -757,8 +732,12 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
               <tr>
                 <SortableTh label="Player" field="username" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <SortableTh label="Power" field="power" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
+                <SortableTh label="KP" field="kills" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
+                <SortableTh label="CH" field="ch" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <SortableTh label="Alliance" field="alliance" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <th className="px-3 py-2 text-left">Coords</th>
+                <th className="px-3 py-2 text-left">Shield</th>
+                <SortableTh label="Acclaim" field="acclaim" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <SortableTh label="State" field="state" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <th className="px-3 py-2 text-left">Actions</th>
               </tr>
@@ -768,21 +747,23 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
                 <ZeroListRow
                   key={c.id}
                   caseRow={c}
-                  locationFallback={locationLookup.get(c.character_id) ?? null}
+                  player={locationLookup.get(c.character_id) ?? null}
+                  scanAt={scanAt}
+                  now={now}
                   isOfficer={isOfficer}
                   isAdmin={isAdmin}
                   actorName={actorName}
-                  onChange={() => void refetch()}
+                  onChange={() => void refetchCases()}
                 />
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-3 py-10 text-center text-sm text-[var(--text-muted)]">
-                    {cases.length === 0
-                      ? isAdmin
-                        ? 'Zero list is empty. Use the Scans tab → Compare or Migrant CSV to add targets.'
-                        : 'Zero list is empty. Admins populate it from the Scans tab.'
-                      : 'No matches.'}
+                  <td colSpan={10} className="px-3 py-10 text-center text-sm text-[var(--text-muted)]">
+                    {search.trim()
+                      ? 'No matches.'
+                      : isAdmin
+                        ? 'Nothing on the Zero List right now. Use Add players or the Power Growers tab to add targets.'
+                        : 'Nothing on the Zero List right now.'}
                   </td>
                 </tr>
               )}
@@ -796,17 +777,22 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
 
 function ZeroListRow({
   caseRow: c,
-  locationFallback,
+  player,
+  scanAt,
+  now,
   isOfficer,
   isAdmin,
   actorName,
   onChange,
 }: {
   caseRow: MigrationCase;
-  /** Location-scan record for this Gov ID (if any) — used to fill in coords/
-   *  alliance/power that aren't on the migration_cases row itself. Lets cycle
-   *  cases that auto-carry to the Zero List get coords without a DB write. */
-  locationFallback: LocationPoint | null;
+  /** This Gov ID in the latest uploads (location scan + performance report),
+   *  if present. Fills KP, CH, shield and Acclaim, and backs up coords /
+   *  alliance / power that aren't on the migration_cases row itself. */
+  player: KingdomPlayer | null;
+  /** When the latest location scan was taken (shield fallback). */
+  scanAt: string | null;
+  now: number;
   isOfficer: boolean;
   isAdmin: boolean;
   actorName: string | null;
@@ -818,10 +804,10 @@ function ZeroListRow({
 
   // Effective values — prefer the row's stored value (frozen at add time or
   // refresh time), fall back to whatever the latest location scan has.
-  const effX = c.x ?? locationFallback?.x ?? null;
-  const effY = c.y ?? locationFallback?.y ?? null;
-  const effAlliance = c.last_seen_alliance ?? locationFallback?.alliance ?? null;
-  const effPower = c.last_seen_power ?? locationFallback?.power ?? c.power_at_open;
+  const effX = c.x ?? player?.x ?? null;
+  const effY = c.y ?? player?.y ?? null;
+  const effAlliance = c.last_seen_alliance ?? player?.alliance ?? null;
+  const effPower = c.last_seen_power ?? player?.power ?? c.power_at_open;
 
   const wrap = async (fn: () => Promise<void>) => {
     if (busy) return;
@@ -856,6 +842,12 @@ function ZeroListRow({
       <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
         {fmtM(effPower)}
       </td>
+      <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
+        {player?.kills != null ? fmtCompact(player.kills) : <span className="text-[var(--text-muted)]">—</span>}
+      </td>
+      <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
+        {player?.castleHall ?? <span className="text-[var(--text-muted)]">—</span>}
+      </td>
       <td className="px-3 py-2 text-[var(--text-secondary)]">
         {effAlliance || <span className="text-[var(--text-muted)]">—</span>}
       </td>
@@ -864,7 +856,7 @@ function ZeroListRow({
           {effX != null && effY != null ? (
             <button
               onClick={copyCoords}
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--text-secondary)] hover:bg-[var(--background-hover)] hover:text-[var(--foreground)] transition-colors"
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--text-secondary)] hover:bg-[var(--background-hover)] hover:text-[var(--foreground)] transition-colors whitespace-nowrap"
               title="Copy coordinates"
             >
               ({effX}, {effY}) {copied ? <span className="text-emerald-400">✓</span> : <Copy size={10} />}
@@ -904,6 +896,12 @@ function ZeroListRow({
             </button>
           )}
         </div>
+      </td>
+      <td className="px-3 py-2">
+        <ShieldCell shieldTimeLeft={player?.shieldTimeLeft ?? null} scanAt={scanAt} now={now} />
+      </td>
+      <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
+        <AcclaimCell value={player?.acclaim ?? null} />
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-1">

@@ -491,21 +491,26 @@ export async function loadLatestLocationPoints(): Promise<{
   scan: LocationScanRow | null;
   points: LocationPoint[];
 }> {
-  const sb = createClient();
-  const { data: scans } = await sb
+  const { data: scans } = await createClient()
     .from('location_scans')
     .select('*')
     .order('created_at', { ascending: false })
     .limit(1);
   const scan = (scans?.[0] as LocationScanRow | undefined) ?? null;
   if (!scan) return { scan: null, points: [] };
+  return { scan, points: await loadLocationPoints(scan.id) };
+}
+
+/** All points of one location scan, paginating past Supabase's 1000-row default. */
+export async function loadLocationPoints(scanId: number): Promise<LocationPoint[]> {
+  const sb = createClient();
   let all: LocationPoint[] = [];
   let from = 0;
   while (true) {
     const { data, error } = await sb
       .from('location_scan_points')
       .select('*')
-      .eq('scan_id', scan.id)
+      .eq('scan_id', scanId)
       .range(from, from + 999);
     if (error) throw error;
     if (!data || data.length === 0) break;
@@ -525,40 +530,55 @@ export async function loadLatestLocationPoints(): Promise<{
     if (data.length < 1000) break;
     from += 1000;
   }
-  return { scan, points: all };
+  return all;
 }
 
-/** Insert a new location scan with all its points. Returns the new scan ID. */
+/** Insert a new location scan with all its points. Returns the new scan ID.
+ *  `createdAt` is when the scan was taken (defaults to now) — "latest scan"
+ *  everywhere means the newest created_at. Duplicate gov_ids keep the last
+ *  row. A failed points insert removes the half-written scan. */
 export async function uploadLocationScan(
   label: string,
   points: LocationPoint[],
   uploadedBy: string | null,
+  createdAt?: Date,
 ): Promise<number> {
+  const unique = [...new Map(points.map((p) => [p.governorId, p] as const)).values()];
   const sb = createClient();
   const { data: scanRow, error: e1 } = await sb
     .from('location_scans')
-    .insert({ label, point_count: points.length, uploaded_by: uploadedBy })
+    .insert({
+      label,
+      point_count: unique.length,
+      uploaded_by: uploadedBy,
+      ...(createdAt ? { created_at: createdAt.toISOString() } : {}),
+    })
     .select()
     .single();
   if (e1) throw e1;
   const scanId = scanRow.id as number;
-  // Insert in batches of 500 to stay under request size limits.
-  const batchSize = 500;
-  for (let i = 0; i < points.length; i += batchSize) {
-    const slice = points.slice(i, i + batchSize).map((p) => ({
-      scan_id: scanId,
-      governor_id: p.governorId,
-      name: p.name,
-      power: p.power,
-      kills: p.kills,
-      alliance: p.alliance,
-      x: p.x,
-      y: p.y,
-      castle_hall: p.castleHall,
-      shield_time_left: p.shieldTimeLeft,
-    }));
-    const { error } = await sb.from('location_scan_points').insert(slice);
-    if (error) throw error;
+  try {
+    // Insert in batches of 500 to stay under request size limits.
+    const batchSize = 500;
+    for (let i = 0; i < unique.length; i += batchSize) {
+      const slice = unique.slice(i, i + batchSize).map((p) => ({
+        scan_id: scanId,
+        governor_id: p.governorId,
+        name: p.name,
+        power: p.power,
+        kills: p.kills,
+        alliance: p.alliance,
+        x: p.x,
+        y: p.y,
+        castle_hall: p.castleHall,
+        shield_time_left: p.shieldTimeLeft,
+      }));
+      const { error } = await sb.from('location_scan_points').insert(slice);
+      if (error) throw error;
+    }
+  } catch (e) {
+    await deleteLocationScan(scanId).catch(() => {});
+    throw e;
   }
   return scanId;
 }

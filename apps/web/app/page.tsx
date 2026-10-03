@@ -19,6 +19,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { FEATURES } from '@/lib/feature-flags';
 
 export default function Home() {
   const t = useTranslations('home');
@@ -64,16 +65,18 @@ export default function Home() {
       iconHoverBg: 'group-hover:bg-pink-500/15',
       iconHoverColor: 'group-hover:text-pink-500',
     },
-    {
-      href: '/dkp',
-      titleKey: 'tools.dkp.title',
-      descriptionKey: 'tools.dkp.description',
-      icon: Trophy,
-      hoverBorder: 'hover:border-yellow-500/40',
-      hoverShadow: 'hover:shadow-yellow-500/10',
-      iconHoverBg: 'group-hover:bg-yellow-500/15',
-      iconHoverColor: 'group-hover:text-yellow-500',
-    },
+    ...(FEATURES.dkp
+      ? [{
+          href: '/dkp',
+          titleKey: 'tools.dkp.title',
+          descriptionKey: 'tools.dkp.description',
+          icon: Trophy,
+          hoverBorder: 'hover:border-yellow-500/40',
+          hoverShadow: 'hover:shadow-yellow-500/10',
+          iconHoverBg: 'group-hover:bg-yellow-500/15',
+          iconHoverColor: 'group-hover:text-yellow-500',
+        }]
+      : []),
     {
       href: '/alliances',
       titleKey: 'tools.alliances.title',

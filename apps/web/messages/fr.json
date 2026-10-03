@@ -52,8 +52,10 @@
     "fineCalculator": "Calculateur d'amendes",
     "dkp": "Score DKP",
     "alliances": "Alliances",
+    "migration": "Émigration",
     "recognition": "Reconnaissance",
-    "applyLeader": "Envoyer infos chef"
+    "applyLeader": "Envoyer infos chef",
+    "scanUpload": "Importer un scan"
   },
   "home": {
     "tagline": "Royaume 23 • L'avènement des royaumes",
@@ -117,6 +119,10 @@
       "alliances": {
         "title": "Alliances",
         "description": "Kingdom alliances ranked by power, with their R5, officers, and counselors."
+      },
+      "migration": {
+        "title": "Émigration",
+        "description": "Zero List et Power Growers : qui zéroter et qui fait monter sa puissance, d'après les derniers scans."
       },
       "recognition": {
         "title": "Reconnaissance",

@@ -52,8 +52,10 @@
     "fineCalculator": "Калькулятор штрафов",
     "dkp": "Оценка ДКП",
     "alliances": "Alliances",
+    "migration": "Эмиграция",
     "recognition": "Признание",
-    "applyLeader": "Отправить инфо лидера"
+    "applyLeader": "Отправить инфо лидера",
+    "scanUpload": "Загрузить скан"
   },
   "home": {
     "tagline": "Королевство 23 • Восстание королевств",
@@ -117,6 +119,10 @@
       "alliances": {
         "title": "Alliances",
         "description": "Kingdom alliances ranked by power, with their R5, officers, and counselors."
+      },
+      "migration": {
+        "title": "Эмиграция",
+        "description": "Zero List и Power Growers: кого обнулить и кто качает мощь — по последним сканам."
       },
       "recognition": {
         "title": "Признание",

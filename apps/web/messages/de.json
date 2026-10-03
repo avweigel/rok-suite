@@ -52,8 +52,10 @@
     "fineCalculator": "Strafen-Rechner",
     "dkp": "DKP-Score",
     "alliances": "Alliances",
+    "migration": "Emigration",
     "recognition": "Erkennung",
-    "applyLeader": "Leader-Info senden"
+    "applyLeader": "Leader-Info senden",
+    "scanUpload": "Scan hochladen"
   },
   "home": {
     "tagline": "Königreich 23 • Aufstieg der Königreiche",
@@ -117,6 +119,10 @@
       "alliances": {
         "title": "Alliances",
         "description": "Kingdom alliances ranked by power, with their R5, officers, and counselors."
+      },
+      "migration": {
+        "title": "Emigration",
+        "description": "Zero List und Power Growers: wen zeroen und wer Power pusht – aus den neuesten Scans."
       },
       "recognition": {
         "title": "Erkennung",

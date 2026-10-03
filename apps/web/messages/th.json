@@ -52,8 +52,10 @@
     "fineCalculator": "เครื่องคำนวณค่าปรับ",
     "dkp": "คะแนน ดีเคพี",
     "alliances": "Alliances",
+    "migration": "การย้ายออก",
     "recognition": "การยอมรับ",
-    "applyLeader": "ส่งข้อมูลหัวหน้า"
+    "applyLeader": "ส่งข้อมูลหัวหน้า",
+    "scanUpload": "อัปโหลดสแกน"
   },
   "home": {
     "tagline": "อาณาจักร 23 • กำเนิดอาณาจักร",
@@ -117,6 +119,10 @@
       "alliances": {
         "title": "Alliances",
         "description": "Kingdom alliances ranked by power, with their R5, officers, and counselors."
+      },
+      "migration": {
+        "title": "การย้ายออก",
+        "description": "Zero List และ Power Growers: ใครต้องถูกซีโร่ และใครกำลังปั๊มพลัง จากการสแกนล่าสุด"
       },
       "recognition": {
         "title": "การยอมรับ",

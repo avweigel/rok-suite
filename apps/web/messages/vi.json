@@ -52,8 +52,10 @@
     "fineCalculator": "Máy tính tiền phạt",
     "dkp": "Điểm DKP",
     "alliances": "Alliances",
+    "migration": "Di cư",
     "recognition": "Sự công nhận",
-    "applyLeader": "Gửi thông tin trưởng"
+    "applyLeader": "Gửi thông tin trưởng",
+    "scanUpload": "Tải lên scan"
   },
   "home": {
     "tagline": "Vương quốc 23 • Vương quốc trỗi dậy",
@@ -117,6 +119,10 @@
       "alliances": {
         "title": "Alliances",
         "description": "Kingdom alliances ranked by power, with their R5, officers, and counselors."
+      },
+      "migration": {
+        "title": "Di cư",
+        "description": "Zero List và Power Growers: ai cần bị zero và ai đang đẩy sức mạnh, theo các lần quét mới nhất."
       },
       "recognition": {
         "title": "Sự công nhận",

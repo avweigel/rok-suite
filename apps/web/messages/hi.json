@@ -52,8 +52,10 @@
     "fineCalculator": "जुर्माना कैलकुलेटर",
     "dkp": "डीकेपी स्कोर",
     "alliances": "Alliances",
+    "migration": "प्रवासन",
     "recognition": "मान्यता",
-    "applyLeader": "लीडर जानकारी भेजें"
+    "applyLeader": "लीडर जानकारी भेजें",
+    "scanUpload": "स्कैन अपलोड करें"
   },
   "home": {
     "tagline": "साम्राज्य 23 • राज्यों का उदय",
@@ -117,6 +119,10 @@
       "alliances": {
         "title": "Alliances",
         "description": "Kingdom alliances ranked by power, with their R5, officers, and counselors."
+      },
+      "migration": {
+        "title": "प्रवासन",
+        "description": "Zero List और Power Growers: नवीनतम स्कैन से किसे ज़ीरो करना है और कौन पावर बढ़ा रहा है।"
       },
       "recognition": {
         "title": "मान्यता",
