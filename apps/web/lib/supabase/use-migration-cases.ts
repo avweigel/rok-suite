@@ -870,6 +870,37 @@ export async function clearZeroList(): Promise<{ removed: number }> {
   return { removed: total };
 }
 
+/** Take every cycle case off the Zero List by undoing its To Zero step — the
+ *  case goes back to Notified / Claimed / Contacted inside its cycle, so the
+ *  cycle record is kept. Returns how many were released. */
+export async function releaseCycleCasesFromZeroList(): Promise<number> {
+  const sb = createClient();
+  const { data, error } = await sb
+    .from('migration_cases')
+    .select('id, claimed_at, contacted_at')
+    .eq('source_kind', 'cycle')
+    .eq('state', 'marked_to_zero');
+  if (error) throw error;
+  // Same step back as undoLastStateChange, applied in bulk per target state.
+  const idsByState = new Map<MigrationState, string[]>();
+  for (const r of data ?? []) {
+    const back: MigrationState = r.contacted_at ? 'contacted' : r.claimed_at ? 'claimed' : 'pending';
+    idsByState.set(back, [...(idsByState.get(back) ?? []), r.id as string]);
+  }
+  const now = new Date().toISOString();
+  let released = 0;
+  for (const [state, ids] of idsByState) {
+    const { data: updated, error: updErr } = await sb
+      .from('migration_cases')
+      .update({ state, marked_to_zero_at: null, marked_to_zero_by: null, updated_at: now })
+      .in('id', ids)
+      .select('id');
+    if (updErr) throw updErr;
+    released += (updated ?? []).length;
+  }
+  return released;
+}
+
 /** Refresh coords + last-seen power/alliance/name for a set of zero-list cases from a fresh scan.
  *  Match is by character_id; cases not present in the scan are left alone.
  *  Username is rewritten when the scan reports a different name for the same gov_id —

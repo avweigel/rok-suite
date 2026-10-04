@@ -13,6 +13,7 @@ import {
   listZeroListCases,
   removeFromZeroList,
   clearZeroList,
+  releaseCycleCasesFromZeroList,
   markToZero,
   markAfk,
   markException,
@@ -177,19 +178,21 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
 
   const handleClearZeroList = useCallback(async () => {
     const nativeCount = cases.filter((c) => c.source_kind === 'zero_list').length;
-    if (nativeCount === 0) {
-      window.alert('Zero List is already empty (or only contains cases carried over from cycles — those you flip on the cycle side).');
+    const cycleCount = cases.filter((c) => c.source_kind === 'cycle').length;
+    if (nativeCount + cycleCount === 0) {
+      window.alert('Zero List is already empty.');
       return;
     }
-    const cycleCount = cases.filter((c) => c.source_kind === 'cycle').length;
-    const cycleNote = cycleCount > 0
-      ? `\n\n${cycleCount} case(s) came in from cycles and will stay — clear them by ending the cycle.`
-      : '';
-    if (!window.confirm(`Delete every native Zero List entry (${nativeCount})?${cycleNote}\n\nThis is a hard delete and cannot be undone.`)) return;
+    const parts: string[] = [];
+    if (nativeCount > 0) parts.push(`${nativeCount} added here — deleted for good, no undo`);
+    if (cycleCount > 0) parts.push(`${cycleCount} from cycles — taken off the list, their cycle record is kept`);
+    if (!window.confirm(`Clear the whole Zero List?\n\n• ${parts.join('\n• ')}`)) return;
     setClearingList(true);
     try {
-      const { removed } = await clearZeroList();
-      window.alert(`Removed ${removed} Zero List entr${removed === 1 ? 'y' : 'ies'}.`);
+      const { removed } = nativeCount > 0 ? await clearZeroList() : { removed: 0 };
+      const released = cycleCount > 0 ? await releaseCycleCasesFromZeroList() : 0;
+      setCases([]); // natives deleted, cycle cases no longer To Zero
+      window.alert(`Zero List cleared: ${removed} deleted${released > 0 ? `, ${released} cycle cases released` : ''}.`);
     } catch (e) {
       console.error('Failed to clear Zero List', e);
       window.alert(`Failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -571,12 +574,12 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
         {isAdmin && (
           <button
             onClick={() => void handleClearZeroList()}
-            disabled={clearingList || cases.filter((c) => c.source_kind === 'zero_list').length === 0}
+            disabled={clearingList || cases.length === 0}
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            title="Hard-delete every native Zero List entry. Cases carried over from cycles are not touched."
+            title="Empty the Zero List: entries added here are deleted; entries from cycles are taken off the list (their cycle record is kept)."
           >
             <Trash2 size={12} />
-            {clearingList ? 'Clearing…' : `Clear all (${cases.filter((c) => c.source_kind === 'zero_list').length})`}
+            {clearingList ? 'Clearing…' : `Clear all (${cases.length})`}
           </button>
         )}
         <span className="text-xs text-[var(--text-muted)] ml-auto">
