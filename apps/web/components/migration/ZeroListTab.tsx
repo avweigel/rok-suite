@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronDown, Clock, Copy, Lock, Mail, RotateCcw, Trash2, UserPlus, Users } from 'lucide-react';
+import { ChevronDown, Clock, Copy, Mail, RotateCcw, Trash2, UserPlus, Users } from 'lucide-react';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
 import { AcclaimCell, ShieldCell, fmtCompact, useNow } from '@/components/migration/ScanCells';
 import { AddPlayersDialog } from '@/components/migration/AddPlayersDialog';
@@ -476,7 +476,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
                 <li>Pick a target — usually highest power first, or whoever&apos;s closest to your city. Skip anyone with an active <strong>Shield</strong>.</li>
                 <li>Click the <strong>(x, y)</strong> cell. It copies <code className="text-[var(--text-secondary)]">x,y</code> to your clipboard.</li>
                 <li>In game: open Map → click the magnifying glass → paste the coords → teleport / scout / attack.</li>
-                <li>You don&apos;t mark anything here — just attack. Admins update the status when the zero is confirmed.</li>
+                <li>Once the zero lands, click <strong>Zeroed</strong> on the row. It shows a <em>×1 zeroed</em> badge and stays on the list until an officer or admin confirms it.</li>
               </ol>
             </div>
 
@@ -524,7 +524,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
                 <li>The (x, y) cell is a <strong>button</strong> — click it to copy. The little copy icon turns into a green checkmark for ~1.5s when it works.</li>
                 <li><strong>Acclaim</strong> comes from the latest performance report: a red <em>0</em> means they earned none in the report period, <em>—</em> means they aren&apos;t in the report.</li>
                 <li>If the (x, y) cell is empty (em dash), the player wasn&apos;t in the latest location scan. Upload a fresh one on <a href="/upload" className="text-cyan-400 hover:underline">Upload Scan</a>.</li>
-                <li>Power and Officer roles are <strong>both view-only</strong> here. Only Admin sees action buttons.</li>
+                <li>Without signing in you can only mark a row <strong>Zeroed</strong>. Officers confirm zeroes, mark emigrated and delay; adding, removing, To Zero, Except and AFK are admin-only.</li>
                 <li>Don&apos;t click the trash icon casually — it&apos;s a hard delete with no undo. Use a state like Excepted or AFK if you want to keep the record.</li>
               </ul>
             </div>
@@ -535,7 +535,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       {/* Role-specific status line */}
       {!isOfficer && (
         <section className="mb-4 rounded-xl bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-300">
-          You&apos;re signed in as <strong>Power</strong> — view-only on this list. Use the coords to attack; ping an admin to mark targets zeroed.
+          Use the coords to attack. After a successful zero, click <strong>Zeroed</strong> on the row — an officer or admin confirms it.
         </section>
       )}
       {isOfficer && !isAdmin && (
@@ -832,7 +832,7 @@ function ZeroListRow({
     });
   };
 
-  const actor = actorName?.trim() || 'admin';
+  const actor = actorName?.trim() || (isAdmin ? 'admin' : isOfficer ? 'officer' : 'member');
 
   return (
     <tr className="border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors">
@@ -977,10 +977,20 @@ function ZeroListRow({
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-1">
-          {!isAdmin && (
-            <span className="inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
-              <Lock size={10} /> view only
-            </span>
+          {/* Members can only report a zero: it's recorded (×N zeroed badge)
+              and the row stays until an officer/admin confirms it. */}
+          {!isOfficer && isActive && (
+            <button
+              disabled={busy}
+              onClick={() => {
+                if (!confirm(`Mark ${c.username} as zeroed? An officer will confirm it.`)) return;
+                void wrap(() => markZeroedOnce(c.id, actor));
+              }}
+              className="px-2 py-1 text-[11px] rounded bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25"
+              title="You zeroed this player — record it. The row stays until an officer or admin confirms."
+            >
+              Zeroed
+            </button>
           )}
           {isAdmin && isActive && c.state !== 'marked_to_zero' && (
             <button
