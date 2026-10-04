@@ -12,6 +12,7 @@ import { SortableTh, useTableSort } from '@/components/migration/SortableTh';
 import { AcclaimCell, AddToZeroListDialog, CoordsCopy, fmtCompact, fmtDeltaM } from '@/components/migration/ScanCells';
 import { listLocationScans, loadLocationPoints, type LocationPoint, type LocationScanRow } from '@/lib/zero-list/scan-data';
 import { loadLatestPerformanceReport } from '@/lib/scans/performance-reports';
+import { KEPT_CITY_HALL } from '@/lib/scans/upload';
 import { TERMINAL_STATES, bulkAddToZeroList, listZeroListCases } from '@/lib/supabase/use-migration-cases';
 import { errorMessage } from '@/lib/error-message';
 
@@ -134,6 +135,8 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
     const threshold = thresholdM * 1_000_000;
     const out: GrowerRow[] = [];
     for (const p of to) {
+      // Older scans still hold farms; only CH25 players count.
+      if (p.castleHall !== KEPT_CITY_HALL) continue;
       const a = fromByGov.get(p.governorId);
       if (!a) continue;
       const delta = p.power - a.power;
@@ -299,7 +302,7 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
           {growers ? (
             <span>
               <ArrowUp size={11} className="inline text-orange-400 -mt-0.5" />{' '}
-              <span className="text-[var(--foreground)] font-semibold">{growers.length}</span> grew ≥ {thresholdM}M
+              <span className="text-[var(--foreground)] font-semibold">{growers.length}</span> CH{KEPT_CITY_HALL} grew ≥ {thresholdM}M
               {growers.length > 0 && <> · total <span className="text-orange-300">{fmtDeltaM(totalDelta)}</span></>}
               {days != null && <> · over {days < 1 ? `${Math.round(days * 24)}h` : `${days.toFixed(1)} days`}</>}
             </span>

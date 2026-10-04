@@ -11,6 +11,7 @@ import { SortableTh, useTableSort } from '@/components/migration/SortableTh';
 import { AcclaimCell, AddToZeroListDialog, CoordsCopy, ShieldCell, fmtCompact, useNow } from '@/components/migration/ScanCells';
 import { bulkAddToZeroList } from '@/lib/supabase/use-migration-cases';
 import type { KingdomPlayer } from '@/lib/scans/kingdom-data';
+import { KEPT_CITY_HALL } from '@/lib/scans/upload';
 import { errorMessage } from '@/lib/error-message';
 
 /** Rendering every one of ~1,200 rows in a modal is sluggish; searching or
@@ -46,11 +47,18 @@ export function AddPlayersDialog({
     name: 'asc', power: 'desc', kills: 'desc', ch: 'desc', alliance: 'asc', acclaim: 'asc',
   });
 
+  // CH25 only. Older scans still hold farms; report-only players carry no CH
+  // and are kept (the report lists KvK fighters).
+  const eligible = useMemo(
+    () => players.filter((p) => !p.inLocation || p.castleHall === KEPT_CITY_HALL),
+    [players],
+  );
+
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
     const list = q
-      ? players.filter((p) => p.name.toLowerCase().includes(q) || String(p.governorId).includes(q) || (p.alliance ?? '').toLowerCase().includes(q))
-      : players;
+      ? eligible.filter((p) => p.name.toLowerCase().includes(q) || String(p.governorId).includes(q) || (p.alliance ?? '').toLowerCase().includes(q))
+      : eligible;
     const sign = sort.dir === 'asc' ? 1 : -1;
     // Missing numbers sort below real values in both directions.
     const numeric = (a: number | null, b: number | null) =>
@@ -66,7 +74,7 @@ export function AddPlayersDialog({
       if (cmp === 0) return b.power - a.power;
       return cmp * sign;
     });
-  }, [players, search, sort.field, sort.dir]);
+  }, [eligible, search, sort.field, sort.dir]);
 
   const shown = rows.slice(0, MAX_ROWS);
 
@@ -116,7 +124,7 @@ export function AddPlayersDialog({
       >
         <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border)]">
           <h3 className="text-sm font-semibold text-[var(--foreground)]">Add players to the Zero List</h3>
-          <span className="text-[11px] text-[var(--text-muted)]">{players.length.toLocaleString()} players in the latest scan</span>
+          <span className="text-[11px] text-[var(--text-muted)]">{eligible.length.toLocaleString()} CH{KEPT_CITY_HALL} players in the latest scan</span>
           <button type="button" onClick={onClose} className="ml-auto p-1 rounded text-[var(--text-muted)] hover:text-[var(--foreground)]" title="Close">
             <X size={16} />
           </button>

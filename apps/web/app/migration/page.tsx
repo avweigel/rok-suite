@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
 import { WarRoomAuthProvider, useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
+import { meetsRole, useAuthRole } from '@/lib/auth-role';
 import { ZeroListTab } from '@/components/migration/ZeroListTab';
 import { ScansTab } from '@/components/migration/ScansTab';
 import { PowerGrowersTab } from '@/components/migration/PowerGrowersTab';
@@ -221,11 +222,27 @@ export default function MigrationPage() {
   );
 }
 
+/** This page has its own sign-in (name + password), but the header/sidebar
+ *  Sign in counts too — whichever grants more wins. */
+function useEmigrationAccess() {
+  const warRoom = useWarRoomAuth();
+  const { role: siteRole, signOut } = useAuthRole();
+  const isAdmin = warRoom.isAtLeast('admin') || meetsRole(siteRole, 'admin');
+  const isOfficer = isAdmin || warRoom.isAtLeast('officer') || meetsRole(siteRole, 'officer');
+  return {
+    isOfficer,
+    isAdmin,
+    signOut: () => {
+      warRoom.logout();
+      signOut();
+    },
+  };
+}
+
 function MigrationPageInner() {
   const { isAtLeast, officerName } = useWarRoomAuth();
+  const { isOfficer, isAdmin } = useEmigrationAccess();
   const canView = isAtLeast('power');
-  const isOfficer = isAtLeast('officer');
-  const isAdmin = isAtLeast('admin');
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1269,20 +1286,21 @@ function MigrationPageInner() {
 // ——— Sign-in badge (matches DKP's pattern but scoped here) ———
 
 function SessionBadge() {
-  const { isAtLeast, role, login, logout, officerName, setOfficerName } = useWarRoomAuth();
+  const { login, officerName, setOfficerName } = useWarRoomAuth();
+  const { isOfficer, isAdmin, signOut } = useEmigrationAccess();
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState('');
   const [name, setName] = useState(officerName ?? '');
   const [error, setError] = useState<string | null>(null);
 
-  if (isAtLeast('officer')) {
+  if (isOfficer) {
     return (
       <div className="flex items-center gap-2">
         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-          <Lock size={12} /> {role.toUpperCase()}
+          <Lock size={12} /> {isAdmin ? 'ADMIN' : 'OFFICER'}
           {officerName && <> • {officerName}</>}
         </span>
-        <button onClick={logout} className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors" title="Sign out">
+        <button onClick={signOut} className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors" title="Sign out">
           <LogOut size={14} />
         </button>
       </div>

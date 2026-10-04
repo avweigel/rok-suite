@@ -42,6 +42,7 @@ function UploadPageInner() {
           <p className="text-xs text-[var(--text-muted)] mt-1 max-w-2xl">
             Upload the <strong>location scan</strong> (scan_3923.csv) and the <strong>performance report</strong> (kd3923-performance-….xlsx).
             The two are matched by Gov ID and feed the Zero List (coords, power, shield, Acclaim) and Power Growers.
+            Only <strong>CH25</strong> players are kept from the location scan.
           </p>
         </header>
 

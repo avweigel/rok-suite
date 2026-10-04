@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, CheckCircle2, FileSpreadsheet, MapPin, Trophy, Upload, X } from 'lucide-react';
 import { parseScanFile, LOCATION_COLUMNS, type PerformanceMeta, type PerformanceRow } from '@/lib/scans/parse';
-import { commitScanUpload, planZeroListImpact, type CaseChange, type CommitResult } from '@/lib/scans/upload';
-import { listLocationScans, type LocationPoint, type LocationScanRow } from '@/lib/zero-list/scan-data';
+import { KEPT_CITY_HALL, commitScanUpload, keptPoints, planZeroListImpact, type CaseChange, type CommitResult } from '@/lib/scans/upload';
+import { listLocationScans, loadLocationPoints, type LocationPoint } from '@/lib/zero-list/scan-data';
 import { listZeroListCases, type MigrationCase } from '@/lib/supabase/use-migration-cases';
 import { fmtCompact } from '@/components/migration/ScanCells';
 import { errorMessage } from '@/lib/error-message';
@@ -14,7 +14,8 @@ interface LocationFile { fileName: string; points: LocationPoint[] }
 interface PerformanceFile { fileName: string; rows: PerformanceRow[]; meta: PerformanceMeta }
 
 /** A new location scan with fewer than this share of the previous scan's
- *  players is treated as partial: missing players aren't presumed emigrated. */
+ *  CH25 players is treated as partial: missing players aren't presumed
+ *  emigrated. */
 const PARTIAL_SCAN_RATIO = 0.85;
 
 function toLocalInput(d: Date): string {
@@ -38,7 +39,8 @@ export function ScanUploader({ actor, onUploaded }: { actor: string; onUploaded:
   const [scanAt, setScanAt] = useState(() => toLocalInput(new Date()));
 
   const [cases, setCases] = useState<MigrationCase[] | null>(null);
-  const [previousScan, setPreviousScan] = useState<LocationScanRow | null>(null);
+  /** CH25 players in the newest saved location scan (older scans also hold farms). */
+  const [previousKept, setPreviousKept] = useState<number | null>(null);
   const [applyZeroed, setApplyZeroed] = useState(true);
   /** Null until the admin touches the box — then the default (on unless the
    *  scan looks partial) applies. Reset whenever a new location file lands. */
@@ -55,7 +57,8 @@ export function ScanUploader({ actor, onUploaded }: { actor: string; onUploaded:
       try {
         const [zl, scans] = await Promise.all([listZeroListCases(), listLocationScans()]);
         setCases(zl);
-        setPreviousScan(scans[0] ?? null);
+        const previous = scans[0] ? await loadLocationPoints(scans[0].id) : [];
+        setPreviousKept(previous.length > 0 ? keptPoints(previous).length : null);
       } catch (e) {
         console.warn('Upload preview data failed to load', e);
         setCases([]);
@@ -85,7 +88,9 @@ export function ScanUploader({ actor, onUploaded }: { actor: string; onUploaded:
     if (inputRef.current) inputRef.current.value = '';
   };
 
-  const isPartial = !!(location && previousScan && location.points.length < previousScan.point_count * PARTIAL_SCAN_RATIO);
+  /** The CH25 rows that get saved; the Zero List sync still uses every row. */
+  const kept = useMemo(() => (location ? keptPoints(location.points) : []), [location]);
+  const isPartial = !!(location && previousKept && kept.length < previousKept * PARTIAL_SCAN_RATIO);
   const applyEmigrated = emigratedChoice ?? !isPartial;
 
   const impact = useMemo(
@@ -96,9 +101,9 @@ export function ScanUploader({ actor, onUploaded }: { actor: string; onUploaded:
   const crossCounts = useMemo(() => {
     if (!location || !performance) return null;
     const inReport = new Set(performance.rows.map((r) => r.governorId));
-    const matched = location.points.filter((p) => inReport.has(p.governorId)).length;
-    return { matched, locationOnly: location.points.length - matched, reportOnly: performance.rows.length - matched };
-  }, [location, performance]);
+    const matched = kept.filter((p) => inReport.has(p.governorId)).length;
+    return { matched, locationOnly: kept.length - matched, reportOnly: performance.rows.length - matched };
+  }, [location, performance, kept]);
 
   const reset = () => {
     setLocation(null);
@@ -140,7 +145,7 @@ export function ScanUploader({ actor, onUploaded }: { actor: string; onUploaded:
     }
   };
 
-  const shielded = location?.points.filter((p) => p.shieldTimeLeft && p.shieldTimeLeft !== '0').length ?? 0;
+  const shielded = kept.filter((p) => p.shieldTimeLeft && p.shieldTimeLeft !== '0').length;
 
   return (
     <div className="space-y-4">
@@ -184,7 +189,11 @@ export function ScanUploader({ actor, onUploaded }: { actor: string; onUploaded:
             title="Location scan"
             hint="scan_3923.csv"
             file={location?.fileName ?? null}
-            detail={location ? `${location.points.length.toLocaleString()} players · ${shielded} shielded` : null}
+            detail={
+              location
+                ? `${kept.length.toLocaleString()} CH${KEPT_CITY_HALL} kept of ${location.points.length.toLocaleString()} players · ${shielded} shielded`
+                : null
+            }
             emptyText={`CSV with ${LOCATION_COLUMNS.join(', ')}`}
             onRemove={() => setLocation(null)}
           />
@@ -232,18 +241,18 @@ export function ScanUploader({ actor, onUploaded }: { actor: string; onUploaded:
             {crossCounts && (
               <span className="text-xs text-[var(--text-muted)]">
                 Matched by Gov ID: <span className="text-[var(--foreground)] font-semibold">{crossCounts.matched}</span>
-                {' · '}only in location scan: {crossCounts.locationOnly}
+                {' · '}only in location scan (CH{KEPT_CITY_HALL}): {crossCounts.locationOnly}
                 {' · '}only in report: {crossCounts.reportOnly}
               </span>
             )}
           </div>
 
-          {isPartial && previousScan && location && (
+          {isPartial && previousKept != null && (
             <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
               <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" />
               <span>
-                This scan has {location.points.length.toLocaleString()} players, the previous one had{' '}
-                {previousScan.point_count.toLocaleString()} — it looks partial. Players missing from it are not marked as emigrated unless you tick the box below.
+                This scan has {kept.length.toLocaleString()} CH{KEPT_CITY_HALL} players, the previous one had{' '}
+                {previousKept.toLocaleString()} — it looks partial. Players missing from it are not marked as emigrated unless you tick the box below.
               </span>
             </div>
           )}

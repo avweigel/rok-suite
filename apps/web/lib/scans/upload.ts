@@ -1,8 +1,11 @@
 // What happens when files are uploaded on /upload:
 //
-//   1. The location scan is saved to location_scans, the performance report
-//      to performance_reports (linked to the scan when both come together).
-//   2. With a location scan, the Zero List is synced against it:
+//   1. The location scan is saved to location_scans — CH25 players only — and
+//      the performance report to performance_reports (linked to the scan when
+//      both come together).
+//   2. With a location scan, the Zero List is synced against the WHOLE file,
+//      farms included, so entries below CH25 keep fresh coords and aren't
+//      mistaken for emigrated:
 //        - zeroed:    active entries whose power dropped ≥ 1M since their last
 //                     sighting → Zeroed (opt-out in the preview)
 //        - rebuilt:   zeroed entries whose power grew back ≥ 1M → flagged
@@ -24,6 +27,13 @@ import {
 import { deleteLocationScan, uploadLocationScan, type LocationPoint } from '@/lib/zero-list/scan-data';
 import { uploadPerformanceReport } from './performance-reports';
 import type { PerformanceMeta, PerformanceRow } from './parse';
+
+/** Only players at this City Hall level are kept from a location scan. */
+export const KEPT_CITY_HALL = 25;
+
+export function keptPoints(points: LocationPoint[]): LocationPoint[] {
+  return points.filter((p) => p.castleHall === KEPT_CITY_HALL);
+}
 
 export interface CaseChange {
   caseId: string;
@@ -68,6 +78,7 @@ export function planZeroListImpact(cases: MigrationCase[], points: LocationPoint
 }
 
 export interface CommitInput {
+  /** Every row of the file — only the CH25 ones are stored. */
   location: { fileName: string; points: LocationPoint[] } | null;
   performance: { fileName: string; rows: PerformanceRow[]; meta: PerformanceMeta } | null;
   scanAt: Date;
@@ -94,10 +105,11 @@ export async function commitScanUpload(input: CommitInput, onStep?: (msg: string
   const day = input.scanAt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 
   if (input.location) {
-    onStep?.(`Saving location scan (${input.location.points.length} players)…`);
+    const kept = keptPoints(input.location.points);
+    onStep?.(`Saving location scan (${kept.length} CH${KEPT_CITY_HALL} players)…`);
     result.locationScanId = await uploadLocationScan(
       `${day} · ${input.location.fileName}`,
-      input.location.points,
+      kept,
       input.actor,
       input.scanAt,
     );
