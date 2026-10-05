@@ -87,6 +87,13 @@ export interface MigrationCase {
   zeroed_count: number;
   last_zeroed_at: string | null;
   last_zeroed_by: string | null;
+  // From migrations/add-zero-list-moved-and-power-delta.sql — undefined until
+  // that migration has run.
+  /** "Moved — needs rescan" report. */
+  moved_reported_at?: string | null;
+  moved_reported_by?: string | null;
+  /** Power in the scan before the latest one that had the player (Δ power). */
+  prev_seen_power?: number | null;
 }
 
 // ——— Cycles ———
@@ -470,8 +477,39 @@ export async function updateDelayReason(id: string, reason: string | null) {
 
 /** Manually set / clear the stored coords on a Zero List row. Pass nulls to
  *  clear and fall back to whatever the latest location scan provides. */
+/** Set coordinates by hand. New coords also clear a "moved" report. */
 export async function updateCaseCoords(id: string, x: number | null, y: number | null) {
-  return patchCase(id, { x, y });
+  await patchCase(id, { x, y });
+  if (x != null && y != null) await clearMovedReports([id]).catch(() => {});
+}
+
+/** Anyone can flag a target as no longer at its coordinates. */
+export async function reportMoved(id: string, reportedBy: string) {
+  const { error } = await createClient()
+    .from('migration_cases')
+    .update({ moved_reported_at: new Date().toISOString(), moved_reported_by: reportedBy, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) {
+    throw new Error(
+      /moved_reported/.test(error.message)
+        ? 'The "moved" columns are missing — run lib/supabase/migrations/add-zero-list-moved-and-power-delta.sql in the Supabase SQL Editor.'
+        : error.message,
+    );
+  }
+}
+
+/** Clear "moved" reports — the player was found again. */
+export async function clearMovedReports(ids: string[]): Promise<void> {
+  const sb = createClient();
+  // Batched so the id list stays well inside URL length limits.
+  for (let i = 0; i < ids.length; i += 100) {
+    const { error } = await sb
+      .from('migration_cases')
+      .update({ moved_reported_at: null, moved_reported_by: null })
+      .in('id', ids.slice(i, i + 100))
+      .not('moved_reported_at', 'is', null);
+    if (error) throw error;
+  }
 }
 
 export async function confirmZeroed(id: string, officerName: string) {
@@ -552,6 +590,11 @@ export async function markZeroedOnce(id: string, officerName: string): Promise<v
     })
     .eq('id', id);
   if (e2) throw e2;
+}
+
+/** Undo zeroed reports that turned out to be wrong (count back to 0). */
+export async function dismissZeroReports(id: string): Promise<void> {
+  return patchCase(id, { zeroed_count: 0, last_zeroed_at: null, last_zeroed_by: null });
 }
 
 export async function markAfk(id: string, officerName: string) {
@@ -844,7 +887,9 @@ export async function releaseCycleCasesFromZeroList(): Promise<number> {
 /** Refresh coords + last-seen power/alliance/name for a set of zero-list cases from a fresh scan.
  *  Match is by character_id; cases not present in the scan are left alone.
  *  Username is rewritten when the scan reports a different name for the same gov_id —
- *  players sometimes rename in-game and the Zero List should follow. */
+ *  players sometimes rename in-game and the Zero List should follow.
+ *  The power being replaced moves to prev_seen_power, so the Zero List can
+ *  show Δ power between the previous scan and this one. */
 export async function refreshZeroListFromScan(
   /** Pass null for ad-hoc CSV uploads that aren't backed by a kingdom_scans row. */
   scanId: number | null,
@@ -858,36 +903,59 @@ export async function refreshZeroListFromScan(
   // even when they were the ones being actively worked on.
   const { data: zlist, error: e1 } = await sb
     .from('migration_cases')
-    .select('id, character_id, username');
+    .select('id, character_id, username, last_seen_power, last_seen_scan_id');
   if (e1) throw e1;
-  const rowByChar = new Map<number, { id: string; username: string }>();
-  for (const r of zlist ?? []) rowByChar.set(r.character_id as number, { id: r.id as string, username: (r.username as string) ?? '' });
+  // prev_seen_power only exists once the migration has run — skip it until then.
+  const { error: noPrevColumn } = await sb.from('migration_cases').select('prev_seen_power').limit(1);
+  // A player can have several cases (e.g. an old cycle case and a Zero List
+  // entry) — refresh every one of them.
+  type Existing = { id: string; username: string; lastPower: number | null; lastScanId: number | null };
+  const casesByChar = new Map<number, Existing[]>();
+  for (const r of zlist ?? []) {
+    const list = casesByChar.get(r.character_id as number) ?? [];
+    list.push({
+      id: r.id as string,
+      username: (r.username as string) ?? '',
+      lastPower: r.last_seen_power as number | null,
+      lastScanId: r.last_seen_scan_id as number | null,
+    });
+    casesByChar.set(r.character_id as number, list);
+  }
   const byChar = new Map<number, typeof scanRows[number]>();
   for (const r of scanRows) byChar.set(r.governorId, r);
   let updated = 0;
   let renamed = 0;
+  const refreshedIds: string[] = [];
   for (const [charId, row] of byChar) {
-    const existing = rowByChar.get(charId);
-    if (!existing) continue;
-    const newName = (row.name ?? '').trim();
-    const willRename = newName.length > 0 && newName !== existing.username;
-    const patch: Record<string, unknown> = {
-      x: row.x,
-      y: row.y,
-      last_seen_power: row.power,
-      last_seen_alliance: row.alliance,
-      last_seen_scan_id: scanId,
-      updated_at: new Date().toISOString(),
-    };
-    if (willRename) patch.username = newName;
-    const { error } = await sb
-      .from('migration_cases')
-      .update(patch)
-      .eq('id', existing.id);
-    if (error) throw error;
-    updated += 1;
-    if (willRename) renamed += 1;
+    for (const existing of casesByChar.get(charId) ?? []) {
+      refreshedIds.push(existing.id);
+      const newName = (row.name ?? '').trim();
+      const willRename = newName.length > 0 && newName !== existing.username;
+      const patch: Record<string, unknown> = {
+        x: row.x,
+        y: row.y,
+        last_seen_power: row.power,
+        last_seen_alliance: row.alliance,
+        last_seen_scan_id: scanId,
+        updated_at: new Date().toISOString(),
+      };
+      if (willRename) patch.username = newName;
+      // Re-applying the same scan must not overwrite the previous power.
+      if (!noPrevColumn && existing.lastPower != null && (scanId == null || existing.lastScanId !== scanId)) {
+        patch.prev_seen_power = existing.lastPower;
+      }
+      const { error } = await sb
+        .from('migration_cases')
+        .update(patch)
+        .eq('id', existing.id);
+      if (error) throw error;
+      updated += 1;
+      if (willRename) renamed += 1;
+    }
   }
+  // The scan found them again, so any "moved" report is resolved. Best-effort:
+  // a database without the moved columns must not break the refresh.
+  await clearMovedReports(refreshedIds).catch((e) => console.warn('Clearing moved reports failed', e));
   return { updated, renamed };
 }
 

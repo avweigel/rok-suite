@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronDown, Clock, Copy, Mail, RotateCcw, Trash2, UserPlus, Users } from 'lucide-react';
+import { ChevronDown, Clock, Copy, Mail, MapPinOff, RotateCcw, Trash2, UserPlus, Users } from 'lucide-react';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
-import { AcclaimCell, ShieldCell, fmtCompact, useNow } from '@/components/migration/ScanCells';
+import { AcclaimCell, ShieldCell, fmtCompact, fmtDeltaM, useNow } from '@/components/migration/ScanCells';
 import { AddPlayersDialog } from '@/components/migration/AddPlayersDialog';
 import {
   type MigrationCase,
@@ -27,6 +27,9 @@ import {
   updateExceptionReason,
   updateDelayReason,
   updateCaseCoords,
+  reportMoved,
+  clearMovedReports,
+  dismissZeroReports,
   undoLastStateChange,
   subscribeToZeroList,
 } from '@/lib/supabase/use-migration-cases';
@@ -64,6 +67,12 @@ const STATE_STYLES: Record<MigrationState, string> = {
 function fmtM(n: number | null | undefined): string {
   if (n == null) return '—';
   return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n.toLocaleString();
+}
+
+/** Power change between the previous scan and the latest one that had the
+ *  player. Null until two location uploads have seen them. */
+function powerDelta(c: MigrationCase): number | null {
+  return c.last_seen_power != null && c.prev_seen_power != null ? c.last_seen_power - c.prev_seen_power : null;
 }
 
 function fmtDelayRemaining(iso: string): string {
@@ -204,6 +213,10 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
 
   // Search is mirrored in the URL (?zls=) so a shared link restores it.
   const [search, setSearchState] = useState(() => searchParams.get('zls') ?? '');
+  /** Show only rows reported as moved — who to look for in the next scan. */
+  const [movedOnly, setMovedOnly] = useState(false);
+  /** Show only rows someone marked Zeroed — waiting for an officer to confirm. */
+  const [zeroReportsOnly, setZeroReportsOnly] = useState(false);
   const setSearch = useCallback((next: string) => {
     setSearchState(next);
     const params = new URLSearchParams(searchParams.toString());
@@ -340,10 +353,11 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     );
   }, [cases, isOfficer]);
 
-  type ZSortField = 'username' | 'power' | 'kills' | 'ch' | 'alliance' | 'acclaim' | 'state';
+  type ZSortField = 'username' | 'power' | 'delta' | 'kills' | 'ch' | 'alliance' | 'acclaim' | 'state';
   const sort = useTableSort<ZSortField>('power', {
     username: 'asc',
     power: 'desc',
+    delta: 'desc',
     kills: 'desc',
     ch: 'desc',
     alliance: 'asc',
@@ -361,6 +375,8 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
 
   const filtered = useMemo(() => {
     let list = visibleCases.filter(isInActive);
+    if (movedOnly) list = list.filter((c) => c.moved_reported_at);
+    if (zeroReportsOnly) list = list.filter((c) => c.zeroed_count > 0);
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       const qDigits = q.replace(/\D/g, '');
@@ -381,6 +397,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       const fb = locationLookup.get(b.character_id);
       if (sort.field === 'username') cmp = a.username.localeCompare(b.username, undefined, { sensitivity: 'base' });
       else if (sort.field === 'power') cmp = power(a) - power(b);
+      else if (sort.field === 'delta') cmp = numeric(powerDelta(a), powerDelta(b));
       else if (sort.field === 'kills') cmp = numeric(fa?.kills, fb?.kills);
       else if (sort.field === 'ch') cmp = numeric(fa?.castleHall, fb?.castleHall);
       else if (sort.field === 'acclaim') cmp = numeric(fa?.acclaim, fb?.acclaim);
@@ -396,7 +413,17 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       return cmp;
     });
     return sorted;
-  }, [visibleCases, isInActive, search, sort.field, sort.dir, locationLookup]);
+  }, [visibleCases, isInActive, movedOnly, zeroReportsOnly, search, sort.field, sort.dir, locationLookup]);
+
+  const movedCount = useMemo(
+    () => visibleCases.filter((c) => isInActive(c) && c.moved_reported_at).length,
+    [visibleCases, isInActive],
+  );
+  /** Rows someone marked Zeroed that are still active — an officer/admin confirms them. */
+  const zeroReportCount = useMemo(
+    () => visibleCases.filter((c) => isInActive(c) && c.zeroed_count > 0).length,
+    [visibleCases, isInActive],
+  );
 
   const delayedCount = useMemo(() => {
     if (!isOfficer) return 0;
@@ -488,6 +515,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
               <ol className="space-y-1 text-xs list-decimal pl-5">
                 <li>When admin commits power members to attack a target, they click <strong>To Zero</strong> on the row. State turns orange — &quot;decision made, action pending&quot;.</li>
                 <li>After the attack lands and the player is at near-zero power, <strong>any officer or admin</strong> can click <strong>Confirm Zeroed</strong>. State turns red — done.</li>
+                <li>When members mark a row <strong>Zeroed</strong>, it gets a <em>×1 zeroed</em> badge and shows up under <strong>Reported zeroed</strong> (above the table, officer/admin). Check it and click <strong>Confirm Zeroed</strong> on the row — or <em>dismiss</em> if the report was wrong.</li>
                 <li>If they bailed and left the kingdom before you finished, click <strong>Emigrated</strong> instead.</li>
                 <li>Confirmed-zeroed, emigrated and AFK entries leave the list.</li>
               </ol>
@@ -525,9 +553,11 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
               <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Things you might miss</div>
               <ul className="text-xs space-y-1 list-disc pl-5">
                 <li>The (x, y) cell is a <strong>button</strong> — click it to copy. The little copy icon turns into a green checkmark for ~1.5s when it works.</li>
+                <li>Target not at those coords anymore? Anyone can click <strong>Moved</strong>: the coords get struck through and the row joins the <strong>Moved</strong> filter — who to look for in the next scan. The next location upload that finds them (or an admin editing the coords) clears it.</li>
                 <li><strong>Acclaim</strong> comes from the latest performance report, only for players in the latest location scan: a red <em>0</em> means they earned none in the report period, <em>—</em> means they aren&apos;t in the report or not in the location scan.</li>
                 <li>If the (x, y) cell is empty (em dash), the player wasn&apos;t in the latest location scan. Upload a fresh one on <a href="/upload" className="text-cyan-400 hover:underline">Upload Scan</a>.</li>
-                <li>Without signing in you can only mark a row <strong>Zeroed</strong>. Officers confirm zeroes, mark emigrated and delay; adding, removing, To Zero, Except and AFK are admin-only.</li>
+                <li><strong>Δ Power</strong> is the change between the previous location scan and the latest one that had the player — orange means they grew. It appears once two uploads have included them.</li>
+                <li>Without signing in you can only mark a row <strong>Zeroed</strong> or <strong>Moved</strong>. Officers confirm zeroes, mark emigrated and delay; adding, removing, To Zero, Except and AFK are admin-only.</li>
                 <li>Don&apos;t click the trash icon casually — it&apos;s a hard delete with no undo. Use a state like Excepted or AFK if you want to keep the record.</li>
               </ul>
             </div>
@@ -562,6 +592,32 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
         >
           <RotateCcw size={14} />
         </button>
+        {(movedCount > 0 || movedOnly) && (
+          <button
+            onClick={() => setMovedOnly((v) => !v)}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs border transition-colors ${
+              movedOnly
+                ? 'bg-sky-500/25 text-sky-200 border-sky-500/50'
+                : 'bg-sky-500/10 text-sky-300 border-sky-500/30 hover:bg-sky-500/20'
+            }`}
+            title="Show only players reported as moved — the ones to look for in the next scan"
+          >
+            <MapPinOff size={12} /> Moved ({movedCount})
+          </button>
+        )}
+        {isOfficer && (zeroReportCount > 0 || zeroReportsOnly) && (
+          <button
+            onClick={() => setZeroReportsOnly((v) => !v)}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs border transition-colors ${
+              zeroReportsOnly
+                ? 'bg-rose-500/25 text-rose-200 border-rose-500/50'
+                : 'bg-rose-500/10 text-rose-300 border-rose-500/30 hover:bg-rose-500/20'
+            }`}
+            title="Rows someone marked Zeroed — check them and click Confirm Zeroed"
+          >
+            Reported zeroed ({zeroReportCount})
+          </button>
+        )}
         {isAdmin && (
           <button
             onClick={() => setAddOpen(true)}
@@ -735,6 +791,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
               <tr>
                 <SortableTh label="Player" field="username" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <SortableTh label="Power" field="power" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
+                <SortableTh label="Δ Power" field="delta" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <SortableTh label="KP" field="kills" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <SortableTh label="CH" field="ch" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <SortableTh label="Alliance" field="alliance" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
@@ -761,7 +818,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-3 py-10 text-center text-sm text-[var(--text-muted)]">
+                  <td colSpan={11} className="px-3 py-10 text-center text-sm text-[var(--text-muted)]">
                     {search.trim()
                       ? 'No matches.'
                       : isAdmin
@@ -804,6 +861,8 @@ function ZeroListRow({
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const isActive = !TERMINAL_STATES.includes(c.state);
+  const isMoved = !!c.moved_reported_at;
+  const delta = powerDelta(c);
 
   // Effective values — prefer the row's stored value (frozen at add time or
   // refresh time), fall back to whatever the latest location scan has.
@@ -845,6 +904,14 @@ function ZeroListRow({
       <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
         {fmtM(effPower)}
       </td>
+      <td
+        className={`px-3 py-2 text-right font-mono tabular-nums ${
+          delta == null ? 'text-[var(--text-muted)]' : delta > 0 ? 'text-orange-300 font-semibold' : delta < 0 ? 'text-rose-400' : 'text-[var(--text-muted)]'
+        }`}
+        title={delta != null ? `Previous scan ${fmtM(c.prev_seen_power)} → latest ${fmtM(c.last_seen_power)}` : 'Needs two location uploads that include this player'}
+      >
+        {delta == null ? '—' : fmtDeltaM(delta)}
+      </td>
       <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
         {player?.kills != null ? fmtCompact(player.kills) : <span className="text-[var(--text-muted)]">—</span>}
       </td>
@@ -859,8 +926,8 @@ function ZeroListRow({
           {effX != null && effY != null ? (
             <button
               onClick={copyCoords}
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--text-secondary)] hover:bg-[var(--background-hover)] hover:text-[var(--foreground)] transition-colors whitespace-nowrap"
-              title="Copy coordinates"
+              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--text-secondary)] hover:bg-[var(--background-hover)] hover:text-[var(--foreground)] transition-colors whitespace-nowrap ${isMoved ? 'line-through opacity-60' : ''}`}
+              title={isMoved ? 'Reported moved — these coordinates are probably outdated' : 'Copy coordinates'}
             >
               ({effX}, {effY}) {copied ? <span className="text-emerald-400">✓</span> : <Copy size={10} />}
             </button>
@@ -924,6 +991,19 @@ function ZeroListRow({
               ×{c.zeroed_count} zeroed
             </span>
           )}
+          {isOfficer && isActive && c.zeroed_count > 0 && (
+            <button
+              disabled={busy}
+              onClick={() => {
+                if (!confirm(`Dismiss the zeroed report on ${c.username}? Use this when it was wrong.`)) return;
+                void wrap(() => dismissZeroReports(c.id));
+              }}
+              className="text-[10px] underline text-[var(--text-muted)] hover:text-[var(--foreground)]"
+              title="The zeroed report was wrong — remove it"
+            >
+              dismiss
+            </button>
+          )}
           {c.delayed_until && new Date(c.delayed_until).getTime() > Date.now() && (
             <span
               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold border bg-amber-500/15 text-amber-400 border-amber-500/30"
@@ -931,6 +1011,24 @@ function ZeroListRow({
             >
               <Clock size={9} /> delayed · {fmtDelayRemaining(c.delayed_until)}
             </span>
+          )}
+          {isMoved && (
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold border bg-sky-500/15 text-sky-300 border-sky-500/30"
+              title={`Reported moved on ${new Date(c.moved_reported_at!).toLocaleString()}${c.moved_reported_by ? ` by ${c.moved_reported_by}` : ''}. Cleared by the next scan that finds them, or by editing the coordinates.`}
+            >
+              <MapPinOff size={9} /> moved · needs rescan
+            </span>
+          )}
+          {isMoved && isOfficer && (
+            <button
+              disabled={busy}
+              onClick={() => wrap(() => clearMovedReports([c.id]))}
+              className="text-[10px] underline text-[var(--text-muted)] hover:text-[var(--foreground)]"
+              title="They haven't moved after all — clear the report"
+            >
+              clear
+            </button>
           )}
         </div>
         {c.state === 'excepted' && (
@@ -995,6 +1093,20 @@ function ZeroListRow({
               Zeroed
             </button>
           )}
+          {/* Anyone can report that the target isn't at these coords anymore. */}
+          {isActive && !isMoved && (
+            <button
+              disabled={busy}
+              onClick={() => {
+                if (!confirm(`Report ${c.username} as moved? Their coordinates are flagged as outdated until the next scan finds them.`)) return;
+                void wrap(() => reportMoved(c.id, actor));
+              }}
+              className="px-2 py-1 text-[11px] rounded bg-sky-500/10 text-sky-300 border border-sky-500/25 hover:bg-sky-500/20 inline-flex items-center gap-1"
+              title="Not at these coordinates anymore — needs a new scan"
+            >
+              <MapPinOff size={10} /> Moved
+            </button>
+          )}
           {isAdmin && isActive && c.state !== 'marked_to_zero' && (
             <button
               disabled={busy}
@@ -1004,7 +1116,8 @@ function ZeroListRow({
               To Zero
             </button>
           )}
-          {isOfficer && c.state === 'marked_to_zero' && (
+          {/* Shown for To Zero rows and for rows someone marked Zeroed. */}
+          {isOfficer && (c.state === 'marked_to_zero' || (isActive && c.zeroed_count > 0)) && (
             <button
               disabled={busy}
               onClick={() => wrap(() => confirmZeroed(c.id, actor))}
