@@ -47,10 +47,9 @@ export function AddPlayersDialog({
     name: 'asc', power: 'desc', kills: 'desc', ch: 'desc', alliance: 'asc', acclaim: 'asc',
   });
 
-  // CH25 only. Older scans still hold farms; report-only players carry no CH
-  // and are kept (the report lists KvK fighters).
+  // CH25 only — older scans still hold farms.
   const eligible = useMemo(
-    () => players.filter((p) => !p.inLocation || p.castleHall === KEPT_CITY_HALL),
+    () => players.filter((p) => p.castleHall === KEPT_CITY_HALL),
     [players],
   );
 
@@ -99,7 +98,7 @@ export function AddPlayersDialog({
           x: p.x,
           y: p.y,
           alliance: p.alliance,
-          lastSeenScanId: p.inLocation ? locationScanId : null,
+          lastSeenScanId: locationScanId,
           addedBy: actorName ?? 'admin',
           reason: p.acclaim != null ? `${reason} (acclaim ${fmtCompact(p.acclaim)})` : reason,
         })),

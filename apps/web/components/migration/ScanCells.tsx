@@ -35,7 +35,7 @@ export function fmtDeltaM(n: number): string {
  *  a red 0 = in the report but never earned any. */
 export function AcclaimCell({ value }: { value: number | null }) {
   if (value == null) {
-    return <span className="text-[var(--text-muted)]" title="Not in the latest performance report">—</span>;
+    return <span className="text-[var(--text-muted)]" title="Not in the latest performance report, or not in the latest location scan">—</span>;
   }
   if (value === 0) return <span className="text-rose-400 font-semibold" title="No acclaim in the report period">0</span>;
   return <span title={value.toLocaleString()}>{fmtCompact(value)}</span>;

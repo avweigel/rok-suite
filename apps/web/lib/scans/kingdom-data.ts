@@ -1,7 +1,7 @@
-// The kingdom as of the latest uploads: every player from the newest location
-// scan (coords, power, KP, CH, alliance, shield), crossed by gov id with the
-// newest performance report (Acclaim). Players that are only in the report
-// (e.g. not on the map when the scan ran) are included without coords.
+// The kingdom as of the latest uploads. The location scan drives: every
+// player comes from the newest location scan (coords, power, KP, CH,
+// alliance, shield) and the newest performance report only adds Acclaim to
+// them, by gov id. Report rows with no match in the location scan are ignored.
 
 import { loadLatestLocationPoints, type LocationPoint, type LocationScanRow } from '@/lib/zero-list/scan-data';
 import { loadLatestPerformanceReport, type PerformanceReport, type PerformanceStats } from './performance-reports';
@@ -19,7 +19,6 @@ export interface KingdomPlayer {
   shieldTimeLeft: string | null;
   /** Null when the player isn't in the latest performance report. */
   acclaim: number | null;
-  inLocation: boolean;
   inReport: boolean;
 }
 
@@ -32,7 +31,7 @@ export interface KingdomData {
 
 export function crossKingdomData(points: LocationPoint[], reportRows: PerformanceStats[]): KingdomPlayer[] {
   const reportByGov = new Map(reportRows.map((r) => [r.governorId, r] as const));
-  const out: KingdomPlayer[] = points.map((p) => {
+  return points.map((p) => {
     const r = reportByGov.get(p.governorId);
     return {
       governorId: p.governorId,
@@ -45,29 +44,9 @@ export function crossKingdomData(points: LocationPoint[], reportRows: Performanc
       y: p.y,
       shieldTimeLeft: p.shieldTimeLeft,
       acclaim: r?.acclaim ?? null,
-      inLocation: true,
       inReport: !!r,
     };
   });
-  const onMap = new Set(points.map((p) => p.governorId));
-  for (const r of reportRows) {
-    if (onMap.has(r.governorId)) continue;
-    out.push({
-      governorId: r.governorId,
-      name: r.name,
-      power: r.currentPower ?? 0,
-      kills: null,
-      castleHall: null,
-      alliance: r.alliance,
-      x: null,
-      y: null,
-      shieldTimeLeft: null,
-      acclaim: r.acclaim,
-      inLocation: false,
-      inReport: true,
-    });
-  }
-  return out;
 }
 
 export async function loadLatestKingdomData(): Promise<KingdomData> {

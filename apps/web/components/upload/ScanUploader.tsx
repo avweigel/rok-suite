@@ -242,7 +242,7 @@ export function ScanUploader({ actor, onUploaded }: { actor: string; onUploaded:
               <span className="text-xs text-[var(--text-muted)]">
                 Matched by Gov ID: <span className="text-[var(--foreground)] font-semibold">{crossCounts.matched}</span>
                 {' · '}only in location scan (CH{KEPT_CITY_HALL}): {crossCounts.locationOnly}
-                {' · '}only in report: {crossCounts.reportOnly}
+                {' · '}only in report (ignored): {crossCounts.reportOnly}
               </span>
             )}
           </div>

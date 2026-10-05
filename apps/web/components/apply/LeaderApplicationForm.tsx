@@ -12,11 +12,8 @@ import {
   type UnitType,
   type RoleType,
 } from '@/lib/supabase/use-leader-applications';
-import {
-  useAvailableSeedKingdoms,
-  useSeedDates,
-  useSeedPlayers,
-} from '@/lib/supabase/use-kingdom-seeds';
+import { useLatestScanPlayers } from '@/lib/scans/use-latest-scan-players';
+import { KINGDOM_ID } from '@/lib/zero-list/scan-data';
 import { CommanderPicker } from './CommanderPicker';
 import { Combobox, type ComboboxSuggestion } from './Combobox';
 
@@ -125,32 +122,23 @@ export function LeaderApplicationForm() {
   const [notes, setNotes] = useState('');
   const [roles, setRoles] = useState<RoleEntry[]>([newRole()]);
 
-  // Autofill data sources. Applications are for our home KD (K23 → 3923) —
-  // filter the seed list so applicants can't pick a different kingdom by
-  // mistake even if the DB has scans for the whole seed pool.
-  const { kingdoms: availableKingdoms, loading: kingdomsLoading } = useAvailableSeedKingdoms(
-    (kd) => kd === 3923,
-  );
+  // Autofill comes from the latest location scan uploaded on /upload (CH25
+  // players of our home KD). Applications are for K23 only (3923).
   const kingdomNum = /^\d+$/.test(kingdom.trim()) ? Number(kingdom.trim()) : null;
-  const kingdomKnown = kingdomNum !== null && availableKingdoms.includes(kingdomNum);
-  const { dates: scanDates } = useSeedDates(kingdomKnown ? kingdomNum : null);
-  const latestScanDate = scanDates[0] ?? null;
-  const { players, loading: playersLoading } = useSeedPlayers(
-    kingdomKnown ? kingdomNum : null,
-    latestScanDate,
-  );
+  const kingdomKnown = kingdomNum === KINGDOM_ID;
+  const { players, scanAt: latestScanDate, loading: playersLoading } = useLatestScanPlayers();
 
   const kingdomSuggestions = useMemo<ComboboxSuggestion[]>(
-    () => availableKingdoms.map((k) => ({ key: String(k), label: String(k), secondary: `KD ${k}` })),
-    [availableKingdoms],
+    () => [{ key: String(KINGDOM_ID), label: String(KINGDOM_ID), secondary: `KD ${KINGDOM_ID}` }],
+    [],
   );
 
   const playerSuggestions = useMemo<ComboboxSuggestion[]>(
     () =>
       players.map((p) => ({
-        key: String(p.player_id),
+        key: String(p.governorId),
         label: p.name,
-        secondary: `ID ${p.player_id} · ${formatPower(p.power)}`,
+        secondary: `ID ${p.governorId} · ${formatPower(p.power)}`,
       })),
     [players],
   );
@@ -397,8 +385,6 @@ export function LeaderApplicationForm() {
             invalid={!!errors.kingdom}
             inputMode="numeric"
             emptyHint={t('autofill.kingdomNotFound')}
-            loading={kingdomsLoading && availableKingdoms.length === 0}
-            loadingHint={t('autofill.loading')}
           />
           {errors.kingdom && <p className="text-xs text-red-400 mt-1">{errors.kingdom}</p>}
         </div>

@@ -525,7 +525,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
               <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Things you might miss</div>
               <ul className="text-xs space-y-1 list-disc pl-5">
                 <li>The (x, y) cell is a <strong>button</strong> — click it to copy. The little copy icon turns into a green checkmark for ~1.5s when it works.</li>
-                <li><strong>Acclaim</strong> comes from the latest performance report: a red <em>0</em> means they earned none in the report period, <em>—</em> means they aren&apos;t in the report.</li>
+                <li><strong>Acclaim</strong> comes from the latest performance report, only for players in the latest location scan: a red <em>0</em> means they earned none in the report period, <em>—</em> means they aren&apos;t in the report or not in the location scan.</li>
                 <li>If the (x, y) cell is empty (em dash), the player wasn&apos;t in the latest location scan. Upload a fresh one on <a href="/upload" className="text-cyan-400 hover:underline">Upload Scan</a>.</li>
                 <li>Without signing in you can only mark a row <strong>Zeroed</strong>. Officers confirm zeroes, mark emigrated and delay; adding, removing, To Zero, Except and AFK are admin-only.</li>
                 <li>Don&apos;t click the trash icon casually — it&apos;s a hard delete with no undo. Use a state like Excepted or AFK if you want to keep the record.</li>
