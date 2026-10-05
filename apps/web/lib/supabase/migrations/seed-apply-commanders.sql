@@ -144,7 +144,9 @@ insert into public.apply_commanders (id, name, specialties, rarity, image_url, s
   ('scipio-prime', 'Scipio Africanus Prime', ARRAY['Leadership','Conquering','Attack']::text[], 'legendary', null, 135),
   ('amanitore', 'Amanitore', ARRAY['Archer','Conquering','Skill']::text[], 'legendary', null, 136),
   ('sargon-of-akkad', 'Sargon of Akkad', ARRAY['Infantry','Conquering','Attack']::text[], 'legendary', null, 137),
-  ('moctezuma-i', 'Moctezuma I', ARRAY['Integration','Peacekeeping','Skill']::text[], 'legendary', null, 138)
+  ('moctezuma-i', 'Moctezuma I', ARRAY['Integration','Peacekeeping','Skill']::text[], 'legendary', null, 138),
+  ('william-marshal', 'William Marshal', ARRAY['Cavalry','Conquering','Combo']::text[], 'legendary', null, 139),
+  ('ivan-iv', 'Ivan IV', ARRAY['Cavalry','Versatility','Combo']::text[], 'legendary', null, 140)
 on conflict (id) do update set
   name = excluded.name,
   specialties = excluded.specialties,

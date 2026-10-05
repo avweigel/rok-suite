@@ -141,3 +141,5 @@ Scipio Africanus Prime | Leadership | Conquering | Attack | Legendary
 Amanitore | Archer | Conquering | Skill | Legendary
 Sargon of Akkad | Infantry | Conquering | Attack | Legendary
 Moctezuma I | Integration | Peacekeeping | Skill | Legendary
+William Marshal | Cavalry | Conquering | Combo | Legendary
+Ivan IV | Cavalry | Versatility | Combo | Legendary
