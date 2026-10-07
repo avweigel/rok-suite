@@ -14,23 +14,14 @@ import {
   removeFromZeroList,
   clearZeroList,
   releaseCycleCasesFromZeroList,
-  markToZero,
-  markAfk,
-  markException,
-  confirmZeroed,
   markZeroedOnce,
-  confirmMigrated,
-  resetCaseToPending,
+  undoZeroedOnce,
   syncZeroListNamesFromLatestScans,
-  delayCase,
-  undelayCase,
   updateExceptionReason,
   updateDelayReason,
   updateCaseCoords,
   reportMoved,
   clearMovedReports,
-  dismissZeroReports,
-  undoLastStateChange,
   subscribeToZeroList,
 } from '@/lib/supabase/use-migration-cases';
 import { loadLatestKingdomData, type KingdomData, type KingdomPlayer } from '@/lib/scans/kingdom-data';
@@ -215,8 +206,9 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   const [search, setSearchState] = useState(() => searchParams.get('zls') ?? '');
   /** Show only rows reported as moved — who to look for in the next scan. */
   const [movedOnly, setMovedOnly] = useState(false);
-  /** Show only rows someone marked Zeroed — waiting for an officer to confirm. */
-  const [zeroReportsOnly, setZeroReportsOnly] = useState(false);
+  /** Show the closed entries (emigrated / AFK / zeroed-and-closed) instead of
+   *  the active list — they stay in the database and count in Clear all. */
+  const [showClosed, setShowClosed] = useState(false);
   const setSearch = useCallback((next: string) => {
     setSearchState(next);
     const params = new URLSearchParams(searchParams.toString());
@@ -374,9 +366,8 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   );
 
   const filtered = useMemo(() => {
-    let list = visibleCases.filter(isInActive);
+    let list = showClosed ? visibleCases.filter((c) => !isInActive(c)) : visibleCases.filter(isInActive);
     if (movedOnly) list = list.filter((c) => c.moved_reported_at);
-    if (zeroReportsOnly) list = list.filter((c) => c.zeroed_count > 0);
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       const qDigits = q.replace(/\D/g, '');
@@ -413,15 +404,14 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       return cmp;
     });
     return sorted;
-  }, [visibleCases, isInActive, movedOnly, zeroReportsOnly, search, sort.field, sort.dir, locationLookup]);
+  }, [visibleCases, isInActive, showClosed, movedOnly, search, sort.field, sort.dir, locationLookup]);
 
   const movedCount = useMemo(
     () => visibleCases.filter((c) => isInActive(c) && c.moved_reported_at).length,
     [visibleCases, isInActive],
   );
-  /** Rows someone marked Zeroed that are still active — an officer/admin confirms them. */
-  const zeroReportCount = useMemo(
-    () => visibleCases.filter((c) => isInActive(c) && c.zeroed_count > 0).length,
+  const closedCount = useMemo(
+    () => visibleCases.filter((c) => !isInActive(c)).length,
     [visibleCases, isInActive],
   );
 
@@ -435,7 +425,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   // as attack targets — strip them out of every outbound action regardless of
   // which filter the table is currently showing.
   const mailableCases = useMemo(
-    () => filtered.filter((c) => c.state !== 'excepted'),
+    () => filtered.filter((c) => c.state !== 'excepted' && !TERMINAL_STATES.includes(c.state)),
     [filtered],
   );
   const exceptedHidden = filtered.length - mailableCases.length;
@@ -493,10 +483,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
         {guideOpen && (
           <div className="px-4 pb-4 pt-1 border-t border-[var(--border)] text-sm text-[var(--text-secondary)] space-y-4">
             <p className="text-xs text-[var(--text-muted)]">
-              The Zero List is the <strong>kingdom-wide kill queue</strong>. It&apos;s a single continuous list — no deadline, no exception workflow. Power members come here to grab coords and attack. Admins manage who&apos;s on it. Cycle cases marked <em>To Zero</em> automatically appear here too (with a <span className="inline-block px-1 py-0 rounded text-[9px] font-semibold border bg-violet-500/15 text-violet-400 border-violet-500/30">from cycle</span> badge) — no manual sync needed.
-            </p>
-            <p className="text-xs text-[var(--text-muted)]">
-              <strong>Delay</strong> button (officer / admin) puts an entry on hold for a chosen number of hours so the player has a chance to leave voluntarily. While delayed, the row is <strong>hidden from the power tier</strong> and shows an amber <em>delayed · Nh left</em> badge to officers/admins. Click <strong>Resume</strong> to lift the delay early.
+              The Zero List is the <strong>kingdom-wide kill queue</strong>. The admin picks the targets; everyone comes here to grab coords, attack, and click <strong>Zeroed</strong> (or <strong>Moved</strong> if the target isn&apos;t at those coords anymore).
             </p>
 
             <div>
@@ -506,19 +493,16 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
                 <li>Pick a target — usually highest power first, or whoever&apos;s closest to your city. Skip anyone with an active <strong>Shield</strong>.</li>
                 <li>Click the <strong>(x, y)</strong> cell. It copies <code className="text-[var(--text-secondary)]">x,y</code> to your clipboard.</li>
                 <li>In game: open Map → click the magnifying glass → paste the coords → teleport / scout / attack.</li>
-                <li>Once the zero lands, click <strong>Zeroed</strong> on the row. It shows a <em>×1 zeroed</em> badge and stays on the list until an officer or admin confirms it.</li>
+                <li>Once the zero lands, click <strong>Zeroed</strong> on the row. Their zeroed count goes up by one (<em>×1 zeroed</em>, <em>×2 zeroed</em>…) and they stay on the list.</li>
               </ol>
             </div>
 
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Recipe — target gets zeroed</div>
-              <ol className="space-y-1 text-xs list-decimal pl-5">
-                <li>When admin commits power members to attack a target, they click <strong>To Zero</strong> on the row. State turns orange — &quot;decision made, action pending&quot;.</li>
-                <li>After the attack lands and the player is at near-zero power, <strong>any officer or admin</strong> can click <strong>Confirm Zeroed</strong>. State turns red — done.</li>
-                <li>When members mark a row <strong>Zeroed</strong>, it gets a <em>×1 zeroed</em> badge and shows up under <strong>Reported zeroed</strong> (above the table, officer/admin). Check it and click <strong>Confirm Zeroed</strong> on the row — or <em>dismiss</em> if the report was wrong.</li>
-                <li>If they bailed and left the kingdom before you finished, click <strong>Emigrated</strong> instead.</li>
-                <li>Confirmed-zeroed, emigrated and AFK entries leave the list.</li>
-              </ol>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">How targets leave the list</div>
+              <ul className="space-y-1 text-xs list-disc pl-5">
+                <li>Everyone the admin adds stays a target, however many times they get zeroed — the count shows how often.</li>
+                <li>They leave when an admin removes them (trash), or when a location upload no longer finds them — then they&apos;re marked <strong>Emigrated</strong> (a box in the upload preview). Closed entries are under <strong>Closed</strong> above the table; <strong>+ Add players</strong> puts one back on the list.</li>
+              </ul>
             </div>
 
             <div>
@@ -557,8 +541,8 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
                 <li><strong>Acclaim</strong> comes from the latest performance report, only for players in the latest location scan: a red <em>0</em> means they earned none in the report period, <em>—</em> means they aren&apos;t in the report or not in the location scan.</li>
                 <li>If the (x, y) cell is empty (em dash), the player wasn&apos;t in the latest location scan. Upload a fresh one on <a href="/upload" className="text-cyan-400 hover:underline">Upload Scan</a>.</li>
                 <li><strong>Δ Power</strong> is the change between the previous location scan and the latest one that had the player — orange means they grew. It appears once two uploads have included them.</li>
-                <li>Without signing in you can only mark a row <strong>Zeroed</strong> or <strong>Moved</strong>. Officers confirm zeroes, mark emigrated and delay; adding, removing, To Zero, Except and AFK are admin-only.</li>
-                <li>Don&apos;t click the trash icon casually — it&apos;s a hard delete with no undo. Use a state like Excepted or AFK if you want to keep the record.</li>
+                <li>Everyone can mark <strong>Zeroed</strong> or <strong>Moved</strong>. Officers can also take back a wrong Zeroed click (<em>−1</em>); adding and removing targets is admin-only.</li>
+                <li>Don&apos;t click the trash icon casually — it&apos;s a hard delete with no undo.</li>
               </ul>
             </div>
           </div>
@@ -568,12 +552,12 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       {/* Role-specific status line */}
       {!isOfficer && (
         <section className="mb-4 rounded-xl bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-300">
-          Use the coords to attack. After a successful zero, click <strong>Zeroed</strong> on the row — an officer or admin confirms it.
+          Use the coords to attack. After a successful zero, click <strong>Zeroed</strong> on the row — it adds one to their zeroed count.
         </section>
       )}
       {isOfficer && !isAdmin && (
         <section className="mb-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-3 text-xs text-[var(--text-secondary)]">
-          You&apos;re signed in as <strong>Officer</strong> — you can mark people <em>Emigrated</em>, <em>Confirm Zeroed</em>, and put rows on <em>Delay</em>. Adding/removing entries, AFK, Except are admin-only.
+          You&apos;re signed in as <strong>Officer</strong> — you can mark <em>Zeroed</em> or <em>Moved</em> and take back a wrong Zeroed click (<em>−1</em>). Adding and removing targets is admin-only.
         </section>
       )}
 
@@ -605,17 +589,17 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
             <MapPinOff size={12} /> Moved ({movedCount})
           </button>
         )}
-        {isOfficer && (zeroReportCount > 0 || zeroReportsOnly) && (
+        {isOfficer && (closedCount > 0 || showClosed) && (
           <button
-            onClick={() => setZeroReportsOnly((v) => !v)}
+            onClick={() => setShowClosed((v) => !v)}
             className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs border transition-colors ${
-              zeroReportsOnly
-                ? 'bg-rose-500/25 text-rose-200 border-rose-500/50'
-                : 'bg-rose-500/10 text-rose-300 border-rose-500/30 hover:bg-rose-500/20'
+              showClosed
+                ? 'bg-slate-500/25 text-slate-200 border-slate-500/50'
+                : 'bg-[var(--background-secondary)] text-[var(--text-secondary)] border-[var(--border)] hover:text-[var(--foreground)]'
             }`}
-            title="Rows someone marked Zeroed — check them and click Confirm Zeroed"
+            title="Entries no longer on the list (emigrated, AFK, zeroed and closed). Click again to go back."
           >
-            Reported zeroed ({zeroReportCount})
+            {showClosed ? '← Back to the list' : `Closed (${closedCount})`}
           </button>
         )}
         {isAdmin && (
@@ -632,10 +616,10 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
             onClick={() => void handleClearZeroList()}
             disabled={clearingList || cases.length === 0}
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            title="Empty the Zero List: entries added here are deleted; entries from cycles are taken off the list (their cycle record is kept)."
+            title="Empty the Zero List, closed entries included: entries added here are deleted; entries from cycles are taken off the list (their cycle record is kept)."
           >
             <Trash2 size={12} />
-            {clearingList ? 'Clearing…' : `Clear all (${cases.length})`}
+            {clearingList ? 'Clearing…' : 'Clear all'}
           </button>
         )}
         <span className="text-xs text-[var(--text-muted)] ml-auto">
@@ -994,14 +978,11 @@ function ZeroListRow({
           {isOfficer && isActive && c.zeroed_count > 0 && (
             <button
               disabled={busy}
-              onClick={() => {
-                if (!confirm(`Dismiss the zeroed report on ${c.username}? Use this when it was wrong.`)) return;
-                void wrap(() => dismissZeroReports(c.id));
-              }}
+              onClick={() => wrap(() => undoZeroedOnce(c.id))}
               className="text-[10px] underline text-[var(--text-muted)] hover:text-[var(--foreground)]"
-              title="The zeroed report was wrong — remove it"
+              title="Take back one Zeroed click (misclick)"
             >
-              dismiss
+              −1
             </button>
           )}
           {c.delayed_until && new Date(c.delayed_until).getTime() > Date.now() && (
@@ -1078,17 +1059,16 @@ function ZeroListRow({
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-1">
-          {/* Members can only report a zero: it's recorded (×N zeroed badge)
-              and the row stays until an officer/admin confirms it. */}
-          {!isOfficer && isActive && (
+          {/* Anyone records a zero: +1 on the count, the target stays on the list. */}
+          {isActive && (
             <button
               disabled={busy}
               onClick={() => {
-                if (!confirm(`Mark ${c.username} as zeroed? An officer will confirm it.`)) return;
+                if (!confirm(`Did you zero ${c.username}? Adds one to their zeroed count.`)) return;
                 void wrap(() => markZeroedOnce(c.id, actor));
               }}
               className="px-2 py-1 text-[11px] rounded bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25"
-              title="You zeroed this player — record it. The row stays until an officer or admin confirms."
+              title="You zeroed this player — adds one to the count. They stay on the list."
             >
               Zeroed
             </button>
@@ -1107,123 +1087,6 @@ function ZeroListRow({
               <MapPinOff size={10} /> Moved
             </button>
           )}
-          {isAdmin && isActive && c.state !== 'marked_to_zero' && (
-            <button
-              disabled={busy}
-              onClick={() => wrap(() => markToZero(c.id, actor))}
-              className="px-2 py-1 text-[11px] rounded bg-orange-500/15 text-orange-400 border border-orange-500/30 hover:bg-orange-500/25"
-            >
-              To Zero
-            </button>
-          )}
-          {/* Shown for To Zero rows and for rows someone marked Zeroed. */}
-          {isOfficer && (c.state === 'marked_to_zero' || (isActive && c.zeroed_count > 0)) && (
-            <button
-              disabled={busy}
-              onClick={() => wrap(() => confirmZeroed(c.id, actor))}
-              className="px-2 py-1 text-[11px] rounded bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25"
-              title="Closes the case — they're done. Use Zeroed Once instead if you expect they'll re-build and need zeroing again."
-            >
-              Confirm Zeroed
-            </button>
-          )}
-          {isOfficer && isActive && (
-            <button
-              disabled={busy}
-              onClick={() => wrap(() => markZeroedOnce(c.id, actor))}
-              className="px-2 py-1 text-[11px] rounded bg-rose-500/10 text-rose-300 border border-rose-500/25 hover:bg-rose-500/20"
-              title="Records that they were zeroed once. Keeps the row active so the queue stays visible — use this for repeat offenders."
-            >
-              Zeroed Once
-            </button>
-          )}
-          {isOfficer && isActive && (
-            <button
-              disabled={busy}
-              onClick={() => wrap(() => confirmMigrated(c.id, actor))}
-              className="px-2 py-1 text-[11px] rounded bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25"
-              title="Player left the kingdom"
-            >
-              Emigrated
-            </button>
-          )}
-          {isAdmin && isActive && (
-            <button
-              disabled={busy}
-              onClick={() => wrap(() => markAfk(c.id, actor))}
-              className="px-2 py-1 text-[11px] rounded bg-slate-500/15 text-slate-300 border border-slate-500/30 hover:bg-slate-500/25"
-            >
-              AFK
-            </button>
-          )}
-          {isAdmin && isActive && c.state !== 'excepted' && (
-            <button
-              disabled={busy}
-              onClick={() => {
-                const reason = window.prompt('Exception reason?');
-                if (!reason) return;
-                void wrap(() => markException(c.id, actor, reason));
-              }}
-              className="px-2 py-1 text-[11px] rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25"
-            >
-              Except
-            </button>
-          )}
-          {isOfficer && (!isActive || c.state === 'marked_to_zero') && (
-            <button
-              disabled={busy}
-              onClick={() => wrap(async () => { await undoLastStateChange(c.id); })}
-              className="px-2 py-1 text-[11px] rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] hover:bg-[var(--background-hover)] inline-flex items-center gap-1"
-              title="Revert the most recent state change one step (e.g. undo Confirm Zeroed back to Mark to Zero)."
-            >
-              <RotateCcw size={10} /> Undo
-            </button>
-          )}
-          {isAdmin && !isActive && (
-            <button
-              disabled={busy}
-              onClick={() => {
-                if (!confirm(`Hard reset ${c.username} back to the start? Clears every state timestamp.`)) return;
-                void wrap(() => resetCaseToPending(c.id));
-              }}
-              className="px-2 py-1 text-[11px] rounded text-[var(--text-muted)] hover:text-[var(--foreground)]"
-              title="Hard reset — clears every state timestamp and returns to Notified."
-            >
-              Reset
-            </button>
-          )}
-          {isOfficer && isActive && (() => {
-            const isDelayedNow = !!c.delayed_until && new Date(c.delayed_until).getTime() > Date.now();
-            if (isDelayedNow) {
-              return (
-                <button
-                  disabled={busy}
-                  onClick={() => wrap(() => undelayCase(c.id))}
-                  className="px-2 py-1 text-[11px] rounded bg-amber-500/10 text-amber-300 border border-amber-500/25 hover:bg-amber-500/20"
-                  title="Lift the delay — this case becomes visible to power tier again"
-                >
-                  Resume
-                </button>
-              );
-            }
-            return (
-              <button
-                disabled={busy}
-                onClick={() => {
-                  const raw = window.prompt('Delay how many hours? (default 24)', '24');
-                  if (raw === null) return;
-                  const hrs = Number(raw);
-                  if (!Number.isFinite(hrs) || hrs <= 0) return;
-                  const reason = window.prompt('Reason? (optional — power tier won\'t see this row until the delay expires)', '') ?? '';
-                  void wrap(() => delayCase(c.id, hrs, actor, reason || null));
-                }}
-                className="px-2 py-1 text-[11px] rounded bg-amber-500/10 text-amber-300 border border-amber-500/25 hover:bg-amber-500/20 inline-flex items-center gap-1"
-                title="Hide from power tier for a while (gives the player a chance to leave first)"
-              >
-                <Clock size={10} /> Delay
-              </button>
-            );
-          })()}
           {isAdmin && c.source_kind === 'zero_list' && (
             <button
               disabled={busy}

@@ -1,8 +1,9 @@
 'use client';
 
 // Who is pushing power: compares two location scans (by default the latest
-// against the one before it) and lists everyone whose power grew by at least
-// the threshold, next to their Acclaim from the latest performance report.
+// against the one before it) and lists every CH25 player in both, biggest
+// growth first, next to their Acclaim from the latest performance report. An
+// optional threshold narrows it to those who grew by at least that much.
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -60,7 +61,8 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
-  const [thresholdM, setThresholdM] = useState(1);
+  /** Minimum growth in millions; 0 lists every CH25 player in both scans. */
+  const [thresholdM, setThresholdM] = useState(0);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [confirming, setConfirming] = useState(false);
@@ -132,7 +134,8 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
     const from = fromId != null ? pointsById.get(fromId) : undefined;
     if (!to || !from) return null;
     const fromByGov = new Map(from.map((p) => [p.governorId, p] as const));
-    const threshold = thresholdM * 1_000_000;
+    // No threshold → every CH25 in both scans, growth or not.
+    const threshold = thresholdM > 0 ? thresholdM * 1_000_000 : null;
     const out: GrowerRow[] = [];
     for (const p of to) {
       // Older scans still hold farms; only CH25 players count.
@@ -140,7 +143,7 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
       const a = fromByGov.get(p.governorId);
       if (!a) continue;
       const delta = p.power - a.power;
-      if (delta <= 0 || delta < threshold) continue;
+      if (threshold != null && delta < threshold) continue;
       out.push({
         governorId: p.governorId,
         name: p.name,
@@ -184,7 +187,8 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
     });
   }, [growers, search, sort.field, sort.dir]);
 
-  const totalDelta = useMemo(() => (growers ?? []).reduce((s, r) => s + r.delta, 0), [growers]);
+  const grew = useMemo(() => (growers ?? []).filter((r) => r.delta > 0), [growers]);
+  const totalGrowth = useMemo(() => grew.reduce((s, r) => s + r.delta, 0), [grew]);
   const days = toScan && fromScan
     ? Math.max(0, (new Date(toScan.created_at).getTime() - new Date(fromScan.created_at).getTime()) / 86_400_000)
     : null;
@@ -274,7 +278,7 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
           </label>
           <label
             className="flex items-center gap-1.5 text-[var(--text-muted)] uppercase tracking-wider"
-            title="Only players whose power grew by at least this much are listed."
+            title="0 lists every CH25 player in both scans. Above 0, only those who grew by at least this much."
           >
             Grew ≥
             <input
@@ -301,9 +305,12 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-muted)]">
           {growers ? (
             <span>
+              <span className="text-[var(--foreground)] font-semibold">{growers.length}</span> CH{KEPT_CITY_HALL}
+              {thresholdM > 0 ? <> grew ≥ {thresholdM}M</> : <> in both scans</>}
+              {' · '}
               <ArrowUp size={11} className="inline text-orange-400 -mt-0.5" />{' '}
-              <span className="text-[var(--foreground)] font-semibold">{growers.length}</span> CH{KEPT_CITY_HALL} grew ≥ {thresholdM}M
-              {growers.length > 0 && <> · total <span className="text-orange-300">{fmtDeltaM(totalDelta)}</span></>}
+              <span className="text-orange-300 font-semibold">{grew.length}</span> grew
+              {grew.length > 0 && <>, total <span className="text-orange-300">{fmtDeltaM(totalGrowth)}</span></>}
               {days != null && <> · over {days < 1 ? `${Math.round(days * 24)}h` : `${days.toFixed(1)} days`}</>}
             </span>
           ) : (
@@ -383,9 +390,15 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
                   <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">{r.castleHall ?? '—'}</td>
                   <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">{fmtCompact(r.before)}</td>
                   <td className="px-3 py-2 text-right font-mono tabular-nums">{fmtCompact(r.now)}</td>
-                  <td className="px-3 py-2 text-right font-mono tabular-nums text-orange-300 font-semibold">{fmtDeltaM(r.delta)}</td>
+                  <td
+                    className={`px-3 py-2 text-right font-mono tabular-nums ${
+                      r.delta > 0 ? 'text-orange-300 font-semibold' : r.delta < 0 ? 'text-rose-400' : 'text-[var(--text-muted)]'
+                    }`}
+                  >
+                    {fmtDeltaM(r.delta)}
+                  </td>
                   <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
-                    {r.pct != null ? `+${(r.pct * 100).toFixed(1)}%` : '—'}
+                    {r.pct != null ? `${r.pct >= 0 ? '+' : ''}${(r.pct * 100).toFixed(1)}%` : '—'}
                   </td>
                   <td className="px-3 py-2 text-right font-mono tabular-nums"><AcclaimCell value={r.acclaim} /></td>
                   <td className="px-3 py-2"><CoordsCopy x={r.x} y={r.y} /></td>
@@ -394,7 +407,11 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
               {growers && rows.length === 0 && (
                 <tr>
                   <td colSpan={colSpan} className="px-3 py-10 text-center text-sm text-[var(--text-muted)]">
-                    {search.trim() ? 'No matches.' : `Nobody grew by ${thresholdM}M or more between these two scans.`}
+                    {search.trim()
+                      ? 'No matches.'
+                      : thresholdM > 0
+                        ? `Nobody grew by ${thresholdM}M or more between these two scans.`
+                        : `No CH${KEPT_CITY_HALL} player is in both scans.`}
                   </td>
                 </tr>
               )}

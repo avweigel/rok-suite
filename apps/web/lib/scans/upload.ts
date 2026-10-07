@@ -7,7 +7,8 @@
 //      farms included, so entries below CH25 keep fresh coords and aren't
 //      mistaken for emigrated:
 //        - zeroed:    active entries whose power dropped ≥ 1M since their last
-//                     sighting → Zeroed (opt-out in the preview)
+//                     sighting → +1 on their zeroed count, they stay on the
+//                     list (opt-out in the preview)
 //        - rebuilt:   zeroed entries whose power grew back ≥ 1M → flagged
 //        - refreshed: coords, power, alliance and name of every entry in the scan
 //        - missing:   active entries sighted before but absent now → Emigrated
@@ -21,6 +22,7 @@ import {
   classifyPowerChange,
   isEmigrationCandidate,
   markRebuilt,
+  markZeroedOnce,
   refreshZeroListFromScan,
   type MigrationCase,
 } from '@/lib/supabase/use-migration-cases';
@@ -140,8 +142,9 @@ export async function commitScanUpload(input: CommitInput, onStep?: (msg: string
     // Power-based detection compares against last_seen_power, so it runs
     // before the refresh overwrites it.
     if (impact && input.applyZeroed && impact.zeroed.length > 0) {
-      onStep?.(`Marking ${impact.zeroed.length} as zeroed…`);
-      result.zeroed = await bulkSetState(impact.zeroed.map((c) => c.caseId), 'zeroed', input.actor);
+      onStep?.(`Counting ${impact.zeroed.length} as zeroed…`);
+      for (const c of impact.zeroed) await markZeroedOnce(c.caseId, input.actor);
+      result.zeroed = impact.zeroed.length;
     }
     if (impact && impact.rebuilt.length > 0) {
       result.rebuilt = await markRebuilt(impact.rebuilt.map((c) => c.caseId), input.actor);

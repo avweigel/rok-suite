@@ -592,9 +592,18 @@ export async function markZeroedOnce(id: string, officerName: string): Promise<v
   if (e2) throw e2;
 }
 
-/** Undo zeroed reports that turned out to be wrong (count back to 0). */
-export async function dismissZeroReports(id: string): Promise<void> {
-  return patchCase(id, { zeroed_count: 0, last_zeroed_at: null, last_zeroed_by: null });
+/** Take back one "Zeroed" click (a misclick). At 0 the last-zeroed info goes too. */
+export async function undoZeroedOnce(id: string): Promise<void> {
+  const { data: row, error } = await createClient()
+    .from('migration_cases')
+    .select('zeroed_count')
+    .eq('id', id)
+    .single();
+  if (error) throw error;
+  const next = Math.max(0, ((row?.zeroed_count as number | null) ?? 0) - 1);
+  return patchCase(id, next === 0
+    ? { zeroed_count: 0, last_zeroed_at: null, last_zeroed_by: null }
+    : { zeroed_count: next });
 }
 
 export async function markAfk(id: string, officerName: string) {

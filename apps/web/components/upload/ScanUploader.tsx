@@ -267,7 +267,7 @@ export function ScanUploader({ actor, onUploaded }: { actor: string; onUploaded:
               <ImpactToggle
                 checked={applyZeroed}
                 onChange={setApplyZeroed}
-                label="Mark as Zeroed — power dropped by 1M or more"
+                label="Count as zeroed (+1, they stay on the list) — power dropped by 1M or more"
                 changes={impact.zeroed}
                 showPower
               />
@@ -331,7 +331,7 @@ export function ScanUploader({ actor, onUploaded }: { actor: string; onUploaded:
               <li>
                 Zero List: {result.refreshed} refreshed
                 {result.renamed > 0 && <>, {result.renamed} renamed</>}
-                {result.zeroed > 0 && <>, {result.zeroed} marked zeroed</>}
+                {result.zeroed > 0 && <>, {result.zeroed} counted as zeroed</>}
                 {result.emigrated > 0 && <>, {result.emigrated} marked emigrated</>}
                 {result.rebuilt > 0 && <>, {result.rebuilt} flagged rebuilt</>}.
               </li>
