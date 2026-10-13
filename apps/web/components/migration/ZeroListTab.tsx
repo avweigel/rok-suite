@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronDown, Clock, Copy, Mail, MapPinOff, RotateCcw, Trash2, UserPlus, Users } from 'lucide-react';
+import { CalendarRange, ChevronDown, Clock, Copy, Mail, MapPinOff, RotateCcw, Trash2, TrendingUp, UserPlus, Users, X } from 'lucide-react';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
 import { AcclaimCell, ShieldCell, fmtCompact, fmtDeltaM, useNow } from '@/components/migration/ScanCells';
 import { AddPlayersDialog } from '@/components/migration/AddPlayersDialog';
@@ -25,6 +25,7 @@ import {
   subscribeToZeroList,
 } from '@/lib/supabase/use-migration-cases';
 import { loadLatestKingdomData, type KingdomData, type KingdomPlayer } from '@/lib/scans/kingdom-data';
+import { listLocationScans, loadLocationPoints, type LocationScanRow } from '@/lib/zero-list/scan-data';
 import { SortableTh, useTableSort } from '@/components/migration/SortableTh';
 
 interface Props {
@@ -64,6 +65,16 @@ function fmtM(n: number | null | undefined): string {
  *  player. Null until two location uploads have seen them. */
 function powerDelta(c: MigrationCase): number | null {
   return c.last_seen_power != null && c.prev_seen_power != null ? c.last_seen_power - c.prev_seen_power : null;
+}
+
+/** When the entry was put on the Zero List — for cycle entries, when they
+ *  were marked To Zero. Null for entries added before this was recorded. */
+function addedAt(c: MigrationCase): string | null {
+  return c.added_at ?? (c.source_kind === 'cycle' ? c.marked_to_zero_at : null);
+}
+
+function fmtScanDate(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 function fmtDelayRemaining(iso: string): string {
@@ -209,6 +220,15 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   /** Show the closed entries (emigrated / AFK / zeroed-and-closed) instead of
    *  the active list — they stay in the database and count in Clear all. */
   const [showClosed, setShowClosed] = useState(false);
+  /** Show only rows whose power grew over the Δ period. */
+  const [grewOnly, setGrewOnly] = useState(false);
+  /** Δ Power period between two location scans. No "from" scan = each
+   *  player's previous → latest sighting (prev_seen_power → last_seen_power). */
+  const [scans, setScans] = useState<LocationScanRow[]>([]);
+  const [rangeFrom, setRangeFrom] = useState<number | null>(null);
+  const [rangeTo, setRangeTo] = useState<number | null>(null);
+  /** Power by gov id per location scan id, loaded on demand. */
+  const [scanPower, setScanPower] = useState<Map<number, Map<number, number>>>(new Map());
   const setSearch = useCallback((next: string) => {
     setSearchState(next);
     const params = new URLSearchParams(searchParams.toString());
@@ -298,11 +318,13 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
 
   const refetch = useCallback(async () => {
     // Independent: a scan-data failure must not hide the list itself.
-    const [rows, kd] = await Promise.allSettled([listZeroListCases(), loadLatestKingdomData()]);
+    const [rows, kd, scanList] = await Promise.allSettled([listZeroListCases(), loadLatestKingdomData(), listLocationScans()]);
     if (rows.status === 'fulfilled') setCases(rows.value);
     else console.error('Zero list refresh failed', rows.reason);
     if (kd.status === 'fulfilled') setKingdom(kd.value);
     else console.warn('Scan data for the Zero List failed to load', kd.reason);
+    if (scanList.status === 'fulfilled') setScans(scanList.value);
+    else console.warn('Location scans for the Δ period failed to load', scanList.reason);
     setLoading(false);
   }, []);
 
@@ -329,6 +351,44 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     return () => { cancelled = true; };
   }, [refetchCases]);
 
+  // Δ period: the "to" scan defaults to the latest one.
+  const rangeToId = rangeFrom != null ? rangeTo ?? scans[0]?.id ?? null : null;
+  useEffect(() => {
+    const missing = [rangeFrom, rangeToId].filter((id): id is number => id != null && !scanPower.has(id));
+    if (missing.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const loaded = await Promise.all(missing.map((id) => loadLocationPoints(id)));
+        if (cancelled) return;
+        setScanPower((prev) => {
+          const next = new Map(prev);
+          missing.forEach((id, i) => next.set(id, new Map(loaded[i].map((p) => [p.governorId, p.power] as const))));
+          return next;
+        });
+      } catch (e) {
+        console.warn('Scan points for the Δ period failed to load', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [rangeFrom, rangeToId, scanPower]);
+
+  const deltaOf = useCallback(
+    (c: MigrationCase): number | null => {
+      if (rangeFrom == null || rangeToId == null) return powerDelta(c);
+      const before = scanPower.get(rangeFrom)?.get(c.character_id);
+      const after = scanPower.get(rangeToId)?.get(c.character_id);
+      return before != null && after != null ? after - before : null;
+    },
+    [rangeFrom, rangeToId, scanPower],
+  );
+  const rangeLabel = useMemo(() => {
+    const from = scans.find((s) => s.id === rangeFrom);
+    const to = scans.find((s) => s.id === rangeToId);
+    return from && to ? `${fmtScanDate(from.created_at)} → ${fmtScanDate(to.created_at)}` : null;
+  }, [scans, rangeFrom, rangeToId]);
+  const rangeFromAt = scans.find((s) => s.id === rangeFrom)?.created_at ?? null;
+
   // Power-tier members shouldn't see entries that an officer/admin has put on
   // hold — the delay window is meant to give the player a chance to leave
   // without an immediate attack. Officer/admin still see them with a badge.
@@ -345,7 +405,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     );
   }, [cases, isOfficer]);
 
-  type ZSortField = 'username' | 'power' | 'delta' | 'kills' | 'ch' | 'alliance' | 'acclaim' | 'state';
+  type ZSortField = 'username' | 'power' | 'delta' | 'kills' | 'ch' | 'alliance' | 'acclaim' | 'state' | 'added';
   const sort = useTableSort<ZSortField>('power', {
     username: 'asc',
     power: 'desc',
@@ -355,6 +415,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     alliance: 'asc',
     acclaim: 'asc',
     state: 'asc',
+    added: 'desc',
   });
 
   // The list shows what still needs dealing with: every non-terminal entry,
@@ -368,6 +429,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   const filtered = useMemo(() => {
     let list = showClosed ? visibleCases.filter((c) => !isInActive(c)) : visibleCases.filter(isInActive);
     if (movedOnly) list = list.filter((c) => c.moved_reported_at);
+    if (grewOnly) list = list.filter((c) => (deltaOf(c) ?? 0) > 0);
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       const qDigits = q.replace(/\D/g, '');
@@ -382,13 +444,17 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     // result is multiplied by `sign` below).
     const numeric = (a: number | null | undefined, b: number | null | undefined) =>
       a == null && b == null ? 0 : a == null ? sign * Infinity : b == null ? -sign * Infinity : a - b;
+    const addedMs = (c: MigrationCase) => {
+      const at = addedAt(c);
+      return at ? Date.parse(at) : null;
+    };
     const sorted = [...list].sort((a, b) => {
       let cmp = 0;
       const fa = locationLookup.get(a.character_id);
       const fb = locationLookup.get(b.character_id);
       if (sort.field === 'username') cmp = a.username.localeCompare(b.username, undefined, { sensitivity: 'base' });
       else if (sort.field === 'power') cmp = power(a) - power(b);
-      else if (sort.field === 'delta') cmp = numeric(powerDelta(a), powerDelta(b));
+      else if (sort.field === 'delta') cmp = numeric(deltaOf(a), deltaOf(b));
       else if (sort.field === 'kills') cmp = numeric(fa?.kills, fb?.kills);
       else if (sort.field === 'ch') cmp = numeric(fa?.castleHall, fb?.castleHall);
       else if (sort.field === 'acclaim') cmp = numeric(fa?.acclaim, fb?.acclaim);
@@ -398,17 +464,22 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
         cmp = aa.localeCompare(bb);
       }
       else if (sort.field === 'state') cmp = a.state.localeCompare(b.state);
+      else if (sort.field === 'added') cmp = numeric(addedMs(a), addedMs(b));
       // Tiebreak on power desc so equal-key rows are stable
       if (cmp === 0) cmp = power(b) - power(a);
       else cmp *= sign;
       return cmp;
     });
     return sorted;
-  }, [visibleCases, isInActive, showClosed, movedOnly, search, sort.field, sort.dir, locationLookup]);
+  }, [visibleCases, isInActive, showClosed, movedOnly, grewOnly, deltaOf, search, sort.field, sort.dir, locationLookup]);
 
   const movedCount = useMemo(
     () => visibleCases.filter((c) => isInActive(c) && c.moved_reported_at).length,
     [visibleCases, isInActive],
+  );
+  const grewCount = useMemo(
+    () => visibleCases.filter((c) => isInActive(c) && (deltaOf(c) ?? 0) > 0).length,
+    [visibleCases, isInActive, deltaOf],
   );
   const closedCount = useMemo(
     () => visibleCases.filter((c) => !isInActive(c)).length,
@@ -540,7 +611,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
                 <li>Target not at those coords anymore? Anyone can click <strong>Moved</strong>: the coords get struck through and the row joins the <strong>Moved</strong> filter — who to look for in the next scan. The next location upload that finds them (or an admin editing the coords) clears it.</li>
                 <li><strong>Acclaim</strong> comes from the latest performance report, only for players in the latest location scan: a red <em>0</em> means they earned none in the report period, <em>—</em> means they aren&apos;t in the report or not in the location scan.</li>
                 <li>If the (x, y) cell is empty (em dash), the player wasn&apos;t in the latest location scan. Upload a fresh one on <a href="/upload" className="text-cyan-400 hover:underline">Upload Scan</a>.</li>
-                <li><strong>Δ Power</strong> is the change between the previous location scan and the latest one that had the player — orange means they grew. It appears once two uploads have included them.</li>
+                <li><strong>Δ Power</strong> is the change between the previous location scan and the latest one that had the player — orange means they grew. It appears once two uploads have included them. Pick a period in the <strong>Δ</strong> selector to compare two scans instead, and use <strong>Grew</strong> to keep only who grew. Sort by <strong>Added</strong> to see the latest additions first.</li>
                 <li>Everyone can mark <strong>Zeroed</strong> or <strong>Moved</strong>. Officers can also take back a wrong Zeroed click (<em>−1</em>); adding and removing targets is admin-only.</li>
                 <li>Don&apos;t click the trash icon casually — it&apos;s a hard delete with no undo.</li>
               </ul>
@@ -576,6 +647,60 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
         >
           <RotateCcw size={14} />
         </button>
+        {scans.length >= 2 && (
+          <div
+            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border border-[var(--border)] bg-[var(--background-secondary)] text-xs text-[var(--text-muted)]"
+            title="Δ Power between two location scans — pick a period to see who grew in it"
+          >
+            <CalendarRange size={12} />
+            <span>Δ</span>
+            <select
+              value={rangeFrom ?? ''}
+              onChange={(e) => { setRangeFrom(e.target.value ? Number(e.target.value) : null); setRangeTo(null); }}
+              className="bg-[var(--background-secondary)] text-[var(--foreground)] focus:outline-none"
+            >
+              <option value="">last change</option>
+              {scans.slice(1).map((s) => (
+                <option key={s.id} value={s.id}>from {fmtScanDate(s.created_at)}</option>
+              ))}
+            </select>
+            {rangeFrom != null && rangeFromAt && (
+              <>
+                <span>→</span>
+                <select
+                  value={rangeToId ?? ''}
+                  onChange={(e) => setRangeTo(Number(e.target.value))}
+                  className="bg-[var(--background-secondary)] text-[var(--foreground)] focus:outline-none"
+                >
+                  {scans.filter((s) => s.created_at > rangeFromAt).map((s) => (
+                    <option key={s.id} value={s.id}>{fmtScanDate(s.created_at)}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => { setRangeFrom(null); setRangeTo(null); }}
+                  className="p-0.5 rounded hover:text-[var(--foreground)]"
+                  title="Back to each player's last change"
+                >
+                  <X size={11} />
+                </button>
+              </>
+            )}
+          </div>
+        )}
+        {(grewCount > 0 || grewOnly) && (
+          <button
+            onClick={() => setGrewOnly((v) => !v)}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs border transition-colors ${
+              grewOnly
+                ? 'bg-orange-500/25 text-orange-200 border-orange-500/50'
+                : 'bg-orange-500/10 text-orange-300 border-orange-500/30 hover:bg-orange-500/20'
+            }`}
+            title="Show only players whose power grew in the Δ period"
+          >
+            <TrendingUp size={12} /> Grew ({grewCount})
+          </button>
+        )}
         {(movedCount > 0 || movedOnly) && (
           <button
             onClick={() => setMovedOnly((v) => !v)}
@@ -783,6 +908,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
                 <th className="px-3 py-2 text-left">Shield</th>
                 <SortableTh label="Acclaim" field="acclaim" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <SortableTh label="State" field="state" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
+                <SortableTh label="Added" field="added" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <th className="px-3 py-2 text-left">Actions</th>
               </tr>
             </thead>
@@ -792,6 +918,8 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
                   key={c.id}
                   caseRow={c}
                   player={locationLookup.get(c.character_id) ?? null}
+                  delta={deltaOf(c)}
+                  deltaPeriod={rangeLabel}
                   scanAt={scanAt}
                   now={now}
                   isOfficer={isOfficer}
@@ -802,8 +930,8 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="px-3 py-10 text-center text-sm text-[var(--text-muted)]">
-                    {search.trim()
+                  <td colSpan={12} className="px-3 py-10 text-center text-sm text-[var(--text-muted)]">
+                    {search.trim() || movedOnly || grewOnly
                       ? 'No matches.'
                       : isAdmin
                         ? 'Nothing on the Zero List right now. Use Add players or the Power Growers tab to add targets.'
@@ -822,6 +950,8 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
 function ZeroListRow({
   caseRow: c,
   player,
+  delta,
+  deltaPeriod,
   scanAt,
   now,
   isOfficer,
@@ -834,6 +964,10 @@ function ZeroListRow({
    *  if present. Fills KP, CH, shield and Acclaim, and backs up coords /
    *  alliance / power that aren't on the migration_cases row itself. */
   player: KingdomPlayer | null;
+  /** Power change over the selected Δ period (or the player's last change). */
+  delta: number | null;
+  /** The selected Δ period, null for each player's last change. */
+  deltaPeriod: string | null;
   /** When the latest location scan was taken (shield fallback). */
   scanAt: string | null;
   now: number;
@@ -846,7 +980,7 @@ function ZeroListRow({
   const [copied, setCopied] = useState(false);
   const isActive = !TERMINAL_STATES.includes(c.state);
   const isMoved = !!c.moved_reported_at;
-  const delta = powerDelta(c);
+  const added = addedAt(c);
 
   // Effective values — prefer the row's stored value (frozen at add time or
   // refresh time), fall back to whatever the latest location scan has.
@@ -892,7 +1026,11 @@ function ZeroListRow({
         className={`px-3 py-2 text-right font-mono tabular-nums ${
           delta == null ? 'text-[var(--text-muted)]' : delta > 0 ? 'text-orange-300 font-semibold' : delta < 0 ? 'text-rose-400' : 'text-[var(--text-muted)]'
         }`}
-        title={delta != null ? `Previous scan ${fmtM(c.prev_seen_power)} → latest ${fmtM(c.last_seen_power)}` : 'Needs two location uploads that include this player'}
+        title={
+          deltaPeriod
+            ? delta != null ? deltaPeriod : `Not in both scans of ${deltaPeriod}`
+            : delta != null ? `Previous scan ${fmtM(c.prev_seen_power)} → latest ${fmtM(c.last_seen_power)}` : 'Needs two location uploads that include this player'
+        }
       >
         {delta == null ? '—' : fmtDeltaM(delta)}
       </td>
@@ -1056,6 +1194,14 @@ function ZeroListRow({
             )}
           </div>
         )}
+      </td>
+      <td
+        className="px-3 py-2 text-xs text-[var(--text-secondary)] whitespace-nowrap"
+        title={[c.added_by && `by ${c.added_by}`, c.added_reason].filter(Boolean).join(' — ') || undefined}
+      >
+        {added
+          ? new Date(added).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+          : <span className="text-[var(--text-muted)]">—</span>}
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-1">

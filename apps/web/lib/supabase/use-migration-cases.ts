@@ -94,6 +94,10 @@ export interface MigrationCase {
   moved_reported_by?: string | null;
   /** Power in the scan before the latest one that had the player (Δ power). */
   prev_seen_power?: number | null;
+  /** When the entry was put on (or back on) the Zero List. From
+   *  migrations/add-zero-list-exclusions-and-added-at.sql; null for entries
+   *  added before it. */
+  added_at?: string | null;
 }
 
 // ——— Cycles ———
@@ -785,6 +789,9 @@ export async function bulkAddToZeroList(
   let reactivated = 0;
   if (opts?.reactivate) {
     const entryByChar = new Map(entries.map((e) => [e.characterId, e] as const));
+    // Re-adding counts as newly added. added_at only exists once the migration
+    // has run — skip it until then. (New rows get it from the column default.)
+    const { error: noAddedAt } = await sb.from('migration_cases').select('added_at').limit(1);
     for (const r of existing ?? []) {
       if (!TERMINAL_STATES.includes(r.state as MigrationState)) continue;
       const e = entryByChar.get(r.character_id as number);
@@ -802,6 +809,7 @@ export async function bulkAddToZeroList(
           added_by: e.addedBy ?? null,
           added_reason: e.reason ?? null,
           updated_at: new Date().toISOString(),
+          ...(noAddedAt ? {} : { added_at: new Date().toISOString() }),
         })
         .eq('id', r.id as string);
       if (error) throw new Error(`Re-adding ${e.username} failed: ${error.message}`);

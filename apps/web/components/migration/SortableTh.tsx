@@ -52,18 +52,18 @@ export function useTableSort<F extends string>(
 ) {
   const [field, setField] = useState<F>(defaultField);
   const [dir, setDir] = useState<SortDir>(defaultDirs[defaultField]);
+  // No state setter inside another setter's updater: Strict Mode runs
+  // updaters twice, which flipped the direction back.
   const toggle = useCallback(
     (f: F) => {
-      setField((prev) => {
-        if (prev === f) {
-          setDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-          return prev;
-        }
+      if (f === field) {
+        setDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+      } else {
+        setField(f);
         setDir(defaultDirs[f]);
-        return f;
-      });
+      }
     },
-    [defaultDirs],
+    [field, defaultDirs],
   );
   return { field, dir, toggle };
 }

@@ -15,6 +15,7 @@ import { listLocationScans, loadLocationPoints, type LocationPoint, type Locatio
 import { loadLatestPerformanceReport } from '@/lib/scans/performance-reports';
 import { KEPT_CITY_HALL } from '@/lib/scans/upload';
 import { TERMINAL_STATES, bulkAddToZeroList, listZeroListCases } from '@/lib/supabase/use-migration-cases';
+import { listZeroListExclusions } from '@/lib/zero-list/exclusions';
 import { errorMessage } from '@/lib/error-message';
 
 interface Props {
@@ -58,6 +59,8 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
   const [acclaimByGov, setAcclaimByGov] = useState<Map<number, number | null>>(new Map());
   const [reportLabel, setReportLabel] = useState<string | null>(null);
   const [listedIds, setListedIds] = useState<Set<number>>(new Set());
+  /** Players excluded from the Zero List candidates → their reason. */
+  const [excludedReason, setExcludedReason] = useState<Map<number, string>>(new Map());
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -75,7 +78,14 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
   useEffect(() => {
     void (async () => {
       try {
-        const [list, perf, zl] = await Promise.all([listLocationScans(), loadLatestPerformanceReport(), listZeroListCases()]);
+        const [list, perf, zl, excluded] = await Promise.all([
+          listLocationScans(),
+          loadLatestPerformanceReport(),
+          listZeroListCases(),
+          // Optional — the table may not exist yet.
+          listZeroListExclusions().catch(() => []),
+        ]);
+        setExcludedReason(new Map(excluded.map((e) => [e.governor_id, e.reason] as const)));
         setScans(list);
         setToId(list[0]?.id ?? null);
         setFromId(list[1]?.id ?? null);
@@ -193,7 +203,7 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
     ? Math.max(0, (new Date(toScan.created_at).getTime() - new Date(fromScan.created_at).getTime()) / 86_400_000)
     : null;
 
-  const selectable = rows.filter((r) => !r.listed);
+  const selectable = rows.filter((r) => !r.listed && !excludedReason.has(r.governorId));
   const allSelected = selectable.length > 0 && selectable.every((r) => selected.has(r.governorId));
   const toggleAll = () => setSelected(allSelected ? new Set() : new Set(selectable.map((r) => r.governorId)));
   const toggle = (id: number) => {
@@ -375,7 +385,9 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
                 <tr key={r.governorId} className="border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors">
                   {isAdmin && (
                     <td className="px-3 py-2">
-                      {!r.listed && <input type="checkbox" checked={selected.has(r.governorId)} onChange={() => toggle(r.governorId)} />}
+                      {!r.listed && !excludedReason.has(r.governorId) && (
+                        <input type="checkbox" checked={selected.has(r.governorId)} onChange={() => toggle(r.governorId)} />
+                      )}
                     </td>
                   )}
                   <td className="px-3 py-2">
@@ -383,6 +395,14 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
                       <CopyablePlayerCell name={r.name} govId={r.governorId} />
                       {r.listed && (
                         <span className="inline-block px-1.5 py-0.5 rounded text-[9px] bg-orange-500/15 text-orange-400 border border-orange-500/30">on zero list</span>
+                      )}
+                      {excludedReason.has(r.governorId) && (
+                        <span
+                          className="inline-block px-1.5 py-0.5 rounded text-[9px] bg-slate-500/15 text-slate-300 border border-slate-500/30"
+                          title={`Excluded from the Zero List candidates: ${excludedReason.get(r.governorId) || 'no reason'}`}
+                        >
+                          excluded
+                        </span>
                       )}
                     </div>
                   </td>
