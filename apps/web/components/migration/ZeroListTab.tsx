@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { CalendarRange, ChevronDown, Clock, Copy, Mail, MapPinOff, RotateCcw, Trash2, TrendingUp, UserPlus, Users, X } from 'lucide-react';
+import { CalendarRange, ChevronDown, Clock, Copy, Link2, Mail, MapPinOff, RotateCcw, Trash2, TrendingUp, UserPlus, Users, X } from 'lucide-react';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
 import { AcclaimCell, NewIllegalChip, ShieldCell, fmtCompact, fmtDeltaM, useNow } from '@/components/migration/ScanCells';
 import { AddPlayersDialog } from '@/components/migration/AddPlayersDialog';
@@ -28,6 +28,25 @@ import {
 import { loadLatestKingdomData, type KingdomData, type KingdomPlayer } from '@/lib/scans/kingdom-data';
 import { listLocationScans, loadLocationPoints, type LocationScanRow } from '@/lib/zero-list/scan-data';
 import { SortableTh, useTableSort } from '@/components/migration/SortableTh';
+
+/** URL keys holding the Zero List view, so a shared link opens it as filtered:
+ *  zls search · zlm moved only · zlg grew only · zlc closed entries (officers)
+ *  · zdf / zdt Δ period (location scan ids) · zsort field.dir */
+export const ZERO_LIST_URL_KEYS = ['zls', 'zlm', 'zlg', 'zlc', 'zdf', 'zdt', 'zsort'] as const;
+
+const SORT_FIELDS = ['username', 'power', 'delta', 'kills', 'ch', 'alliance', 'acclaim', 'state', 'added'] as const;
+type ZSortField = (typeof SORT_FIELDS)[number];
+
+function sortFromUrl(raw: string | null): { field: ZSortField; dir: 'asc' | 'desc' } | null {
+  const [field, dir] = (raw ?? '').split('.');
+  if (!SORT_FIELDS.includes(field as ZSortField) || (dir !== 'asc' && dir !== 'desc')) return null;
+  return { field: field as ZSortField, dir };
+}
+
+function idFromUrl(raw: string | null): number | null {
+  const n = Number(raw);
+  return raw && Number.isInteger(n) && n > 0 ? n : null;
+}
 
 interface Props {
   isOfficer: boolean;
@@ -214,30 +233,24 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   }, [cases]);
   const [loading, setLoading] = useState(true);
 
-  // Search is mirrored in the URL (?zls=) so a shared link restores it.
-  const [search, setSearchState] = useState(() => searchParams.get('zls') ?? '');
+  // Every filter starts from the URL (ZERO_LIST_URL_KEYS) and is mirrored
+  // back into it, so a shared link opens the same view.
+  const [search, setSearch] = useState(() => searchParams.get('zls') ?? '');
   /** Show only rows reported as moved — who to look for in the next scan. */
-  const [movedOnly, setMovedOnly] = useState(false);
+  const [movedOnly, setMovedOnly] = useState(() => searchParams.get('zlm') === '1');
   /** Show the closed entries (emigrated / AFK / zeroed-and-closed) instead of
    *  the active list — they stay in the database and count in Clear all. */
-  const [showClosed, setShowClosed] = useState(false);
+  const [showClosed, setShowClosed] = useState(() => searchParams.get('zlc') === '1');
   /** Show only rows whose power grew over the Δ period. */
-  const [grewOnly, setGrewOnly] = useState(false);
+  const [grewOnly, setGrewOnly] = useState(() => searchParams.get('zlg') === '1');
   /** Δ Power period between two location scans. No "from" scan = each
    *  player's previous → latest sighting (prev_seen_power → last_seen_power). */
   const [scans, setScans] = useState<LocationScanRow[]>([]);
-  const [rangeFrom, setRangeFrom] = useState<number | null>(null);
-  const [rangeTo, setRangeTo] = useState<number | null>(null);
+  const [rangeFrom, setRangeFrom] = useState<number | null>(() => idFromUrl(searchParams.get('zdf')));
+  const [rangeTo, setRangeTo] = useState<number | null>(() => idFromUrl(searchParams.get('zdt')));
   /** Power by gov id per location scan id, loaded on demand. */
   const [scanPower, setScanPower] = useState<Map<number, Map<number, number>>>(new Map());
-  const setSearch = useCallback((next: string) => {
-    setSearchState(next);
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete('zlf'); // legacy state filter — the list always shows active entries now
-    if (!next) params.delete('zls'); else params.set('zls', next);
-    const qs = params.toString();
-    router.replace(qs ? `?${qs}` : '?', { scroll: false });
-  }, [router, searchParams]);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [guideOpen, setGuideOpen] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem('zero-list-guide-collapsed') === '0';
@@ -352,10 +365,15 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     return () => { cancelled = true; };
   }, [refetchCases]);
 
-  // Δ period: the "to" scan defaults to the latest one.
-  const rangeToId = rangeFrom != null ? rangeTo ?? scans[0]?.id ?? null : null;
+  // Δ period. A scan id from a link that no longer exists is ignored; the
+  // "to" scan defaults to the latest one.
+  const fromScan = scans.find((s) => s.id === rangeFrom) ?? null;
+  const rangeFromId = fromScan?.id ?? null;
+  const rangeToId = fromScan
+    ? scans.find((s) => s.id === rangeTo && s.created_at > fromScan.created_at)?.id ?? scans[0]?.id ?? null
+    : null;
   useEffect(() => {
-    const missing = [rangeFrom, rangeToId].filter((id): id is number => id != null && !scanPower.has(id));
+    const missing = [rangeFromId, rangeToId].filter((id): id is number => id != null && !scanPower.has(id));
     if (missing.length === 0) return;
     let cancelled = false;
     void (async () => {
@@ -372,23 +390,22 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, [rangeFrom, rangeToId, scanPower]);
+  }, [rangeFromId, rangeToId, scanPower]);
 
   const deltaOf = useCallback(
     (c: MigrationCase): number | null => {
-      if (rangeFrom == null || rangeToId == null) return powerDelta(c);
-      const before = scanPower.get(rangeFrom)?.get(c.character_id);
+      if (rangeFromId == null || rangeToId == null) return powerDelta(c);
+      const before = scanPower.get(rangeFromId)?.get(c.character_id);
       const after = scanPower.get(rangeToId)?.get(c.character_id);
       return before != null && after != null ? after - before : null;
     },
-    [rangeFrom, rangeToId, scanPower],
+    [rangeFromId, rangeToId, scanPower],
   );
   const rangeLabel = useMemo(() => {
-    const from = scans.find((s) => s.id === rangeFrom);
     const to = scans.find((s) => s.id === rangeToId);
-    return from && to ? `${fmtScanDate(from.created_at)} → ${fmtScanDate(to.created_at)}` : null;
-  }, [scans, rangeFrom, rangeToId]);
-  const rangeFromAt = scans.find((s) => s.id === rangeFrom)?.created_at ?? null;
+    return fromScan && to ? `${fmtScanDate(fromScan.created_at)} → ${fmtScanDate(to.created_at)}` : null;
+  }, [scans, fromScan, rangeToId]);
+  const rangeFromAt = fromScan?.created_at ?? null;
 
   // Power-tier members shouldn't see entries that an officer/admin has put on
   // hold — the delay window is meant to give the player a chance to leave
@@ -417,7 +434,47 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     acclaim: 'asc',
     state: 'asc',
     added: 'desc',
-  });
+  }, sortFromUrl(searchParams.get('zsort')));
+
+  // Officers only — a link can't open the closed entries for anyone else.
+  const closedView = showClosed && isOfficer;
+
+  // Mirror the view into the URL. Defaults are left out to keep links short.
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    const put = (key: string, value: string | null) => {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    };
+    params.delete('zlf'); // legacy state filter — the list always shows active entries now
+    put('zls', search.trim() ? search : null);
+    put('zlm', movedOnly ? '1' : null);
+    put('zlg', grewOnly ? '1' : null);
+    put('zlc', closedView ? '1' : null);
+    put('zdf', rangeFromId != null ? String(rangeFromId) : null);
+    put('zdt', rangeFromId != null && rangeTo != null && rangeTo === rangeToId ? String(rangeTo) : null);
+    put('zsort', sort.field === 'power' && sort.dir === 'desc' ? null : `${sort.field}.${sort.dir}`);
+    // Before the scans load a period from the link can't be checked yet.
+    if (scans.length === 0) {
+      if (searchParams.get('zdf')) params.set('zdf', searchParams.get('zdf') as string);
+      if (searchParams.get('zdt')) params.set('zdt', searchParams.get('zdt') as string);
+    }
+    const next = params.toString();
+    if (next !== searchParams.toString()) router.replace(next ? `?${next}` : '?', { scroll: false });
+  }, [search, movedOnly, grewOnly, closedView, rangeFromId, rangeTo, rangeToId, scans.length, sort.field, sort.dir, router, searchParams]);
+
+  const copyViewLink = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', 'zero-list');
+    void navigator.clipboard.writeText(url.toString()).then(
+      () => {
+        setLinkCopied(true);
+        setTimeout(() => setLinkCopied(false), 1500);
+      },
+      // Clipboard blocked (permissions, insecure origin…) — let them copy it.
+      () => window.prompt('Copy this link:', url.toString()),
+    );
+  };
 
   // The list shows what still needs dealing with: every non-terminal entry,
   // plus excepted ones for officers/admins so a prior "spare this person"
@@ -428,7 +485,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   );
 
   const filtered = useMemo(() => {
-    let list = showClosed ? visibleCases.filter((c) => !isInActive(c)) : visibleCases.filter(isInActive);
+    let list = closedView ? visibleCases.filter((c) => !isInActive(c)) : visibleCases.filter(isInActive);
     if (movedOnly) list = list.filter((c) => c.moved_reported_at);
     if (grewOnly) list = list.filter((c) => (deltaOf(c) ?? 0) > 0);
     if (search.trim()) {
@@ -472,7 +529,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       return cmp;
     });
     return sorted;
-  }, [visibleCases, isInActive, showClosed, movedOnly, grewOnly, deltaOf, search, sort.field, sort.dir, locationLookup]);
+  }, [visibleCases, isInActive, closedView, movedOnly, grewOnly, deltaOf, search, sort.field, sort.dir, locationLookup]);
 
   const movedCount = useMemo(
     () => visibleCases.filter((c) => isInActive(c) && c.moved_reported_at).length,
@@ -656,7 +713,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
             <CalendarRange size={12} />
             <span>Δ</span>
             <select
-              value={rangeFrom ?? ''}
+              value={rangeFromId ?? ''}
               onChange={(e) => { setRangeFrom(e.target.value ? Number(e.target.value) : null); setRangeTo(null); }}
               className="bg-[var(--background-secondary)] text-[var(--foreground)] focus:outline-none"
             >
@@ -665,7 +722,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
                 <option key={s.id} value={s.id}>from {fmtScanDate(s.created_at)}</option>
               ))}
             </select>
-            {rangeFrom != null && rangeFromAt && (
+            {rangeFromId != null && rangeFromAt && (
               <>
                 <span>→</span>
                 <select
@@ -689,6 +746,13 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
             )}
           </div>
         )}
+        <button
+          onClick={copyViewLink}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs border bg-[var(--background-secondary)] text-[var(--text-secondary)] border-[var(--border)] hover:text-[var(--foreground)] transition-colors"
+          title="Copy a link to the Zero List with these filters and this sort — whoever opens it sees the same list"
+        >
+          <Link2 size={12} /> {linkCopied ? 'Copied!' : 'Copy link'}
+        </button>
         {(grewCount > 0 || grewOnly) && (
           <button
             onClick={() => setGrewOnly((v) => !v)}

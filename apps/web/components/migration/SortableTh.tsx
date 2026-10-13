@@ -49,9 +49,11 @@ export function SortableTh<F extends string>({
 export function useTableSort<F extends string>(
   defaultField: F,
   defaultDirs: Record<F, SortDir>,
+  /** Starting sort, e.g. restored from the URL. */
+  initial?: { field: F; dir: SortDir } | null,
 ) {
-  const [field, setField] = useState<F>(defaultField);
-  const [dir, setDir] = useState<SortDir>(defaultDirs[defaultField]);
+  const [field, setField] = useState<F>(initial?.field ?? defaultField);
+  const [dir, setDir] = useState<SortDir>(initial?.dir ?? defaultDirs[defaultField]);
   // No state setter inside another setter's updater: Strict Mode runs
   // updaters twice, which flipped the direction back.
   const toggle = useCallback(

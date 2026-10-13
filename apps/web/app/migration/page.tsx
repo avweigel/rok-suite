@@ -19,7 +19,7 @@ import {
 import { AppSidebar } from '@/components/AppSidebar';
 import { WarRoomAuthProvider, useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
 import { meetsRole, useAuthRole } from '@/lib/auth-role';
-import { ZeroListTab } from '@/components/migration/ZeroListTab';
+import { ZERO_LIST_URL_KEYS, ZeroListTab } from '@/components/migration/ZeroListTab';
 import { ScansTab } from '@/components/migration/ScansTab';
 import { PowerGrowersTab } from '@/components/migration/PowerGrowersTab';
 import { FEATURES } from '@/lib/feature-flags';
@@ -293,13 +293,15 @@ function MigrationPageInner() {
   const [loading, setLoading] = useState<boolean>(FEATURES.emigrationCycle);
   const [search, setSearch] = useState('');
   // Tab state — initial value priority:
-  //   1. ?tab= query string (so a shared link wins)
+  //   1. ?tab= query string (so a shared link wins), or Zero List filters
   //   2. localStorage (returning user's last tab)
   //   3. zero_list (sensible default)
   // The URL `?tab` value is normalized to dashes (zero-list) and converted
   // back to underscores internally so links read naturally. Tabs that are
   // switched off fall back to the default.
-  const tabFromQuery = asEnabledTab(searchParams.get('tab'));
+  // A link carrying Zero List filters but no ?tab opens the Zero List.
+  const tabFromQuery = asEnabledTab(searchParams.get('tab'))
+    ?? (ZERO_LIST_URL_KEYS.some((k) => searchParams.has(k)) ? 'zero_list' : null);
   const [tab, setTabState] = useState<EmigrationTab>(() => {
     if (tabFromQuery) return tabFromQuery;
     if (typeof window === 'undefined') return 'zero_list';
