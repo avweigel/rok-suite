@@ -84,6 +84,18 @@ export function CoordsCopy({ x, y }: { x: number | null; y: number | null }) {
   );
 }
 
+/** A player who wasn't in the earlier location scan — a new arrival. */
+export function NewIllegalChip({ title }: { title?: string }) {
+  return (
+    <span
+      className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wide bg-rose-500/20 text-rose-300 border border-rose-500/40 whitespace-nowrap"
+      title={title ?? 'Not in the earlier location scan — a new arrival'}
+    >
+      NEW ILLEGAL
+    </span>
+  );
+}
+
 export type ZeroListReason = 'power_grower' | 'low_acclaim' | 'violated_rule' | 'illegal' | 'other';
 
 export const ZERO_LIST_REASONS: Record<ZeroListReason, string> = {

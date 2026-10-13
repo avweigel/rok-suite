@@ -5,13 +5,16 @@
 // fight — tick rows and add them to the Zero List. Players the admin never
 // wants to target (allies, protected…) can be excluded with a reason so they
 // stop showing up here; the Excluded view lists them and includes them again.
+// Players who weren't in the previous location scan carry a NEW ILLEGAL chip
+// and are added with that flag.
 
 import { useEffect, useMemo, useState } from 'react';
 import { EyeOff, Search, X } from 'lucide-react';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
 import { SortableTh, useTableSort } from '@/components/migration/SortableTh';
-import { AcclaimCell, AddToZeroListDialog, CoordsCopy, ShieldCell, fmtCompact, useNow } from '@/components/migration/ScanCells';
-import { bulkAddToZeroList } from '@/lib/supabase/use-migration-cases';
+import { AcclaimCell, AddToZeroListDialog, CoordsCopy, NewIllegalChip, ShieldCell, fmtCompact, useNow } from '@/components/migration/ScanCells';
+import { NEW_ILLEGAL, bulkAddToZeroList } from '@/lib/supabase/use-migration-cases';
+import { listLocationScans, loadLocationPoints } from '@/lib/zero-list/scan-data';
 import type { KingdomPlayer } from '@/lib/scans/kingdom-data';
 import { KEPT_CITY_HALL } from '@/lib/scans/upload';
 import { excludeFromZeroList, includeInZeroList, listZeroListExclusions, type ZeroListExclusion } from '@/lib/zero-list/exclusions';
@@ -50,6 +53,11 @@ export function AddPlayersDialog({
   const [exclusionsError, setExclusionsError] = useState<string | null>(null);
   /** Players waiting for an exclusion reason. */
   const [excluding, setExcluding] = useState<KingdomPlayer[] | null>(null);
+  /** Gov ids in the location scan before the latest one; null until loaded
+   *  (or when there is no earlier scan). */
+  const [previousIds, setPreviousIds] = useState<Set<number> | null>(null);
+  const [previousAt, setPreviousAt] = useState<string | null>(null);
+  const [newOnly, setNewOnly] = useState(false);
   const now = useNow();
   const sort = useTableSort<SortField>('power', {
     name: 'asc', power: 'desc', kills: 'desc', ch: 'desc', alliance: 'asc', acclaim: 'asc',
@@ -68,17 +76,47 @@ export function AddPlayersDialog({
     return () => { cancelled = true; };
   }, []);
 
+  // Who wasn't in the previous scan → NEW ILLEGAL.
+  useEffect(() => {
+    if (locationScanId == null) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const scans = await listLocationScans();
+        const latest = scans.find((s) => s.id === locationScanId);
+        const previous = latest ? scans.find((s) => s.created_at < latest.created_at) : undefined;
+        if (!previous) return;
+        const points = await loadLocationPoints(previous.id);
+        if (!cancelled) {
+          setPreviousIds(new Set(points.map((p) => p.governorId)));
+          setPreviousAt(previous.created_at);
+        }
+      } catch (e) {
+        console.warn('Previous scan for NEW ILLEGAL failed to load', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [locationScanId]);
+
+  const isNew = (p: KingdomPlayer) => previousIds != null && !previousIds.has(p.governorId);
+
   // CH25 only — older scans still hold farms. Excluded players are left out.
   const eligible = useMemo(
     () => players.filter((p) => p.castleHall === KEPT_CITY_HALL && !exclusions.has(p.governorId)),
     [players, exclusions],
   );
 
+  const newCount = useMemo(
+    () => (previousIds ? eligible.filter((p) => !previousIds.has(p.governorId)).length : 0),
+    [eligible, previousIds],
+  );
+
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const list = q
+    let list = q
       ? eligible.filter((p) => p.name.toLowerCase().includes(q) || String(p.governorId).includes(q) || (p.alliance ?? '').toLowerCase().includes(q))
       : eligible;
+    if (newOnly && previousIds) list = list.filter((p) => !previousIds.has(p.governorId));
     const sign = sort.dir === 'asc' ? 1 : -1;
     // Missing numbers sort below real values in both directions.
     const numeric = (a: number | null, b: number | null) =>
@@ -94,7 +132,7 @@ export function AddPlayersDialog({
       if (cmp === 0) return b.power - a.power;
       return cmp * sign;
     });
-  }, [eligible, search, sort.field, sort.dir]);
+  }, [eligible, search, sort.field, sort.dir, newOnly, previousIds]);
 
   const shown = rows.slice(0, MAX_ROWS);
 
@@ -129,7 +167,7 @@ export function AddPlayersDialog({
           alliance: p.alliance,
           lastSeenScanId: locationScanId,
           addedBy: actorName ?? 'admin',
-          reason: p.acclaim != null ? `${reason} (acclaim ${fmtCompact(p.acclaim)})` : reason,
+          reason: `${isNew(p) ? `${NEW_ILLEGAL} — ` : ''}${reason}${p.acclaim != null ? ` (acclaim ${fmtCompact(p.acclaim)})` : ''}`,
         })),
         { reactivate: true },
       );
@@ -209,6 +247,20 @@ export function AddPlayersDialog({
               Excluded ({exclusions.size})
             </button>
           </div>
+          {view === 'candidates' && (newCount > 0 || newOnly) && (
+            <button
+              type="button"
+              onClick={() => setNewOnly((v) => !v)}
+              className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
+                newOnly
+                  ? 'bg-rose-500/25 text-rose-200 border-rose-500/50'
+                  : 'bg-rose-500/10 text-rose-300 border-rose-500/30 hover:bg-rose-500/20'
+              }`}
+              title="Only the players who weren't in the previous location scan"
+            >
+              New ({newCount})
+            </button>
+          )}
           <div className="relative flex-1 min-w-[200px]">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
@@ -260,7 +312,14 @@ export function AddPlayersDialog({
                         )}
                       </td>
                       <td className="px-3 py-2">
-                        <CopyablePlayerCell name={p.name} govId={p.governorId} />
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <CopyablePlayerCell name={p.name} govId={p.governorId} />
+                          {isNew(p) && (
+                            <NewIllegalChip
+                              title={`Not in the previous scan${previousAt ? ` (${new Date(previousAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })})` : ''} — added with the NEW ILLEGAL flag`}
+                            />
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-2 text-right font-mono tabular-nums">{fmtCompact(p.power)}</td>
                       <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">{fmtCompact(p.kills)}</td>

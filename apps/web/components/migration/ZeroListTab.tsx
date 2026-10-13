@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CalendarRange, ChevronDown, Clock, Copy, Mail, MapPinOff, RotateCcw, Trash2, TrendingUp, UserPlus, Users, X } from 'lucide-react';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
-import { AcclaimCell, ShieldCell, fmtCompact, fmtDeltaM, useNow } from '@/components/migration/ScanCells';
+import { AcclaimCell, NewIllegalChip, ShieldCell, fmtCompact, fmtDeltaM, useNow } from '@/components/migration/ScanCells';
 import { AddPlayersDialog } from '@/components/migration/AddPlayersDialog';
 import {
   type MigrationCase,
@@ -23,6 +23,7 @@ import {
   reportMoved,
   clearMovedReports,
   subscribeToZeroList,
+  isNewIllegalCase,
 } from '@/lib/supabase/use-migration-cases';
 import { loadLatestKingdomData, type KingdomData, type KingdomPlayer } from '@/lib/scans/kingdom-data';
 import { listLocationScans, loadLocationPoints, type LocationScanRow } from '@/lib/zero-list/scan-data';
@@ -1017,7 +1018,12 @@ function ZeroListRow({
   return (
     <tr className="border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors">
       <td className="px-3 py-2">
-        <CopyablePlayerCell name={c.username} govId={c.character_id} />
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <CopyablePlayerCell name={c.username} govId={c.character_id} />
+          {isNewIllegalCase(c) && (
+            <NewIllegalChip title="Wasn't in the previous scan when added — the chip goes once they're zeroed or leave" />
+          )}
+        </div>
       </td>
       <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
         {fmtM(effPower)}

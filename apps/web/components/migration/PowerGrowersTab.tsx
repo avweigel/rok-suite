@@ -4,17 +4,19 @@
 // against the one before it) and lists every CH25 player in both, biggest
 // growth first, next to their Acclaim from the latest performance report. An
 // optional threshold narrows it to those who grew by at least that much.
+// CH25 players who weren't in the earlier scan are listed too, on top, as
+// NEW ILLEGAL; added to the Zero List they keep the flag until zeroed.
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowUp, RotateCcw, Search } from 'lucide-react';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
 import { SortableTh, useTableSort } from '@/components/migration/SortableTh';
-import { AcclaimCell, AddToZeroListDialog, CoordsCopy, fmtCompact, fmtDeltaM } from '@/components/migration/ScanCells';
+import { AcclaimCell, AddToZeroListDialog, CoordsCopy, NewIllegalChip, fmtCompact, fmtDeltaM } from '@/components/migration/ScanCells';
 import { listLocationScans, loadLocationPoints, type LocationPoint, type LocationScanRow } from '@/lib/zero-list/scan-data';
 import { loadLatestPerformanceReport } from '@/lib/scans/performance-reports';
 import { KEPT_CITY_HALL } from '@/lib/scans/upload';
-import { TERMINAL_STATES, bulkAddToZeroList, listZeroListCases } from '@/lib/supabase/use-migration-cases';
+import { NEW_ILLEGAL, TERMINAL_STATES, bulkAddToZeroList, isNewIllegalCase, listZeroListCases } from '@/lib/supabase/use-migration-cases';
 import { listZeroListExclusions } from '@/lib/zero-list/exclusions';
 import { errorMessage } from '@/lib/error-message';
 
@@ -30,11 +32,14 @@ interface GrowerRow {
   castleHall: number | null;
   x: number | null;
   y: number | null;
-  before: number;
+  /** Null for a new arrival (not in the earlier scan). */
+  before: number | null;
   now: number;
-  delta: number;
-  /** Growth relative to the earlier power; null when that was 0. */
+  delta: number | null;
+  /** Growth relative to the earlier power; null when that was 0 or unknown. */
   pct: number | null;
+  /** Not in the earlier scan. */
+  isNew: boolean;
   acclaim: number | null;
   listed: boolean;
 }
@@ -59,6 +64,8 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
   const [acclaimByGov, setAcclaimByGov] = useState<Map<number, number | null>>(new Map());
   const [reportLabel, setReportLabel] = useState<string | null>(null);
   const [listedIds, setListedIds] = useState<Set<number>>(new Set());
+  /** On the Zero List as NEW ILLEGAL and not zeroed yet. */
+  const [newIllegalIds, setNewIllegalIds] = useState<Set<number>>(new Set());
   /** Players excluded from the Zero List candidates → their reason. */
   const [excludedReason, setExcludedReason] = useState<Map<number, string>>(new Map());
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +101,7 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
         setListedIds(new Set(
           zl.filter((c) => !TERMINAL_STATES.includes(c.state) || c.state === 'excepted').map((c) => c.character_id),
         ));
+        setNewIllegalIds(new Set(zl.filter(isNewIllegalCase).map((c) => c.character_id)));
       } catch (e) {
         setError(errorMessage(e));
         setScans([]);
@@ -151,23 +159,25 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
       // Older scans still hold farms; only CH25 players count.
       if (p.castleHall !== KEPT_CITY_HALL) continue;
       const a = fromByGov.get(p.governorId);
-      if (!a) continue;
-      const delta = p.power - a.power;
-      if (threshold != null && delta < threshold) continue;
-      out.push({
+      const common = {
         governorId: p.governorId,
         name: p.name,
         alliance: p.alliance,
         castleHall: p.castleHall,
         x: p.x,
         y: p.y,
-        before: a.power,
         now: p.power,
-        delta,
-        pct: a.power > 0 ? delta / a.power : null,
         acclaim: acclaimByGov.get(p.governorId) ?? null,
         listed: listedIds.has(p.governorId),
-      });
+      };
+      // Not in the earlier scan: a new arrival, listed whatever the threshold.
+      if (!a) {
+        out.push({ ...common, before: null, delta: null, pct: null, isNew: true });
+        continue;
+      }
+      const delta = p.power - a.power;
+      if (threshold != null && delta < threshold) continue;
+      out.push({ ...common, before: a.power, delta, pct: a.power > 0 ? delta / a.power : null, isNew: false });
     }
     return out;
   }, [toId, fromId, pointsById, thresholdM, acclaimByGov, listedIds]);
@@ -187,18 +197,20 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
       if (sort.field === 'name') cmp = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
       else if (sort.field === 'alliance') cmp = (a.alliance ?? '').toLowerCase().localeCompare((b.alliance ?? '').toLowerCase());
       else if (sort.field === 'ch') cmp = numeric(a.castleHall, b.castleHall);
-      else if (sort.field === 'before') cmp = a.before - b.before;
+      else if (sort.field === 'before') cmp = numeric(a.before, b.before);
       else if (sort.field === 'now') cmp = a.now - b.now;
-      else if (sort.field === 'delta') cmp = a.delta - b.delta;
+      // New arrivals count as the biggest growth: on top when sorting by Δ desc.
+      else if (sort.field === 'delta') cmp = a.isNew || b.isNew ? Number(a.isNew) - Number(b.isNew) : (a.delta as number) - (b.delta as number);
       else if (sort.field === 'pct') cmp = numeric(a.pct, b.pct);
       else if (sort.field === 'acclaim') cmp = numeric(a.acclaim, b.acclaim);
-      if (cmp === 0) return b.delta - a.delta;
+      if (cmp === 0) return a.delta == null || b.delta == null ? b.now - a.now : b.delta - a.delta;
       return cmp * sign;
     });
   }, [growers, search, sort.field, sort.dir]);
 
-  const grew = useMemo(() => (growers ?? []).filter((r) => r.delta > 0), [growers]);
-  const totalGrowth = useMemo(() => grew.reduce((s, r) => s + r.delta, 0), [grew]);
+  const grew = useMemo(() => (growers ?? []).filter((r) => r.delta != null && r.delta > 0), [growers]);
+  const totalGrowth = useMemo(() => grew.reduce((s, r) => s + (r.delta ?? 0), 0), [grew]);
+  const newCount = useMemo(() => (growers ?? []).filter((r) => r.isNew).length, [growers]);
   const days = toScan && fromScan
     ? Math.max(0, (new Date(toScan.created_at).getTime() - new Date(fromScan.created_at).getTime()) / 86_400_000)
     : null;
@@ -230,11 +242,14 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
           alliance: r.alliance,
           lastSeenScanId: toScan.id,
           addedBy: actorName ?? 'admin',
-          reason: `${reason} (Δ ${fmtDeltaM(r.delta)} ${span}${r.acclaim != null ? ` · acclaim ${fmtCompact(r.acclaim)}` : ''})`,
+          reason: r.isNew || r.delta == null
+            ? `${NEW_ILLEGAL} — ${reason} (arrived ${span} at ${fmtCompact(r.now)}${r.acclaim != null ? ` · acclaim ${fmtCompact(r.acclaim)}` : ''})`
+            : `${reason} (Δ ${fmtDeltaM(r.delta)} ${span}${r.acclaim != null ? ` · acclaim ${fmtCompact(r.acclaim)}` : ''})`,
         })),
         { reactivate: true },
       );
       setListedIds((prev) => new Set([...prev, ...chosen.map((r) => r.governorId)]));
+      setNewIllegalIds((prev) => new Set([...prev, ...chosen.filter((r) => r.isNew).map((r) => r.governorId)]));
       setSelected(new Set());
       setConfirming(false);
     } catch (e) {
@@ -315,12 +330,15 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-muted)]">
           {growers ? (
             <span>
-              <span className="text-[var(--foreground)] font-semibold">{growers.length}</span> CH{KEPT_CITY_HALL}
+              <span className="text-[var(--foreground)] font-semibold">{growers.length - newCount}</span> CH{KEPT_CITY_HALL}
               {thresholdM > 0 ? <> grew ≥ {thresholdM}M</> : <> in both scans</>}
               {' · '}
               <ArrowUp size={11} className="inline text-orange-400 -mt-0.5" />{' '}
               <span className="text-orange-300 font-semibold">{grew.length}</span> grew
               {grew.length > 0 && <>, total <span className="text-orange-300">{fmtDeltaM(totalGrowth)}</span></>}
+              {newCount > 0 && (
+                <> · <span className="text-rose-300 font-semibold">{newCount}</span> new (not in the From scan)</>
+              )}
               {days != null && <> · over {days < 1 ? `${Math.round(days * 24)}h` : `${days.toFixed(1)} days`}</>}
             </span>
           ) : (
@@ -393,6 +411,13 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <CopyablePlayerCell name={r.name} govId={r.governorId} />
+                      {(r.isNew || newIllegalIds.has(r.governorId)) && (
+                        <NewIllegalChip
+                          title={r.isNew
+                            ? `Not in the From scan${fromScan ? ` (${fmtDay(fromScan.created_at)})` : ''} — a new arrival`
+                            : 'On the Zero List as NEW ILLEGAL — not zeroed yet'}
+                        />
+                      )}
                       {r.listed && (
                         <span className="inline-block px-1.5 py-0.5 rounded text-[9px] bg-orange-500/15 text-orange-400 border border-orange-500/30">on zero list</span>
                       )}
@@ -412,10 +437,10 @@ export function PowerGrowersTab({ isAdmin, actorName }: Props) {
                   <td className="px-3 py-2 text-right font-mono tabular-nums">{fmtCompact(r.now)}</td>
                   <td
                     className={`px-3 py-2 text-right font-mono tabular-nums ${
-                      r.delta > 0 ? 'text-orange-300 font-semibold' : r.delta < 0 ? 'text-rose-400' : 'text-[var(--text-muted)]'
+                      r.delta == null ? 'text-rose-300 font-semibold' : r.delta > 0 ? 'text-orange-300 font-semibold' : r.delta < 0 ? 'text-rose-400' : 'text-[var(--text-muted)]'
                     }`}
                   >
-                    {fmtDeltaM(r.delta)}
+                    {r.delta == null ? 'NEW' : fmtDeltaM(r.delta)}
                   </td>
                   <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
                     {r.pct != null ? `${r.pct >= 0 ? '+' : ''}${(r.pct * 100).toFixed(1)}%` : '—'}

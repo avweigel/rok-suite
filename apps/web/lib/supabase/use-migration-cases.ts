@@ -1038,6 +1038,20 @@ export async function autoMarkEmigratedFromScan(
   return { updated: ids.length, checked: tracked?.length ?? 0 };
 }
 
+/** added_reason prefix of players who weren't in the previous location scan
+ *  when they were put on the Zero List — new arrivals. */
+export const NEW_ILLEGAL = 'NEW ILLEGAL';
+
+/** A new arrival still to deal with: added as NEW ILLEGAL, still on the list
+ *  and not zeroed since. A Zeroed click or a zero detected on upload, or the
+ *  entry closing (emigrated…), drops the flag. */
+export function isNewIllegalCase(c: MigrationCase): boolean {
+  if (!c.added_reason?.startsWith(NEW_ILLEGAL) || TERMINAL_STATES.includes(c.state)) return false;
+  if (!c.last_zeroed_at) return true;
+  // A zero from before the entry was (re-)added doesn't count.
+  return !!c.added_at && Date.parse(c.last_zeroed_at) < Date.parse(c.added_at);
+}
+
 export const AUTO_ZERO_THRESHOLD = 1_000_000;
 export const AUTO_REBUILD_THRESHOLD = 1_000_000;
 
