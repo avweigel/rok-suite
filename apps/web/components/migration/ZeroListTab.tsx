@@ -24,6 +24,7 @@ import {
   clearMovedReports,
   subscribeToZeroList,
   isNewIllegalCase,
+  AUTO_REBUILD_THRESHOLD,
 } from '@/lib/supabase/use-migration-cases';
 import { loadLatestKingdomData, type KingdomData, type KingdomPlayer } from '@/lib/scans/kingdom-data';
 import { listLocationScans, loadLocationPoints, type LocationScanRow } from '@/lib/zero-list/scan-data';
@@ -405,7 +406,8 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   const firstScanPower = firstScanId != null ? scanPower.get(firstScanId) : undefined;
   const toBeZeroed = useCallback(
     (c: MigrationCase) =>
-      !!firstScanPower && !TERMINAL_STATES.includes(c.state) && !c.zeroed_count && !firstScanPower.has(c.character_id),
+      !TERMINAL_STATES.includes(c.state) &&
+      (isNewIllegalCase(c) || (!c.zeroed_count && !!firstScanPower && !firstScanPower.has(c.character_id))),
     [firstScanPower],
   );
 
@@ -417,6 +419,13 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       return before != null && after != null ? after - before : null;
     },
     [rangeFromId, rangeToId, scanPower],
+  );
+  /** Zeroed at least once and back up by 1M or more over the Δ period (by
+   *  default: since the previous scan that had them). */
+  const regrowing = useCallback(
+    (c: MigrationCase) =>
+      !TERMINAL_STATES.includes(c.state) && (c.zeroed_count ?? 0) > 0 && (deltaOf(c) ?? 0) >= AUTO_REBUILD_THRESHOLD,
+    [deltaOf],
   );
   const rangeLabel = useMemo(() => {
     const to = scans.find((s) => s.id === rangeToId);
@@ -521,20 +530,27 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     // result is multiplied by `sign` below).
     const numeric = (a: number | null | undefined, b: number | null | undefined) =>
       a == null && b == null ? 0 : a == null ? sign * Infinity : b == null ? -sign * Infinity : a - b;
-    // TO BE ZEROED first, then To Zero, the rest of the list, closed states.
+    // New arrivals never zeroed, then zeroed players regrowing: always on
+    // top, whatever the sort; the chosen sort applies inside each group.
+    const priority = (c: MigrationCase) => (toBeZeroed(c) ? 0 : regrowing(c) ? 1 : 2);
+    // TO BE ZEROED, REGROWING, To Zero, the rest of the list, closed states.
     const stateRank = (c: MigrationCase) =>
       toBeZeroed(c) ? 0
-        : c.state === 'marked_to_zero' ? 1
-          : NOTIFIED_STATES.includes(c.state) ? 2
-            : c.state === 'excepted' ? 3
-              : c.state === 'zeroed' ? 4
-                : c.state === 'afk' ? 5
-                  : 6;
+        : regrowing(c) ? 1
+          : c.state === 'marked_to_zero' ? 2
+            : NOTIFIED_STATES.includes(c.state) ? 3
+              : c.state === 'excepted' ? 4
+                : c.state === 'zeroed' ? 5
+                  : c.state === 'afk' ? 6
+                    : 7;
     const addedMs = (c: MigrationCase) => {
       const at = addedAt(c);
       return at ? Date.parse(at) : null;
     };
     const sorted = [...list].sort((a, b) => {
+      const pa = priority(a);
+      const pb = priority(b);
+      if (pa !== pb) return pa - pb;
       let cmp = 0;
       const fa = locationLookup.get(a.character_id);
       const fb = locationLookup.get(b.character_id);
@@ -558,7 +574,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       return cmp;
     });
     return sorted;
-  }, [visibleCases, isInActive, closedView, movedOnly, grewOnly, neverZeroedOnly, deltaOf, toBeZeroed, search, sort.field, sort.dir, locationLookup]);
+  }, [visibleCases, isInActive, closedView, movedOnly, grewOnly, neverZeroedOnly, deltaOf, toBeZeroed, regrowing, search, sort.field, sort.dir, locationLookup]);
 
   const movedCount = useMemo(
     () => visibleCases.filter((c) => isInActive(c) && c.moved_reported_at).length,
@@ -686,7 +702,8 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
             <div>
               <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">What each state means</div>
               <ul className="text-xs space-y-1">
-                <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-[var(--background-secondary)] text-[var(--text-secondary)] border-[var(--border)]">Notified</span> On the list, no action yet. Default state for new additions.</li>
+                <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded-full text-[10px] font-bold uppercase bg-rose-600 text-white border border-rose-400">To be zeroed</span> New arrival (not in the first scan) or NEW ILLEGAL entry nobody has zeroed yet.</li>
+                <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded-full text-[10px] font-bold uppercase bg-amber-500 text-black border border-amber-300">Regrowing</span> Zeroed before, back up by 1M or more.</li>
                 <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-orange-500/15 text-orange-400 border-orange-500/30">To Zero</span> Decision made. Power members should attack.</li>
                 <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-rose-500/15 text-rose-400 border-rose-500/30">Zeroed</span> Confirmed dead in-game. Done.</li>
                 <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-green-500/15 text-green-400 border-green-500/30">Emigrated</span> Left the kingdom on their own.</li>
@@ -703,7 +720,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
                 <li><strong>Acclaim</strong> comes from the latest performance report, only for players in the latest location scan: a red <em>0</em> means they earned none in the report period, <em>—</em> means they aren&apos;t in the report or not in the location scan.</li>
                 <li>If the (x, y) cell is empty (em dash), the player wasn&apos;t in the latest location scan. Upload a fresh one on <a href="/upload" className="text-cyan-400 hover:underline">Upload Scan</a>.</li>
                 <li><strong>Δ Power</strong> is the change between the previous location scan and the latest one that had the player — orange means they grew. It appears once two uploads have included them. Pick a period in the <strong>Δ</strong> selector to compare two scans instead, and use <strong>Grew</strong> to keep only who grew. Sort by <strong>Added</strong> to see the latest additions first.</li>
-                <li><strong>TO BE ZEROED</strong> marks who wasn&apos;t in the first location scan (the oldest one uploaded) and hasn&apos;t been zeroed yet — sort by <strong>State</strong> to put them on top. <strong>Zeroed</strong> shows how many times each player was zeroed and sorts by it.</li>
+                <li><strong>TO BE ZEROED</strong> marks who wasn&apos;t in the first location scan (the oldest one uploaded), or was added as NEW ILLEGAL, and hasn&apos;t been zeroed yet; <strong>REGROWING</strong> marks who was zeroed before and is back up by 1M or more since the previous scan (or over the Δ period you pick). Both always sit at the top of the list, whatever the sort. <strong>Zeroed</strong> shows how many times each player was zeroed and sorts by it.</li>
                 <li>Everyone can mark <strong>Zeroed</strong> or <strong>Moved</strong>. Officers can also take back a wrong Zeroed click (<em>−1</em>); adding and removing targets is admin-only.</li>
                 <li>Don&apos;t click the trash icon casually — it&apos;s a hard delete with no undo.</li>
               </ul>
@@ -1034,6 +1051,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
                   delta={deltaOf(c)}
                   deltaPeriod={rangeLabel}
                   toBeZeroed={toBeZeroed(c)}
+                  regrowing={regrowing(c)}
                   firstScanAt={firstScan?.created_at ?? null}
                   scanAt={scanAt}
                   now={now}
@@ -1068,6 +1086,7 @@ function ZeroListRow({
   delta,
   deltaPeriod,
   toBeZeroed,
+  regrowing,
   firstScanAt,
   scanAt,
   now,
@@ -1087,6 +1106,8 @@ function ZeroListRow({
   deltaPeriod: string | null;
   /** Not in the first location scan and never zeroed. */
   toBeZeroed: boolean;
+  /** Zeroed before and back up by 1M+ over the Δ period. */
+  regrowing: boolean;
   /** When the first location scan was taken. */
   firstScanAt: string | null;
   /** When the latest location scan was taken (shield fallback). */
@@ -1226,9 +1247,19 @@ function ZeroListRow({
           {toBeZeroed && (
             <span
               className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide whitespace-nowrap bg-rose-600 text-white border border-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.55)]"
-              title={`Not in the first location scan${firstScanAt ? ` (${new Date(firstScanAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })})` : ''} and never zeroed`}
+              title={isNewIllegalCase(c)
+                ? 'Added as NEW ILLEGAL and not zeroed yet'
+                : `Not in the first location scan${firstScanAt ? ` (${new Date(firstScanAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })})` : ''} and never zeroed`}
             >
               To be zeroed
+            </span>
+          )}
+          {regrowing && (
+            <span
+              className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide whitespace-nowrap bg-amber-500 text-black border border-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.5)]"
+              title={`Zeroed ×${c.zeroed_count} and back up ${delta != null ? fmtDeltaM(delta) : ''} ${deltaPeriod ? `in ${deltaPeriod}` : 'since the previous scan'}`}
+            >
+              Regrowing
             </span>
           )}
           {!NOTIFIED_STATES.includes(c.state) && (

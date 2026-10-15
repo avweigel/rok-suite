@@ -791,7 +791,7 @@ function MigrationPageInner() {
                   <div><strong>Acclaim</strong> — KvK contribution from the latest performance report. 0 = didn&apos;t take part in the report period.</div>
                   <div><strong>Gov ID</strong> — governor ID, the unique number for each player. Names can change; gov IDs don&apos;t.</div>
                   <div><strong>Zero List</strong> — the continuous, no-deadline kingdom-wide kill queue.</div>
-                  <div><strong>Notified / To Zero / Zeroed / Emigrated / AFK / Excepted</strong> — the lifecycle states a target moves through.</div>
+                  <div><strong>To be zeroed / Regrowing / To Zero / Zeroed / Emigrated / AFK / Excepted</strong> — the flags and states a target goes through.</div>
                   <div><strong>(x, y)</strong> — map coordinates. Click in any list to copy; paste into the in-game teleport / scout / attack dialog.</div>
                 </div>
               </div>
