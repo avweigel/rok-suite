@@ -418,9 +418,12 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     return fromScan && to ? `${fmtScanDate(fromScan.created_at)} → ${fmtScanDate(to.created_at)}` : null;
   }, [scans, fromScan, rangeToId]);
   const rangeFromAt = fromScan?.created_at ?? null;
+  const scanAtById = useMemo(() => new Map(scans.map((s) => [s.id, s.created_at] as const)), [scans]);
   /** Why an entry is TO BE ZEROED — empty when it isn't. Still on the list
    *  and: a new arrival (not in the first scan) never zeroed, a NEW ILLEGAL
-   *  entry not zeroed yet, or power up over the Δ period, zeroed before or not. */
+   *  entry not zeroed yet, or power up over the Δ period, zeroed before or not.
+   *  A zero recorded after the scan that showed the growth clears it until a
+   *  newer scan shows growth again. */
   const toBeZeroedWhy = useCallback(
     (c: MigrationCase): string[] => {
       if (TERMINAL_STATES.includes(c.state)) return [];
@@ -430,10 +433,18 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
         why.push('not in the first location scan and never zeroed');
       }
       const d = deltaOf(c);
-      if (d != null && d > 0) why.push(`power up ${fmtDeltaM(d)} ${rangeLabel ? `in ${rangeLabel}` : 'since the previous scan'}`);
+      if (d != null && d > 0) {
+        // The growth was seen in the period's "to" scan, or by default in the
+        // latest scan that had the player.
+        const grewAt = (rangeToId != null
+          ? scanAtById.get(rangeToId)
+          : c.last_seen_scan_id != null ? scanAtById.get(c.last_seen_scan_id) : undefined) ?? scans[0]?.created_at;
+        const zeroedSince = !!c.last_zeroed_at && (!grewAt || Date.parse(c.last_zeroed_at) > Date.parse(grewAt));
+        if (!zeroedSince) why.push(`power up ${fmtDeltaM(d)} ${rangeLabel ? `in ${rangeLabel}` : 'since the previous scan'}`);
+      }
       return why;
     },
-    [firstScanPower, deltaOf, rangeLabel],
+    [firstScanPower, deltaOf, rangeLabel, rangeToId, scanAtById, scans],
   );
   const toBeZeroed = useCallback((c: MigrationCase) => toBeZeroedWhy(c).length > 0, [toBeZeroedWhy]);
 
