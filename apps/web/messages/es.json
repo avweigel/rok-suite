@@ -106,7 +106,7 @@
       },
       "kingdomStats": {
         "title": "Estadísticas del Reino",
-        "description": "Clasificaciones diarias de miembros, tendencias de poder y datos históricos del reino."
+        "description": "Todos los gobernadores del KD 23 con poder, puntos de muerte, coordenadas y estadísticas de KvK del último escaneo"
       },
       "allianceCalculator": {
         "title": "Calculadora de Alianza",

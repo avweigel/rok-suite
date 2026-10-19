@@ -106,7 +106,7 @@
       },
       "kingdomStats": {
         "title": "王国の統計",
-        "description": "日次メンバーランキング、勢力推移、歴代王国データ"
+        "description": "KD 23の全総督の戦力、撃破ポイント、座標、最新スキャンのKvK統計"
       },
       "allianceCalculator": {
         "title": "同盟計算機",

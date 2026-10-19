@@ -106,7 +106,7 @@
       },
       "kingdomStats": {
         "title": "王国统计",
-        "description": "每日会员排名、势力走势、历史王国数据"
+        "description": "KD 23 所有总督的战力、击杀点、坐标及最新扫描的 KvK 数据"
       },
       "allianceCalculator": {
         "title": "联盟计算器",

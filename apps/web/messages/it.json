@@ -106,7 +106,7 @@
       },
       "kingdomStats": {
         "title": "Statistiche del Regno",
-        "description": "Classifiche giornaliere dei membri, tendenze di potere e dati storici sul regno"
+        "description": "Tutti i governatori del KD 23 con potere, kill point, coordinate e statistiche KvK dall'ultimo scan"
       },
       "allianceCalculator": {
         "title": "Calcolatore dell'Alleanza",

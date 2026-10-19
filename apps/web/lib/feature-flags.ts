@@ -5,8 +5,12 @@
 //   emigrationCycle   → "Cycle" tab on /migration.
 //   emigrationScans   → "Scans" tab on /migration. Scan files are uploaded
 //                       from /upload instead.
+//   kingdomStatsLegacy → the old Kingdom Stats (multi-KD tables, charts,
+//                       comparisons). Off: /kingdom/kingdom-stats shows the
+//                       KD 23 player list from the /upload scans instead.
 export const FEATURES = {
   dkp: false,
   emigrationCycle: false,
   emigrationScans: false,
+  kingdomStatsLegacy: false,
 } as const;

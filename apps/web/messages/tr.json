@@ -106,7 +106,7 @@
       },
       "kingdomStats": {
         "title": "Krallık İstatistikleri",
-        "description": "Günlük üye sıralamaları, güç eğilimleri ve geçmiş krallık verileri"
+        "description": "KD 23'teki tüm valiler: güç, öldürme puanları, koordinatlar ve son taramadan KvK istatistikleri"
       },
       "allianceCalculator": {
         "title": "İttifak Hesaplayıcı",

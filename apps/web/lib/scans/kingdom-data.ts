@@ -27,6 +27,8 @@ export interface KingdomData {
   report: PerformanceReport | null;
   players: KingdomPlayer[];
   byGov: Map<number, KingdomPlayer>;
+  /** Every row of the latest performance report (KvK stats by Gov ID). */
+  reportRows: PerformanceStats[];
 }
 
 export function crossKingdomData(points: LocationPoint[], reportRows: PerformanceStats[]): KingdomPlayer[] {
@@ -57,6 +59,7 @@ export async function loadLatestKingdomData(): Promise<KingdomData> {
     report: perf.report,
     players,
     byGov: new Map(players.map((p) => [p.governorId, p] as const)),
+    reportRows: perf.rows,
   };
 }
 

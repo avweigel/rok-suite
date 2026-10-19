@@ -119,7 +119,7 @@
       },
       "kingdomStats": {
         "title": "Kingdom Stats",
-        "description": "Daily member rankings, power trends, and historical kingdom data"
+        "description": "Every KD 23 governor with power, kill points, coords and KvK stats from the latest scan"
       },
       "allianceCalculator": {
         "title": "Alliance Calculator",
