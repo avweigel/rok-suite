@@ -12,7 +12,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { BarChart3, RotateCcw, Search } from 'lucide-react';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
 import { SortableTh, useTableSort } from '@/components/migration/SortableTh';
-import { AcclaimCell, CoordsCopy, ShieldCell, fmtCompact, useNow } from '@/components/migration/ScanCells';
+import { AcclaimCell, CoordsCopy, FirstSeenCell, ShieldCell, fmtCompact, useNow } from '@/components/migration/ScanCells';
 import { errorMessage } from '@/lib/error-message';
 import { loadLatestKingdomData, type KingdomData } from '@/lib/scans/kingdom-data';
 import type { PerformanceStats } from '@/lib/scans/performance-reports';
@@ -23,7 +23,7 @@ const PAGE = 200;
 /** Alliance filter value for players without one. */
 const NO_ALLIANCE = '__none';
 
-const SORT_FIELDS = ['name', 'alliance', 'ch', 'power', 'kills', 'acclaim', 'dkp', 'kp', 'deads', 'honor'] as const;
+const SORT_FIELDS = ['name', 'alliance', 'firstSeen', 'ch', 'power', 'kills', 'acclaim', 'dkp', 'kp', 'deads', 'honor'] as const;
 type Field = (typeof SORT_FIELDS)[number];
 
 function sortFromUrl(raw: string | null): { field: Field; dir: 'asc' | 'desc' } | null {
@@ -42,11 +42,13 @@ interface Row {
   x: number | null;
   y: number | null;
   shieldTimeLeft: string | null;
+  firstSeenAt: string | null;
   report: PerformanceStats | null;
 }
 
 const value = (r: Row, f: Field): number | null => {
   switch (f) {
+    case 'firstSeen': return r.firstSeenAt ? Date.parse(r.firstSeenAt) : null;
     case 'ch': return r.castleHall;
     case 'power': return r.power;
     case 'kills': return r.kills;
@@ -74,7 +76,7 @@ export function Kd23Stats() {
   const [limit, setLimit] = useState(PAGE);
   const now = useNow();
   const sort = useTableSort<Field>('power', {
-    name: 'asc', alliance: 'asc', ch: 'desc', power: 'desc', kills: 'desc',
+    name: 'asc', alliance: 'asc', firstSeen: 'desc', ch: 'desc', power: 'desc', kills: 'desc',
     acclaim: 'desc', dkp: 'desc', kp: 'desc', deads: 'desc', honor: 'desc',
   }, sortFromUrl(searchParams.get('sort')));
 
@@ -118,6 +120,7 @@ export function Kd23Stats() {
         x: p.x,
         y: p.y,
         shieldTimeLeft: p.shieldTimeLeft,
+        firstSeenAt: p.firstSeenAt,
         report: reportByGov.get(p.governorId) ?? null,
       }));
   }, [data]);
@@ -172,8 +175,8 @@ export function Kd23Stats() {
             <BarChart3 size={20} className="text-green-400" /> KD 23
           </h1>
           <p className="text-xs text-[var(--text-muted)] mt-1 max-w-3xl">
-            Every CH{KEPT_CITY_HALL} governor of kingdom 3923 from the latest location scan, with coords and the KvK stats from the
-            latest performance report (matched by Gov ID). Both come from <Link href="/upload" className="text-cyan-400 hover:underline">Upload Scan</Link>.
+            Every CH{KEPT_CITY_HALL} governor of kingdom 3923 from the latest location scan, with coords, the date they were first
+            seen in a scan and the KvK stats from the latest performance report (matched by Gov ID). Both come from <Link href="/upload" className="text-cyan-400 hover:underline">Upload Scan</Link>.
           </p>
         </header>
 
@@ -241,6 +244,7 @@ export function Kd23Stats() {
                       <th className="px-3 py-2 text-right w-10">#</th>
                       {th('Player', 'name', 'left')}
                       {th('Alliance', 'alliance', 'left')}
+                      {th('First seen', 'firstSeen', 'left')}
                       {th('CH', 'ch')}
                       {th('Power', 'power')}
                       {th('KP', 'kills')}
@@ -259,6 +263,7 @@ export function Kd23Stats() {
                         <td className="px-3 py-2 text-right font-mono tabular-nums text-xs text-[var(--text-muted)]">{i + 1}</td>
                         <td className="px-3 py-2"><CopyablePlayerCell name={r.name} govId={r.governorId} /></td>
                         <td className="px-3 py-2 text-[var(--text-secondary)]">{r.alliance ?? '—'}</td>
+                        <td className="px-3 py-2 text-xs"><FirstSeenCell at={r.firstSeenAt} floor={data?.firstSeenFloor ?? null} now={now} /></td>
                         <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">{r.castleHall ?? '—'}</td>
                         <td className="px-3 py-2 text-right font-mono tabular-nums">{fmtCompact(r.power)}</td>
                         <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">{fmtCompact(r.kills)}</td>
@@ -273,7 +278,7 @@ export function Kd23Stats() {
                     ))}
                     {data && rows.length === 0 && (
                       <tr>
-                        <td colSpan={13} className="px-3 py-10 text-center text-sm text-[var(--text-muted)]">No matches.</td>
+                        <td colSpan={14} className="px-3 py-10 text-center text-sm text-[var(--text-muted)]">No matches.</td>
                       </tr>
                     )}
                   </tbody>

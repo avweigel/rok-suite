@@ -626,6 +626,19 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     [visibleCases, isInActive],
   );
 
+  // Totals of the rows shown — power as in the Power column, KP from the
+  // latest location scan.
+  const shownTotals = useMemo(() => {
+    let power = 0;
+    let kills = 0;
+    for (const c of filtered) {
+      const p = locationLookup.get(c.character_id);
+      power += c.last_seen_power ?? p?.power ?? c.power_at_open ?? 0;
+      kills += p?.kills ?? 0;
+    }
+    return { power, kills };
+  }, [filtered, locationLookup]);
+
   const delayedCount = useMemo(() => {
     if (!isOfficer) return 0;
     const now = Date.now();
@@ -923,6 +936,18 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
         )}
         <span className="text-xs text-[var(--text-muted)] ml-auto">
           {filtered.length} shown
+          {filtered.length > 0 && (
+            <>
+              {' · '}
+              <span title="Total power of the rows shown">
+                Σ power <span className="text-[var(--foreground)] font-semibold font-mono">{fmtCompact(shownTotals.power)}</span>
+              </span>
+              {' · '}
+              <span title="Total kill points of the rows shown (latest location scan)">
+                Σ KP <span className="text-[var(--foreground)] font-semibold font-mono">{fmtCompact(shownTotals.kills)}</span>
+              </span>
+            </>
+          )}
           {delayedCount > 0 && (
             <> · <span className="text-amber-400">{delayedCount} delayed</span> (officer-only)</>
           )}
@@ -941,6 +966,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
           scanAt={scanAt}
           locationScanId={kingdom?.location?.id ?? null}
           onZeroList={new Set(cases.filter(isInActive).map((c) => c.character_id))}
+          firstSeenFloor={kingdom?.firstSeenFloor ?? null}
           actorName={actorName}
           onClose={() => setAddOpen(false)}
           onAdded={() => void refetchCases()}

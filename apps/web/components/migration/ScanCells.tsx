@@ -84,6 +84,25 @@ export function CoordsCopy({ x, y }: { x: number | null; y: number | null }) {
   );
 }
 
+/** When a player first showed up in a location scan. Seen already in the
+ *  oldest scan → "≤ date": they may have been around before. */
+export function FirstSeenCell({ at, floor, now }: { at: string | null; floor: string | null; now: number }) {
+  if (!at) return <span className="text-[var(--text-muted)]">—</span>;
+  const date = new Date(at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  const days = Math.max(0, Math.floor((now - Date.parse(at)) / 86_400_000));
+  const sinceStart = !!floor && at <= floor;
+  return (
+    <span
+      className={`whitespace-nowrap ${sinceStart ? 'text-[var(--text-muted)]' : 'text-[var(--foreground)]'}`}
+      title={sinceStart
+        ? `In the oldest scan uploaded (${date}) — may have been here before`
+        : `First seen in the scan of ${date} · ${days} day${days === 1 ? '' : 's'} ago`}
+    >
+      {sinceStart ? '≤ ' : ''}{date}
+    </span>
+  );
+}
+
 /** A player who wasn't in the earlier location scan — a new arrival. */
 export function NewIllegalChip({ title }: { title?: string }) {
   return (

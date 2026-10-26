@@ -12,7 +12,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { EyeOff, Search, X } from 'lucide-react';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
 import { SortableTh, useTableSort } from '@/components/migration/SortableTh';
-import { AcclaimCell, AddToZeroListDialog, CoordsCopy, NewIllegalChip, ShieldCell, fmtCompact, useNow } from '@/components/migration/ScanCells';
+import { AcclaimCell, AddToZeroListDialog, CoordsCopy, FirstSeenCell, NewIllegalChip, ShieldCell, fmtCompact, useNow } from '@/components/migration/ScanCells';
 import { NEW_ILLEGAL, bulkAddToZeroList } from '@/lib/supabase/use-migration-cases';
 import { listLocationScans, loadLocationPoints } from '@/lib/zero-list/scan-data';
 import type { KingdomPlayer } from '@/lib/scans/kingdom-data';
@@ -24,13 +24,14 @@ import { errorMessage } from '@/lib/error-message';
  *  sorting brings the right ones to the top anyway. */
 const MAX_ROWS = 300;
 
-type SortField = 'name' | 'power' | 'kills' | 'ch' | 'alliance' | 'acclaim';
+type SortField = 'name' | 'power' | 'kills' | 'ch' | 'alliance' | 'acclaim' | 'firstSeen';
 
 export function AddPlayersDialog({
   players,
   scanAt,
   locationScanId,
   onZeroList,
+  firstSeenFloor,
   actorName,
   onClose,
   onAdded,
@@ -40,6 +41,8 @@ export function AddPlayersDialog({
   locationScanId: number | null;
   /** Gov ids already on the Zero List — shown but not selectable. */
   onZeroList: Set<number>;
+  /** Oldest first-seen date — players first seen then show "≤ date". */
+  firstSeenFloor: string | null;
   actorName: string | null;
   onClose: () => void;
   onAdded: () => void;
@@ -60,7 +63,7 @@ export function AddPlayersDialog({
   const [newOnly, setNewOnly] = useState(false);
   const now = useNow();
   const sort = useTableSort<SortField>('power', {
-    name: 'asc', power: 'desc', kills: 'desc', ch: 'desc', alliance: 'asc', acclaim: 'asc',
+    name: 'asc', power: 'desc', kills: 'desc', ch: 'desc', alliance: 'asc', acclaim: 'asc', firstSeen: 'desc',
   });
 
   useEffect(() => {
@@ -129,6 +132,9 @@ export function AddPlayersDialog({
       else if (sort.field === 'kills') cmp = numeric(a.kills, b.kills);
       else if (sort.field === 'ch') cmp = numeric(a.castleHall, b.castleHall);
       else if (sort.field === 'acclaim') cmp = numeric(a.acclaim, b.acclaim);
+      else if (sort.field === 'firstSeen') {
+        cmp = numeric(a.firstSeenAt ? Date.parse(a.firstSeenAt) : null, b.firstSeenAt ? Date.parse(b.firstSeenAt) : null);
+      }
       if (cmp === 0) return b.power - a.power;
       return cmp * sign;
     });
@@ -293,6 +299,7 @@ export function AddPlayersDialog({
                   <SortableTh label="KP" field="kills" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                   <SortableTh label="CH" field="ch" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                   <SortableTh label="Alliance" field="alliance" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
+                  <SortableTh label="First seen" field="firstSeen" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                   <SortableTh label="Acclaim" field="acclaim" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                   <th className="px-3 py-2 text-left">Coords</th>
                   <th className="px-3 py-2 text-left">Shield</th>
@@ -325,6 +332,7 @@ export function AddPlayersDialog({
                       <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">{fmtCompact(p.kills)}</td>
                       <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">{p.castleHall ?? '—'}</td>
                       <td className="px-3 py-2 text-[var(--text-secondary)]">{p.alliance ?? '—'}</td>
+                      <td className="px-3 py-2"><FirstSeenCell at={p.firstSeenAt} floor={firstSeenFloor} now={now} /></td>
                       <td className="px-3 py-2 text-right font-mono tabular-nums"><AcclaimCell value={p.acclaim} /></td>
                       <td className="px-3 py-2"><CoordsCopy x={p.x} y={p.y} /></td>
                       <td className="px-3 py-2"><ShieldCell shieldTimeLeft={p.shieldTimeLeft} scanAt={scanAt} now={now} /></td>
@@ -345,7 +353,7 @@ export function AddPlayersDialog({
                 })}
                 {shown.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-3 py-10 text-center text-sm text-[var(--text-muted)]">
+                    <td colSpan={11} className="px-3 py-10 text-center text-sm text-[var(--text-muted)]">
                       {players.length === 0 ? 'No scan uploaded yet — upload one on the Upload Scan page.' : 'No matches.'}
                     </td>
                   </tr>

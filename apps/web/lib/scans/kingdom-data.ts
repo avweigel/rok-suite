@@ -4,6 +4,7 @@
 // them, by gov id. Report rows with no match in the location scan are ignored.
 
 import { loadLatestLocationPoints, type LocationPoint, type LocationScanRow } from '@/lib/zero-list/scan-data';
+import { loadFirstSeen } from './first-seen';
 import { loadLatestPerformanceReport, type PerformanceReport, type PerformanceStats } from './performance-reports';
 
 export interface KingdomPlayer {
@@ -20,6 +21,8 @@ export interface KingdomPlayer {
   /** Null when the player isn't in the latest performance report. */
   acclaim: number | null;
   inReport: boolean;
+  /** First location scan this Gov ID showed up in; null when unknown. */
+  firstSeenAt: string | null;
 }
 
 export interface KingdomData {
@@ -29,9 +32,16 @@ export interface KingdomData {
   byGov: Map<number, KingdomPlayer>;
   /** Every row of the latest performance report (KvK stats by Gov ID). */
   reportRows: PerformanceStats[];
+  /** Earliest first-seen date — the oldest scan; players seen then may have
+   *  been around before. Null when first-seen dates aren't available. */
+  firstSeenFloor: string | null;
 }
 
-export function crossKingdomData(points: LocationPoint[], reportRows: PerformanceStats[]): KingdomPlayer[] {
+export function crossKingdomData(
+  points: LocationPoint[],
+  reportRows: PerformanceStats[],
+  firstSeen: Map<number, string> = new Map(),
+): KingdomPlayer[] {
   const reportByGov = new Map(reportRows.map((r) => [r.governorId, r] as const));
   return points.map((p) => {
     const r = reportByGov.get(p.governorId);
@@ -47,19 +57,23 @@ export function crossKingdomData(points: LocationPoint[], reportRows: Performanc
       shieldTimeLeft: p.shieldTimeLeft,
       acclaim: r?.acclaim ?? null,
       inReport: !!r,
+      firstSeenAt: firstSeen.get(p.governorId) ?? null,
     };
   });
 }
 
 export async function loadLatestKingdomData(): Promise<KingdomData> {
-  const [loc, perf] = await Promise.all([loadLatestLocationPoints(), loadLatestPerformanceReport()]);
-  const players = crossKingdomData(loc.points, perf.rows);
+  const [loc, perf, firstSeen] = await Promise.all([loadLatestLocationPoints(), loadLatestPerformanceReport(), loadFirstSeen()]);
+  const players = crossKingdomData(loc.points, perf.rows, firstSeen);
+  let firstSeenFloor: string | null = null;
+  for (const at of firstSeen.values()) if (!firstSeenFloor || at < firstSeenFloor) firstSeenFloor = at;
   return {
     location: loc.scan,
     report: perf.report,
     players,
     byGov: new Map(players.map((p) => [p.governorId, p] as const)),
     reportRows: perf.rows,
+    firstSeenFloor,
   };
 }
 
