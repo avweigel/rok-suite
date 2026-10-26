@@ -135,6 +135,8 @@ const MAIL_HEADER_PRESETS: Record<string, { label: string; markup: string }> = {
 
 type MailFieldKey = 'name' | 'alliance' | 'power' | 'coords';
 type MailFields = Record<MailFieldKey, boolean>;
+/** Groups the copy / mail can be narrowed to: TO BE ZEROED, power growers (Δ > 0). */
+type MailTarget = 'tbz' | 'growers';
 
 const MAIL_FIELD_LABELS: Record<MailFieldKey, string> = {
   name: 'Name',
@@ -304,8 +306,22 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     } catch {}
     return DEFAULT_MAIL_FIELDS;
   });
+  /** Who the copy / mail covers: none picked = every row shown; otherwise the
+   *  union of the picked groups. */
+  const [mailTargets, setMailTargets] = useState<MailTarget[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = JSON.parse(window.localStorage.getItem('zero-list-mail-targets') ?? '[]');
+      return Array.isArray(saved) ? saved.filter((t): t is MailTarget => t === 'tbz' || t === 'growers') : [];
+    } catch {
+      return [];
+    }
+  });
   const [copiedNames, setCopiedNames] = useState(false);
   const [openedMail, setOpenedMail] = useState(false);
+
+  const toggleMailTarget = (t: MailTarget) =>
+    setMailTargets((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
 
   const toggleToolbar = () => setToolbarOpen((o) => {
     const next = !o;
@@ -323,6 +339,9 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   useEffect(() => {
     try { window.localStorage.setItem('zero-list-mail-fields', JSON.stringify(mailFields)); } catch {}
   }, [mailFields]);
+  useEffect(() => {
+    try { window.localStorage.setItem('zero-list-mail-targets', JSON.stringify(mailTargets)); } catch {}
+  }, [mailTargets]);
 
   // Case edits (realtime + row actions) only reload the cases; the scan data
   // only changes on a new upload, so it's loaded on mount and on Refresh.
@@ -616,11 +635,24 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   // Excepted cases are spared by admin decision and must never be broadcast
   // as attack targets — strip them out of every outbound action regardless of
   // which filter the table is currently showing.
-  const mailableCases = useMemo(
+  const mailBase = useMemo(
     () => filtered.filter((c) => c.state !== 'excepted' && !TERMINAL_STATES.includes(c.state)),
     [filtered],
   );
-  const exceptedHidden = filtered.length - mailableCases.length;
+  const exceptedHidden = filtered.length - mailBase.length;
+  // Power growers = positive Δ Power, same as the Grew filter.
+  const isGrower = useCallback((c: MigrationCase) => (deltaOf(c) ?? 0) > 0, [deltaOf]);
+  const mailCounts = useMemo(
+    () => ({ tbz: mailBase.filter(toBeZeroed).length, growers: mailBase.filter(isGrower).length }),
+    [mailBase, toBeZeroed, isGrower],
+  );
+  const mailableCases = useMemo(
+    () =>
+      mailTargets.length === 0
+        ? mailBase
+        : mailBase.filter((c) => (mailTargets.includes('tbz') && toBeZeroed(c)) || (mailTargets.includes('growers') && isGrower(c))),
+    [mailBase, mailTargets, toBeZeroed, isGrower],
+  );
 
   const copyNamesToClipboard = useCallback(async () => {
     if (mailableCases.length === 0) return;
@@ -937,6 +969,38 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
         </button>
         {toolbarOpen && (
           <div className="px-3 pb-3 pt-2 border-t border-[var(--border)] space-y-3">
+            {/* Which rows the copy and the mail cover — pick one group or several. */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] w-full sm:w-32">Targets</span>
+              {([
+                { key: null, label: 'All', count: mailBase.length, on: 'bg-[#4318ff]/20 text-[#c4bcff] border-[#4318ff]/50' },
+                { key: 'tbz', label: 'To be zeroed', count: mailCounts.tbz, on: 'bg-rose-500/25 text-rose-200 border-rose-500/50' },
+                { key: 'growers', label: 'Power growers', count: mailCounts.growers, on: 'bg-orange-500/25 text-orange-200 border-orange-500/50' },
+              ] as { key: MailTarget | null; label: string; count: number; on: string }[]).map(({ key, label, count, on }) => {
+                const active = key ? mailTargets.includes(key) : mailTargets.length === 0;
+                return (
+                  <button
+                    key={label}
+                    onClick={() => (key ? toggleMailTarget(key) : setMailTargets([]))}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                      active ? on : 'bg-[var(--background-secondary)] text-[var(--text-secondary)] border-[var(--border)] hover:text-[var(--foreground)]'
+                    }`}
+                    title={
+                      key === 'tbz' ? 'Players with the TO BE ZEROED chip'
+                        : key === 'growers' ? 'Players whose Δ Power is positive (same as the Grew filter)'
+                          : 'Every row shown in the table'
+                    }
+                  >
+                    {key && <input type="checkbox" readOnly checked={active} className="w-3 h-3 pointer-events-none accent-current" />}
+                    {label} ({count})
+                  </button>
+                );
+              })}
+              <span className="text-[11px] text-[var(--text-muted)]">
+                pick one or more · counted on the {mailBase.length} row{mailBase.length === 1 ? '' : 's'} shown
+              </span>
+            </div>
+
             {/* Quick copy block — names only, comma-separated, for in-game chat. */}
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] w-full sm:w-32">Quick copy</span>
