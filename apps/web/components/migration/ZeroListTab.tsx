@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CalendarRange, ChevronDown, Clock, Copy, Crosshair, Link2, Mail, MapPinOff, RotateCcw, Trash2, TrendingUp, UserPlus, Users, X } from 'lucide-react';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
-import { AcclaimCell, NewIllegalChip, ShieldCell, fmtCompact, fmtDeltaM, useNow } from '@/components/migration/ScanCells';
+import { AcclaimCell, NewIllegalChip, ShieldCell, daysBetween, fmtCompact, fmtDeltaM, useNow } from '@/components/migration/ScanCells';
 import { AddPlayersDialog } from '@/components/migration/AddPlayersDialog';
 import {
   type MigrationCase,
@@ -451,6 +451,11 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       else if (!c.zeroed_count && firstScanPower && !firstScanPower.has(c.character_id)) {
         why.push('not in the first location scan and never zeroed');
       }
+      // Back after 30+ days away and not zeroed since the return.
+      const back = locationLookup.get(c.character_id);
+      if (back?.returnedAt && (!c.last_zeroed_at || Date.parse(c.last_zeroed_at) < Date.parse(back.returnedAt))) {
+        why.push(`back after ${back.goneAfter ? daysBetween(back.goneAfter, back.returnedAt) : '30+'} days away and not zeroed since`);
+      }
       const d = deltaOf(c);
       if (d != null && d > 0) {
         // The growth was seen in the period's "to" scan, or by default in the
@@ -463,7 +468,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       }
       return why;
     },
-    [firstScanPower, deltaOf, rangeLabel, rangeToId, scanAtById, scans],
+    [firstScanPower, deltaOf, rangeLabel, rangeToId, scanAtById, scans, locationLookup],
   );
   const toBeZeroed = useCallback((c: MigrationCase) => toBeZeroedWhy(c).length > 0, [toBeZeroedWhy]);
 
@@ -761,7 +766,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
             <div>
               <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">What each state means</div>
               <ul className="text-xs space-y-1">
-                <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded-full text-[10px] font-bold uppercase bg-rose-600 text-white border border-rose-400">To be zeroed</span> New arrival or NEW ILLEGAL entry nobody has zeroed yet, or power up (positive Δ Power).</li>
+                <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded-full text-[10px] font-bold uppercase bg-rose-600 text-white border border-rose-400">To be zeroed</span> New arrival, NEW ILLEGAL entry or player back after 30+ days away nobody has zeroed yet, or power up (positive Δ Power).</li>
                 <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-orange-500/15 text-orange-400 border-orange-500/30">To Zero</span> Decision made. Power members should attack.</li>
                 <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-rose-500/15 text-rose-400 border-rose-500/30">Zeroed</span> Confirmed dead in-game. Done.</li>
                 <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-green-500/15 text-green-400 border-green-500/30">Emigrated</span> Left the kingdom on their own.</li>
@@ -778,7 +783,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
                 <li><strong>Acclaim</strong> comes from the latest performance report, only for players in the latest location scan: a red <em>0</em> means they earned none in the report period, <em>—</em> means they aren&apos;t in the report or not in the location scan.</li>
                 <li>If the (x, y) cell is empty (em dash), the player wasn&apos;t in the latest location scan. Upload a fresh one on <a href="/upload" className="text-cyan-400 hover:underline">Upload Scan</a>.</li>
                 <li><strong>Δ Power</strong> is the change between the previous location scan and the latest one that had the player — orange means they grew. It appears once two uploads have included them. Pick a period in the <strong>Δ</strong> selector to compare two scans instead, and use <strong>Grew</strong> to keep only who grew. Sort by <strong>Added</strong> to see the latest additions first.</li>
-                <li><strong>TO BE ZEROED</strong> marks who wasn&apos;t in the first location scan (the oldest one uploaded) or was added as NEW ILLEGAL and hasn&apos;t been zeroed yet, and anyone whose <strong>Δ Power</strong> is positive — zeroed before or not. They always sit at the top of the list, whatever the sort; hover the chip for the reason. <strong>Zeroed</strong> shows how many times each player was zeroed and sorts by it.</li>
+                <li><strong>TO BE ZEROED</strong> marks who wasn&apos;t in the first location scan (the oldest one uploaded) or was added as NEW ILLEGAL and hasn&apos;t been zeroed yet, whoever came back after 30+ days missing from the scans and hasn&apos;t been zeroed since, and anyone whose <strong>Δ Power</strong> is positive — zeroed before or not. They always sit at the top of the list, whatever the sort; hover the chip for the reason. <strong>Zeroed</strong> shows how many times each player was zeroed and sorts by it.</li>
                 <li>Everyone can mark <strong>Zeroed</strong> or <strong>Moved</strong>. Officers can also take back a wrong Zeroed click (<em>−1</em>); adding and removing targets is admin-only.</li>
                 <li>Don&apos;t click the trash icon casually — it&apos;s a hard delete with no undo.</li>
               </ul>

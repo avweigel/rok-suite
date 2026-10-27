@@ -84,22 +84,52 @@ export function CoordsCopy({ x, y }: { x: number | null; y: number | null }) {
   );
 }
 
+const fmtDay = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+
+/** Whole days between two ISO dates. */
+export function daysBetween(fromIso: string, toIso: string): number {
+  return Math.max(0, Math.round((Date.parse(toIso) - Date.parse(fromIso)) / 86_400_000));
+}
+
 /** When a player first showed up in a location scan. Seen already in the
- *  oldest scan → "≤ date": they may have been around before. */
-export function FirstSeenCell({ at, floor, now }: { at: string | null; floor: string | null; now: number }) {
+ *  oldest scan → "≤ date": they may have been around before. A return after
+ *  30+ days away shows underneath. */
+export function FirstSeenCell({
+  at,
+  floor,
+  now,
+  returnedAt = null,
+  goneAfter = null,
+}: {
+  at: string | null;
+  floor: string | null;
+  now: number;
+  returnedAt?: string | null;
+  goneAfter?: string | null;
+}) {
   if (!at) return <span className="text-[var(--text-muted)]">—</span>;
-  const date = new Date(at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  const date = fmtDay(at);
   const days = Math.max(0, Math.floor((now - Date.parse(at)) / 86_400_000));
   const sinceStart = !!floor && at <= floor;
   return (
-    <span
-      className={`whitespace-nowrap ${sinceStart ? 'text-[var(--text-muted)]' : 'text-[var(--foreground)]'}`}
-      title={sinceStart
-        ? `In the oldest scan uploaded (${date}) — may have been here before`
-        : `First seen in the scan of ${date} · ${days} day${days === 1 ? '' : 's'} ago`}
-    >
-      {sinceStart ? '≤ ' : ''}{date}
-    </span>
+    <div className="whitespace-nowrap">
+      <span
+        className={sinceStart ? 'text-[var(--text-muted)]' : 'text-[var(--foreground)]'}
+        title={sinceStart
+          ? `In the oldest scan uploaded (${date}) — may have been here before`
+          : `First seen in the scan of ${date} · ${days} day${days === 1 ? '' : 's'} ago`}
+      >
+        {sinceStart ? '≤ ' : ''}{date}
+      </span>
+      {returnedAt && (
+        <div
+          className="text-[10px] text-amber-400"
+          title={`Gone after the scan of ${goneAfter ? fmtDay(goneAfter) : '?'}, seen again in the scan of ${fmtDay(returnedAt)}`}
+        >
+          back {fmtDay(returnedAt)}{goneAfter && <> · {daysBetween(goneAfter, returnedAt)}d away</>}
+        </div>
+      )}
+    </div>
   );
 }
 

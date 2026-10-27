@@ -4,7 +4,7 @@
 // them, by gov id. Report rows with no match in the location scan are ignored.
 
 import { loadLatestLocationPoints, type LocationPoint, type LocationScanRow } from '@/lib/zero-list/scan-data';
-import { loadFirstSeen } from './first-seen';
+import { loadFirstSeen, loadReturns, type GovernorReturn } from './first-seen';
 import { loadLatestPerformanceReport, type PerformanceReport, type PerformanceStats } from './performance-reports';
 
 export interface KingdomPlayer {
@@ -23,6 +23,10 @@ export interface KingdomPlayer {
   inReport: boolean;
   /** First location scan this Gov ID showed up in; null when unknown. */
   firstSeenAt: string | null;
+  /** Seen again after 30+ days away (latest such return); null if never. */
+  returnedAt: string | null;
+  /** Last scan date before that absence. */
+  goneAfter: string | null;
 }
 
 export interface KingdomData {
@@ -41,6 +45,7 @@ export function crossKingdomData(
   points: LocationPoint[],
   reportRows: PerformanceStats[],
   firstSeen: Map<number, string> = new Map(),
+  returns: Map<number, GovernorReturn> = new Map(),
 ): KingdomPlayer[] {
   const reportByGov = new Map(reportRows.map((r) => [r.governorId, r] as const));
   return points.map((p) => {
@@ -58,13 +63,20 @@ export function crossKingdomData(
       acclaim: r?.acclaim ?? null,
       inReport: !!r,
       firstSeenAt: firstSeen.get(p.governorId) ?? null,
+      returnedAt: returns.get(p.governorId)?.returnedAt ?? null,
+      goneAfter: returns.get(p.governorId)?.goneAfter ?? null,
     };
   });
 }
 
 export async function loadLatestKingdomData(): Promise<KingdomData> {
-  const [loc, perf, firstSeen] = await Promise.all([loadLatestLocationPoints(), loadLatestPerformanceReport(), loadFirstSeen()]);
-  const players = crossKingdomData(loc.points, perf.rows, firstSeen);
+  const [loc, perf, firstSeen, returns] = await Promise.all([
+    loadLatestLocationPoints(),
+    loadLatestPerformanceReport(),
+    loadFirstSeen(),
+    loadReturns(),
+  ]);
+  const players = crossKingdomData(loc.points, perf.rows, firstSeen, returns);
   let firstSeenFloor: string | null = null;
   for (const at of firstSeen.values()) if (!firstSeenFloor || at < firstSeenFloor) firstSeenFloor = at;
   return {

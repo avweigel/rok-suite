@@ -43,6 +43,8 @@ interface Row {
   y: number | null;
   shieldTimeLeft: string | null;
   firstSeenAt: string | null;
+  returnedAt: string | null;
+  goneAfter: string | null;
   report: PerformanceStats | null;
 }
 
@@ -121,6 +123,8 @@ export function Kd23Stats() {
         y: p.y,
         shieldTimeLeft: p.shieldTimeLeft,
         firstSeenAt: p.firstSeenAt,
+        returnedAt: p.returnedAt,
+        goneAfter: p.goneAfter,
         report: reportByGov.get(p.governorId) ?? null,
       }));
   }, [data]);
@@ -263,7 +267,7 @@ export function Kd23Stats() {
                         <td className="px-3 py-2 text-right font-mono tabular-nums text-xs text-[var(--text-muted)]">{i + 1}</td>
                         <td className="px-3 py-2"><CopyablePlayerCell name={r.name} govId={r.governorId} /></td>
                         <td className="px-3 py-2 text-[var(--text-secondary)]">{r.alliance ?? '—'}</td>
-                        <td className="px-3 py-2 text-xs"><FirstSeenCell at={r.firstSeenAt} floor={data?.firstSeenFloor ?? null} now={now} /></td>
+                        <td className="px-3 py-2 text-xs"><FirstSeenCell at={r.firstSeenAt} floor={data?.firstSeenFloor ?? null} now={now} returnedAt={r.returnedAt} goneAfter={r.goneAfter} /></td>
                         <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">{r.castleHall ?? '—'}</td>
                         <td className="px-3 py-2 text-right font-mono tabular-nums">{fmtCompact(r.power)}</td>
                         <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">{fmtCompact(r.kills)}</td>
