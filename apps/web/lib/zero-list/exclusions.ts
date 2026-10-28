@@ -21,13 +21,18 @@ function explain(error: { message?: string; code?: string }): Error {
   );
 }
 
+/** Gov IDs as numbers, so they match the scan data in Map lookups. */
+function normalize(data: unknown): ZeroListExclusion[] {
+  return ((data ?? []) as ZeroListExclusion[]).map((e) => ({ ...e, governor_id: Number(e.governor_id) }));
+}
+
 export async function listZeroListExclusions(): Promise<ZeroListExclusion[]> {
   const { data, error } = await createClient()
     .from('zero_list_exclusions')
     .select('governor_id, name, reason, excluded_by, created_at')
     .order('created_at', { ascending: false });
   if (error) throw explain(error);
-  return (data ?? []) as ZeroListExclusion[];
+  return normalize(data);
 }
 
 export async function excludeFromZeroList(
@@ -44,7 +49,7 @@ export async function excludeFromZeroList(
     )
     .select('governor_id, name, reason, excluded_by, created_at');
   if (error) throw explain(error);
-  return (data ?? []) as ZeroListExclusion[];
+  return normalize(data);
 }
 
 export async function includeInZeroList(governorId: number): Promise<void> {

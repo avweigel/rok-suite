@@ -26,6 +26,7 @@ import { errorMessage } from '@/lib/error-message';
 const MAX_ROWS = 300;
 
 type SortField = 'name' | 'power' | 'kills' | 'ch' | 'alliance' | 'acclaim' | 'firstSeen';
+type ExcludedSortField = 'name' | 'power' | 'reason' | 'excluded';
 
 export function AddPlayersDialog({
   players,
@@ -157,12 +158,29 @@ export function AddPlayersDialog({
   const shown = rows.slice(0, MAX_ROWS);
 
   const playersById = useMemo(() => new Map(players.map((p) => [p.governorId, p] as const)), [players]);
+  const exSort = useTableSort<ExcludedSortField>('excluded', { name: 'asc', power: 'desc', reason: 'asc', excluded: 'desc' });
   const excludedRows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return [...exclusions.values()].filter(
+    const list = [...exclusions.values()].filter(
       (e) => !q || e.name.toLowerCase().includes(q) || String(e.governor_id).includes(q) || e.reason.toLowerCase().includes(q),
     );
-  }, [exclusions, search]);
+    const sign = exSort.dir === 'asc' ? 1 : -1;
+    const nameOf = (e: ZeroListExclusion) => playersById.get(e.governor_id)?.name ?? e.name;
+    // Players no longer in the latest scan have no power — always last.
+    const powerOf = (e: ZeroListExclusion) => playersById.get(e.governor_id)?.power ?? null;
+    return list.sort((a, b) => {
+      if (exSort.field === 'power') {
+        const pa = powerOf(a);
+        const pb = powerOf(b);
+        if (pa == null || pb == null) return pa == null && pb == null ? 0 : pa == null ? 1 : -1;
+        return (pa - pb) * sign;
+      }
+      const cmp = exSort.field === 'name' ? nameOf(a).localeCompare(nameOf(b), undefined, { sensitivity: 'base' })
+        : exSort.field === 'reason' ? a.reason.localeCompare(b.reason, undefined, { sensitivity: 'base' })
+          : Date.parse(a.created_at) - Date.parse(b.created_at);
+      return cmp * sign;
+    });
+  }, [exclusions, search, exSort.field, exSort.dir, playersById]);
 
   const toggle = (id: number) => {
     setSelected((prev) => {
@@ -211,9 +229,15 @@ export function AddPlayersDialog({
         reason,
         actorName ?? 'admin',
       );
+      const now = new Date().toISOString();
       setExclusions((prev) => {
         const next = new Map(prev);
-        for (const e of saved) next.set(e.governor_id, e);
+        // Hide them right away from what was just saved, whatever rows the
+        // database sends back; its rows (with the stored date) win if any.
+        for (const p of excluding) {
+          next.set(p.governorId, { governor_id: p.governorId, name: p.name, reason, excluded_by: actorName ?? 'admin', created_at: now });
+        }
+        for (const e of saved) next.set(Number(e.governor_id), { ...e, governor_id: Number(e.governor_id) });
         return next;
       });
       setSelected((prev) => new Set([...prev].filter((id) => !excluding.some((p) => p.governorId === id))));
@@ -376,10 +400,10 @@ export function AddPlayersDialog({
             <table className="w-full text-xs">
               <thead className="sticky top-0 z-10 bg-[var(--background-secondary)] text-[var(--text-muted)] uppercase tracking-wider">
                 <tr>
-                  <th className="px-3 py-2 text-left">Player</th>
-                  <th className="px-3 py-2 text-right">Power</th>
-                  <th className="px-3 py-2 text-left">Reason</th>
-                  <th className="px-3 py-2 text-left">Excluded</th>
+                  <SortableTh label="Player" field="name" active={exSort.field} dir={exSort.dir} onSort={exSort.toggle} />
+                  <SortableTh label="Power" field="power" align="right" active={exSort.field} dir={exSort.dir} onSort={exSort.toggle} />
+                  <SortableTh label="Reason" field="reason" active={exSort.field} dir={exSort.dir} onSort={exSort.toggle} />
+                  <SortableTh label="Excluded" field="excluded" active={exSort.field} dir={exSort.dir} onSort={exSort.toggle} />
                   <th className="px-3 py-2 w-8" />
                 </tr>
               </thead>
