@@ -3,17 +3,19 @@
 // Admin picker over the latest uploads (location scan × performance report):
 // search or sort the whole kingdom — e.g. by Acclaim to find who didn't
 // fight — tick rows and add them to the Zero List. Players the admin never
-// wants to target (allies, protected…) can be excluded with a reason so they
-// stop showing up here; the Excluded view lists them and includes them again.
-// New arrivals carry a NEW ILLEGAL chip and are added with that flag: not in
-// the previous location scan, first seen after the first scan, or back after
-// 30+ days away.
+// wants to target (allies, protected…) can be excluded with a reason: they
+// drop to the bottom of the candidates, dimmed, and can still be added if
+// they have to be zeroed after all; the Excluded view lists them and includes
+// them again.
+// Players who weren't in the previous location scan carry a NEW ILLEGAL chip
+// and are added with that flag (on the Zero List it stays until their first
+// zero).
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { EyeOff, Search, X } from 'lucide-react';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
 import { SortableTh, useTableSort } from '@/components/migration/SortableTh';
-import { AcclaimCell, AddToZeroListDialog, CoordsCopy, FirstSeenCell, NewIllegalChip, ShieldCell, daysBetween, fmtCompact, useNow } from '@/components/migration/ScanCells';
+import { AcclaimCell, AddToZeroListDialog, CoordsCopy, FirstSeenCell, NewIllegalChip, ShieldCell, fmtCompact, useNow } from '@/components/migration/ScanCells';
 import { NEW_ILLEGAL, bulkAddToZeroList } from '@/lib/supabase/use-migration-cases';
 import { listLocationScans, loadLocationPoints } from '@/lib/zero-list/scan-data';
 import type { KingdomPlayer } from '@/lib/scans/kingdom-data';
@@ -103,29 +105,16 @@ export function AddPlayersDialog({
     return () => { cancelled = true; };
   }, [locationScanId]);
 
-  /** Why a candidate counts as a new arrival (NEW ILLEGAL) — empty if not:
-   *  missing from the previous scan, first seen after the first scan, or
-   *  back after 30+ days away. */
-  const newWhy = useCallback(
-    (p: KingdomPlayer): string[] => {
-      const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-      const why: string[] = [];
-      if (previousIds && !previousIds.has(p.governorId)) why.push(`not in the previous scan${previousAt ? ` (${day(previousAt)})` : ''}`);
-      if (p.firstSeenAt && firstSeenFloor && p.firstSeenAt > firstSeenFloor) why.push(`arrived after the first scan — first seen ${day(p.firstSeenAt)}`);
-      if (p.returnedAt) {
-        why.push(`back ${day(p.returnedAt)} after ${p.goneAfter ? daysBetween(p.goneAfter, p.returnedAt) : '30+'} days away`);
-      }
-      return why;
-    },
-    [previousIds, previousAt, firstSeenFloor],
+  /** NEW ILLEGAL here = not in the location scan before the latest one. */
+  const isNew = useCallback(
+    (p: KingdomPlayer) => previousIds != null && !previousIds.has(p.governorId),
+    [previousIds],
   );
-  const isNew = useCallback((p: KingdomPlayer) => newWhy(p).length > 0, [newWhy]);
 
-  // CH25 only — older scans still hold farms. Excluded players are left out.
-  const eligible = useMemo(
-    () => players.filter((p) => p.castleHall === KEPT_CITY_HALL && !exclusions.has(p.governorId)),
-    [players, exclusions],
-  );
+  // CH25 only — older scans still hold farms. Excluded players stay in the
+  // list (bottom, dimmed) so they can still be added.
+  const eligible = useMemo(() => players.filter((p) => p.castleHall === KEPT_CITY_HALL), [players]);
+  const excludedHere = useMemo(() => eligible.filter((p) => exclusions.has(p.governorId)).length, [eligible, exclusions]);
 
   const newCount = useMemo(() => eligible.filter(isNew).length, [eligible, isNew]);
 
@@ -140,6 +129,10 @@ export function AddPlayersDialog({
     const numeric = (a: number | null, b: number | null) =>
       a == null && b == null ? 0 : a == null ? sign * Infinity : b == null ? -sign * Infinity : a - b;
     return [...list].sort((a, b) => {
+      // Excluded players always go last, whatever the sort.
+      const ea = exclusions.has(a.governorId);
+      const eb = exclusions.has(b.governorId);
+      if (ea !== eb) return ea ? 1 : -1;
       let cmp = 0;
       if (sort.field === 'name') cmp = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
       else if (sort.field === 'alliance') cmp = (a.alliance ?? '').toLowerCase().localeCompare((b.alliance ?? '').toLowerCase());
@@ -153,7 +146,7 @@ export function AddPlayersDialog({
       if (cmp === 0) return b.power - a.power;
       return cmp * sign;
     });
-  }, [eligible, search, sort.field, sort.dir, newOnly, isNew]);
+  }, [eligible, search, sort.field, sort.dir, newOnly, isNew, exclusions]);
 
   const shown = rows.slice(0, MAX_ROWS);
 
@@ -250,7 +243,7 @@ export function AddPlayersDialog({
   };
 
   const include = async (e: ZeroListExclusion) => {
-    if (!window.confirm(`Show ${e.name || e.governor_id} among the candidates again?`)) return;
+    if (!window.confirm(`Remove the exclusion of ${e.name || e.governor_id}?`)) return;
     try {
       await includeInZeroList(e.governor_id);
       setExclusions((prev) => {
@@ -276,7 +269,10 @@ export function AddPlayersDialog({
       >
         <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border)]">
           <h3 className="text-sm font-semibold text-[var(--foreground)]">Add players to the Zero List</h3>
-          <span className="text-[11px] text-[var(--text-muted)]">{eligible.length.toLocaleString()} CH{KEPT_CITY_HALL} candidates in the latest scan</span>
+          <span className="text-[11px] text-[var(--text-muted)]">
+            {(eligible.length - excludedHere).toLocaleString()} CH{KEPT_CITY_HALL} candidates in the latest scan
+            {excludedHere > 0 && <> · {excludedHere} excluded, listed last</>}
+          </span>
           <button type="button" onClick={onClose} className="ml-auto p-1 rounded text-[var(--text-muted)] hover:text-[var(--foreground)]" title="Close">
             <X size={16} />
           </button>
@@ -347,8 +343,12 @@ export function AddPlayersDialog({
               <tbody>
                 {shown.map((p) => {
                   const listed = onZeroList.has(p.governorId);
+                  const excluded = exclusions.get(p.governorId) ?? null;
                   return (
-                    <tr key={p.governorId} className="border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors">
+                    <tr
+                      key={p.governorId}
+                      className={`border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors ${excluded && !selected.has(p.governorId) ? 'opacity-50 hover:opacity-100' : ''}`}
+                    >
                       <td className="px-3 py-2">
                         {listed ? (
                           <span className="inline-block px-1.5 py-0.5 rounded text-[9px] bg-orange-500/15 text-orange-400 border border-orange-500/30 whitespace-nowrap">on list</span>
@@ -359,8 +359,18 @@ export function AddPlayersDialog({
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <CopyablePlayerCell name={p.name} govId={p.governorId} />
+                          {excluded && (
+                            <span
+                              className="inline-block px-1.5 py-0.5 rounded text-[9px] bg-slate-500/15 text-slate-300 border border-slate-500/30 whitespace-nowrap"
+                              title={`Excluded${excluded.reason ? `: ${excluded.reason}` : ''} — you can still add them to the Zero List`}
+                            >
+                              excluded
+                            </span>
+                          )}
                           {isNew(p) && (
-                            <NewIllegalChip title={`New arrival: ${newWhy(p).join(' · ')} — added with the NEW ILLEGAL flag`} />
+                            <NewIllegalChip
+                              title={`Not in the previous scan${previousAt ? ` (${new Date(previousAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })})` : ''} — added with the NEW ILLEGAL flag`}
+                            />
                           )}
                         </div>
                       </td>
@@ -373,12 +383,22 @@ export function AddPlayersDialog({
                       <td className="px-3 py-2"><CoordsCopy x={p.x} y={p.y} /></td>
                       <td className="px-3 py-2"><ShieldCell shieldTimeLeft={p.shieldTimeLeft} scanAt={scanAt} now={now} /></td>
                       <td className="px-2 py-2">
-                        {!listed && !exclusionsError && (
+                        {!listed && excluded && (
+                          <button
+                            type="button"
+                            onClick={() => void include(excluded)}
+                            className="px-1.5 py-0.5 rounded text-[10px] text-sky-400 hover:bg-sky-500/10 whitespace-nowrap"
+                            title="Remove the exclusion"
+                          >
+                            Include
+                          </button>
+                        )}
+                        {!listed && !excluded && !exclusionsError && (
                           <button
                             type="button"
                             onClick={() => setExcluding([p])}
                             className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-[var(--text-muted)] hover:text-rose-300 hover:bg-rose-500/10 whitespace-nowrap"
-                            title="Exclude — stop showing this player here"
+                            title="Exclude — moves them to the bottom of the list, dimmed"
                           >
                             <EyeOff size={11} /> Exclude
                           </button>
@@ -529,7 +549,7 @@ function ExcludeDialog({
         <div>
           <h3 className="text-sm font-semibold text-[var(--foreground)]">Exclude {who}</h3>
           <p className="mt-1 text-xs text-[var(--text-muted)]">
-            They won&apos;t show up among the candidates any more. You can include them again from the Excluded tab.
+            They move to the bottom of the candidates, dimmed — you can still add them to the Zero List if needed. Remove the exclusion with Include, here or in the Excluded tab.
           </p>
         </div>
         <div className="space-y-1.5">
