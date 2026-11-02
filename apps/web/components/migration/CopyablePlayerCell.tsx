@@ -4,7 +4,18 @@ import { useState } from 'react';
 
 /** Two-row cell: player name (top) + governor id (bottom), each with a small
  *  copy-to-clipboard button. Used everywhere we display a player in a list. */
-export function CopyablePlayerCell({ name, govId }: { name: string; govId: number }) {
+export function CopyablePlayerCell({
+  name,
+  govId,
+  onNameClick,
+  nameTitle,
+}: {
+  name: string;
+  govId: number;
+  /** Makes the name clickable. */
+  onNameClick?: () => void;
+  nameTitle?: string;
+}) {
   const [copiedName, setCopiedName] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
   const copy = async (text: string, setCb: (v: boolean) => void) => {
@@ -34,7 +45,18 @@ export function CopyablePlayerCell({ name, govId }: { name: string; govId: numbe
   return (
     <div className="flex flex-col gap-0.5">
       <div className="flex items-center gap-1.5">
-        <span className="text-[var(--foreground)] font-medium">{name}</span>
+        {onNameClick ? (
+          <button
+            type="button"
+            onClick={onNameClick}
+            className="text-left text-[var(--foreground)] font-medium hover:underline decoration-dotted underline-offset-2"
+            title={nameTitle}
+          >
+            {name}
+          </button>
+        ) : (
+          <span className="text-[var(--foreground)] font-medium">{name}</span>
+        )}
         <button
           type="button"
           onClick={() => copy(name, setCopiedName)}

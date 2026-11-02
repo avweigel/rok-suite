@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { CalendarRange, ChevronDown, Clock, Copy, Crosshair, Link2, Mail, MapPinOff, RotateCcw, Trash2, TrendingUp, UserPlus, Users, X } from 'lucide-react';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
 import { NewIllegalChip, ShieldCell, daysBetween, fmtCompact, fmtDeltaM, useNow } from '@/components/migration/ScanCells';
-import { ZoneMap, type MapTarget } from '@/components/migration/ZoneMap';
+import { ZoneMap, type MapFocus, type MapTarget } from '@/components/migration/ZoneMap';
 import { AddPlayersDialog } from '@/components/migration/AddPlayersDialog';
 import {
   type MigrationCase,
@@ -258,9 +258,9 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     const n = Number(searchParams.get('zlz'));
     return Number.isInteger(n) && n >= 1 && n <= 10 ? n : null;
   });
-  /** Row picked on the map or located from the list. */
+  /** Row picked on the map, or name / zone clicked in the list. */
   const [highlightId, setHighlightId] = useState<string | null>(null);
-  const [mapFocus, setMapFocus] = useState<{ x: number; y: number; seq: number } | null>(null);
+  const [mapFocus, setMapFocus] = useState<MapFocus | null>(null);
   /** Δ Power period between two location scans. No "from" scan = each
    *  player's previous → latest sighting (prev_seen_power → last_seen_power). */
   const [scans, setScans] = useState<LocationScanRow[]>([]);
@@ -655,19 +655,32 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       }),
     [filtered, locationLookup, zoneOfCase, toBeZeroed],
   );
-  const locateCase = useCallback(
-    (c: MigrationCase) => {
+  /** Highlight a row on the map; `move` also centres the view on it. */
+  const showCase = useCallback(
+    (c: MigrationCase, move: boolean) => {
       const p = locationLookup.get(c.character_id);
       const x = c.x ?? p?.x;
       const y = c.y ?? p?.y;
       setHighlightId(c.id);
+      if (x == null || y == null) return setMapFocus(null);
       // Not on the map (not TO BE ZEROED): ring the spot instead.
-      if (x != null && y != null) setMapFocus((prev) => ({ x, y, seq: (prev?.seq ?? 0) + 1, mark: !toBeZeroed(c) }));
+      const mark = toBeZeroed(c) ? undefined : { name: c.username };
+      setMapFocus((prev) => ({ x, y, seq: (prev?.seq ?? 0) + 1, move, mark }));
     },
     [locationLookup, toBeZeroed],
   );
+  /** Name clicked: highlight only, the view stays put. Again to clear. */
+  const toggleHighlight = useCallback(
+    (c: MigrationCase) => {
+      if (highlightId !== c.id) return showCase(c, false);
+      setHighlightId(null);
+      setMapFocus(null);
+    },
+    [highlightId, showCase],
+  );
   const pickFromMap = useCallback((id: string) => {
     setHighlightId(id);
+    setMapFocus(null);
     document.getElementById(`zl-row-${id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }, []);
 
@@ -1216,7 +1229,8 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
                   toBeZeroedWhy={toBeZeroedWhy(c)}
                   zone={zoneOfCase(c)}
                   highlighted={highlightId === c.id}
-                  onLocate={() => locateCase(c)}
+                  onLocate={() => showCase(c, true)}
+                  onHighlight={() => toggleHighlight(c)}
                   scanAt={scanAt}
                   now={now}
                   isOfficer={isOfficer}
@@ -1265,6 +1279,7 @@ function ZeroListRow({
   zone,
   highlighted,
   onLocate,
+  onHighlight,
   scanAt,
   now,
   isOfficer,
@@ -1289,6 +1304,8 @@ function ZeroListRow({
   highlighted: boolean;
   /** Centre the map on this row. */
   onLocate: () => void;
+  /** Highlight this row on the map without moving it (toggle). */
+  onHighlight: () => void;
   /** When the latest location scan was taken (shield fallback). */
   scanAt: string | null;
   now: number;
@@ -1341,7 +1358,12 @@ function ZeroListRow({
     >
       <td className="px-3 py-2">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <CopyablePlayerCell name={c.username} govId={c.character_id} />
+          <CopyablePlayerCell
+            name={c.username}
+            govId={c.character_id}
+            onNameClick={zone ? onHighlight : undefined}
+            nameTitle={highlighted ? 'Clear the highlight' : 'Highlight on the map'}
+          />
           {isNewIllegalCase(c) && (
             <NewIllegalChip title="Wasn't in the previous scan when added — the chip goes once they're zeroed or leave" />
           )}

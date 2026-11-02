@@ -7,6 +7,7 @@ export const MAP_SIZE = 1200;
 
 export interface Zone {
   id: number;
+  /** Short tag for tight spots (list chips). */
   code: string;
   name: string;
   /** Where the label sits on the map (game coords). */
@@ -15,17 +16,20 @@ export interface Zone {
   color: string;
 }
 
+// Names as the kingdom calls them. Outer ring from the left (west),
+// clockwise: Victoria, Sabacs, Nagato, Aroth, Doomsland, Yong An; inner
+// ring from the left, clockwise: Kamyshta, Glazov, Kribi; centre: Hylahi.
 export const ZONES: Zone[] = [
-  { id: 1, code: 'LT', name: 'Lost Temple', lx: 593, ly: 635, color: '#f2c94c' },
-  { id: 2, code: 'NR', name: 'North Ring', lx: 769, ly: 846, color: '#e8743b' },
-  { id: 3, code: 'WR', name: 'West Ring', lx: 380, ly: 791, color: '#3fa7d6' },
-  { id: 4, code: 'SR', name: 'South Ring', lx: 772, ly: 434, color: '#9b5de5' },
-  { id: 5, code: 'NW', name: 'North-West', lx: 383, ly: 1055, color: '#ef476f' },
-  { id: 6, code: 'NE', name: 'North-East', lx: 1021, ly: 1033, color: '#06d6a0' },
-  { id: 7, code: 'E', name: 'East', lx: 1058, ly: 572, color: '#118ab2' },
-  { id: 8, code: 'SE', name: 'South-East', lx: 792, ly: 155, color: '#f78c6b' },
-  { id: 9, code: 'SW', name: 'South-West', lx: 194, ly: 194, color: '#83c5be' },
-  { id: 10, code: 'W', name: 'West', lx: 131, ly: 689, color: '#c9184a' },
+  { id: 1, code: 'HYL', name: 'Hylahi', lx: 593, ly: 635, color: '#f2c94c' },
+  { id: 2, code: 'GLA', name: 'Glazov', lx: 769, ly: 846, color: '#e8743b' },
+  { id: 3, code: 'KAM', name: 'Kamyshta', lx: 380, ly: 791, color: '#3fa7d6' },
+  { id: 4, code: 'KRI', name: 'Kribi', lx: 772, ly: 434, color: '#9b5de5' },
+  { id: 5, code: 'SAB', name: 'Sabacs', lx: 383, ly: 1055, color: '#ef476f' },
+  { id: 6, code: 'NAG', name: 'Nagato', lx: 1021, ly: 1033, color: '#06d6a0' },
+  { id: 7, code: 'ARO', name: 'Aroth', lx: 1058, ly: 572, color: '#118ab2' },
+  { id: 8, code: 'DOOM', name: 'Doomsland', lx: 792, ly: 155, color: '#f78c6b' },
+  { id: 9, code: 'YONG', name: 'Yong An', lx: 194, ly: 194, color: '#83c5be' },
+  { id: 10, code: 'VIC', name: 'Victoria', lx: 131, ly: 689, color: '#c9184a' },
 ];
 
 export const ZONE_BY_ID = new Map(ZONES.map((z) => [z.id, z] as const));

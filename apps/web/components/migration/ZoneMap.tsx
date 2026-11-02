@@ -6,6 +6,7 @@
 // anywhere else to read that coordinate's zone.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Barlow_Condensed } from 'next/font/google';
 import { MAP_SIZE, PASSES, ZONES, ZONE_BY_ID, nearZoneEdge, zoneGrid, zoneIdAt } from '@/lib/zones/zones';
 
 export interface MapTarget {
@@ -16,6 +17,17 @@ export interface MapTarget {
   zoneId: number;
   /** Reported moved — drawn hollow. */
   moved: boolean;
+}
+
+/** A spot to show: `move` centres the view on it (otherwise it stays put);
+ *  `mark` rings it — for a player who has no dot on the map. Bump seq to
+ *  repeat the same spot. */
+export interface MapFocus {
+  x: number;
+  y: number;
+  seq: number;
+  move: boolean;
+  mark?: { name: string };
 }
 
 interface View {
@@ -39,6 +51,9 @@ function clampView(v: View) {
   v.ox = vw >= MAP_SIZE ? (MAP_SIZE - vw) / 2 : Math.max(0, Math.min(MAP_SIZE - vw, v.ox));
   v.oy = vh >= MAP_SIZE ? (MAP_SIZE - vh) / 2 : Math.max(0, Math.min(MAP_SIZE - vh, v.oy));
 }
+
+/** Zone names on the map, as in the original "Zone Murate" tool. */
+const labelFont = Barlow_Condensed({ weight: ['600', '700'], subsets: ['latin'], display: 'swap' });
 
 type ZoomAction = 'in' | 'out' | 'reset';
 const ZOOM_BUTTONS: { label: string; title: string; action: ZoomAction }[] = [
@@ -102,9 +117,7 @@ export function ZoneMap({
   /** Targets per zone, before the zone filter is applied. */
   zoneCounts: Map<number, number>;
   highlightId: string | null;
-  /** Centre the map on (x, y); bump seq to repeat the same spot. `mark`
-   *  rings the spot — for a player who has no dot on the map. */
-  focus: { x: number; y: number; seq: number; mark?: boolean } | null;
+  focus: MapFocus | null;
   onPick: (id: string) => void;
   zoneFilter: number | null;
   onZoneFilter: (id: number | null) => void;
@@ -123,7 +136,7 @@ export function ZoneMap({
   const [ly, setLy] = useState('');
 
   // Latest render inputs for the imperative drawing code (synced in an effect).
-  const focusMark = useMemo(() => (focus?.mark ? { x: focus.x, y: focus.y } : null), [focus]);
+  const focusMark = useMemo(() => (focus?.mark ? { x: focus.x, y: focus.y, name: focus.mark.name } : null), [focus]);
   const stateRef = useRef({ targets, highlightId, opacity, showPasses, showGrid, showNames, pin, focusMark });
 
   const draw = useCallback(() => {
@@ -185,21 +198,16 @@ export function ZoneMap({
     // Zone labels.
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const lab = Math.max(14, Math.min(30, s * 30));
+    const lab = Math.max(17, Math.min(36, s * 36));
+    ctx.font = `700 ${lab}px ${labelFont.style.fontFamily}, "Arial Narrow", sans-serif`;
     for (const z of ZONES) {
       const [X, Y] = toScreen(v, z.lx, z.ly);
-      if (X < -80 || Y < -40 || X > v.W + 80 || Y > v.H + 40) continue;
-      ctx.font = `700 ${lab}px system-ui, sans-serif`;
+      if (X < -120 || Y < -40 || X > v.W + 120 || Y > v.H + 40) continue;
       ctx.lineWidth = 5;
-      ctx.strokeStyle = 'rgba(15,18,10,.75)';
-      ctx.strokeText(z.code, X, Y - lab * 0.3);
+      ctx.strokeStyle = 'rgba(15,18,10,.8)';
+      ctx.strokeText(z.name, X, Y);
       ctx.fillStyle = z.color;
-      ctx.fillText(z.code, X, Y - lab * 0.3);
-      ctx.font = `600 ${Math.round(lab * 0.45) + 4}px system-ui, sans-serif`;
-      ctx.lineWidth = 4;
-      ctx.strokeText(z.name, X, Y + lab * 0.45);
-      ctx.fillStyle = '#fff';
-      ctx.fillText(z.name, X, Y + lab * 0.45);
+      ctx.fillText(z.name, X, Y);
     }
 
     if (st.showPasses) {
@@ -233,6 +241,15 @@ export function ZoneMap({
       if (X < -20 || Y < -20 || X > v.W + 20 || Y > v.H + 20) continue;
       const big = t.id === st.highlightId;
       const color = ZONE_BY_ID.get(t.zoneId)?.color ?? '#fff';
+      if (big) {
+        ctx.beginPath();
+        ctx.arc(X, Y, 16, 0, 7);
+        ctx.fillStyle = 'rgba(245,158,11,.25)';
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#f59e0b';
+        ctx.stroke();
+      }
       ctx.beginPath();
       ctx.arc(X, Y, big ? 9 : 6, 0, 7);
       if (t.moved) {
@@ -264,12 +281,22 @@ export function ZoneMap({
     if (st.focusMark) {
       const [X, Y] = toScreen(v, st.focusMark.x, st.focusMark.y);
       ctx.beginPath();
-      ctx.arc(X, Y, 11, 0, 7);
+      ctx.arc(X, Y, 12, 0, 7);
+      ctx.fillStyle = 'rgba(245,158,11,.25)';
+      ctx.fill();
       ctx.setLineDash([4, 3]);
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#f59e0b';
       ctx.stroke();
       ctx.setLineDash([]);
+      ctx.font = '600 12px system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.lineWidth = 3.5;
+      ctx.strokeStyle = 'rgba(0,0,0,.75)';
+      ctx.strokeText(st.focusMark.name, X + 15, Y);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(st.focusMark.name, X + 15, Y);
+      ctx.textAlign = 'center';
     }
 
     if (st.pin) {
@@ -335,6 +362,7 @@ export function ZoneMap({
     };
     const ro = new ResizeObserver(fit);
     ro.observe(box);
+    void document.fonts?.load(`700 20px ${labelFont.style.fontFamily}`).then(draw, () => {});
     const img = new Image();
     img.onload = draw;
     img.src = '/zones/map.jpg';
@@ -358,7 +386,7 @@ export function ZoneMap({
   }, [draw, targets, highlightId, opacity, showPasses, showGrid, showNames, pin, focusMark]);
 
   useEffect(() => {
-    if (focus) centerOn(focus.x, focus.y);
+    if (focus?.move) centerOn(focus.x, focus.y);
   }, [focus, centerOn]);
 
   // Pointer: drag to pan, pinch to zoom, click to pick / read a coordinate.
@@ -383,7 +411,7 @@ export function ZoneMap({
     const g = toGame(viewRef.current, sx, sy);
     if (readoutRef.current && g.x >= 0 && g.x <= MAP_SIZE && g.y >= 0 && g.y <= MAP_SIZE) {
       const z = ZONE_BY_ID.get(zoneIdAt(g.x, g.y));
-      readoutRef.current.textContent = `X ${g.x}  Y ${g.y}${z ? `  ·  ${z.code} ${z.name}` : ''}`;
+      readoutRef.current.textContent = `X ${g.x}  Y ${g.y}${z ? `  ·  ${z.name}` : ''}`;
     }
     if (!pointers.current.has(e.pointerId)) return;
     pointers.current.set(e.pointerId, { x: sx, y: sy });
@@ -467,6 +495,7 @@ export function ZoneMap({
 
   return (
     <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-3 space-y-2">
+      <span className={`${labelFont.className} sr-only`}>Zone names</span>
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] mr-1">Zones</span>
         {chips.map((z) => {
@@ -482,13 +511,14 @@ export function ZoneMap({
                   centerOn(z.lx, z.ly, viewRef.current.minScale * 2.5);
                 }
               }}
-              className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-mono border transition-colors ${
+              style={labelFont.style}
+              className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-[13px] font-semibold tracking-wide border transition-colors ${
                 active ? 'border-[var(--foreground)] text-[var(--foreground)] bg-[var(--background-hover)]' : 'border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)]'
               }`}
               title={`${z.name} — ${active ? 'show every zone' : 'show only this zone'}`}
             >
               <span className="w-2.5 h-2.5 rounded-sm" style={{ background: z.color }} />
-              {z.code} {zoneCounts.get(z.id)}
+              {z.name} {zoneCounts.get(z.id)}
             </button>
           );
         })}
@@ -563,7 +593,7 @@ export function ZoneMap({
           {pin && pinZone ? (
             <>
               <span className="inline-block w-2.5 h-2.5 rounded-sm mr-1 align-middle" style={{ background: pinZone.color }} />
-              {pin.x},{pin.y} → <strong className="text-[var(--foreground)]">{pinZone.code}</strong> {pinZone.name}
+              {pin.x},{pin.y} → <strong className="text-[var(--foreground)]">{pinZone.name}</strong>
               {nearZoneEdge(pin.x, pin.y) && <span className="text-amber-400"> · near a border, check in game</span>}
             </>
           ) : (
