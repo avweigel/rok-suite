@@ -40,13 +40,12 @@
     "migrationTracker": "마이그레이션 추적기",
     "allianceSorter": "얼라이언스 분류기",
     "wanted": "구함",
-    "aooPlanner": "AoO 플래너",
+    "kingdomPlanner": "Kingdom Planner",
     "protocols": "프로토콜",
     "resources": "자원",
     "guide": "가이드",
     "betaTools": "베타 도구",
     "wipBadge": "WIP",
-    "kvkMap": "KvK 지도",
     "kingdomStats": "왕국 통계",
     "allianceCalculator": "동맹 계산기",
     "fineCalculator": "벌금 계산기",
@@ -88,9 +87,9 @@
         "description": "우등생, 최고 성과자, 회원 성과",
         "badge": "수상 내역"
       },
-      "aoo": {
-        "title": "AoO 플래너",
-        "description": "대화형 30v30 팀 할당, 구역 분배 및 경기 계획",
+      "kingdomPlanner": {
+        "title": "Kingdom Planner",
+        "description": "AoO 계획과 구역, 관문, baulur 포인트가 표시된 왕국 지도. 장교와 관리자 전용.",
         "badge": "도구"
       },
       "rokMail": {
@@ -112,10 +111,6 @@
       "wanted": {
         "title": "구함",
         "description": "수배 선수 추적, 우선 순위 제로화, 장교 상태 업데이트"
-      },
-      "kvkMap": {
-        "title": "KvK 전쟁실",
-        "description": "동맹 할당, 전략 계획 및 성과 추적이 포함된 대화형 KvK 지도"
       },
       "kingdomStats": {
         "title": "왕국 통계",

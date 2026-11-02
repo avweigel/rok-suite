@@ -1,8 +1,9 @@
 'use client';
 
-// Kingdom map (0–1200) with the walled zones, the mountain passes and the
-// Zero List players TO BE ZEROED on it — the "Zone Murate" tool. Drag to pan; wheel,
-// pinch or the buttons to zoom; click a target to pick its row, click
+// Kingdom map (0–1200) with the walled zones and the mountain passes — the
+// "Zone Murate" tool — plus optional players (Zero List) and fixed points
+// (baulur points, Kingdom Planner). Drag to pan; wheel, pinch or the buttons
+// to zoom; click a player to pick its row, a point to read its coords,
 // anywhere else to read that coordinate's zone.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -18,6 +19,15 @@ export interface MapTarget {
   /** Reported moved — drawn hollow. */
   moved: boolean;
 }
+
+/** A fixed spot on the map (e.g. a baulur point). */
+export interface MapPoint {
+  x: number;
+  y: number;
+}
+
+const NO_TARGETS: MapTarget[] = [];
+const NO_POINTS: MapPoint[] = [];
 
 /** A spot to show: `move` centres the view on it (otherwise it stays put);
  *  `mark` rings it — for a player who has no dot on the map. Bump seq to
@@ -105,22 +115,37 @@ function getLayers() {
 }
 
 export function ZoneMap({
-  targets,
+  targets = NO_TARGETS,
   zoneCounts,
-  highlightId,
-  focus,
+  highlightId = null,
+  focus = null,
   onPick,
-  zoneFilter,
+  zoneFilter = null,
   onZoneFilter,
+  points = NO_POINTS,
+  pointsLabel = 'Point',
+  legend,
+  emptyNote,
+  ariaLabel = 'Kingdom map with the walled zones',
 }: {
-  targets: MapTarget[];
-  /** Targets per zone, before the zone filter is applied. */
-  zoneCounts: Map<number, number>;
-  highlightId: string | null;
-  focus: MapFocus | null;
-  onPick: (id: string) => void;
-  zoneFilter: number | null;
-  onZoneFilter: (id: number | null) => void;
+  /** Players drawn as dots; clicking one calls onPick. */
+  targets?: MapTarget[];
+  /** Targets per zone, before the zone filter is applied. With
+   *  onZoneFilter, shows the zone chips above the map. */
+  zoneCounts?: Map<number, number>;
+  highlightId?: string | null;
+  focus?: MapFocus | null;
+  onPick?: (id: string) => void;
+  zoneFilter?: number | null;
+  onZoneFilter?: (id: number | null) => void;
+  /** Fixed spots drawn as black dots; pointsLabel names one of them. */
+  points?: MapPoint[];
+  pointsLabel?: string;
+  /** Note next to the map toggles. */
+  legend?: React.ReactNode;
+  /** In place of the zone chips when no zone has targets. */
+  emptyNote?: string;
+  ariaLabel?: string;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const cvRef = useRef<HTMLCanvasElement>(null);
@@ -131,13 +156,14 @@ export function ZoneMap({
   const [showPasses, setShowPasses] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
   const [showNames, setShowNames] = useState(true);
+  const [showPoints, setShowPoints] = useState(true);
   const [pin, setPin] = useState<{ x: number; y: number } | null>(null);
   const [lx, setLx] = useState('');
   const [ly, setLy] = useState('');
 
   // Latest render inputs for the imperative drawing code (synced in an effect).
   const focusMark = useMemo(() => (focus?.mark ? { x: focus.x, y: focus.y, name: focus.mark.name } : null), [focus]);
-  const stateRef = useRef({ targets, highlightId, opacity, showPasses, showGrid, showNames, pin, focusMark });
+  const stateRef = useRef({ targets, points, highlightId, opacity, showPasses, showGrid, showNames, showPoints, pin, focusMark });
 
   const draw = useCallback(() => {
     const cv = cvRef.current;
@@ -221,6 +247,30 @@ export function ZoneMap({
         ctx.fill();
         ctx.lineWidth = 2;
         ctx.strokeStyle = '#1f2618';
+        ctx.stroke();
+        if (s > v.minScale * 4) {
+          ctx.font = '11px ui-monospace, monospace';
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = 'rgba(0,0,0,.7)';
+          ctx.strokeText(`${p.x},${p.y}`, X, Y + r + 9);
+          ctx.fillStyle = '#fff';
+          ctx.fillText(`${p.x},${p.y}`, X, Y + r + 9);
+        }
+      }
+    }
+
+    // Fixed points: black dots, coords once zoomed in.
+    if (st.showPoints) {
+      const r = Math.max(5, Math.min(8, s * 6));
+      for (const p of st.points) {
+        const [X, Y] = toScreen(v, p.x, p.y);
+        if (X < -10 || Y < -10 || X > v.W + 10 || Y > v.H + 10) continue;
+        ctx.beginPath();
+        ctx.arc(X, Y, r, 0, 7);
+        ctx.fillStyle = '#111';
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#fff';
         ctx.stroke();
         if (s > v.minScale * 4) {
           ctx.font = '11px ui-monospace, monospace';
@@ -381,9 +431,9 @@ export function ZoneMap({
 
   // Sync the drawing inputs and redraw when they change.
   useEffect(() => {
-    stateRef.current = { targets, highlightId, opacity, showPasses, showGrid, showNames, pin, focusMark };
+    stateRef.current = { targets, points, highlightId, opacity, showPasses, showGrid, showNames, showPoints, pin, focusMark };
     draw();
-  }, [draw, targets, highlightId, opacity, showPasses, showGrid, showNames, pin, focusMark]);
+  }, [draw, targets, points, highlightId, opacity, showPasses, showGrid, showNames, showPoints, pin, focusMark]);
 
   useEffect(() => {
     if (focus?.move) centerOn(focus.x, focus.y);
@@ -440,21 +490,28 @@ export function ZoneMap({
       if (drag.current && !drag.current.moved) {
         const sx = e.nativeEvent.offsetX;
         const sy = e.nativeEvent.offsetY;
-        // A target under the pointer → pick its row; otherwise read the spot.
-        let best: MapTarget | null = null;
-        let bestD = 12;
-        for (const t of stateRef.current.targets) {
-          const [X, Y] = toScreen(viewRef.current, t.x, t.y);
-          const dist = Math.hypot(X - sx, Y - sy);
-          if (dist < bestD) {
-            best = t;
-            bestD = dist;
+        // A target under the pointer → pick its row; otherwise read the
+        // spot, snapped to a point under the pointer.
+        const st = stateRef.current;
+        const nearest = <T extends MapPoint>(list: T[]) => {
+          let best: T | null = null;
+          let bestD = 12;
+          for (const t of list) {
+            const [X, Y] = toScreen(viewRef.current, t.x, t.y);
+            const dist = Math.hypot(X - sx, Y - sy);
+            if (dist < bestD) {
+              best = t;
+              bestD = dist;
+            }
           }
-        }
-        if (best) {
-          onPick(best.id);
+          return best;
+        };
+        const target = onPick ? nearest(st.targets) : null;
+        if (target && onPick) {
+          onPick(target.id);
         } else {
-          const g = toGame(viewRef.current, sx, sy);
+          const p = st.showPoints ? nearest(st.points) : null;
+          const g = p ? { x: p.x, y: p.y } : toGame(viewRef.current, sx, sy);
           setLx(String(g.x));
           setLy(String(g.y));
           setPin(g);
@@ -488,14 +545,19 @@ export function ZoneMap({
   };
 
   const pinZone = pin ? ZONE_BY_ID.get(zoneIdAt(pin.x, pin.y)) : null;
+  const pinIsPoint = !!pin && points.some((p) => p.x === pin.x && p.y === pin.y);
   const chips = useMemo(
-    () => ZONES.filter((z) => (zoneCounts.get(z.id) ?? 0) > 0).sort((a, b) => (zoneCounts.get(b.id) ?? 0) - (zoneCounts.get(a.id) ?? 0)),
+    () =>
+      zoneCounts
+        ? ZONES.filter((z) => (zoneCounts.get(z.id) ?? 0) > 0).sort((a, b) => (zoneCounts.get(b.id) ?? 0) - (zoneCounts.get(a.id) ?? 0))
+        : [],
     [zoneCounts],
   );
 
   return (
     <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-3 space-y-2">
       <span className={`${labelFont.className} sr-only`}>Zone names</span>
+      {onZoneFilter && zoneCounts && (
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] mr-1">Zones</span>
         {chips.map((z) => {
@@ -527,14 +589,15 @@ export function ZoneMap({
             All zones
           </button>
         )}
-        {chips.length === 0 && <span className="text-[11px] text-[var(--text-muted)]">Nobody to be zeroed right now.</span>}
+        {chips.length === 0 && emptyNote && <span className="text-[11px] text-[var(--text-muted)]">{emptyNote}</span>}
       </div>
+      )}
 
       <div ref={boxRef} className="relative w-full aspect-square max-h-[calc(100vh-220px)] rounded-lg overflow-hidden border border-[var(--border)] bg-[#3c4a2a]">
         <canvas
           ref={cvRef}
           tabIndex={0}
-          aria-label="Kingdom map with the walled zones and the players to be zeroed"
+          aria-label={ariaLabel}
           className="block w-full h-full cursor-grab active:cursor-grabbing touch-none"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -567,8 +630,13 @@ export function ZoneMap({
         </label>
         <label className="flex items-center gap-1"><input type="checkbox" checked={showPasses} onChange={(e) => setShowPasses(e.target.checked)} /> Passes</label>
         <label className="flex items-center gap-1"><input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} /> Grid</label>
-        <label className="flex items-center gap-1"><input type="checkbox" checked={showNames} onChange={(e) => setShowNames(e.target.checked)} /> Names</label>
-        <span>Only players <strong className="text-rose-300">TO BE ZEROED</strong> are shown</span>
+        {points.length > 0 && (
+          <label className="flex items-center gap-1"><input type="checkbox" checked={showPoints} onChange={(e) => setShowPoints(e.target.checked)} /> {pointsLabel}s ({points.length})</label>
+        )}
+        {onPick && (
+          <label className="flex items-center gap-1"><input type="checkbox" checked={showNames} onChange={(e) => setShowNames(e.target.checked)} /> Names</label>
+        )}
+        {legend && <span>{legend}</span>}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -594,6 +662,7 @@ export function ZoneMap({
             <>
               <span className="inline-block w-2.5 h-2.5 rounded-sm mr-1 align-middle" style={{ background: pinZone.color }} />
               {pin.x},{pin.y} → <strong className="text-[var(--foreground)]">{pinZone.name}</strong>
+              {pinIsPoint && <span> · {pointsLabel}</span>}
               {nearZoneEdge(pin.x, pin.y) && <span className="text-amber-400"> · near a border, check in game</span>}
             </>
           ) : (

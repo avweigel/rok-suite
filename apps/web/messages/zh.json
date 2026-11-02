@@ -40,13 +40,12 @@
     "migrationTracker": "迁移追踪器",
     "allianceSorter": "联盟分拣机",
     "wanted": "通缉",
-    "aooPlanner": "AoO 规划师",
+    "kingdomPlanner": "Kingdom Planner",
     "protocols": "协议",
     "resources": "资源",
     "guide": "指导",
     "betaTools": "测试版工具",
     "wipBadge": "在制品",
-    "kvkMap": "KvK 地图",
     "kingdomStats": "王国统计",
     "allianceCalculator": "联盟计算器",
     "fineCalculator": "罚款计算器",
@@ -83,9 +82,9 @@
         "description": "赛事结果、挑战排名和比赛跟踪",
         "badge": "结果"
       },
-      "aoo": {
-        "title": "AoO 规划师",
-        "description": "交互式 30v30 团队分配、区域分配和比赛规划",
+      "kingdomPlanner": {
+        "title": "Kingdom Planner",
+        "description": "AoO 计划，以及带有区域、关卡和 baulur 点的王国地图。仅限军官和管理员。",
         "badge": "工具"
       },
       "migrationTracker": {
@@ -99,10 +98,6 @@
       "wanted": {
         "title": "通缉",
         "description": "跟踪通缉球员、清零优先级和官员状态更新"
-      },
-      "kvkMap": {
-        "title": "KvK作战室",
-        "description": "交互式 KvK 地图，包含联盟分配、战略规划和成就跟踪"
       },
       "kingdomStats": {
         "title": "王国统计",

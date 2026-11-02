@@ -41,13 +41,12 @@
     "migrationTracker": "Migration Tracker",
     "allianceSorter": "Alliance Sorter",
     "wanted": "Wanted",
-    "aooPlanner": "AoO Planner",
+    "kingdomPlanner": "Kingdom Planner",
     "protocols": "Protocols",
     "resources": "Resources",
     "guide": "Guide",
     "betaTools": "Beta Tools",
     "wipBadge": "WIP",
-    "kvkMap": "KvK Map",
     "kingdomStats": "Kingdom Stats",
     "allianceCalculator": "Alliance Calculator",
     "fineCalculator": "Fine Calculator",
@@ -88,9 +87,9 @@
         "description": "Event results, challenge rankings, and competition tracking",
         "badge": "Results"
       },
-      "aoo": {
-        "title": "AoO Planner",
-        "description": "Interactive 30v30 team assignments, zone distribution, and match planning",
+      "kingdomPlanner": {
+        "title": "Kingdom Planner",
+        "description": "AoO plans and the home kingdom map with zones, passes and baulur points. Officers and admins.",
         "badge": "Tool"
       },
       "rokMail": {
@@ -112,10 +111,6 @@
       "wanted": {
         "title": "Wanted",
         "description": "Track wanted players, zeroing priority, and officer status updates"
-      },
-      "kvkMap": {
-        "title": "KvK War Room",
-        "description": "Interactive KvK map with alliance assignments, strategy planning, and achievement tracking"
       },
       "kingdomStats": {
         "title": "Kingdom Stats",

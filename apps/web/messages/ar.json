@@ -40,13 +40,12 @@
     "migrationTracker": "تعقب الهجرة",
     "allianceSorter": "فارز التحالف",
     "wanted": "مطلوب",
-    "aooPlanner": "مخطط AoO",
+    "kingdomPlanner": "Kingdom Planner",
     "protocols": "البروتوكولات",
     "resources": "موارد",
     "guide": "مرشد",
     "betaTools": "أدوات بيتا",
     "wipBadge": "قيد التنفيذ",
-    "kvkMap": "خريطة KvK",
     "kingdomStats": "إحصائيات المملكة",
     "allianceCalculator": "حاسبة التحالف",
     "fineCalculator": "حاسبة الغرامات",
@@ -83,9 +82,9 @@
         "description": "نتائج الأحداث، وتصنيفات التحدي، وتتبع المنافسة",
         "badge": "نتائج"
       },
-      "aoo": {
-        "title": "مخطط AoO",
-        "description": "مهام فريق 30v30 التفاعلية، وتوزيع المناطق، والتخطيط للمباريات",
+      "kingdomPlanner": {
+        "title": "Kingdom Planner",
+        "description": "خطط AoO وخريطة المملكة مع المناطق والممرات ونقاط baulur. للضباط والمشرفين.",
         "badge": "أداة"
       },
       "migrationTracker": {
@@ -99,10 +98,6 @@
       "wanted": {
         "title": "مطلوب",
         "description": "تتبع اللاعبين المطلوبين، والأولوية الصفرية، وتحديثات حالة الضابط"
-      },
-      "kvkMap": {
-        "title": "غرفة حرب KvK",
-        "description": "خريطة KvK التفاعلية مع مهام التحالف والتخطيط الاستراتيجي وتتبع الإنجازات"
       },
       "kingdomStats": {
         "title": "إحصائيات المملكة",

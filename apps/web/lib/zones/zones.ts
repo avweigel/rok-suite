@@ -44,6 +44,20 @@ export interface Pass {
 
 export const PASSES: Pass[] = ZONE_PASSES;
 
+/** Baulur points (game coords) — the black dots of the kingdom planning
+ *  map, read off its image (±5). */
+export const BAULUR_POINTS: { x: number; y: number }[] = [
+  { x: 192, y: 1134 }, { x: 847, y: 1129 }, { x: 1002, y: 1129 }, { x: 590, y: 1105 }, { x: 91, y: 1081 }, { x: 1134, y: 1078 },
+  { x: 435, y: 1074 }, { x: 320, y: 1048 }, { x: 166, y: 1044 }, { x: 662, y: 1022 }, { x: 86, y: 984 }, { x: 852, y: 978 },
+  { x: 477, y: 956 }, { x: 1005, y: 915 }, { x: 390, y: 909 }, { x: 229, y: 893 }, { x: 911, y: 890 }, { x: 1059, y: 883 },
+  { x: 135, y: 861 }, { x: 648, y: 810 }, { x: 1008, y: 809 }, { x: 470, y: 790 }, { x: 1086, y: 783 }, { x: 754, y: 771 },
+  { x: 125, y: 760 }, { x: 530, y: 704 }, { x: 1099, y: 704 }, { x: 87, y: 663 }, { x: 982, y: 656 }, { x: 222, y: 650 },
+  { x: 664, y: 650 }, { x: 373, y: 599 }, { x: 543, y: 599 }, { x: 76, y: 516 }, { x: 273, y: 499 }, { x: 1089, y: 482 },
+  { x: 882, y: 469 }, { x: 287, y: 375 }, { x: 634, y: 375 }, { x: 141, y: 356 }, { x: 980, y: 335 }, { x: 1107, y: 335 },
+  { x: 553, y: 306 }, { x: 1056, y: 247 }, { x: 240, y: 244 }, { x: 983, y: 189 }, { x: 571, y: 188 }, { x: 180, y: 184 },
+  { x: 832, y: 139 }, { x: 520, y: 125 }, { x: 1136, y: 123 }, { x: 702, y: 110 },
+];
+
 let grid: Uint8Array | null = null;
 
 /** Zone id per cell, index y * MAP_SIZE + x (game coords). Decoded once. */

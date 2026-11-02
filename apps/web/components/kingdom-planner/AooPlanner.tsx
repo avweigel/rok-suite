@@ -10,7 +10,6 @@ import { defaultStrategyData } from '@/lib/aoo-strategy/strategy-data';
 import { useScanRoster, formatPower, RosterMember } from '@/lib/supabase/use-alliance-roster';
 import { usePlayerDrawer } from '@/lib/roster/player-drawer-context';
 import { getAllMemberStats, MemberEventStats } from '@/lib/supabase/use-event-participation';
-import { AppSidebar } from '@/components/AppSidebar';
 import { useAuth } from '@/lib/supabase/auth-context';
 import { Swords, Plus, Link as LinkIcon, Copy, Check, Lock, Unlock } from 'lucide-react';
 import { OFFICER_PASSWORD } from '@/lib/auth-passwords';
@@ -2433,7 +2432,9 @@ function ConfirmForEveryoneButton({ onConfirm }: { onConfirm: () => void }) {
     );
 }
 
-export default function AooStrategyPage() {
+/** The AoO planner — the AOO section of the Kingdom Planner. `officer`:
+ *  signed in as officer/admin on the site (unlocks the officer tools). */
+export default function AooPlanner({ officer }: { officer: boolean }) {
     const t = useTranslations('aoo');
     const ts = useTranslations('aoo.strategy');
     // URL params and router for shareable plans
@@ -2477,7 +2478,7 @@ export default function AooStrategyPage() {
     const [linkCopied, setLinkCopied] = useState(false);
 
     // Officer login state
-    const [isOfficer, setIsOfficer] = useState(false);
+    const [isOfficer, setIsOfficer] = useState(officer);
     const [showOfficerPrompt, setShowOfficerPrompt] = useState(false);
     const [officerPasswordInput, setOfficerPasswordInput] = useState('');
     const handleOfficerLogin = () => {
@@ -2627,7 +2628,7 @@ export default function AooStrategyPage() {
 
             if (newData) {
                 // Update URL without reload
-                router.push(`/aoo-strategy?plan=${newShareId}`);
+                router.push(`/kingdom-planner?plan=${newShareId}`);
             }
         } catch (err) {
             console.error('Error creating plan:', err);
@@ -2739,7 +2740,7 @@ export default function AooStrategyPage() {
                 // Plan not found
                 console.log('Plan not found:', planShareId);
                 alert(t('builder.planNotFound'));
-                router.push('/aoo-strategy');
+                router.push('/kingdom-planner');
             }
         } catch (error) {
             console.error('Error loading data:', error);
@@ -3336,21 +3337,18 @@ export default function AooStrategyPage() {
 
     if (isLoading) {
         return (
-            <AppSidebar>
                 <div className={`min-h-screen ${theme.bg} ${theme.text} flex items-center justify-center`}>
                     <div className="flex items-center gap-3">
                         <div className="w-5 h-5 border border-[#4318ff] border-t-transparent rounded-full animate-spin"></div>
                         <span className={theme.textMuted}>{t('header.loading')}</span>
                     </div>
                 </div>
-            </AppSidebar>
         );
     }
 
     // Landing page - no plan selected
     if (!shareId) {
         return (
-            <AppSidebar>
                 <div className={`min-h-screen ${theme.bg} ${theme.text}`}>
                     <div className="max-w-2xl mx-auto px-6 py-20">
                         {/* Header */}
@@ -3419,12 +3417,10 @@ export default function AooStrategyPage() {
                         </div>
                     </div>
                 </div>
-            </AppSidebar>
         );
     }
 
     return (
-        <AppSidebar>
         <div className={`min-h-screen ${theme.bg} ${theme.text} transition-colors duration-200 overflow-x-hidden`}>
             {/* Header */}
             <header className="bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)] sticky top-14 lg:top-0 z-30">
@@ -3463,7 +3459,7 @@ export default function AooStrategyPage() {
                             {shareId && (
                                 <button
                                     onClick={async () => {
-                                        const url = `${window.location.origin}/aoo-strategy?plan=${shareId}`;
+                                        const url = `${window.location.origin}/kingdom-planner?plan=${shareId}`;
                                         await navigator.clipboard.writeText(url);
                                         setLinkCopied(true);
                                         setTimeout(() => setLinkCopied(false), 2000);
@@ -4215,6 +4211,5 @@ export default function AooStrategyPage() {
             )}
 
         </div>
-        </AppSidebar>
     );
 }

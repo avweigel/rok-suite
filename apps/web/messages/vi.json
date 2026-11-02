@@ -40,13 +40,12 @@
     "migrationTracker": "Trình theo dõi di chuyển",
     "allianceSorter": "Máy phân loại liên minh",
     "wanted": "Muốn",
-    "aooPlanner": "Công cụ lập kế hoạch AoO",
+    "kingdomPlanner": "Kingdom Planner",
     "protocols": "Giao thức",
     "resources": "Tài nguyên",
     "guide": "Hướng dẫn",
     "betaTools": "Công cụ thử nghiệm",
     "wipBadge": "WIP",
-    "kvkMap": "Bản đồ KvK",
     "kingdomStats": "Thống kê Vương quốc",
     "allianceCalculator": "Máy tính liên minh",
     "fineCalculator": "Máy tính tiền phạt",
@@ -83,9 +82,9 @@
         "description": "Kết quả sự kiện, thứ hạng thử thách và theo dõi cạnh tranh",
         "badge": "Kết quả"
       },
-      "aoo": {
-        "title": "Công cụ lập kế hoạch AoO",
-        "description": "Phân công nhóm 30v30 tương tác, phân bổ khu vực và lập kế hoạch trận đấu",
+      "kingdomPlanner": {
+        "title": "Kingdom Planner",
+        "description": "Kế hoạch AoO và bản đồ vương quốc với các vùng, đèo và điểm baulur. Dành cho sĩ quan và quản trị viên.",
         "badge": "Dụng cụ"
       },
       "migrationTracker": {
@@ -99,10 +98,6 @@
       "wanted": {
         "title": "Muốn",
         "description": "Theo dõi những người chơi bị truy nã, ưu tiên bằng 0 và cập nhật trạng thái sĩ quan"
-      },
-      "kvkMap": {
-        "title": "Phòng Chiến tranh KvK",
-        "description": "Bản đồ KvK tương tác với các nhiệm vụ liên minh, lập kế hoạch chiến lược và theo dõi thành tích"
       },
       "kingdomStats": {
         "title": "Thống kê Vương quốc",

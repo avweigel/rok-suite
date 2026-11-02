@@ -40,13 +40,12 @@
     "migrationTracker": "Suivi des migrations",
     "allianceSorter": "Trieur d'alliance",
     "wanted": "Recherché",
-    "aooPlanner": "Planificateur d'AoO",
+    "kingdomPlanner": "Kingdom Planner",
     "protocols": "Protocoles",
     "resources": "Ressources",
     "guide": "Guide",
     "betaTools": "Outils bêta",
     "wipBadge": "En-cours",
-    "kvkMap": "KvK : carte",
     "kingdomStats": "Statistiques du Royaume",
     "allianceCalculator": "Calculateur d'alliances",
     "fineCalculator": "Calculateur d'amendes",
@@ -83,9 +82,9 @@
         "description": "Résultats des événements, classements des défis et suivi des compétitions",
         "badge": "Résultats"
       },
-      "aoo": {
-        "title": "Planificateur d'AoO",
-        "description": "Affectations interactives des équipes 30 contre 30, répartition des zones et planification des matchs",
+      "kingdomPlanner": {
+        "title": "Kingdom Planner",
+        "description": "Plans AoO et carte du royaume avec zones, cols et points baulur. Pour officiers et admins.",
         "badge": "Outil"
       },
       "migrationTracker": {
@@ -99,10 +98,6 @@
       "wanted": {
         "title": "Recherché",
         "description": "Suivez les joueurs recherchés, la priorité de remise à zéro et les mises à jour du statut des officiers"
-      },
-      "kvkMap": {
-        "title": "Salle de guerre KvK",
-        "description": "Carte KvK interactive avec missions d'alliance, planification stratégique et suivi des réalisations"
       },
       "kingdomStats": {
         "title": "Statistiques du Royaume",

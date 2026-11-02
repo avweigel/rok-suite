@@ -40,13 +40,12 @@
     "migrationTracker": "माइग्रेशन ट्रैकर",
     "allianceSorter": "एलायंस सॉर्टर",
     "wanted": "वांछित",
-    "aooPlanner": "एओओ प्लानर",
+    "kingdomPlanner": "Kingdom Planner",
     "protocols": "प्रोटोकॉल",
     "resources": "संसाधन",
     "guide": "मार्गदर्शक",
     "betaTools": "बीटा उपकरण",
     "wipBadge": "WIP",
-    "kvkMap": "केवीके मानचित्र",
     "kingdomStats": "किंगडम आँकड़े",
     "allianceCalculator": "एलायंस कैलकुलेटर",
     "fineCalculator": "जुर्माना कैलकुलेटर",
@@ -83,9 +82,9 @@
         "description": "इवेंट के परिणाम, चुनौती रैंकिंग और प्रतियोगिता ट्रैकिंग",
         "badge": "परिणाम"
       },
-      "aoo": {
-        "title": "एओओ प्लानर",
-        "description": "इंटरएक्टिव 30v30 टीम असाइनमेंट, ज़ोन वितरण और मैच योजना",
+      "kingdomPlanner": {
+        "title": "Kingdom Planner",
+        "description": "AoO योजनाएँ और ज़ोन, दर्रों व baulur पॉइंट्स के साथ राज्य का नक्शा। ऑफ़िसर और एडमिन के लिए।",
         "badge": "औजार"
       },
       "migrationTracker": {
@@ -99,10 +98,6 @@
       "wanted": {
         "title": "वांछित",
         "description": "वांछित खिलाड़ियों को ट्रैक करें, प्राथमिकता शून्य करें और अधिकारी स्थिति अपडेट करें"
-      },
-      "kvkMap": {
-        "title": "केवीके वॉर रूम",
-        "description": "गठबंधन असाइनमेंट, रणनीति योजना और उपलब्धि ट्रैकिंग के साथ इंटरएक्टिव केवीके मानचित्र"
       },
       "kingdomStats": {
         "title": "किंगडम आँकड़े",

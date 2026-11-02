@@ -40,13 +40,12 @@
     "migrationTracker": "Geçiş Takibi",
     "allianceSorter": "İttifak Sıralayıcısı",
     "wanted": "Aranan",
-    "aooPlanner": "Etki Alanı Planlayıcısı",
+    "kingdomPlanner": "Kingdom Planner",
     "protocols": "Protokoller",
     "resources": "Kaynaklar",
     "guide": "Rehber",
     "betaTools": "Beta Araçları",
     "wipBadge": "Devam Eden Çalışma",
-    "kvkMap": "KvK Haritası",
     "kingdomStats": "Krallık İstatistikleri",
     "allianceCalculator": "İttifak Hesaplayıcı",
     "fineCalculator": "Ceza hesaplayıcı",
@@ -83,9 +82,9 @@
         "description": "Etkinlik sonuçları, mücadele sıralamaları ve rekabet takibi",
         "badge": "Sonuçlar"
       },
-      "aoo": {
-        "title": "Etki Alanı Planlayıcısı",
-        "description": "Etkileşimli 30v30 takım atamaları, bölge dağıtımı ve maç planlaması",
+      "kingdomPlanner": {
+        "title": "Kingdom Planner",
+        "description": "AoO planları ve bölgeler, geçitler ve baulur noktalarıyla krallık haritası. Subaylar ve yöneticiler için.",
         "badge": "Alet"
       },
       "migrationTracker": {
@@ -99,10 +98,6 @@
       "wanted": {
         "title": "Aranan",
         "description": "Aranan oyuncuları, sıfırlama önceliğini ve memur durum güncellemelerini takip edin"
-      },
-      "kvkMap": {
-        "title": "KvK Savaş Odası",
-        "description": "İttifak atamaları, strateji planlama ve başarı takibi içeren etkileşimli KvK haritası"
       },
       "kingdomStats": {
         "title": "Krallık İstatistikleri",

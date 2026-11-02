@@ -6,7 +6,7 @@ import { LockedPlaceholder } from '@/components/LockedPlaceholder';
 import { ScanUploader } from '@/components/upload/ScanUploader';
 import { UploadHistory } from '@/components/upload/UploadHistory';
 import { meetsRole, useAuthRole } from '@/lib/auth-role';
-import { WarRoomAuthProvider, useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
+import { WarRoomAuthProvider, useWarRoomAuth } from '@/lib/war-room-auth';
 
 // The one place where kingdom scans are uploaded. Everything that needs scan
 // data (Zero List, Power Growers — later Submit lead info, DKP, KD stats)

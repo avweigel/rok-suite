@@ -40,13 +40,12 @@
     "migrationTracker": "移行トラッカー",
     "allianceSorter": "アライアンスソーター",
     "wanted": "募集中",
-    "aooPlanner": "AoOプランナー",
+    "kingdomPlanner": "Kingdom Planner",
     "protocols": "プロトコル",
     "resources": "リソース",
     "guide": "ガイド",
     "betaTools": "ベータツール",
     "wipBadge": "WIP",
-    "kvkMap": "KvKの地図",
     "kingdomStats": "王国の統計",
     "allianceCalculator": "同盟計算機",
     "fineCalculator": "罰金計算機",
@@ -83,9 +82,9 @@
         "description": "イベントの結果、チャレンジのランキング、および競争の追跡",
         "badge": "結果"
       },
-      "aoo": {
-        "title": "AoOプランナー",
-        "description": "インタラクティブな 30 対 30 のチーム割り当て、ゾーン配分、試合計画",
+      "kingdomPlanner": {
+        "title": "Kingdom Planner",
+        "description": "AoOの計画と、ゾーン・関所・baulurポイント付きの王国マップ。士官と管理者向け。",
         "badge": "道具"
       },
       "migrationTracker": {
@@ -99,10 +98,6 @@
       "wanted": {
         "title": "募集中",
         "description": "指名手配選手、優先順位のゼロ化、将校ステータスの更新を追跡する"
-      },
-      "kvkMap": {
-        "title": "KvK 作戦室",
-        "description": "同盟の割り当て、戦略計画、成果追跡を備えたインタラクティブな KvK マップ"
       },
       "kingdomStats": {
         "title": "王国の統計",

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { CalendarRange, ChevronDown, Clock, Copy, Crosshair, Link2, Mail, MapPinOff, RotateCcw, Trash2, TrendingUp, UserPlus, Users, X } from 'lucide-react';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
 import { NewIllegalChip, ShieldCell, daysBetween, fmtCompact, fmtDeltaM, useNow } from '@/components/migration/ScanCells';
-import { ZoneMap, type MapFocus, type MapTarget } from '@/components/migration/ZoneMap';
+import { ZoneMap, type MapFocus, type MapTarget } from '@/components/zones/ZoneMap';
 import { AddPlayersDialog } from '@/components/migration/AddPlayersDialog';
 import {
   type MigrationCase,
@@ -760,7 +760,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   }, [mailableCases]);
 
   // Stash the generated mail in localStorage and open RoK Mail in a new tab —
-  // same hand-off the AOO planner uses (see app/aoo-strategy/page.tsx).
+  // same hand-off the AOO planner uses (see components/kingdom-planner/AooPlanner.tsx).
   const openMailDraft = useCallback(() => {
     if (mailableCases.length === 0) return;
     const mail = generateZeroListMail({
@@ -1263,6 +1263,9 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
           onPick={pickFromMap}
           zoneFilter={zoneFilter}
           onZoneFilter={setZoneFilter}
+          emptyNote="Nobody to be zeroed right now."
+          legend={<>Only players <strong className="text-rose-300">TO BE ZEROED</strong> are shown</>}
+          ariaLabel="Kingdom map with the walled zones and the players to be zeroed"
         />
       </aside>
       </div>

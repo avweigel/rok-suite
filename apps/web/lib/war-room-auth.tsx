@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
-import type { WarRoomRole } from '@/lib/kvk-map-types';
+export type WarRoomRole = 'viewer' | 'power' | 'officer' | 'admin';
 import { ADMIN_PASSWORD, OFFICER_PASSWORD, POWER_PASSWORD } from '@/lib/auth-passwords';
 
 const PASSWORDS: Record<Exclude<WarRoomRole, 'viewer'>, string> = {

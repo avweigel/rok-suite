@@ -17,7 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
-import { WarRoomAuthProvider, useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
+import { WarRoomAuthProvider, useWarRoomAuth } from '@/lib/war-room-auth';
 import { meetsRole, useAuthRole } from '@/lib/auth-role';
 import { ZERO_LIST_URL_KEYS, ZeroListTab } from '@/components/migration/ZeroListTab';
 import { ScansTab } from '@/components/migration/ScansTab';

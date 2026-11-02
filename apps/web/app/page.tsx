@@ -3,12 +3,11 @@
 import Link from 'next/link';
 import { AppSidebar } from '@/components/AppSidebar';
 import {
-  Swords,
+  Castle,
   GitBranch,
   ExternalLink,
   Calendar,
   Shield,
-  Map,
   BarChart3,
   Calculator,
   Scale,
@@ -98,10 +97,10 @@ export default function Home() {
       iconHoverColor: 'group-hover:text-orange-500',
     },
     {
-      href: '/aoo-strategy',
-      titleKey: 'tools.aoo.title',
-      descriptionKey: 'tools.aoo.description',
-      icon: Swords,
+      href: '/kingdom-planner',
+      titleKey: 'tools.kingdomPlanner.title',
+      descriptionKey: 'tools.kingdomPlanner.description',
+      icon: Castle,
       hoverBorder: 'hover:border-emerald-500/40',
       hoverShadow: 'hover:shadow-emerald-500/10',
       iconHoverBg: 'group-hover:bg-emerald-500/15',
@@ -126,16 +125,6 @@ export default function Home() {
       hoverShadow: 'hover:shadow-green-500/10',
       iconHoverBg: 'group-hover:bg-green-500/15',
       iconHoverColor: 'group-hover:text-green-500',
-    },
-    {
-      href: '/kvk-map',
-      titleKey: 'tools.kvkMap.title',
-      descriptionKey: 'tools.kvkMap.description',
-      icon: Map,
-      hoverBorder: 'hover:border-orange-500/40',
-      hoverShadow: 'hover:shadow-orange-500/10',
-      iconHoverBg: 'group-hover:bg-orange-500/15',
-      iconHoverColor: 'group-hover:text-orange-500',
     },
     {
       href: '/apply',
