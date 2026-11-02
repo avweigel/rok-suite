@@ -1,7 +1,7 @@
 'use client';
 
 // Kingdom map (0–1200) with the walled zones, the mountain passes and the
-// Zero List targets on it — the "Zone Murate" tool. Drag to pan; wheel,
+// Zero List players TO BE ZEROED on it — the "Zone Murate" tool. Drag to pan; wheel,
 // pinch or the buttons to zoom; click a target to pick its row, click
 // anywhere else to read that coordinate's zone.
 
@@ -14,8 +14,6 @@ export interface MapTarget {
   x: number;
   y: number;
   zoneId: number;
-  /** TO BE ZEROED — drawn with a red ring. */
-  flagged: boolean;
   /** Reported moved — drawn hollow. */
   moved: boolean;
 }
@@ -104,8 +102,9 @@ export function ZoneMap({
   /** Targets per zone, before the zone filter is applied. */
   zoneCounts: Map<number, number>;
   highlightId: string | null;
-  /** Centre the map on (x, y); bump seq to repeat the same spot. */
-  focus: { x: number; y: number; seq: number } | null;
+  /** Centre the map on (x, y); bump seq to repeat the same spot. `mark`
+   *  rings the spot — for a player who has no dot on the map. */
+  focus: { x: number; y: number; seq: number; mark?: boolean } | null;
   onPick: (id: string) => void;
   zoneFilter: number | null;
   onZoneFilter: (id: number | null) => void;
@@ -124,7 +123,8 @@ export function ZoneMap({
   const [ly, setLy] = useState('');
 
   // Latest render inputs for the imperative drawing code (synced in an effect).
-  const stateRef = useRef({ targets, highlightId, opacity, showPasses, showGrid, showNames, pin });
+  const focusMark = useMemo(() => (focus?.mark ? { x: focus.x, y: focus.y } : null), [focus]);
+  const stateRef = useRef({ targets, highlightId, opacity, showPasses, showGrid, showNames, pin, focusMark });
 
   const draw = useCallback(() => {
     const cv = cvRef.current;
@@ -248,13 +248,6 @@ export function ZoneMap({
         ctx.strokeStyle = big ? '#fff' : '#111';
         ctx.stroke();
       }
-      if (t.flagged) {
-        ctx.beginPath();
-        ctx.arc(X, Y, big ? 13 : 9.5, 0, 7);
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#e11d48';
-        ctx.stroke();
-      }
       if (names || big) {
         ctx.font = '600 12px system-ui, sans-serif';
         ctx.textAlign = 'left';
@@ -265,6 +258,18 @@ export function ZoneMap({
         ctx.fillText(t.name, X + 12, Y);
         ctx.textAlign = 'center';
       }
+    }
+
+    // Located player with no dot (not TO BE ZEROED): dashed ring.
+    if (st.focusMark) {
+      const [X, Y] = toScreen(v, st.focusMark.x, st.focusMark.y);
+      ctx.beginPath();
+      ctx.arc(X, Y, 11, 0, 7);
+      ctx.setLineDash([4, 3]);
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#fff';
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
 
     if (st.pin) {
@@ -348,9 +353,9 @@ export function ZoneMap({
 
   // Sync the drawing inputs and redraw when they change.
   useEffect(() => {
-    stateRef.current = { targets, highlightId, opacity, showPasses, showGrid, showNames, pin };
+    stateRef.current = { targets, highlightId, opacity, showPasses, showGrid, showNames, pin, focusMark };
     draw();
-  }, [draw, targets, highlightId, opacity, showPasses, showGrid, showNames, pin]);
+  }, [draw, targets, highlightId, opacity, showPasses, showGrid, showNames, pin, focusMark]);
 
   useEffect(() => {
     if (focus) centerOn(focus.x, focus.y);
@@ -492,14 +497,14 @@ export function ZoneMap({
             All zones
           </button>
         )}
-        {chips.length === 0 && <span className="text-[11px] text-[var(--text-muted)]">No target with coordinates.</span>}
+        {chips.length === 0 && <span className="text-[11px] text-[var(--text-muted)]">Nobody to be zeroed right now.</span>}
       </div>
 
       <div ref={boxRef} className="relative w-full aspect-square max-h-[calc(100vh-220px)] rounded-lg overflow-hidden border border-[var(--border)] bg-[#3c4a2a]">
         <canvas
           ref={cvRef}
           tabIndex={0}
-          aria-label="Kingdom map with the walled zones and the Zero List targets"
+          aria-label="Kingdom map with the walled zones and the players to be zeroed"
           className="block w-full h-full cursor-grab active:cursor-grabbing touch-none"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -533,9 +538,7 @@ export function ZoneMap({
         <label className="flex items-center gap-1"><input type="checkbox" checked={showPasses} onChange={(e) => setShowPasses(e.target.checked)} /> Passes</label>
         <label className="flex items-center gap-1"><input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} /> Grid</label>
         <label className="flex items-center gap-1"><input type="checkbox" checked={showNames} onChange={(e) => setShowNames(e.target.checked)} /> Names</label>
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-2.5 h-2.5 rounded-full border-2 border-rose-600" /> to be zeroed
-        </span>
+        <span>Only players <strong className="text-rose-300">TO BE ZEROED</strong> are shown</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-xs">

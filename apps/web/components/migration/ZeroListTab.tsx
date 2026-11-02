@@ -583,11 +583,11 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
           c.username.toLowerCase().includes(q) || (qDigits.length >= 3 && String(c.character_id).includes(qDigits)),
       );
     }
-    // Per-zone counts before the zone filter, for the map's zone chips.
+    // TO BE ZEROED per zone (what the map shows), before the zone filter.
     const zoneCounts = new Map<number, number>();
     for (const c of list) {
       const z = zoneOfCase(c);
-      if (z) zoneCounts.set(z.id, (zoneCounts.get(z.id) ?? 0) + 1);
+      if (z && toBeZeroed(c)) zoneCounts.set(z.id, (zoneCounts.get(z.id) ?? 0) + 1);
     }
     if (zoneFilter != null) list = list.filter((c) => zoneOfCase(c)?.id === zoneFilter);
     const sign = sort.dir === 'asc' ? 1 : -1;
@@ -641,7 +641,8 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     return { filtered: sorted, zoneCounts };
   }, [visibleCases, isInActive, closedView, movedOnly, grewOnly, neverZeroedOnly, zoneFilter, zoneOfCase, deltaOf, toBeZeroed, search, sort.field, sort.dir, locationLookup]);
 
-  // The rows shown, on the map.
+  // On the map: the rows shown that are TO BE ZEROED. Zeroed players who
+  // haven't grown back stay off until a new scan flags them again.
   const mapTargets = useMemo<MapTarget[]>(
     () =>
       filtered.flatMap((c) => {
@@ -649,8 +650,8 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
         const x = c.x ?? p?.x;
         const y = c.y ?? p?.y;
         const z = zoneOfCase(c);
-        if (x == null || y == null || !z) return [];
-        return [{ id: c.id, name: c.username, x, y, zoneId: z.id, flagged: toBeZeroed(c), moved: !!c.moved_reported_at }];
+        if (x == null || y == null || !z || !toBeZeroed(c)) return [];
+        return [{ id: c.id, name: c.username, x, y, zoneId: z.id, moved: !!c.moved_reported_at }];
       }),
     [filtered, locationLookup, zoneOfCase, toBeZeroed],
   );
@@ -660,9 +661,10 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       const x = c.x ?? p?.x;
       const y = c.y ?? p?.y;
       setHighlightId(c.id);
-      if (x != null && y != null) setMapFocus((prev) => ({ x, y, seq: (prev?.seq ?? 0) + 1 }));
+      // Not on the map (not TO BE ZEROED): ring the spot instead.
+      if (x != null && y != null) setMapFocus((prev) => ({ x, y, seq: (prev?.seq ?? 0) + 1, mark: !toBeZeroed(c) }));
     },
-    [locationLookup],
+    [locationLookup, toBeZeroed],
   );
   const pickFromMap = useCallback((id: string) => {
     setHighlightId(id);
@@ -835,7 +837,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
               <ul className="text-xs space-y-1 list-disc pl-5">
                 <li>The (x, y) cell is a <strong>button</strong> — click it to copy. The little copy icon turns into a green checkmark for ~1.5s when it works.</li>
                 <li>Target not at those coords anymore? Anyone can click <strong>Moved</strong>: the coords get struck through and the row joins the <strong>Moved</strong> filter — who to look for in the next scan. The next location upload that finds them (or an admin editing the coords) clears it.</li>
-                <li>The <strong>zone map</strong> next to the list shows every row with coordinates, coloured by walled zone (red ring = TO BE ZEROED). Click a zone chip on the map to show only that zone, the zone chip next to the coords to find the player on the map, or a dot on the map to jump to its row.</li>
+                <li>The <strong>zone map</strong> next to the list shows the players <strong>TO BE ZEROED</strong>, coloured by walled zone — the others stay off it until a new scan flags them again. Click a zone chip on the map to show only that zone, the zone chip next to the coords to find the player on the map, or a dot on the map to jump to its row.</li>
                 <li>If the (x, y) cell is empty (em dash), the player wasn&apos;t in the latest location scan. Upload a fresh one on <a href="/upload" className="text-cyan-400 hover:underline">Upload Scan</a>.</li>
                 <li><strong>Δ Power</strong> is the change between the previous location scan and the latest one that had the player — orange means they grew. It appears once two uploads have included them. Pick a period in the <strong>Δ</strong> selector to compare two scans instead, and use <strong>Grew</strong> to keep only who grew.</li>
                 <li><strong>TO BE ZEROED</strong> marks who wasn&apos;t in the first location scan (the oldest one uploaded) or was added as NEW ILLEGAL and hasn&apos;t been zeroed yet, whoever came back after 30+ days missing from the scans and hasn&apos;t been zeroed since, and anyone whose <strong>Δ Power</strong> is positive — zeroed before or not. They always sit at the top of the list, whatever the sort; hover the chip for the reason. <strong>Zeroed</strong> shows how many times each player was zeroed and sorts by it.</li>
