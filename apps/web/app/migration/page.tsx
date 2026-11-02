@@ -731,7 +731,8 @@ function MigrationPageInner() {
 
   return (
     <div className="min-h-screen">
-      <div className="max-w-[1400px] mx-auto px-3 sm:px-6 py-4 sm:py-10">
+      {/* Wide: the Zero List sits next to the zone map. */}
+      <div className="max-w-[1800px] mx-auto px-3 sm:px-6 py-4 sm:py-10">
         {/* Header */}
         <header className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
           <div>

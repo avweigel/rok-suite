@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CalendarRange, ChevronDown, Clock, Copy, Crosshair, Link2, Mail, MapPinOff, RotateCcw, Trash2, TrendingUp, UserPlus, Users, X } from 'lucide-react';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
-import { AcclaimCell, NewIllegalChip, ShieldCell, daysBetween, fmtCompact, fmtDeltaM, useNow } from '@/components/migration/ScanCells';
+import { NewIllegalChip, ShieldCell, daysBetween, fmtCompact, fmtDeltaM, useNow } from '@/components/migration/ScanCells';
+import { ZoneMap, type MapTarget } from '@/components/migration/ZoneMap';
 import { AddPlayersDialog } from '@/components/migration/AddPlayersDialog';
 import {
   type MigrationCase,
@@ -28,12 +29,13 @@ import {
 import { loadLatestKingdomData, type KingdomData, type KingdomPlayer } from '@/lib/scans/kingdom-data';
 import { listLocationScans, loadLocationPoints, type LocationScanRow } from '@/lib/zero-list/scan-data';
 import { SortableTh, useTableSort } from '@/components/migration/SortableTh';
+import { zoneAt, type Zone } from '@/lib/zones/zones';
 
 /** URL keys holding the Zero List view, so a shared link opens it as filtered:
- *  zls search · zlm moved only · zlg grew only · zln never zeroed
+ *  zls search · zlm moved only · zlg grew only · zln never zeroed · zlz zone
  *  · zlc closed entries (officers)
  *  · zdf / zdt Δ period (location scan ids) · zsort field.dir */
-export const ZERO_LIST_URL_KEYS = ['zls', 'zlm', 'zlg', 'zln', 'zlc', 'zdf', 'zdt', 'zsort'] as const;
+export const ZERO_LIST_URL_KEYS = ['zls', 'zlm', 'zlg', 'zln', 'zlz', 'zlc', 'zdf', 'zdt', 'zsort'] as const;
 
 const SORT_FIELDS = ['username', 'power', 'delta', 'kills', 'ch', 'alliance', 'acclaim', 'state', 'zeroed', 'added'] as const;
 type ZSortField = (typeof SORT_FIELDS)[number];
@@ -251,6 +253,14 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   const [grewOnly, setGrewOnly] = useState(() => searchParams.get('zlg') === '1');
   /** Show only players nobody has zeroed yet (zeroed count 0). */
   const [neverZeroedOnly, setNeverZeroedOnly] = useState(() => searchParams.get('zln') === '1');
+  /** Show one walled zone only (zone id, see lib/zones). */
+  const [zoneFilter, setZoneFilter] = useState<number | null>(() => {
+    const n = Number(searchParams.get('zlz'));
+    return Number.isInteger(n) && n >= 1 && n <= 10 ? n : null;
+  });
+  /** Row picked on the map or located from the list. */
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [mapFocus, setMapFocus] = useState<{ x: number; y: number; seq: number } | null>(null);
   /** Δ Power period between two location scans. No "from" scan = each
    *  player's previous → latest sighting (prev_seen_power → last_seen_power). */
   const [scans, setScans] = useState<LocationScanRow[]>([]);
@@ -516,6 +526,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     put('zlm', movedOnly ? '1' : null);
     put('zlg', grewOnly ? '1' : null);
     put('zln', neverZeroedOnly ? '1' : null);
+    put('zlz', zoneFilter != null ? String(zoneFilter) : null);
     put('zlc', closedView ? '1' : null);
     put('zdf', rangeFromId != null ? String(rangeFromId) : null);
     put('zdt', rangeFromId != null && rangeTo != null && rangeTo === rangeToId ? String(rangeTo) : null);
@@ -527,7 +538,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     }
     const next = params.toString();
     if (next !== searchParams.toString()) router.replace(next ? `?${next}` : '?', { scroll: false });
-  }, [search, movedOnly, grewOnly, neverZeroedOnly, closedView, rangeFromId, rangeTo, rangeToId, scans.length, sort.field, sort.dir, router, searchParams]);
+  }, [search, movedOnly, grewOnly, neverZeroedOnly, zoneFilter, closedView, rangeFromId, rangeTo, rangeToId, scans.length, sort.field, sort.dir, router, searchParams]);
 
   const copyViewLink = () => {
     const url = new URL(window.location.href);
@@ -550,7 +561,16 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     [isOfficer],
   );
 
-  const filtered = useMemo(() => {
+  /** Walled zone of a row, from its coords (row first, latest scan as fallback). */
+  const zoneOfCase = useCallback(
+    (c: MigrationCase): Zone | null => {
+      const p = locationLookup.get(c.character_id);
+      return zoneAt(c.x ?? p?.x ?? null, c.y ?? p?.y ?? null);
+    },
+    [locationLookup],
+  );
+
+  const { filtered, zoneCounts } = useMemo(() => {
     let list = closedView ? visibleCases.filter((c) => !isInActive(c)) : visibleCases.filter(isInActive);
     if (movedOnly) list = list.filter((c) => c.moved_reported_at);
     if (grewOnly) list = list.filter((c) => (deltaOf(c) ?? 0) > 0);
@@ -563,6 +583,13 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
           c.username.toLowerCase().includes(q) || (qDigits.length >= 3 && String(c.character_id).includes(qDigits)),
       );
     }
+    // Per-zone counts before the zone filter, for the map's zone chips.
+    const zoneCounts = new Map<number, number>();
+    for (const c of list) {
+      const z = zoneOfCase(c);
+      if (z) zoneCounts.set(z.id, (zoneCounts.get(z.id) ?? 0) + 1);
+    }
+    if (zoneFilter != null) list = list.filter((c) => zoneOfCase(c)?.id === zoneFilter);
     const sign = sort.dir === 'asc' ? 1 : -1;
     const power = (c: MigrationCase) => c.last_seen_power ?? locationLookup.get(c.character_id)?.power ?? c.power_at_open;
     // Missing numbers sort below any real value in both directions (the
@@ -611,8 +638,36 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       else cmp *= sign;
       return cmp;
     });
-    return sorted;
-  }, [visibleCases, isInActive, closedView, movedOnly, grewOnly, neverZeroedOnly, deltaOf, toBeZeroed, search, sort.field, sort.dir, locationLookup]);
+    return { filtered: sorted, zoneCounts };
+  }, [visibleCases, isInActive, closedView, movedOnly, grewOnly, neverZeroedOnly, zoneFilter, zoneOfCase, deltaOf, toBeZeroed, search, sort.field, sort.dir, locationLookup]);
+
+  // The rows shown, on the map.
+  const mapTargets = useMemo<MapTarget[]>(
+    () =>
+      filtered.flatMap((c) => {
+        const p = locationLookup.get(c.character_id);
+        const x = c.x ?? p?.x;
+        const y = c.y ?? p?.y;
+        const z = zoneOfCase(c);
+        if (x == null || y == null || !z) return [];
+        return [{ id: c.id, name: c.username, x, y, zoneId: z.id, flagged: toBeZeroed(c), moved: !!c.moved_reported_at }];
+      }),
+    [filtered, locationLookup, zoneOfCase, toBeZeroed],
+  );
+  const locateCase = useCallback(
+    (c: MigrationCase) => {
+      const p = locationLookup.get(c.character_id);
+      const x = c.x ?? p?.x;
+      const y = c.y ?? p?.y;
+      setHighlightId(c.id);
+      if (x != null && y != null) setMapFocus((prev) => ({ x, y, seq: (prev?.seq ?? 0) + 1 }));
+    },
+    [locationLookup],
+  );
+  const pickFromMap = useCallback((id: string) => {
+    setHighlightId(id);
+    document.getElementById(`zl-row-${id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, []);
 
   const movedCount = useMemo(
     () => visibleCases.filter((c) => isInActive(c) && c.moved_reported_at).length,
@@ -759,7 +814,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
               <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Recipe — Admin, fresh data</div>
               <ol className="space-y-1 text-xs list-decimal pl-5">
                 <li>Open <a href="/upload" className="text-cyan-400 hover:underline">Upload Scan</a> and drop the location scan (<code className="text-[var(--text-secondary)]">scan_3923.csv</code>) and the performance report (<code className="text-[var(--text-secondary)]">kd3923-performance-….xlsx</code>).</li>
-                <li>Every entry here gets fresh coords, power, KP, CH, alliance and shield from the location scan, and <strong>Acclaim</strong> from the report — matched by Gov ID.</li>
+                <li>Every entry here gets fresh coords, power, CH, alliance and shield from the location scan — matched by Gov ID.</li>
               </ol>
             </div>
 
@@ -780,9 +835,9 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
               <ul className="text-xs space-y-1 list-disc pl-5">
                 <li>The (x, y) cell is a <strong>button</strong> — click it to copy. The little copy icon turns into a green checkmark for ~1.5s when it works.</li>
                 <li>Target not at those coords anymore? Anyone can click <strong>Moved</strong>: the coords get struck through and the row joins the <strong>Moved</strong> filter — who to look for in the next scan. The next location upload that finds them (or an admin editing the coords) clears it.</li>
-                <li><strong>Acclaim</strong> comes from the latest performance report, only for players in the latest location scan: a red <em>0</em> means they earned none in the report period, <em>—</em> means they aren&apos;t in the report or not in the location scan.</li>
+                <li>The <strong>zone map</strong> next to the list shows every row with coordinates, coloured by walled zone (red ring = TO BE ZEROED). Click a zone chip on the map to show only that zone, the zone chip next to the coords to find the player on the map, or a dot on the map to jump to its row.</li>
                 <li>If the (x, y) cell is empty (em dash), the player wasn&apos;t in the latest location scan. Upload a fresh one on <a href="/upload" className="text-cyan-400 hover:underline">Upload Scan</a>.</li>
-                <li><strong>Δ Power</strong> is the change between the previous location scan and the latest one that had the player — orange means they grew. It appears once two uploads have included them. Pick a period in the <strong>Δ</strong> selector to compare two scans instead, and use <strong>Grew</strong> to keep only who grew. Sort by <strong>Added</strong> to see the latest additions first.</li>
+                <li><strong>Δ Power</strong> is the change between the previous location scan and the latest one that had the player — orange means they grew. It appears once two uploads have included them. Pick a period in the <strong>Δ</strong> selector to compare two scans instead, and use <strong>Grew</strong> to keep only who grew.</li>
                 <li><strong>TO BE ZEROED</strong> marks who wasn&apos;t in the first location scan (the oldest one uploaded) or was added as NEW ILLEGAL and hasn&apos;t been zeroed yet, whoever came back after 30+ days missing from the scans and hasn&apos;t been zeroed since, and anyone whose <strong>Δ Power</strong> is positive — zeroed before or not. They always sit at the top of the list, whatever the sort; hover the chip for the reason. <strong>Zeroed</strong> shows how many times each player was zeroed and sorts by it.</li>
                 <li>Everyone can mark <strong>Zeroed</strong> or <strong>Moved</strong>. Officers can also take back a wrong Zeroed click (<em>−1</em>); adding and removing targets is admin-only.</li>
                 <li>Don&apos;t click the trash icon casually — it&apos;s a hard delete with no undo.</li>
@@ -1129,8 +1184,9 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
         )}
       </section>
 
-      {/* Table */}
-      <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
+      {/* Table and zone map — side by side on wide screens */}
+      <div className="grid gap-4 items-start min-[1500px]:grid-cols-[minmax(0,1fr)_minmax(0,34%)]">
+      <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] min-w-0">
         <div className="overflow-auto max-h-[calc(100vh-280px)] rounded-xl">
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-20 bg-[var(--background-secondary)] text-[var(--text-muted)] text-xs uppercase tracking-wider shadow-[0_1px_0_var(--border)]">
@@ -1138,15 +1194,12 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
                 <SortableTh label="Player" field="username" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <SortableTh label="Power" field="power" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <SortableTh label="Δ Power" field="delta" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
-                <SortableTh label="KP" field="kills" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <SortableTh label="CH" field="ch" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <SortableTh label="Alliance" field="alliance" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <th className="px-3 py-2 text-left">Coords</th>
                 <th className="px-3 py-2 text-left">Shield</th>
-                <SortableTh label="Acclaim" field="acclaim" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <SortableTh label="State" field="state" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <SortableTh label="Zeroed" field="zeroed" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
-                <SortableTh label="Added" field="added" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <th className="px-3 py-2 text-left">Actions</th>
               </tr>
             </thead>
@@ -1159,6 +1212,9 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
                   delta={deltaOf(c)}
                   deltaPeriod={rangeLabel}
                   toBeZeroedWhy={toBeZeroedWhy(c)}
+                  zone={zoneOfCase(c)}
+                  highlighted={highlightId === c.id}
+                  onLocate={() => locateCase(c)}
                   scanAt={scanAt}
                   now={now}
                   isOfficer={isOfficer}
@@ -1169,8 +1225,8 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={13} className="px-3 py-10 text-center text-sm text-[var(--text-muted)]">
-                    {search.trim() || movedOnly || grewOnly || neverZeroedOnly
+                  <td colSpan={10} className="px-3 py-10 text-center text-sm text-[var(--text-muted)]">
+                    {search.trim() || movedOnly || grewOnly || neverZeroedOnly || zoneFilter != null
                       ? 'No matches.'
                       : isAdmin
                         ? 'Nothing on the Zero List right now. Use Add players or the Power Growers tab to add targets.'
@@ -1182,6 +1238,18 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
           </table>
         </div>
       </section>
+      <aside className="min-w-0 min-[1500px]:sticky min-[1500px]:top-4">
+        <ZoneMap
+          targets={mapTargets}
+          zoneCounts={zoneCounts}
+          highlightId={highlightId}
+          focus={mapFocus}
+          onPick={pickFromMap}
+          zoneFilter={zoneFilter}
+          onZoneFilter={setZoneFilter}
+        />
+      </aside>
+      </div>
     </div>
   );
 }
@@ -1192,6 +1260,9 @@ function ZeroListRow({
   delta,
   deltaPeriod,
   toBeZeroedWhy,
+  zone,
+  highlighted,
+  onLocate,
   scanAt,
   now,
   isOfficer,
@@ -1210,6 +1281,12 @@ function ZeroListRow({
   deltaPeriod: string | null;
   /** Why the entry is TO BE ZEROED; empty when it isn't. */
   toBeZeroedWhy: string[];
+  /** Walled zone of the coords shown. */
+  zone: Zone | null;
+  /** Picked on the map. */
+  highlighted: boolean;
+  /** Centre the map on this row. */
+  onLocate: () => void;
   /** When the latest location scan was taken (shield fallback). */
   scanAt: string | null;
   now: number;
@@ -1222,7 +1299,6 @@ function ZeroListRow({
   const [copied, setCopied] = useState(false);
   const isActive = !TERMINAL_STATES.includes(c.state);
   const isMoved = !!c.moved_reported_at;
-  const added = addedAt(c);
 
   // Effective values — prefer the row's stored value (frozen at add time or
   // refresh time), fall back to whatever the latest location scan has.
@@ -1257,7 +1333,10 @@ function ZeroListRow({
   const actor = actorName?.trim() || (isAdmin ? 'admin' : isOfficer ? 'officer' : 'member');
 
   return (
-    <tr className="border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors">
+    <tr
+      id={`zl-row-${c.id}`}
+      className={`border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors ${highlighted ? 'bg-amber-500/10 outline outline-1 outline-amber-500/50' : ''}`}
+    >
       <td className="px-3 py-2">
         <div className="flex items-center gap-1.5 flex-wrap">
           <CopyablePlayerCell name={c.username} govId={c.character_id} />
@@ -1280,9 +1359,6 @@ function ZeroListRow({
         }
       >
         {delta == null ? '—' : fmtDeltaM(delta)}
-      </td>
-      <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
-        {player?.kills != null ? fmtCompact(player.kills) : <span className="text-[var(--text-muted)]">—</span>}
       </td>
       <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
         {player?.castleHall ?? <span className="text-[var(--text-muted)]">—</span>}
@@ -1334,13 +1410,21 @@ function ZeroListRow({
               {effX != null && effY != null ? 'edit' : 'set'}
             </button>
           )}
+          {zone && (
+            <button
+              type="button"
+              onClick={onLocate}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-[var(--border)] font-sans text-[10px] font-semibold text-[var(--text-secondary)] hover:bg-[var(--background-hover)] hover:text-[var(--foreground)] shrink-0"
+              title={`${zone.name} — show on the map`}
+            >
+              <span className="w-2 h-2 rounded-sm" style={{ background: zone.color }} />
+              {zone.code}
+            </button>
+          )}
         </div>
       </td>
       <td className="px-3 py-2">
         <ShieldCell shieldTimeLeft={player?.shieldTimeLeft ?? null} scanAt={scanAt} now={now} />
-      </td>
-      <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
-        <AcclaimCell value={player?.acclaim ?? null} />
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-1">
@@ -1457,14 +1541,6 @@ function ZeroListRow({
         ) : (
           <span className="text-[var(--text-muted)]">—</span>
         )}
-      </td>
-      <td
-        className="px-3 py-2 text-xs text-[var(--text-secondary)] whitespace-nowrap"
-        title={[c.added_by && `by ${c.added_by}`, c.added_reason].filter(Boolean).join(' — ') || undefined}
-      >
-        {added
-          ? new Date(added).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-          : <span className="text-[var(--text-muted)]">—</span>}
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-1">
