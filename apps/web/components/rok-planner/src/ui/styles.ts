@@ -102,6 +102,14 @@ position:relative;display:flex;width:100%;height:100%;min-height:560px;color:var
 .rokp-modal{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,8,12,.55);z-index:8;padding:16px}
 .rokp-modal-box{position:relative;width:min(380px,100%);background:var(--rokp-bg);color:var(--rokp-fg);border:1px solid var(--rokp-border);border-radius:12px;padding:14px 16px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
 .rokp-modal-box>b{display:block;font-size:15px;margin-bottom:4px;padding-right:20px}
+.rokp-rem{list-style:none;margin:6px 0;padding:0;font-size:12.5px}
+.rokp-rem li{border:1px solid var(--rokp-border);border-radius:8px;padding:5px 8px;margin:5px 0;background:var(--rokp-bg2)}
+.rokp-rem-h{margin:0 0 2px}
+.rokp-rem-h button{padding:1px 8px;min-height:22px;font-size:11.5px}
+.rokp-rem-cut{color:var(--rokp-warn);font-size:12px}
+.rokp-rem summary{cursor:pointer;color:var(--rokp-muted);font-size:12px;margin-top:2px}
+.rokp-rem-spots{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;max-height:130px;overflow:auto}
+.rokp-rem-spots button{padding:0 6px;min-height:20px;font-size:11px}
 .rokp-drops{list-style:none;margin:6px 0;padding:0}
 .rokp-drops li{display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px solid var(--rokp-border)}
 .rokp-drops li:first-child{border-top:0}

@@ -32,6 +32,8 @@ export interface Scene {
   picks: Picks;
   selected: { x: number; y: number } | null;
   drops: DropSpot[] | null;
+  /** Buildings that are, or would be, removed by the plan. */
+  marks: readonly [number, number][];
   background: HTMLImageElement | null;
   extra: ExtraLayer[];
   assets: Assets;
@@ -57,6 +59,13 @@ export function landEdges(cells: Iterable<number>, has: (k: number) => boolean):
 
 const ICON_PX = 96;
 
+// These do not change with what the plan assumes gone, and a new Assets is made for each such change: kept apart.
+const MASKS = new WeakMap<object, Map<string, HTMLCanvasElement | null>>();
+/** The resource icons as bitmaps: drawing an SVG image thousands of times a frame is what made zooming slow. */
+const ICONS: Record<string, HTMLCanvasElement> = {};
+let iconsStarted = false;
+let iconLoaded: () => void = () => {};
+
 const makeCanvas = (w: number, h: number): HTMLCanvasElement => {
   const c = document.createElement('canvas');
   c.width = Math.max(1, w);
@@ -66,15 +75,13 @@ const makeCanvas = (w: number, h: number): HTMLCanvasElement => {
 
 /** Things that are expensive to build and do not change while the user draws: the red mask, the land of the alliances that exist, the icons, the plan's land. */
 export class Assets {
-  private masks = new Map<string, HTMLCanvasElement | null>();
   private landKey = '';
   private landCanvas: HTMLCanvasElement | null = null;
   private edges = new Map<number, Float32Array>();
   private paths = new Map<number, Path2D>();
   /** Tile box of each alliance's land, to skip the outlines that are off screen. */
   private boxes = new Map<number, [number, number, number, number]>();
-  /** The resource icons as bitmaps: drawing an SVG image thousands of times a frame is what made zooming slow. */
-  readonly icons: Record<string, HTMLCanvasElement> = {};
+  readonly icons = ICONS;
   /** The colour of each existing alliance, by index. */
   readonly colors: string[];
   /** The buildings by alliance: one colour change per alliance instead of one per building. */
@@ -111,14 +118,16 @@ export class Assets {
       (b.kind === 0 ? g.flags : g.others).push(b);
     }
     this.groups = [...groups.values()];
-    if (typeof Image !== 'undefined') {
+    iconLoaded = onLoad;
+    if (!iconsStarted && typeof Image !== 'undefined') {
+      iconsStarted = true;
       for (const [name, svg] of Object.entries(RESOURCE_ICONS)) {
         const im = new Image();
         im.onload = () => {
           const c = makeCanvas(ICON_PX, ICON_PX);
           c.getContext('2d')?.drawImage(im, 0, 0, ICON_PX, ICON_PX);
-          this.icons[name] = c;
-          onLoad();
+          ICONS[name] = c;
+          iconLoaded();
         };
         im.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
       }
@@ -127,8 +136,10 @@ export class Assets {
 
   /** The terrain as a `kind` sees it, one pixel per tile (row 0 = the lowest y): red where the building is refused. */
   mask(kind: 'flag' | 'fort'): HTMLCanvasElement | null {
-    if (this.masks.has(kind)) return this.masks.get(kind)!;
     const t = this.world.terrain;
+    let masks = MASKS.get(t);
+    if (!masks) MASKS.set(t, (masks = new Map()));
+    if (masks.has(kind)) return masks.get(kind)!;
     let canvas: HTMLCanvasElement | null = null;
     if (t.levels) {
       const [, , w, h] = t.box;
@@ -147,7 +158,7 @@ export class Assets {
       }
       ctx.putImageData(im, 0, 0);
     }
-    this.masks.set(kind, canvas);
+    masks.set(kind, canvas);
     return canvas;
   }
 
@@ -404,6 +415,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, s: Scene): void {
   if (s.layers.buildings) drawBuildings(ctx, s);
   if (s.layers.objectives) drawObjectives(ctx, s);
   drawExtra(ctx, s, true);
+  if (s.marks.length) drawMarks(ctx, s);
   drawPlanItems(ctx, s);
   if (s.route) drawRoute(ctx, s);
   drawPicks(ctx, s);
@@ -570,6 +582,29 @@ function drawObjectives(ctx: CanvasRenderingContext2D, s: Scene): void {
 
 /** The flags added to a route to reach more points, on top of the fewest-flags chain: white in every alliance's colours, so they read apart at a glance. */
 const ADDED_FLAG = '#ffffff';
+
+/** A cross where a building of another alliance is, or would be, removed. */
+function drawMarks(ctx: CanvasRenderingContext2D, s: Scene): void {
+  const { view: v, W, H } = s;
+  const r = Math.max(4.5, Math.min(11, v.z * 1.6));
+  const path = new Path2D();
+  for (const [x, y] of s.marks) {
+    const [X, Y] = toScreen(v, x, y);
+    if (X < -20 || Y < -20 || X > W + 20 || Y > H + 20) continue;
+    path.moveTo(X - r, Y - r);
+    path.lineTo(X + r, Y + r);
+    path.moveTo(X + r, Y - r);
+    path.lineTo(X - r, Y + r);
+  }
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 4.5;
+  ctx.strokeStyle = 'rgba(8,12,16,.9)';
+  ctx.stroke(path);
+  ctx.lineWidth = 2.2;
+  ctx.strokeStyle = '#ffffff';
+  ctx.stroke(path);
+  ctx.lineCap = 'butt';
+}
 
 function drawPlanItems(ctx: CanvasRenderingContext2D, s: Scene): void {
   const { view: v, W, H, plan, state, filters } = s;

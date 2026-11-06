@@ -4,7 +4,7 @@ import type { PlanDoc } from '../../core/plan';
 import { MAX_EXTRA_FLAGS, PRESETS } from '../../core/route';
 import type { RouteMode, RouteOptions, RouteResult } from '../../core/route';
 import type { World } from '../../core/world';
-import { Check, ResIcon, Section, Seg, cap, plural } from '../components';
+import { Check, RemovalList, ResIcon, Section, Seg, cap, plural } from '../components';
 import type { Picks, Tool } from '../model';
 
 export interface RoutePanelProps {
@@ -23,6 +23,7 @@ export interface RoutePanelProps {
   onFind(): void;
   onApply(): void;
   onDiscard(): void;
+  onGo(x: number, y: number): void;
 }
 
 const MODE_TEXT: Record<RouteMode, string> = {
@@ -53,7 +54,7 @@ export function RoutePanel(p: RoutePanelProps) {
   const ready = !!p.picks.a && !!p.picks.b && !p.busy;
   const objective = p.picks.objectiveId ? world.objectives.find((o) => o.id === p.picks.objectiveId) : undefined;
   const set = (patch: Partial<RouteOptions>): void => p.onOptions({ ...options, ...patch });
-  const preset = (m: RouteMode): void => p.onOptions({ ...PRESETS[m] });
+  const preset = (m: RouteMode): void => p.onOptions({ ...PRESETS[m], ignoreOthers: options.ignoreOthers });
 
   return (
     <Section title="Route from A to B" defaultOpen={p.tool === 'route'} forceOpen={p.tool === 'route'} hint="Finds the flags that carry an alliance's land from A to B. It changes nothing until you press Add to plan.">
@@ -83,6 +84,16 @@ export function RoutePanel(p: RoutePanelProps) {
         ]}
       />
       <p className="rokp-hint">{MODE_TEXT[options.mode]}</p>
+      <div className="rokp-label">Other alliances</div>
+      <Seg<'around' | 'ignore'>
+        value={options.ignoreOthers ? 'ignore' : 'around'}
+        onChange={(v) => set({ ignoreOthers: v === 'ignore' })}
+        options={[
+          { value: 'around', label: 'Go around them' },
+          { value: 'ignore', label: 'Ignore them' },
+        ]}
+      />
+      <p className="rokp-hint">{options.ignoreOthers ? 'Goes as if they were not there, and lists what would have to be removed for the route to stand.' : 'Takes the map as it is: it goes around their land when it has to.'}</p>
       {options.mode === 'nodes' && (
         <>
           <label className="rokp-slider">
@@ -130,6 +141,13 @@ export function RoutePanel(p: RoutePanelProps) {
                 </li>
                 {result.stats.captured.length > 0 && <li>Reaches {result.stats.captured.join(', ')}</li>}
               </ul>
+              {result.removals.length > 0 && (
+                <>
+                  <div className="rokp-label">To make it possible, remove</div>
+                  <RemovalList groups={result.removals} onGo={p.onGo} />
+                  <p className="rokp-hint">Marked with a cross on the map. Add to plan assumes they are gone.</p>
+                </>
+              )}
               <div className="rokp-row">
                 <button type="button" className="rokp-primary" disabled={p.readOnly} onClick={p.onApply}>
                   Add to plan

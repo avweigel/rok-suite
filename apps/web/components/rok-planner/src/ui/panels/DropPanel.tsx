@@ -5,19 +5,22 @@ import { useMemo } from 'react';
 import type { DropSpot } from '../../core/drop';
 import type { PlanState } from '../../core/state';
 import type { World } from '../../core/world';
-import { ResIcon, Section, cap, plural } from '../components';
+import { Check, RemovalList, ResIcon, Section, cap, plural } from '../components';
 import type { Tool } from '../model';
 
 const CODES = [1, 2, 3, 4];
 
-export function DropDialog(p: { world: World; state: PlanState; selected: readonly number[]; onChange(next: number[]): void; onFind(): void; onClose(): void }) {
+export function DropDialog(p: { world: World; state: PlanState; selected: readonly number[]; onChange(next: number[]): void; includeOwned: boolean; onIncludeOwned(v: boolean): void; onFind(): void; onClose(): void }) {
   const { world, state } = p;
   const codes = CODES.filter((c) => world.resources[c]);
-  // the points still up for grabs: those inside somebody's land do not count for a new CF
-  const free = useMemo(() => {
-    const out: Record<number, number> = {};
-    for (const pt of world.points) if (!world.owner.has(pt.cell) && !state.claimed.has(pt.cell)) out[pt.res] = (out[pt.res] ?? 0) + 1;
-    return out;
+  const counts = useMemo(() => {
+    const free: Record<number, number> = {};
+    const all: Record<number, number> = {};
+    for (const pt of world.points) {
+      all[pt.res] = (all[pt.res] ?? 0) + 1;
+      if (!world.owner.has(pt.cell) && !state.claimed.has(pt.cell)) free[pt.res] = (free[pt.res] ?? 0) + 1;
+    }
+    return { free, all };
   }, [world, state]);
   const toggle = (c: number): void => p.onChange(p.selected.includes(c) ? p.selected.filter((x) => x !== c) : [...p.selected, c]);
   return (
@@ -33,10 +36,11 @@ export function DropDialog(p: { world: World; state: PlanState; selected: readon
             <button key={c} type="button" className={`rokp-chip${p.selected.includes(c) ? ' on' : ''}`} aria-pressed={p.selected.includes(c)} onClick={() => toggle(c)}>
               <ResIcon name={world.resources[c]} code={c} size={22} />
               <span className="rokp-grow">{cap(world.resources[c])}</span>
-              <span className="rokp-n" title="Points in nobody's land">{free[c] ?? 0} free</span>
+              <span className="rokp-n">{p.includeOwned ? `${counts.all[c] ?? 0} points` : `${counts.free[c] ?? 0} free`}</span>
             </button>
           ))}
         </div>
+        <Check checked={p.includeOwned} onChange={p.onIncludeOwned} label="Count the points already in an alliance's land" hint={p.includeOwned ? 'The alliances are ignored: each spot says what would have to be removed.' : 'Only empty land and free points: the spots can be taken right now.'} />
         <div className="rokp-row">
           <button type="button" className="rokp-grow" onClick={p.onClose}>Cancel</button>
           <button type="button" className="rokp-primary rokp-grow" disabled={p.selected.length === 0} autoFocus onClick={p.onFind}>
@@ -48,7 +52,7 @@ export function DropDialog(p: { world: World; state: PlanState; selected: readon
   );
 }
 
-export function DropPanel(p: { world: World; tool: Tool; readOnly: boolean; allianceName: string; spots: DropSpot[] | null; onOpen(): void; onClear(): void; onGo(s: DropSpot): void; onPlace(s: DropSpot): void }) {
+export function DropPanel(p: { world: World; tool: Tool; readOnly: boolean; allianceName: string; spots: DropSpot[] | null; focus: number; onOpen(): void; onClear(): void; onGo(s: DropSpot, index: number): void; onGoTo(x: number, y: number): void; onPlace(s: DropSpot): void }) {
   const { world, spots } = p;
   return (
     <Section title="CF initial drop" defaultOpen={false} forceOpen={p.tool === 'drop'} hint="Where one fortress, dropped on empty land, takes in the most resource points of the kinds you choose.">
@@ -80,9 +84,12 @@ export function DropPanel(p: { world: World; tool: Tool; readOnly: boolean; alli
                     {s.x}, {s.y}
                     {s.others > 0 ? ` · +${s.others} of other kinds` : ''}
                     {s.foreignCells > 0 ? ` · covers ${s.foreignCells} taken cells` : ''}
+                    {s.owned > 0 ? ` · ${s.owned} of them in somebody's land` : ''}
+                    {s.removals.length > 0 ? ` · remove from ${s.removals.map((g) => g.label).join(', ')}` : ''}
                   </small>
+                  {p.focus === i && s.removals.length > 0 && <RemovalList groups={s.removals} onGo={p.onGoTo} />}
                 </div>
-                <button type="button" onClick={() => p.onGo(s)} title="Show it on the map">Go</button>
+                <button type="button" onClick={() => p.onGo(s, i)} title="Show it on the map, with what would have to go">Go</button>
                 <button type="button" className="rokp-primary" disabled={p.readOnly} onClick={() => p.onPlace(s)} title="Place the CF here">Place</button>
               </li>
             ))}

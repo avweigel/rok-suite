@@ -5,10 +5,13 @@
 //   * "fewest flags": the chain with the fewest flags (ties: the shortest). Resource points play no part;
 //   * "nodes": the same number of flags, the chain that takes in the most resource points (and holy sites / passes). Up to `extraFlags` more flags then branch off the route towards more of
 //     them; those are marked, because the route reaches B without them.
+// Either mode can go around the alliances on the map, or (`ignoreOthers`) go as if they were not there and say what would have to go for the route to stand.
 // The value is a weight per resource kind (a kind with weight 0 is ignored). The search area is worked out here, not asked for. The result is a list of buildings; it changes nothing until the
 // caller adds it to the plan.
 import { CELL, KEY, PointGrid, REACH, SIZE, cellKey, cellOf, footprint, radiusFor, touches } from './geometry';
 import type { PlanDoc } from './plan';
+import { describeRemovals, removalsFor, withoutOthers } from './removal';
+import type { RemovalGroup, Spot } from './removal';
 import { checkPlacement } from './rules';
 import { computeState } from './state';
 import type { AllianceState, PlanState } from './state';
@@ -23,6 +26,8 @@ export interface RouteOptions {
   mode: RouteMode;
   /** 'nodes' mode: how many flags may be added to the fewest-flags chain. */
   extraFlags: number;
+  /** Go as if the other alliances were not there, and say what would have to go. */
+  ignoreOthers: boolean;
   /** Weight of each resource code (0 or missing = ignore it). */
   weights: Record<number, number>;
   /** Weight of capturing a holy site or pass on the way. */
@@ -30,8 +35,8 @@ export interface RouteOptions {
 }
 
 export const PRESETS: Record<RouteMode, RouteOptions> = {
-  fewest: { mode: 'fewest', extraFlags: 0, weights: {}, objectiveWeight: 0 },
-  nodes: { mode: 'nodes', extraFlags: 5, weights: { 1: 1, 2: 1, 3: 1, 4: 1 }, objectiveWeight: 3 },
+  fewest: { mode: 'fewest', extraFlags: 0, ignoreOthers: false, weights: {}, objectiveWeight: 0 },
+  nodes: { mode: 'nodes', extraFlags: 5, ignoreOthers: false, weights: { 1: 1, 2: 1, 3: 1, 4: 1 }, objectiveWeight: 3 },
 };
 
 export interface RouteRequest {
@@ -72,6 +77,9 @@ export interface RouteResult {
   items: RouteItem[];
   newCf: boolean;
   stats: RouteStats | null;
+  /** With ignoreOthers: what would have to go. */
+  removed: Spot[];
+  removals: RemovalGroup[];
 }
 
 const FLAG_COST = 1000;
@@ -89,7 +97,7 @@ const MAX_STEP = CELL * Math.hypot(REACH.flag * 2 + 1, REACH.flag * 2);
 const END_SLACK = 14;
 const SAMPLES: [number, number][] = [[1.5, 1.5], [0.75, 1.5], [2.25, 1.5], [1.5, 0.75], [1.5, 2.25], [0.75, 0.75], [2.25, 0.75], [0.75, 2.25], [2.25, 2.25]];
 
-const fail = (message: string): RouteResult => ({ ok: false, message, items: [], newCf: false, stats: null });
+const fail = (message: string): RouteResult => ({ ok: false, message, items: [], newCf: false, stats: null, removed: [], removals: [] });
 const round2 = (v: number): number => Math.round(v * 100) / 100;
 
 function segDist(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
@@ -162,6 +170,8 @@ interface Ctx {
   objectiveId?: string;
   targetOffsets: [number, number][];
   ownedByOther: (k: CellKey) => boolean;
+  /** When the others are ignored: who really owns each cell, so that among equal chains the one that disturbs them least wins. */
+  avoid: ReadonlyMap<CellKey, number> | null;
 }
 
 interface Corridor {
@@ -231,6 +241,64 @@ function neighbourOffsets(corners: boolean, reach: number): [number, number][] {
 
 /** Plans a route. Never throws for a bad request: the result says why there is none. */
 export function planRoute(world: World, plan: PlanDoc, req: RouteRequest): RouteResult {
+  return req.options.ignoreOthers ? routeIgnoring(world, plan, req) : routeIn(world, plan, req, null);
+}
+
+/** The route as if nobody else were on the map, then what must really go for it to stand. */
+function routeIgnoring(world: World, plan: PlanDoc, req: RouteRequest): RouteResult {
+  const alliance = plan.alliances.find((x) => x.id === req.allianceId);
+  if (!alliance) return fail('Pick an alliance first.');
+  const as = computeState(world, plan).byAlliance.get(alliance.id)!;
+  const r = routeIn(withoutOthers(world, as.baseIndex), plan, { ...req, options: { ...req.options, ignoreOthers: false } }, world.owner);
+  if (!r.ok || r.items.length === 0) return r;
+
+  // Besides where the buildings stand, the route needs what it is for: B, and with "more nodes" the resource points in its squares.
+  const wanted = new Set<CellKey>();
+  const [bx, by] = cellOf(req.to[0], req.to[1]);
+  wanted.add(cellKey(bx, by));
+  if (req.options.mode === 'nodes') {
+    const cells = new Set(r.items.flatMap((it) => footprint(it.k === 'cf' ? REACH.cf : REACH.flag, it.x, it.y)));
+    for (const p of world.points) if ((req.options.weights[p.res] ?? 0) > 0 && cells.has(p.cell)) wanted.add(p.cell);
+  }
+  const fixed = removalsFor(world, plan, alliance.id, r.items, wanted);
+  if (!fixed.ok) return fail(fixed.message);
+  const chain = fixed.items.filter((i) => !i.extra);
+  const stats = measure(fixed.world, plan, alliance.id, as, chain, fixed.items, req.from);
+  const removals = describeRemovals(world, fixed.removed);
+  const nFlags = stats.flags;
+  const head = `${nFlags} flag${nFlags === 1 ? '' : 's'}${r.newCf ? ' and a new CF at A' : ''}: the fewest that reach B with the other alliances out of the way`;
+  const added = stats.extraFlags > 0 ? `, plus ${stats.extraFlags} added for ${stats.extraNodes} more resource point${stats.extraNodes === 1 ? '' : 's'}` : '';
+  const tail = removals.length ? '' : '. Nobody is in the way.';
+  return { ok: true, message: `${head}${added}${tail || '.'}`, items: fixed.items, newCf: r.newCf, stats, removed: fixed.removed, removals };
+}
+
+/** What the buildings bring, placed on this map. */
+function measure(world: World, plan: PlanDoc, allianceId: string, as: AllianceState, chainItems: RouteItem[], items: RouteItem[], from: [number, number]): RouteStats {
+  const withItems = (list: RouteItem[]): PlanDoc => ({ ...plan, items: [...plan.items, ...list.map((it, i) => ({ id: `m${i}`, a: allianceId, k: it.k, x: it.x, y: it.y }))] });
+  const afterChain = computeState(world, withItems(chainItems)).byAlliance.get(allianceId)!;
+  const after = computeState(world, withItems(items)).byAlliance.get(allianceId)!;
+  const flags = chainItems.filter((i) => i.k === 'flag').length;
+  const stats: RouteStats = {
+    flags, extraFlags: items.length - chainItems.length, newTiles: (after.land.size - as.land.size) * CELL * CELL, length: 0, nodes: {}, nodesTotal: 0, extraNodes: 0,
+    captured: after.captured.filter((o) => !as.captured.some((p) => p.id === o.id)).map((o) => o.name),
+  };
+  let prev = from;
+  for (const it of chainItems) {
+    stats.length += Math.hypot(it.x - prev[0], it.y - prev[1]);
+    prev = [it.x, it.y];
+  }
+  stats.length = Math.round(stats.length * 10) / 10;
+  for (const p of world.points) {
+    if (after.land.has(p.cell) && !as.land.has(p.cell)) {
+      stats.nodes[p.res] = (stats.nodes[p.res] ?? 0) + 1;
+      stats.nodesTotal++;
+      if (!afterChain.land.has(p.cell)) stats.extraNodes++;
+    }
+  }
+  return stats;
+}
+
+function routeIn(world: World, plan: PlanDoc, req: RouteRequest, avoid: ReadonlyMap<CellKey, number> | null): RouteResult {
   const alliance = plan.alliances.find((x) => x.id === req.allianceId);
   if (!alliance) return fail('Pick an alliance first.');
   const state = computeState(world, plan);
@@ -250,11 +318,11 @@ export function planRoute(world: World, plan: PlanDoc, req: RouteRequest): Route
   if (objective && objective.ai >= 0 && objective.ai !== as.baseIndex) return fail(`${objective.name} already belongs to ${world.alliances[objective.ai]?.tag || 'another alliance'}.`);
   if (!objective && ownedByOther(bKey)) return fail('B is inside the land of another alliance: it cannot be claimed.');
   if (as.land.has(bKey) || (objective && as.captured.some((o) => o.id === objective.id))) {
-    return { ok: true, message: "B is already inside this alliance's land: no flag is needed.", items: [], newCf: false, stats: { flags: 0, extraFlags: 0, newTiles: 0, length: 0, nodes: {}, nodesTotal: 0, extraNodes: 0, captured: [] } };
+    return { ok: true, message: "B is already inside this alliance's land: no flag is needed.", items: [], newCf: false, stats: { flags: 0, extraFlags: 0, newTiles: 0, length: 0, nodes: {}, nodesTotal: 0, extraNodes: 0, captured: [] }, removed: [], removals: [] };
   }
   const ctx: Ctx = {
     world, plan, allianceId: alliance.id, as, state, req, weights: opt.mode === 'nodes' ? opt.weights : {}, a, b, bc, objectiveId: objective?.id,
-    targetOffsets: objective ? neighbourOffsets(false, REACH.flag + REACH.site + 1) : neighbourOffsets(true, REACH.flag), ownedByOther,
+    targetOffsets: objective ? neighbourOffsets(false, REACH.flag + REACH.site + 1) : neighbourOffsets(true, REACH.flag), ownedByOther, avoid,
   };
 
   // The search area sorts itself out. It starts around the straight line; it grows when no chain fits, and when the chain found is long enough that a shorter one could still run outside it.
@@ -441,13 +509,23 @@ function trial(c: Ctx, margin: number, banned: ReadonlySet<CellKey>): Trial {
 
   const offs = neighbourOffsets(false, REACH.flag + REACH.flag + 1);
 
+  // With the others ignored, a small price per cell of theirs: among chains of equal flags the one that disturbs them least. Never enough to cost a flag on any real route.
+  const pen = (n: number): number => {
+    if (!c.avoid) return 0;
+    let v = 0;
+    const [cx, cy] = cellAt(n);
+    if (c.avoid.has(cellKey(cx, cy))) v += 3;
+    for (const k of fpOf(n)) if (c.avoid.has(k)) v += 0.3;
+    return v;
+  };
+
   // ---- Dijkstra from the sources: the fewest flags, then the shortest
   const cost = new Float64Array(N).fill(Infinity);
   const flagsTo = new Int32Array(N).fill(-1);
   const from = new Int32Array(N).fill(-1);
   const heap = new Heap();
   for (const s of sources) {
-    cost[s] = FLAG_COST;
+    cost[s] = FLAG_COST + pen(s);
     flagsTo[s] = 1;
     heap.push(cost[s], s);
   }
@@ -466,7 +544,7 @@ function trial(c: Ctx, margin: number, banned: ReadonlySet<CellKey>): Trial {
       if (!inBox(vx, vy)) continue;
       const v = (vy - cy0) * w + (vx - cx0);
       if (!valid[v] || !linked(u, v)) continue;
-      const nc = c0 + FLAG_COST + 0.1 * Math.hypot(px[v] - px[u], py[v] - py[u]);
+      const nc = c0 + FLAG_COST + 0.1 * Math.hypot(px[v] - px[u], py[v] - py[u]) + pen(v);
       if (nc < cost[v]) {
         cost[v] = nc;
         flagsTo[v] = flagsTo[u] + 1;
@@ -483,7 +561,7 @@ function trial(c: Ctx, margin: number, banned: ReadonlySet<CellKey>): Trial {
   let added: number[] = [];
   if (wants) {
     const prizes = new Prizes(c, cor, land);
-    pathCells = bestShortestChain(cor, prizes, sources, target, offs, minFlags, linked) ?? pathCells;
+    pathCells = bestShortestChain(cor, prizes, sources, target, offs, minFlags, linked, pen) ?? pathCells;
     if (opt.extraFlags > 0) added = addBranches(cor, prizes, land, pathCells, Math.min(opt.extraFlags, MAX_EXTRA_FLAGS), offs, linked, fpOf, claimOf);
   }
   const chainItems: RouteItem[] = pathCells.map((n) => ({ k: 'flag' as Kind, x: round2(px[n]), y: round2(py[n]) }));
@@ -515,30 +593,12 @@ function trial(c: Ctx, margin: number, banned: ReadonlySet<CellKey>): Trial {
     items.push(it);
     cur = placed(it, `added${i}`);
   });
-  const after = computeState(world, cur).byAlliance.get(allianceId)!;
-
-  const extraFlags = items.length - chainItems.length;
-  const nFlags = chainItems.length - (newCf ? 1 : 0);
-  const stats: RouteStats = {
-    flags: nFlags, extraFlags, newTiles: (after.land.size - as.land.size) * CELL * CELL, length: 0, nodes: {}, nodesTotal: 0, extraNodes: 0,
-    captured: after.captured.filter((o) => !as.captured.some((p) => p.id === o.id)).map((o) => o.name),
-  };
-  let prev: [number, number] = a;
-  for (const it of chainItems) {
-    stats.length += Math.hypot(it.x - prev[0], it.y - prev[1]);
-    prev = [it.x, it.y];
-  }
-  stats.length = Math.round(stats.length * 10) / 10;
-  for (const p of world.points) {
-    if (after.land.has(p.cell) && !as.land.has(p.cell)) {
-      stats.nodes[p.res] = (stats.nodes[p.res] ?? 0) + 1;
-      stats.nodesTotal++;
-      if (!afterChain.land.has(p.cell)) stats.extraNodes++;
-    }
-  }
+  const stats = measure(world, plan, allianceId, as, chainItems, items, a);
+  const { extraFlags } = stats;
+  const nFlags = stats.flags;
   const head = `${nFlags} flag${nFlags === 1 ? '' : 's'}${newCf ? ' and a new CF at A' : ''}: the fewest that reach B`;
   const message = extraFlags > 0 ? `${head}, plus ${extraFlags} added for ${stats.extraNodes} more resource point${stats.extraNodes === 1 ? '' : 's'}.` : `${head}.`;
-  return { kind: 'ok', result: { ok: true, message, items, newCf: !!newCf, stats } };
+  return { kind: 'ok', result: { ok: true, message, items, newCf: !!newCf, stats, removed: [], removals: [] } };
 }
 
 function chain(from: Int32Array, end: number): number[] {
@@ -563,7 +623,7 @@ function findCfSpot(c: Ctx): { x: number; y: number } | null {
 }
 
 /** Among the chains with exactly `minFlags` flags, the one that takes in the most. In such a chain a cell can only ever be flag number (its distance from the sources), so one value per cell is enough. */
-function bestShortestChain(cor: Corridor, prizes: Prizes, sources: number[], target: Uint8Array, offs: [number, number][], minFlags: number, linked: (from: number, to: number) => boolean): number[] | null {
+function bestShortestChain(cor: Corridor, prizes: Prizes, sources: number[], target: Uint8Array, offs: [number, number][], minFlags: number, linked: (from: number, to: number) => boolean, pen: (n: number) => number): number[] | null {
   const { cx0, cy0, w, h, valid, px, py } = cor;
   const N = w * h;
   const neighbours = (n: number, visit: (v: number) => void): void => {
@@ -622,13 +682,13 @@ function bestShortestChain(cor: Corridor, prizes: Prizes, sources: number[], tar
   const onChain = (n: number): boolean => fromS[n] > 0 && toT[n] >= 0 && fromS[n] + toT[n] === minFlags;
   const val = new Float64Array(N).fill(-Infinity);
   const par = new Int32Array(N).fill(-1);
-  for (const s of layers[0]) if (onChain(s)) val[s] = prizes.gain(s);
+  for (const s of layers[0]) if (onChain(s)) val[s] = prizes.gain(s) - 1e-3 * pen(s);
   for (let k = 1; k < minFlags; k++) {
     for (const u of layers[k - 1]) {
       if (val[u] === -Infinity) continue;
       neighbours(u, (v) => {
         if (fromS[v] !== k + 1 || !onChain(v) || !linked(u, v)) return;
-        const nv = val[u] + prizes.gain(v, [u]) - 1e-4 * Math.hypot(px[v] - px[u], py[v] - py[u]);      // ties go to the shorter chain
+        const nv = val[u] + prizes.gain(v, [u]) - 1e-4 * Math.hypot(px[v] - px[u], py[v] - py[u]) - 1e-3 * pen(v);      // ties go to the shorter chain, then the one that disturbs the others least
         if (nv > val[v]) {
           val[v] = nv;
           par[v] = u;

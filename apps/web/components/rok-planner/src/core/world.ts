@@ -15,6 +15,9 @@ const BUILDING_SIZE = [1.4, 3.0, 3.75, 2.5];
 const POINT_SIZE = 3.25;
 const MINOR_SIZE = 1.8;
 
+/** How far an existing building keeps other buildings away. */
+export const buildingRadius = (kind: number): number => radiusFor(BUILDING_SIZE[kind] ?? 1.4);
+
 export class Terrain {
   constructor(
     readonly box: [number, number, number, number],
@@ -78,6 +81,8 @@ export interface World {
   points: ResourcePoint[];
   /** Flat (x, y) pairs. */
   cities: Float32Array;
+  /** Tribal villages and type-10 objects, flat (x, y) pairs. */
+  minor: Float32Array;
   /** Everything that refuses a building for sure: alliance buildings, resource points, tribal villages, type-10 objects, cities. */
   hard: PointGrid;
   /** The players' gathering nodes: they come and go, so they only warn. null when the data file does not carry them. */
@@ -123,6 +128,38 @@ export function deriveLand(buildings: ExistingBuilding[], objectives: Objective[
   return { owner, landOf };
 }
 
+function buildHard(buildings: ExistingBuilding[], points: ResourcePoint[], minor: Float32Array, cities: Float32Array, cityRadius: number): PointGrid {
+  const hard = new PointGrid(4);
+  for (const b of buildings) hard.add(b.x, b.y, buildingRadius(b.kind), BLOCK.building);
+  for (const p of points) hard.add(p.x, p.y, radiusFor(POINT_SIZE), BLOCK.point);
+  for (let i = 0; i + 1 < minor.length; i += 2) hard.add(minor[i], minor[i + 1], radiusFor(MINOR_SIZE), BLOCK.minor);
+  for (let i = 0; i + 1 < cities.length; i += 2) hard.add(cities[i], cities[i + 1], cityRadius, BLOCK.city);
+  return hard;
+}
+
+function fortsOf(buildings: ExistingBuilding[]): { forts: FortCell[]; fortAlliances: Set<number> } {
+  const forts: FortCell[] = [];
+  const fortAlliances = new Set<number>();
+  for (const b of buildings) {
+    if (b.kind === 1 || b.kind === 2) {
+      const [cx, cy] = cellOf(b.x, b.y);
+      forts.push({ cx, cy, ai: b.ai });
+      fortAlliances.add(b.ai);
+    }
+  }
+  return { forts, fortAlliances };
+}
+
+/** The same map with other buildings or other owners of the holy sites: everything that follows from them is worked out again. */
+export function rebuildWorld(world: World, buildings: ExistingBuilding[], objectives: Objective[]): World {
+  const { owner, landOf } = deriveLand(buildings, objectives);
+  const points = world.points.map((p) => (p.ai >= 0 && !owner.has(p.cell) ? { ...p, ai: -1 } : p));
+  return {
+    ...world, buildings, objectives, points, owner, landOf, ...fortsOf(buildings),
+    hard: buildHard(buildings, points, world.minor, world.cities, world.data.cityRadius),
+  };
+}
+
 export function loadWorld(data: MapDataFile): World {
   if (!data || data.v !== 1 || !Array.isArray(data.bounds) || !Array.isArray(data.alliances)) throw new Error('This is not a planner data file (wrong format or version).');
   const [minX, minY, width, height] = data.bounds;
@@ -154,13 +191,9 @@ export function loadWorld(data: MapDataFile): World {
     return { x, y, res, ai, cell: cellKey(cx, cy) };
   });
 
-  const hard = new PointGrid(4);
-  for (const b of buildings) hard.add(b.x, b.y, radiusFor(BUILDING_SIZE[b.kind] ?? 1.4), BLOCK.building);
-  for (const p of points) hard.add(p.x, p.y, radiusFor(POINT_SIZE), BLOCK.point);
   const minor = decodePairs(data.minor);
-  for (let i = 0; i + 1 < minor.length; i += 2) hard.add(minor[i], minor[i + 1], radiusFor(MINOR_SIZE), BLOCK.minor);
   const cities = decodePairs(data.cities);
-  for (let i = 0; i + 1 < cities.length; i += 2) hard.add(cities[i], cities[i + 1], data.cityRadius, BLOCK.city);
+  const hard = buildHard(buildings, points, minor, cities, data.cityRadius);
   let gather: PointGrid | null = null;
   if (data.nodes) {
     gather = new PointGrid(4);
@@ -169,21 +202,13 @@ export function loadWorld(data: MapDataFile): World {
   }
 
   const { owner, landOf } = deriveLand(buildings, objectives);
-  const forts: FortCell[] = [];
-  const fortAlliances = new Set<number>();
-  for (const b of buildings) {
-    if (b.kind === 1 || b.kind === 2) {
-      const [cx, cy] = cellOf(b.x, b.y);
-      forts.push({ cx, cy, ai: b.ai });
-      fortAlliances.add(b.ai);
-    }
-  }
+  const { forts, fortAlliances } = fortsOf(buildings);
   const resources: Record<number, string> = {};
   for (const [k, v] of Object.entries(data.resources ?? {})) resources[Number(k)] = v;
 
   return {
     data, name: data.name, generated: data.generated, sources: data.sources ?? {}, bounds: { minX, minY, width, height }, resources, terrain, alliances, allianceIndexById, buildings, objectives, points,
-    cities, hard, gather, owner, landOf, fortAlliances, forts, radii,
+    cities, minor, hard, gather, owner, landOf, fortAlliances, forts, radii,
   };
 }
 

@@ -3,9 +3,10 @@
 // The planner: the map, the toolbar and the side panels, wired to the plan, the undo history and the store.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
-import { addItem, addItems, commit, emptyPlan, redo, removeItem, renamePlan, reset, sanitizePlan, undo } from '../core/plan';
+import { addItem, addItems, addRemoved, commit, emptyPlan, redo, removeItem, renamePlan, reset, restoreRemoved, sanitizePlan, undo } from '../core/plan';
 import type { History, PlanDoc } from '../core/plan';
 import { findCfDrops } from '../core/drop';
+import { applyRemoved } from '../core/removal';
 import type { DropSpot } from '../core/drop';
 import { PRESETS, planRoute } from '../core/route';
 import type { RouteOptions, RouteResult } from '../core/route';
@@ -26,8 +27,8 @@ import { DEFAULT_FILTERS, DEFAULT_LAYERS, DEFAULT_MASK_OPACITY } from './model';
 import type { ExtraLayer, Filters, Layers, Picks, Tool } from './model';
 import { AlliancesPanel } from './panels/AlliancesPanel';
 import { FiltersPanel } from './panels/FiltersPanel';
-import { GoPanel } from './panels/GoPanel';
 import { PlanPanel } from './panels/PlanPanel';
+import { RemovedPanel } from './panels/RemovedPanel';
 import type { SaveStatus } from './panels/PlanPanel';
 import { DropDialog, DropPanel } from './panels/DropPanel';
 import { RoutePanel } from './panels/RoutePanel';
@@ -93,7 +94,7 @@ export function MapPlanner(props: MapPlannerProps) {
   const { dataUrl = '/rok-planner/k3923.json', data, backgroundUrl, store, sharedId, planId, initialPlan, initialView, onPlanChange, shareUrl, onRequireSignIn, extraLayers, className, style } = props;
 
   // ---- the map data
-  const [world, setWorld] = useState<World | null>(null);
+  const [baseWorld, setBaseWorld] = useState<World | null>(null);
   const [loadError, setLoadError] = useState('');
   useEffect(() => {
     let dead = false;
@@ -108,7 +109,7 @@ export function MapPlanner(props: MapPlannerProps) {
         }
         await new Promise((r) => setTimeout(r, 0));                 // let the "loading" message paint before the heavy decoding
         const w = loadWorld(file);
-        if (!dead) setWorld(w);
+        if (!dead) setBaseWorld(w);
       } catch (e) {
         if (!dead) setLoadError((e as Error).message);
       }
@@ -128,6 +129,9 @@ export function MapPlanner(props: MapPlannerProps) {
   const [user, setUser] = useState<PlanUser | null | undefined>(undefined);
   const [list, setList] = useState<PlanSummary[]>([]);
   const plan = hist?.present ?? null;
+  // The map as this plan sees it: without what the plan assumes gone. Everything below works on it.
+  const removedList = plan?.removed;
+  const world = useMemo(() => (baseWorld ? applyRemoved(baseWorld, removedList) : null), [baseWorld, removedList]);
   const readOnly = cur.role === 'viewer';
   const pristine = saved === null && plan !== null && plan.items.length === 0 && (hist?.past.length ?? 0) === 0;
   const dirty = plan !== null && plan !== saved && !pristine;
@@ -146,7 +150,9 @@ export function MapPlanner(props: MapPlannerProps) {
   const [routeBusy, setRouteBusy] = useState(false);
   const [dropOpen, setDropOpen] = useState(false);
   const [dropRes, setDropRes] = useState<number[]>([1, 2, 3, 4]);
+  const [dropOwned, setDropOwned] = useState(true);
   const [drops, setDrops] = useState<DropSpot[] | null>(null);
+  const [dropFocus, setDropFocus] = useState(-1);
   const [card, setCard] = useState<Card | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [sideOpen, setSideOpen] = useState(true);
@@ -188,17 +194,17 @@ export function MapPlanner(props: MapPlannerProps) {
   );
 
   const refreshList = useCallback(async () => {
-    if (!store || !world) return;
+    if (!store || !baseWorld) return;
     try {
-      setList(await store.list(world.data.map));
+      setList(await store.list(baseWorld.data.map));
     } catch {
       /* the list is a convenience: the plan itself still works */
     }
-  }, [store, world]);
+  }, [store, baseWorld]);
 
   // ---- who the user is and their plans
   useEffect(() => {
-    if (!world) return;
+    if (!baseWorld) return;
     let dead = false;
     (async () => {
       if (!store) {
@@ -209,7 +215,7 @@ export function MapPlanner(props: MapPlannerProps) {
         const u = await store.user();
         if (dead) return;
         setUser(u);
-        if (u) setList(await store.list(world.data.map));
+        if (u) setList(await store.list(baseWorld.data.map));
       } catch {
         if (!dead) setUser(null);
       }
@@ -217,7 +223,7 @@ export function MapPlanner(props: MapPlannerProps) {
     return () => {
       dead = true;
     };
-  }, [world, store]);
+  }, [baseWorld, store]);
 
   // ---- the plan the URL asks for, or an empty one
   const curRef = useRef(cur);
@@ -225,7 +231,7 @@ export function MapPlanner(props: MapPlannerProps) {
   const histRef = useRef(hist);
   histRef.current = hist;
   useEffect(() => {
-    if (!world || user === undefined) return;                       // wait until we know who the user is
+    if (!baseWorld || user === undefined) return;                   // wait until we know who the user is
     const want = sharedId || planId;
     if (want && (want === curRef.current.id || want === curRef.current.shareId)) return;          // it is open already: we saved it and the host put its id in the address
     let dead = false;
@@ -235,7 +241,7 @@ export function MapPlanner(props: MapPlannerProps) {
         try {
           const sp = sharedId ? await store.loadShared(sharedId) : user ? await store.load(planId as string) : null;
           if (sp && !dead) {
-            if (sp.doc.map !== world.data.map) throw new Error(`That plan is for another map (${sp.doc.map}).`);
+            if (sp.doc.map !== baseWorld.data.map) throw new Error(`That plan is for another map (${sp.doc.map}).`);
             adoptStored(sp, sharedId ? 'link' : 'own');
             opened = true;
           }
@@ -243,12 +249,12 @@ export function MapPlanner(props: MapPlannerProps) {
           if (!dead) toast((e as Error).message, 'error');
         }
       }
-      if (!dead && !opened && !histRef.current) adopt(initialPlan && initialPlan.map === world.data.map ? initialPlan : emptyPlan(world.data.map), FRESH, null);
+      if (!dead && !opened && !histRef.current) adopt(initialPlan && initialPlan.map === baseWorld.data.map ? initialPlan : emptyPlan(baseWorld.data.map), FRESH, null);
     })();
     return () => {
       dead = true;
     };
-  }, [world, store, user, sharedId, planId, initialPlan, adopt, adoptStored, toast]);
+  }, [baseWorld, store, user, sharedId, planId, initialPlan, adopt, adoptStored, toast]);
 
   // ---- derived
   const state = useMemo(() => (world && plan ? computeState(world, plan) : null), [world, plan]);
@@ -347,7 +353,7 @@ export function MapPlanner(props: MapPlannerProps) {
   };
   const applyRoute = (): void => {
     if (!plan || !routeResult?.ok || readOnly) return;
-    change(addItems(plan, aid, routeResult.items));
+    change(addItems(addRemoved(plan, routeResult.removed), aid, routeResult.items));
     setRouteResult(null);
     setPicks({ a: null, b: null });
     setTool('view');
@@ -363,19 +369,22 @@ export function MapPlanner(props: MapPlannerProps) {
     if (!world || !plan || !aid) return;
     closeDrop();
     setTool('drop');
-    const spots = findCfDrops(world, plan, aid, dropRes);
+    const spots = findCfDrops(world, plan, aid, dropRes, { includeOwned: dropOwned });
     setDrops(spots);
+    setDropFocus(-1);
     if (spots.length) mapRef.current?.fit();
     else toast('No free spot takes in any of those points.', 'warn');
   };
   const placeDrop = (spot: DropSpot): void => {
-    if (!plan || !world || !state || readOnly) return;
-    const r = checkPlacement({ world, plan, state }, aid, 'cf', spot.x, spot.y);
+    if (!plan || !baseWorld || readOnly) return;
+    const next = addRemoved(plan, spot.removed);
+    const w = applyRemoved(baseWorld, next.removed);
+    const r = checkPlacement({ world: w, plan: next, state: computeState(w, next) }, aid, 'cf', spot.x, spot.y);
     if (!r.ok) {
       toast(r.why.slice(0, 2).map(describeReason).join(' '), 'error');
       return;
     }
-    change(addItem(plan, aid, 'cf', spot.x, spot.y));
+    change(addItem(next, aid, 'cf', spot.x, spot.y));
     setTool('flag');
     toast(`CF placed for ${active?.name ?? 'the alliance'}: it takes in ${spot.total} resource point${spot.total === 1 ? '' : 's'}.`, 'ok');
   };
@@ -551,6 +560,9 @@ export function MapPlanner(props: MapPlannerProps) {
   const routeColor = active?.color;
   const routePreview = useMemo(() => (routeResult?.ok && routeResult.items.length && routeColor ? { items: routeResult.items, color: routeColor, newCf: routeResult.newCf } : null), [routeResult, routeColor]);
   const selected = useMemo(() => (card ? { x: card.x, y: card.y } : null), [card]);
+  const focusedDrop = drops?.[dropFocus];
+  const planRemoved = plan?.removed;
+  const marks = useMemo<[number, number][]>(() => [...(planRemoved ?? []), ...(routeResult?.removed ?? []), ...(focusedDrop?.removed ?? [])], [planRemoved, routeResult, focusedDrop]);
 
   const toolButtons: { id: Tool; label: string; key: string; title: string; edit?: boolean }[] = [
     { id: 'view', label: 'Look', key: 'V', title: 'Pan and look: click a thing to see what it is' },
@@ -628,6 +640,15 @@ export function MapPlanner(props: MapPlannerProps) {
               }}
               onError={(m) => toast(m, 'error')}
             />
+            {baseWorld && (
+              <RemovedPanel
+                baseWorld={baseWorld}
+                plan={plan}
+                readOnly={readOnly}
+                onGo={(x, y) => mapRef.current?.centerOn(x, y, 8)}
+                onRestore={(list) => change(restoreRemoved(plan, list))}
+              />
+            )}
             <RoutePanel
               world={world}
               plan={plan}
@@ -647,6 +668,7 @@ export function MapPlanner(props: MapPlannerProps) {
               onFind={findRoute}
               onApply={applyRoute}
               onDiscard={() => setRouteResult(null)}
+              onGo={(x, y) => mapRef.current?.centerOn(x, y, 8)}
             />
             <DropPanel
               world={world}
@@ -654,26 +676,19 @@ export function MapPlanner(props: MapPlannerProps) {
               readOnly={readOnly}
               allianceName={active?.name ?? ''}
               spots={drops}
+              focus={dropFocus}
               onOpen={() => setDropOpen(true)}
               onClear={() => {
                 setDrops(null);
                 setTool((t) => (t === 'drop' ? 'view' : t));
               }}
-              onGo={(s) => {
+              onGo={(s, i) => {
                 setTool('drop');
+                setDropFocus(i);
                 mapRef.current?.centerOn(s.x, s.y, 6);
               }}
+              onGoTo={(x, y) => mapRef.current?.centerOn(x, y, 8)}
               onPlace={placeDrop}
-            />
-            <GoPanel
-              hasPlan={plan.items.length > 0}
-              onGo={(x, y) => mapRef.current?.centerOn(x, y, 8)}
-              onFitMap={() => mapRef.current?.fit()}
-              onFitPlan={() => {
-                const xs = plan.items.map((i) => i.x);
-                const ys = plan.items.map((i) => i.y);
-                if (xs.length) mapRef.current?.fitBox(Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys), 18);
-              }}
             />
             <FiltersPanel
               world={world}
@@ -719,6 +734,7 @@ export function MapPlanner(props: MapPlannerProps) {
             picks={picks}
             selected={selected}
             drops={drops}
+            marks={marks}
             onDropPick={onDropPick}
             extra={extraActive}
             initialView={initialView}
@@ -787,7 +803,7 @@ export function MapPlanner(props: MapPlannerProps) {
         {tool === 'drop' && <div className="rokp-tip">{drops?.length ? 'Click a numbered spot to place the CF there' : 'Press CF drop and choose the nodes'}</div>}
         {tool === 'route' && <div className="rokp-tip">{!picks.a ? 'Click A, the start' : !picks.b ? 'Click B, the target (a holy site or pass works)' : 'Press “Find the route” in the panel'}</div>}
 
-        {dropOpen && world && state && <DropDialog world={world} state={state} selected={dropRes} onChange={setDropRes} onFind={findDrops} onClose={closeDrop} />}
+        {dropOpen && world && state && <DropDialog world={world} state={state} selected={dropRes} onChange={setDropRes} includeOwned={dropOwned} onIncludeOwned={setDropOwned} onFind={findDrops} onClose={closeDrop} />}
 
         <div className="rokp-toasts" aria-live="polite">
           {toasts.map((t) => (

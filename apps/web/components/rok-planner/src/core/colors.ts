@@ -1,18 +1,21 @@
 // Colours: one per alliance, stable. The alliances that already exist on the map get a muted colour from their game id (the same on every visit and every data refresh); the alliances of a
-// plan get a strong one from a short list. No alliance gets a red: red is the no-build zones and the refusals.
+// plan get a strong one from a short list. No alliance gets a red, orange, pink or violet: next to the red no-build zones those all read the same.
 
-/** Squeezes a hue 0..359 into 50..285: yellow to violet, with the oranges, pinks and reds left out (they read as no-build zones under the red layer). */
-const safeHue = (h: number): number => 50 + (h % 360) * (235 / 360);
+/** Squeezes a hue 0..359 into 55..240: yellow, green, cyan and blue only. */
+const safeHue = (h: number): number => 55 + (h % 360) * (185 / 360);
 
 /** The hue of an existing alliance: the golden angle on its id, away from the reds. */
 export function hueOfId(id: number): number {
   return Math.floor(safeHue(Math.floor((Math.abs(id) % 1000003) * 137.508) % 360));
 }
 
-/** The muted colour of an existing alliance: the hue by id, three lightness steps so that alliances with close hues still tell apart. */
+/** Lightness steps, so that alliances with close hues still tell apart now that fewer hues are left. */
+const LIGHTS = [58, 44, 70, 34];
+const SATURATION = 55;
+
+/** The muted colour of an existing alliance: the hue by id, and a lightness step. */
 export function existingColor(id: number): string {
-  const l = [58, 48, 68][Math.abs(id) % 3];
-  return `hsl(${hueOfId(id)},48%,${l}%)`;
+  return `hsl(${hueOfId(id)},${SATURATION}%,${LIGHTS[Math.abs(id) % LIGHTS.length]}%)`;
 }
 
 /** [r, g, b] 0..255 of an HSL colour (h 0..360, s and l 0..100). */
@@ -27,7 +30,7 @@ export function hslToRgb(h: number, s: number, l: number): [number, number, numb
 
 /** The same muted colour as existingColor, as [r, g, b]. */
 export function existingRgb(id: number): [number, number, number] {
-  return hslToRgb(hueOfId(id), 48, [58, 48, 68][Math.abs(id) % 3]);
+  return hslToRgb(hueOfId(id), SATURATION, LIGHTS[Math.abs(id) % LIGHTS.length]);
 }
 
 function hslToHex(h: number, s: number, l: number): string {

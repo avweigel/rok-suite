@@ -28,9 +28,11 @@ export interface PlanDoc {
   name: string;
   alliances: PlanAlliance[];
   items: PlanItem[];
+  /** Buildings and holy sites of other alliances this plan assumes gone: where they stand on the map. */
+  removed?: [number, number][];
 }
 
-export const LIMITS = { alliances: 40, items: 4000, name: 60, coord: 4000 } as const;
+export const LIMITS = { alliances: 40, items: 4000, name: 60, coord: 4000, removed: 8000 } as const;
 
 const rnd = (): string => Math.random().toString(36).slice(2, 8);
 
@@ -102,6 +104,30 @@ export function removeItem(plan: PlanDoc, itemId: string): PlanDoc {
   return plan.items.some((i) => i.id === itemId) ? { ...plan, items: plan.items.filter((i) => i.id !== itemId) } : plan;
 }
 
+/** The plan assumes these are gone too. */
+export function addRemoved(plan: PlanDoc, list: readonly [number, number][]): PlanDoc {
+  if (list.length === 0) return plan;
+  const seen = new Set((plan.removed ?? []).map(([x, y]) => `${x}|${y}`));
+  const next = [...(plan.removed ?? [])];
+  for (const [x, y] of list) {
+    if (seen.has(`${x}|${y}`)) continue;
+    seen.add(`${x}|${y}`);
+    next.push([x, y]);
+  }
+  if (next.length > LIMITS.removed) throw new Error(`A plan can assume up to ${LIMITS.removed} buildings gone.`);
+  return { ...plan, removed: next };
+}
+
+/** Brings these back on the map (all of them when no list is given). */
+export function restoreRemoved(plan: PlanDoc, list?: readonly [number, number][]): PlanDoc {
+  if (!plan.removed?.length) return plan;
+  const { removed, ...rest } = plan;
+  if (!list) return rest;
+  const back = new Set(list.map(([x, y]) => `${x}|${y}`));
+  const left = removed.filter(([x, y]) => !back.has(`${x}|${y}`));
+  return left.length ? { ...rest, removed: left } : rest;
+}
+
 /** Removes every building of one alliance (the alliance stays). */
 export function clearAlliance(plan: PlanDoc, allianceId: string): PlanDoc {
   return plan.items.some((i) => i.a === allianceId) ? { ...plan, items: plan.items.filter((i) => i.a !== allianceId) } : plan;
@@ -157,12 +183,14 @@ export function sanitizePlan(raw: unknown, map?: string): PlanDoc {
     if (typeof i.x !== 'number' || typeof i.y !== 'number' || !Number.isFinite(i.x) || !Number.isFinite(i.y) || Math.abs(i.x) > LIMITS.coord || Math.abs(i.y) > LIMITS.coord) return fail(`building ${n + 1} has bad coordinates`);
     return { id: i.id, a: i.a, k: i.k, x: round2(i.x), y: round2(i.y), ...(i.extra === true ? { extra: true } : {}) };
   });
+  const removed = Array.isArray(r.removed) ? r.removed.slice(0, LIMITS.removed).filter((p): p is [number, number] => Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isFinite(p[1])) : [];
   return {
     v: 1,
     map: r.map as string,
     name: (typeof r.name === 'string' ? r.name : '').trim().slice(0, LIMITS.name) || 'Plan',
     alliances,
     items,
+    ...(removed.length ? { removed } : {}),
   };
 }
 

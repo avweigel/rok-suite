@@ -48,6 +48,7 @@ export interface MapCanvasProps {
   picks: Picks;
   selected: { x: number; y: number } | null;
   drops: DropSpot[] | null;
+  marks: readonly [number, number][];
   extra: ExtraLayer[];
   initialView?: { x: number; y: number; zoom: number };
   onPlace(kind: Kind, x: number, y: number, result: PlacementResult): void;
@@ -65,7 +66,7 @@ const REST_MS = 180;
 /** The low-resolution map is redrawn this long after what it shows changed. */
 const UNDER_MS = 400;
 /** What the picture on the base canvas depends on. */
-const PICTURE: (keyof MapCanvasProps)[] = ['world', 'plan', 'state', 'layers', 'maskOpacity', 'backgroundOpacity', 'filters', 'tool', 'activeAllianceId', 'route', 'picks', 'selected', 'drops', 'extra'];
+const PICTURE: (keyof MapCanvasProps)[] = ['world', 'plan', 'state', 'layers', 'maskOpacity', 'backgroundOpacity', 'filters', 'tool', 'activeAllianceId', 'route', 'picks', 'selected', 'drops', 'marks', 'extra'];
 
 const usesFortMask = (tool: Tool): boolean => tool === 'cf' || tool === 'drop';
 
@@ -100,7 +101,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(function Ma
     const p = latest.current;
     return {
       world: p.world, plan: p.plan, state: p.state, view: v, W, H, dpr, layers: p.layers, maskOpacity: p.maskOpacity, backgroundOpacity: p.backgroundOpacity, filters: p.filters,
-      tool: p.tool, activeAllianceId: p.activeAllianceId, route: p.route, picks: p.picks, selected: p.selected, drops: p.drops, background: bg.current, extra: p.extra, assets: a,
+      tool: p.tool, activeAllianceId: p.activeAllianceId, route: p.route, picks: p.picks, selected: p.selected, drops: p.drops, marks: p.marks, background: bg.current, extra: p.extra, assets: a,
     };
   }, []);
 
@@ -222,7 +223,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(function Ma
       baseDirty.current = true;
     }
     schedule();
-    const shows = [props.layers.background, props.backgroundOpacity, props.layers.mask, props.maskOpacity, usesFortMask(props.tool), props.layers.land, props.filters.hiddenExisting, props.extra, bgTick.current];
+    const shows = [props.world, props.layers.background, props.backgroundOpacity, props.layers.mask, props.maskOpacity, usesFortMask(props.tool), props.layers.land, props.filters.hiddenExisting, props.extra, bgTick.current];
     if (shows.some((v, i) => v !== underShows.current[i])) {
       underShows.current = shows;
       armUnder();

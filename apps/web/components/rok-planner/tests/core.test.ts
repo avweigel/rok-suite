@@ -136,11 +136,12 @@ test('an added flag stays marked through the plan and a save', () => {
 test('no alliance colour is a red: red is the no-build zones', () => {
   for (let id = 1; id < 200000; id += 37) {
     const h = hueOfId(id);
-    assert.ok(h >= 50 && h <= 285, `id ${id}: hue ${h}`);
+    assert.ok(h >= 55 && h <= 240, `id ${id}: hue ${h}`);
   }
   for (const hex of PLAN_PALETTE) {
     const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-    assert.ok(!(r > g * 1.6 && r > b * 1.6), `${hex} looks red`);
+    assert.ok(g >= r * 0.45 || b >= r * 1.2, `${hex} looks red, orange or pink`);
+    assert.ok(!(b > g * 1.5 && r > g * 1.1), `${hex} looks violet`);
   }
 });
 

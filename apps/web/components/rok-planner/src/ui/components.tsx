@@ -3,6 +3,7 @@
 // Small building blocks of the side panels.
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import type { RemovalGroup } from '../core/removal';
 import { RESOURCE_ICONS } from './resourceIcons';
 import { resColor } from './model';
 
@@ -50,6 +51,45 @@ export function ResIcon(props: { name: string | undefined; code: number; size?: 
   // a data: URI of our own SVG: next/image has nothing to optimise here
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`} width={size} height={size} alt="" className="rokp-icon" />;
+}
+
+/** What would have to go, per alliance. */
+export function RemovalList(props: { groups: RemovalGroup[]; onGo?(x: number, y: number): void; onRestore?(g: RemovalGroup): void }) {
+  return (
+    <ul className="rokp-rem">
+      {props.groups.map((g) => {
+        const parts = [
+          g.cfs.length ? plural(g.cfs.length, 'CF', 'CFs') : '',
+          g.flags.length ? plural(g.flags.length, 'flag') : '',
+          g.centres.length ? plural(g.centres.length, 'resource centre') : '',
+          ...g.sites.map((s) => s.name),
+        ].filter(Boolean);
+        const spots: [number, number][] = [...g.cfs, ...g.flags, ...g.centres, ...g.sites.map((s): [number, number] => [s.x, s.y])];
+        return (
+          <li key={g.ai}>
+            <div className="rokp-row rokp-rem-h">
+              <b className="rokp-grow" title={g.name}>{g.label}</b>
+              {props.onRestore && <button type="button" onClick={() => props.onRestore?.(g)} title="Put them back on the map">Bring back</button>}
+            </div>
+            <div>{parts.join(' · ')}</div>
+            {g.cutOff > 0 && <div className="rokp-rem-cut">{plural(g.cutOff, 'more flag')} of theirs would lose the link to a CF</div>}
+            {props.onGo && spots.length > 0 && (
+              <details>
+                <summary>Where</summary>
+                <div className="rokp-rem-spots">
+                  {spots.map(([x, y]) => (
+                    <button key={`${x},${y}`} type="button" onClick={() => props.onGo?.(x, y)}>
+                      {x}, {y}
+                    </button>
+                  ))}
+                </div>
+              </details>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
 
 export const cap = (s: string): string => (s ? s[0].toUpperCase() + s.slice(1) : s);
