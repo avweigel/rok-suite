@@ -1,17 +1,16 @@
 'use client';
 
 // Kingdom Planner (officers and admins): the AoO planner, the home kingdom
-// map with the walled zones, passes and baulur points, and the KvK map (to
-// come). A shared AoO plan link (?plan=…) stays open to everyone.
+// map (alliance land planner with the walled zones, passes and baulur points)
+// and the KvK map (to come). Shared plan links stay open to everyone: AoO
+// (?plan=…) and map (?mplan=…).
 
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useState, useSyncExternalStore } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Castle, Map as MapIcon } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
 import { LockedPlaceholder } from '@/components/LockedPlaceholder';
-import { ZoneMap } from '@/components/zones/ZoneMap';
-import { BAULUR_POINTS } from '@/lib/zones/zones';
 import { meetsRole, useAuthRole } from '@/lib/auth-role';
 import { WarRoomAuthProvider, useWarRoomAuth } from '@/lib/war-room-auth';
 
@@ -24,6 +23,7 @@ function Spinner() {
 }
 
 const AooPlanner = dynamic(() => import('@/components/kingdom-planner/AooPlanner'), { ssr: false, loading: Spinner });
+const HomeMapPlanner = dynamic(() => import('@/components/kingdom-planner/HomeMapPlanner'), { ssr: false, loading: Spinner });
 
 const SECTIONS = [
   { id: 'aoo', label: 'AOO' },
@@ -56,11 +56,16 @@ function KingdomPlanner() {
   const canPlan = warRoom.isAtLeast('officer') || meetsRole(role, 'officer');
 
   const raw = searchParams.get('section');
-  const section: SectionId = isSection(raw) ? raw : 'aoo';
+  // A link to a map plan opens the map, whatever else it says.
+  const hasMapPlan = searchParams.has('mplan') || searchParams.has('mpid');
+  const section: SectionId = isSection(raw) ? raw : hasMapPlan ? 'home-map' : 'aoo';
+  // Once opened, the map stays mounted: a plan not saved yet lives in its state.
+  const [mapOpened, setMapOpened] = useState(section === 'home-map');
+  if (section === 'home-map' && !mapOpened) setMapOpened(true);
   const setSection = useCallback(
     (next: SectionId) => {
       const params = new URLSearchParams(searchParams.toString());
-      if (next === 'aoo') params.delete('section');
+      if (next === 'aoo' && !params.has('mplan') && !params.has('mpid')) params.delete('section');
       else params.set('section', next);
       const qs = params.toString();
       router.replace(qs ? `?${qs}` : '/kingdom-planner', { scroll: false });
@@ -70,8 +75,9 @@ function KingdomPlanner() {
 
   if (!isClient) return <Spinner />;
   if (!canPlan) {
-    // A shared AoO plan link: the plan only.
+    // A shared plan link: the plan only.
     if (searchParams.get('plan')) return <AooPlanner officer={false} />;
+    if (searchParams.get('mplan')) return <HomeMapPlanner />;
     return <LockedPlaceholder title="Kingdom Planner" description="Officer or admin access required." />;
   }
 
@@ -107,11 +113,9 @@ function KingdomPlanner() {
 
       {section === 'aoo' && <AooPlanner officer />}
 
-      {section === 'home-map' && (
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4">
-          <div className="mx-auto w-full max-w-[calc(100vh-120px)]">
-            <ZoneMap points={BAULUR_POINTS} pointsLabel="Baulur point" />
-          </div>
+      {mapOpened && (
+        <div className={section === 'home-map' ? undefined : 'hidden'}>
+          <HomeMapPlanner />
         </div>
       )}
 

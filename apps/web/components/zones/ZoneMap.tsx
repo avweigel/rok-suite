@@ -1,14 +1,13 @@
 'use client';
 
 // Kingdom map (0–1200) with the walled zones and the mountain passes — the
-// "Zone Murate" tool — plus optional players (Zero List) and fixed points
-// (baulur points, Kingdom Planner). Drag to pan; wheel, pinch or the buttons
-// to zoom; click a player to pick its row, a point to read its coords,
-// anywhere else to read that coordinate's zone.
+// "Zone Murate" tool — plus the Zero List players. Drag to pan; wheel, pinch or
+// the buttons to zoom; click a player to pick its row, anywhere else to read
+// that coordinate's zone.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Barlow_Condensed } from 'next/font/google';
-import { MAP_SIZE, PASSES, ZONES, ZONE_BY_ID, nearZoneEdge, zoneGrid, zoneIdAt } from '@/lib/zones/zones';
+import { getZoneLayers, zoneLabelFont } from '@/components/zones/zone-layers';
+import { MAP_SIZE, PASSES, ZONES, ZONE_BY_ID, nearZoneEdge, zoneIdAt } from '@/lib/zones/zones';
 
 export interface MapTarget {
   id: string;
@@ -20,14 +19,7 @@ export interface MapTarget {
   moved: boolean;
 }
 
-/** A fixed spot on the map (e.g. a baulur point). */
-export interface MapPoint {
-  x: number;
-  y: number;
-}
-
 const NO_TARGETS: MapTarget[] = [];
-const NO_POINTS: MapPoint[] = [];
 
 /** A spot to show: `move` centres the view on it (otherwise it stays put);
  *  `mark` rings it — for a player who has no dot on the map. Bump seq to
@@ -62,57 +54,12 @@ function clampView(v: View) {
   v.oy = vh >= MAP_SIZE ? (MAP_SIZE - vh) / 2 : Math.max(0, Math.min(MAP_SIZE - vh, v.oy));
 }
 
-/** Zone names on the map, as in the original "Zone Murate" tool. */
-const labelFont = Barlow_Condensed({ weight: ['600', '700'], subsets: ['latin'], display: 'swap' });
-
 type ZoomAction = 'in' | 'out' | 'reset';
 const ZOOM_BUTTONS: { label: string; title: string; action: ZoomAction }[] = [
   { label: '+', title: 'Zoom in', action: 'in' },
   { label: '−', title: 'Zoom out', action: 'out' },
   { label: '1:1', title: 'Whole map', action: 'reset' },
 ];
-
-// Zone colour layer and border lines, built once per page load.
-let layers: { overlay: HTMLCanvasElement; borders: Path2D } | null = null;
-function getLayers() {
-  if (layers) return layers;
-  const grid = zoneGrid();
-  const overlay = document.createElement('canvas');
-  overlay.width = overlay.height = MAP_SIZE;
-  const o = overlay.getContext('2d');
-  if (o) {
-    const img = o.createImageData(MAP_SIZE, MAP_SIZE);
-    const rgb = new Map(ZONES.map((z) => [z.id, [1, 3, 5].map((i) => parseInt(z.color.slice(i, i + 2), 16))] as const));
-    for (let py = 0; py < MAP_SIZE; py++) {
-      const gy = MAP_SIZE - 1 - py;
-      for (let x = 0; x < MAP_SIZE; x++) {
-        const c = rgb.get(grid[gy * MAP_SIZE + x]) ?? [0, 0, 0];
-        const i = (py * MAP_SIZE + x) * 4;
-        img.data[i] = c[0];
-        img.data[i + 1] = c[1];
-        img.data[i + 2] = c[2];
-        img.data[i + 3] = 255;
-      }
-    }
-    o.putImageData(img, 0, 0);
-  }
-  const borders = new Path2D();
-  for (let gy = 0; gy < MAP_SIZE; gy++) {
-    for (let x = 0; x < MAP_SIZE; x++) {
-      const z = grid[gy * MAP_SIZE + x];
-      if (x < MAP_SIZE - 1 && grid[gy * MAP_SIZE + x + 1] !== z) {
-        borders.moveTo(x + 1, MAP_SIZE - gy);
-        borders.lineTo(x + 1, MAP_SIZE - 1 - gy);
-      }
-      if (gy < MAP_SIZE - 1 && grid[(gy + 1) * MAP_SIZE + x] !== z) {
-        borders.moveTo(x, MAP_SIZE - 1 - gy);
-        borders.lineTo(x + 1, MAP_SIZE - 1 - gy);
-      }
-    }
-  }
-  layers = { overlay, borders };
-  return layers;
-}
 
 export function ZoneMap({
   targets = NO_TARGETS,
@@ -122,8 +69,6 @@ export function ZoneMap({
   onPick,
   zoneFilter = null,
   onZoneFilter,
-  points = NO_POINTS,
-  pointsLabel = 'Point',
   legend,
   emptyNote,
   ariaLabel = 'Kingdom map with the walled zones',
@@ -138,9 +83,6 @@ export function ZoneMap({
   onPick?: (id: string) => void;
   zoneFilter?: number | null;
   onZoneFilter?: (id: number | null) => void;
-  /** Fixed spots drawn as black dots; pointsLabel names one of them. */
-  points?: MapPoint[];
-  pointsLabel?: string;
   /** Note next to the map toggles. */
   legend?: React.ReactNode;
   /** In place of the zone chips when no zone has targets. */
@@ -156,14 +98,13 @@ export function ZoneMap({
   const [showPasses, setShowPasses] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
   const [showNames, setShowNames] = useState(true);
-  const [showPoints, setShowPoints] = useState(true);
   const [pin, setPin] = useState<{ x: number; y: number } | null>(null);
   const [lx, setLx] = useState('');
   const [ly, setLy] = useState('');
 
   // Latest render inputs for the imperative drawing code (synced in an effect).
   const focusMark = useMemo(() => (focus?.mark ? { x: focus.x, y: focus.y, name: focus.mark.name } : null), [focus]);
-  const stateRef = useRef({ targets, points, highlightId, opacity, showPasses, showGrid, showNames, showPoints, pin, focusMark });
+  const stateRef = useRef({ targets, highlightId, opacity, showPasses, showGrid, showNames, pin, focusMark });
 
   const draw = useCallback(() => {
     const cv = cvRef.current;
@@ -171,7 +112,7 @@ export function ZoneMap({
     if (!cv || !ctx) return;
     const v = viewRef.current;
     const st = stateRef.current;
-    const { overlay, borders } = getLayers();
+    const { overlay, borders } = getZoneLayers();
     const d = window.devicePixelRatio || 1;
     const s = v.scale;
     ctx.setTransform(d, 0, 0, d, 0, 0);
@@ -225,7 +166,7 @@ export function ZoneMap({
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const lab = Math.max(17, Math.min(36, s * 36));
-    ctx.font = `700 ${lab}px ${labelFont.style.fontFamily}, "Arial Narrow", sans-serif`;
+    ctx.font = `700 ${lab}px ${zoneLabelFont.style.fontFamily}, "Arial Narrow", sans-serif`;
     for (const z of ZONES) {
       const [X, Y] = toScreen(v, z.lx, z.ly);
       if (X < -120 || Y < -40 || X > v.W + 120 || Y > v.H + 40) continue;
@@ -247,30 +188,6 @@ export function ZoneMap({
         ctx.fill();
         ctx.lineWidth = 2;
         ctx.strokeStyle = '#1f2618';
-        ctx.stroke();
-        if (s > v.minScale * 4) {
-          ctx.font = '11px ui-monospace, monospace';
-          ctx.lineWidth = 3;
-          ctx.strokeStyle = 'rgba(0,0,0,.7)';
-          ctx.strokeText(`${p.x},${p.y}`, X, Y + r + 9);
-          ctx.fillStyle = '#fff';
-          ctx.fillText(`${p.x},${p.y}`, X, Y + r + 9);
-        }
-      }
-    }
-
-    // Fixed points: black dots, coords once zoomed in.
-    if (st.showPoints) {
-      const r = Math.max(5, Math.min(8, s * 6));
-      for (const p of st.points) {
-        const [X, Y] = toScreen(v, p.x, p.y);
-        if (X < -10 || Y < -10 || X > v.W + 10 || Y > v.H + 10) continue;
-        ctx.beginPath();
-        ctx.arc(X, Y, r, 0, 7);
-        ctx.fillStyle = '#111';
-        ctx.fill();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#fff';
         ctx.stroke();
         if (s > v.minScale * 4) {
           ctx.font = '11px ui-monospace, monospace';
@@ -412,7 +329,7 @@ export function ZoneMap({
     };
     const ro = new ResizeObserver(fit);
     ro.observe(box);
-    void document.fonts?.load(`700 20px ${labelFont.style.fontFamily}`).then(draw, () => {});
+    void document.fonts?.load(`700 20px ${zoneLabelFont.style.fontFamily}`).then(draw, () => {});
     const img = new Image();
     img.onload = draw;
     img.src = '/zones/map.jpg';
@@ -431,9 +348,9 @@ export function ZoneMap({
 
   // Sync the drawing inputs and redraw when they change.
   useEffect(() => {
-    stateRef.current = { targets, points, highlightId, opacity, showPasses, showGrid, showNames, showPoints, pin, focusMark };
+    stateRef.current = { targets, highlightId, opacity, showPasses, showGrid, showNames, pin, focusMark };
     draw();
-  }, [draw, targets, points, highlightId, opacity, showPasses, showGrid, showNames, showPoints, pin, focusMark]);
+  }, [draw, targets, highlightId, opacity, showPasses, showGrid, showNames, pin, focusMark]);
 
   useEffect(() => {
     if (focus?.move) centerOn(focus.x, focus.y);
@@ -490,28 +407,21 @@ export function ZoneMap({
       if (drag.current && !drag.current.moved) {
         const sx = e.nativeEvent.offsetX;
         const sy = e.nativeEvent.offsetY;
-        // A target under the pointer → pick its row; otherwise read the
-        // spot, snapped to a point under the pointer.
-        const st = stateRef.current;
-        const nearest = <T extends MapPoint>(list: T[]) => {
-          let best: T | null = null;
-          let bestD = 12;
-          for (const t of list) {
-            const [X, Y] = toScreen(viewRef.current, t.x, t.y);
-            const dist = Math.hypot(X - sx, Y - sy);
-            if (dist < bestD) {
-              best = t;
-              bestD = dist;
-            }
+        // A target under the pointer → pick its row; otherwise read the spot.
+        let best: MapTarget | null = null;
+        let bestD = 12;
+        for (const t of stateRef.current.targets) {
+          const [X, Y] = toScreen(viewRef.current, t.x, t.y);
+          const dist = Math.hypot(X - sx, Y - sy);
+          if (dist < bestD) {
+            best = t;
+            bestD = dist;
           }
-          return best;
-        };
-        const target = onPick ? nearest(st.targets) : null;
-        if (target && onPick) {
-          onPick(target.id);
+        }
+        if (best && onPick) {
+          onPick(best.id);
         } else {
-          const p = st.showPoints ? nearest(st.points) : null;
-          const g = p ? { x: p.x, y: p.y } : toGame(viewRef.current, sx, sy);
+          const g = toGame(viewRef.current, sx, sy);
           setLx(String(g.x));
           setLy(String(g.y));
           setPin(g);
@@ -545,7 +455,6 @@ export function ZoneMap({
   };
 
   const pinZone = pin ? ZONE_BY_ID.get(zoneIdAt(pin.x, pin.y)) : null;
-  const pinIsPoint = !!pin && points.some((p) => p.x === pin.x && p.y === pin.y);
   const chips = useMemo(
     () =>
       zoneCounts
@@ -556,7 +465,7 @@ export function ZoneMap({
 
   return (
     <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-3 space-y-2">
-      <span className={`${labelFont.className} sr-only`}>Zone names</span>
+      <span className={`${zoneLabelFont.className} sr-only`}>Zone names</span>
       {onZoneFilter && zoneCounts && (
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] mr-1">Zones</span>
@@ -573,7 +482,7 @@ export function ZoneMap({
                   centerOn(z.lx, z.ly, viewRef.current.minScale * 2.5);
                 }
               }}
-              style={labelFont.style}
+              style={zoneLabelFont.style}
               className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-[13px] font-semibold tracking-wide border transition-colors ${
                 active ? 'border-[var(--foreground)] text-[var(--foreground)] bg-[var(--background-hover)]' : 'border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)]'
               }`}
@@ -630,9 +539,6 @@ export function ZoneMap({
         </label>
         <label className="flex items-center gap-1"><input type="checkbox" checked={showPasses} onChange={(e) => setShowPasses(e.target.checked)} /> Passes</label>
         <label className="flex items-center gap-1"><input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} /> Grid</label>
-        {points.length > 0 && (
-          <label className="flex items-center gap-1"><input type="checkbox" checked={showPoints} onChange={(e) => setShowPoints(e.target.checked)} /> {pointsLabel}s ({points.length})</label>
-        )}
         {onPick && (
           <label className="flex items-center gap-1"><input type="checkbox" checked={showNames} onChange={(e) => setShowNames(e.target.checked)} /> Names</label>
         )}
@@ -662,7 +568,6 @@ export function ZoneMap({
             <>
               <span className="inline-block w-2.5 h-2.5 rounded-sm mr-1 align-middle" style={{ background: pinZone.color }} />
               {pin.x},{pin.y} → <strong className="text-[var(--foreground)]">{pinZone.name}</strong>
-              {pinIsPoint && <span> · {pointsLabel}</span>}
               {nearZoneEdge(pin.x, pin.y) && <span className="text-amber-400"> · near a border, check in game</span>}
             </>
           ) : (

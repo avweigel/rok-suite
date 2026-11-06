@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase.auth]);
 
   const signInWithDiscord = async () => {
-    const currentPath = window.location.pathname;
+    const currentPath = window.location.pathname + window.location.search;
     await supabase.auth.signInWithOAuth({
       provider: 'discord',
       options: {
@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
-    const currentPath = window.location.pathname;
+    const currentPath = window.location.pathname + window.location.search;
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
