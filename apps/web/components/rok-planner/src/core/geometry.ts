@@ -73,12 +73,11 @@ export function footprint(reach: number, x: number, y: number): CellKey[] {
   return out;
 }
 
-/** Does a footprint overlap the land or border it (share an edge; with `corner` a shared corner counts too)? "Alliance flags can only be built on land bordering current alliance territory." */
-export function touches(land: ReadonlySet<CellKey>, cells: readonly CellKey[], corner: boolean): boolean {
+/** Does a footprint overlap the land or share an edge with it? A shared corner does not count (checked in the game). "Alliance flags can only be built on land bordering current alliance territory." */
+export function touches(land: ReadonlySet<CellKey>, cells: readonly CellKey[]): boolean {
   for (let i = 0; i < cells.length; i++) {
     const k = cells[i];
     if (land.has(k) || land.has(k - 1) || land.has(k + 1) || land.has(k - KEY) || land.has(k + KEY)) return true;
-    if (corner && (land.has(k - KEY - 1) || land.has(k - KEY + 1) || land.has(k + KEY - 1) || land.has(k + KEY + 1))) return true;
   }
   return false;
 }

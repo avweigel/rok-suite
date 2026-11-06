@@ -47,7 +47,6 @@ export function computeState(world: World, plan: PlanDoc): PlanState {
   const claimed = new Map<CellKey, string>();
   const capturedBy = new Map<string, string>();
   const byAlliance = new Map<string, AllianceState>();
-  const corner = plan.settings.corner;
   const forts: PlannedFort[] = world.forts.map((f) => ({ cx: f.cx, cy: f.cy, plan: null, ai: f.ai }));
 
   const free = world.objectives.map((o) => ({ o, fp: footprint(REACH.site, o.x, o.y) }));
@@ -91,21 +90,19 @@ export function computeState(world: World, plan: PlanDoc): PlanState {
       for (const it of items) {
         if (it.k !== 'flag' || active.get(it.id) || conflicts.has(it.id)) continue;
         const fp = prints.get(it.id)!;
-        if (touches(land, fp, corner)) {
+        if (touches(land, fp)) {
           active.set(it.id, true);
           add(fp);
           changed = true;
         }
       }
-      if (plan.settings.autoCapture) {
-        for (const { o, fp } of free) {
-          if (o.ai >= 0 || capturedBy.has(o.id)) continue;
-          if (touches(land, fp, corner)) {
-            capturedBy.set(o.id, alliance.id);
-            captured.push(o);
-            add(fp);
-            changed = true;
-          }
+      for (const { o, fp } of free) {
+        if (o.ai >= 0 || capturedBy.has(o.id)) continue;
+        if (touches(land, fp)) {
+          capturedBy.set(o.id, alliance.id);
+          captured.push(o);
+          add(fp);
+          changed = true;
         }
       }
     }

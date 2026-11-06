@@ -95,7 +95,7 @@ export function checkPlacement(env: PlaceEnv, allianceId: string, kind: Kind, x:
     if (o) why.push({ code: 'foreign', owner: o.label });
     const hasFort = (as.baseIndex >= 0 && world.fortAlliances.has(as.baseIndex)) || as.cf > 0;
     if (!hasFort) why.push({ code: 'nofort' });
-    else if (!touches(as.land, cells, plan.settings.corner)) why.push({ code: 'noborder' });
+    else if (!touches(as.land, cells)) why.push({ code: 'noborder' });
   }
   return { ok: why.length === 0, why, warn, cells };
 }

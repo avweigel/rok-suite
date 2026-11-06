@@ -13,12 +13,13 @@ export type { PlanRole, PlanStore, PlanSummary, PlanUser, ShareMode, StoredPlan 
 
 // the engine, for a host that wants to use the rules without the interface
 export { emptyPlan, sanitizePlan } from './core/plan';
-export type { PlanAlliance, PlanDoc, PlanItem, PlanSettings } from './core/plan';
+export type { PlanAlliance, PlanDoc, PlanItem } from './core/plan';
 export { loadWorld } from './core/world';
 export type { World } from './core/world';
 export { computeState } from './core/state';
 export { checkPlacement, describeReason } from './core/rules';
-export { buildReport } from './core/report';
-export { PRESETS, planRoute } from './core/route';
+export { MAX_EXTRA_FLAGS, PRESETS, planRoute } from './core/route';
 export type { RouteOptions, RouteRequest, RouteResult } from './core/route';
+export { findCfDrops } from './core/drop';
+export type { DropSpot } from './core/drop';
 export type { MapDataFile } from './core/types';

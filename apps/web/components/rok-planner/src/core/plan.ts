@@ -18,13 +18,8 @@ export interface PlanItem {
   k: Kind;
   x: number;
   y: number;
-}
-
-export interface PlanSettings {
-  /** Does touching by a corner count as bordering? The game's text says "bordering": we assume sharing an edge. */
-  corner: boolean;
-  /** A holy site or pass whose territory the plan's land touches becomes the alliance's, and its radius is added to the land. */
-  autoCapture: boolean;
+  /** A flag added to a route to reach more resource points, on top of the fewest-flags chain. */
+  extra?: boolean;
 }
 
 export interface PlanDoc {
@@ -33,11 +28,9 @@ export interface PlanDoc {
   name: string;
   alliances: PlanAlliance[];
   items: PlanItem[];
-  settings: PlanSettings;
 }
 
 export const LIMITS = { alliances: 40, items: 4000, name: 60, coord: 4000 } as const;
-export const DEFAULT_SETTINGS: PlanSettings = { corner: false, autoCapture: true };
 
 const rnd = (): string => Math.random().toString(36).slice(2, 8);
 
@@ -66,7 +59,7 @@ export function newAlliance(plan: Pick<PlanDoc, 'alliances'>, patch: Partial<Omi
 
 /** A new plan starts with one alliance, so the first click on the map already places something. */
 export function emptyPlan(map: string, name = 'New plan'): PlanDoc {
-  const plan: PlanDoc = { v: 1, map, name, alliances: [], items: [], settings: { ...DEFAULT_SETTINGS } };
+  const plan: PlanDoc = { v: 1, map, name, alliances: [], items: [] };
   plan.alliances.push(newAlliance(plan));
   return plan;
 }
@@ -91,14 +84,14 @@ export function removeAlliance(plan: PlanDoc, id: string): PlanDoc {
   return { ...plan, alliances: plan.alliances.filter((a) => a.id !== id), items: plan.items.filter((i) => i.a !== id) };
 }
 
-export function addItems(plan: PlanDoc, allianceId: string, list: { k: Kind; x: number; y: number }[]): PlanDoc {
+export function addItems(plan: PlanDoc, allianceId: string, list: { k: Kind; x: number; y: number; extra?: boolean }[]): PlanDoc {
   if (!plan.alliances.some((a) => a.id === allianceId)) throw new Error('No such alliance in the plan.');
   if (plan.items.length + list.length > LIMITS.items) throw new Error(`A plan can hold up to ${LIMITS.items} buildings.`);
   const used = new Set(plan.items.map((i) => i.id));
   const items = list.map((it) => {
     const id = newId('i', used);
     used.add(id);
-    return { id, a: allianceId, k: it.k, x: round2(it.x), y: round2(it.y) };
+    return { id, a: allianceId, k: it.k, x: round2(it.x), y: round2(it.y), ...(it.extra ? { extra: true } : {}) };
   });
   return { ...plan, items: [...plan.items, ...items] };
 }
@@ -114,7 +107,6 @@ export function clearAlliance(plan: PlanDoc, allianceId: string): PlanDoc {
   return plan.items.some((i) => i.a === allianceId) ? { ...plan, items: plan.items.filter((i) => i.a !== allianceId) } : plan;
 }
 
-export const setSettings = (plan: PlanDoc, patch: Partial<PlanSettings>): PlanDoc => ({ ...plan, settings: { ...plan.settings, ...patch } });
 export const renamePlan = (plan: PlanDoc, name: string): PlanDoc => ({ ...plan, name: name.trim().slice(0, LIMITS.name) || 'Plan' });
 
 /** The item nearest to (x, y) within `reach` tiles, or null. Used by the right click. */
@@ -163,16 +155,14 @@ export function sanitizePlan(raw: unknown, map?: string): PlanDoc {
     if (typeof i.a !== 'string' || !ids.has(i.a)) return fail(`building ${n + 1} belongs to an alliance that is not in the plan`);
     if (i.k !== 'cf' && i.k !== 'flag') return fail(`building ${n + 1} is neither a CF nor a flag`);
     if (typeof i.x !== 'number' || typeof i.y !== 'number' || !Number.isFinite(i.x) || !Number.isFinite(i.y) || Math.abs(i.x) > LIMITS.coord || Math.abs(i.y) > LIMITS.coord) return fail(`building ${n + 1} has bad coordinates`);
-    return { id: i.id, a: i.a, k: i.k, x: round2(i.x), y: round2(i.y) };
+    return { id: i.id, a: i.a, k: i.k, x: round2(i.x), y: round2(i.y), ...(i.extra === true ? { extra: true } : {}) };
   });
-  const s = (r.settings ?? {}) as Record<string, unknown>;
   return {
     v: 1,
     map: r.map as string,
     name: (typeof r.name === 'string' ? r.name : '').trim().slice(0, LIMITS.name) || 'Plan',
     alliances,
     items,
-    settings: { corner: s.corner === true, autoCapture: s.autoCapture !== false },
   };
 }
 

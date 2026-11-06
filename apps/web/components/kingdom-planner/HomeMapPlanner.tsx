@@ -37,14 +37,14 @@ export default function HomeMapPlanner() {
   const { signInWithDiscord } = useAuth();
   const store = useMemo(() => createSupabaseStore(createClient()), []);
   const [draft] = useState(readDraft);
-  const [, repaint] = useState(0);
+  const [layers, setLayers] = useState(EXTRA_LAYERS);
 
   useEffect(() => {
     try {
       window.sessionStorage.removeItem(DRAFT_KEY);
     } catch { /* sessionStorage may be unavailable */ }
     // Canvas text doesn't wait for web fonts: draw the zone names again once it's here.
-    void document.fonts?.load(`700 20px ${zoneLabelFont.style.fontFamily}`).then(() => repaint((n) => n + 1), () => {});
+    void document.fonts?.load(`700 20px ${zoneLabelFont.style.fontFamily}`).then(() => setLayers([...EXTRA_LAYERS]), () => {});
   }, []);
 
   const onRequireSignIn = useCallback(
@@ -83,7 +83,7 @@ export default function HomeMapPlanner() {
         onPlanChange={onPlanChange}
         shareUrl={shareUrl}
         onRequireSignIn={onRequireSignIn}
-        extraLayers={EXTRA_LAYERS}
+        extraLayers={layers}
         style={{ height: 'calc(100vh - 150px)', minHeight: 560 }}
       />
     </div>

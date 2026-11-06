@@ -80,7 +80,6 @@ export function FiltersPanel(p: FiltersPanelProps) {
             )}
           </>
         )}
-        <Check checked={p.layers.grid} onChange={set('grid')} label="Grid and coordinates" />
         <Check checked={p.layers.mask} onChange={set('mask')} label="Red zones" hint="Where a building cannot go: mountains, lakes, walls. Drawn for the building you are placing." />
         {p.layers.mask && (
           <label className="rokp-slider">

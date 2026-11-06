@@ -64,10 +64,3 @@ export function clampView(v: View, W: number, H: number, b: Box): void {
   if (bottom < my) v.ty += my - bottom;
   if (top > H - my) v.ty -= top - (H - my);
 }
-
-/** A round step for the grid lines at this zoom (tiles between lines). */
-export function gridStep(z: number): number {
-  const target = 90 / z;            // about 90 pixels between lines
-  for (const s of [1, 2, 5, 10, 20, 50, 100, 200, 500]) if (s >= target) return s;
-  return 500;
-}

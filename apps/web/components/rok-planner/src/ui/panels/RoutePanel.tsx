@@ -1,7 +1,7 @@
 'use client';
 
 import type { PlanDoc } from '../../core/plan';
-import { PRESETS } from '../../core/route';
+import { MAX_EXTRA_FLAGS, PRESETS } from '../../core/route';
 import type { RouteMode, RouteOptions, RouteResult } from '../../core/route';
 import type { World } from '../../core/world';
 import { Check, ResIcon, Section, Seg, cap, plural } from '../components';
@@ -26,9 +26,8 @@ export interface RoutePanelProps {
 }
 
 const MODE_TEXT: Record<RouteMode, string> = {
-  fewest: 'The chain with the fewest flags, going around anything in the way.',
-  direct: 'Fewest flags, but staying close to the straight line from A to B.',
-  nodes: 'A wider corridor and a few more flags, to take in resource points (and holy sites or passes) on the way.',
+  fewest: 'The chain with the fewest flags, going around anything in the way. Resource points play no part.',
+  nodes: 'Still the fewest flags from A to B, on the way that takes in the most resource points. The extra flags then branch off it to reach more.',
 };
 
 const num = (s: string): number | null => {
@@ -80,21 +79,15 @@ export function RoutePanel(p: RoutePanelProps) {
         onChange={preset}
         options={[
           { value: 'fewest', label: 'Fewest flags' },
-          { value: 'direct', label: 'Direct' },
           { value: 'nodes', label: 'More nodes' },
         ]}
       />
       <p className="rokp-hint">{MODE_TEXT[options.mode]}</p>
-      <label className="rokp-slider">
-        <span title="How far from the straight line the flags may go">Margin</span>
-        <input type="range" min={4} max={120} value={options.margin} onChange={(e) => set({ margin: Number(e.target.value) })} />
-        <span>{options.margin} tiles</span>
-      </label>
       {options.mode === 'nodes' && (
         <>
           <label className="rokp-slider">
-            <span title="How many flags more than the shortest chain you accept">Extra flags</span>
-            <input type="range" min={0} max={10} value={options.extraFlags} onChange={(e) => set({ extraFlags: Number(e.target.value) })} />
+            <span title="How many flags you accept on top of the fewest that reach B">Extra flags</span>
+            <input type="range" min={0} max={MAX_EXTRA_FLAGS} value={options.extraFlags} onChange={(e) => set({ extraFlags: Number(e.target.value) })} />
             <span>up to {options.extraFlags}</span>
           </label>
           <div className="rokp-label">Take in</div>
@@ -121,6 +114,11 @@ export function RoutePanel(p: RoutePanelProps) {
             <>
               <ul className="rokp-stats">
                 <li>{plural(result.stats.flags, 'flag')}{result.newCf ? ' + 1 CF' : ''} · {result.stats.length} tiles long</li>
+                {result.stats.extraFlags > 0 && (
+                  <li>
+                    <span className="rokp-addeddot" /> {result.stats.extraFlags} added, for {plural(result.stats.extraNodes, 'more point')}
+                  </li>
+                )}
                 <li>{result.stats.newTiles.toLocaleString()} new tiles</li>
                 <li>
                   {codes.map((c) => (

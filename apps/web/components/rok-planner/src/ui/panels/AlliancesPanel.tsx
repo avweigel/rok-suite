@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { LIMITS, addAlliance, clearAlliance, removeAlliance, setSettings, updateAlliance } from '../../core/plan';
+import { LIMITS, addAlliance, clearAlliance, removeAlliance, updateAlliance } from '../../core/plan';
 import type { PlanDoc } from '../../core/plan';
 import type { PlanState } from '../../core/state';
 import type { World } from '../../core/world';
-import { Check, Section, plural } from '../components';
+import { Section, plural } from '../components';
 
 export interface AlliancesPanelProps {
   world: World;
@@ -124,22 +124,6 @@ export function AlliancesPanel(p: AlliancesPanelProps) {
           + Add alliance
         </button>
       )}
-      <div className="rokp-box">
-        <Check
-          checked={plan.settings.autoCapture}
-          disabled={p.readOnly}
-          onChange={(v) => p.onChange(setSettings(plan, { autoCapture: v }))}
-          label="Holy sites and passes join automatically"
-          hint="When the land reaches one, its own radius (5 x 5 cells) becomes the alliance's land too."
-        />
-        <Check
-          checked={plan.settings.corner}
-          disabled={p.readOnly}
-          onChange={(v) => p.onChange(setSettings(plan, { corner: v }))}
-          label="Touching by a corner counts"
-          hint="Off: a flag must share an edge with the land (the game says “bordering”; not verified for corners)."
-        />
-      </div>
     </Section>
   );
 }

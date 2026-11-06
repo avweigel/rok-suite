@@ -1,15 +1,16 @@
 // Drawing the map. Everything here draws on a 2D canvas context and holds no React: the component hands in a Scene and gets pixels.
 import { existingColor, existingRgb, hexToRgb, withAlpha } from '../core/colors';
+import type { DropSpot } from '../core/drop';
 import { CELL, KEY, REACH, SIZE, radiusFor } from '../core/geometry';
 import type { PlanDoc } from '../core/plan';
 import { describeReason } from '../core/rules';
 import type { PlanState } from '../core/state';
-import type { ObjectiveType } from '../core/types';
+import type { ExistingBuilding, ObjectiveType } from '../core/types';
 import type { World } from '../core/world';
 import { RESOURCE_ICONS } from './resourceIcons';
 import { DEFAULT_MASK_OPACITY, OBJECTIVE_SIZE, resColor } from './model';
 import type { ExtraLayer, Filters, Ghost, Layers, Picks, RoutePreview, Tool } from './model';
-import { gridStep, toScreen } from './view';
+import { toScreen } from './view';
 import type { View } from './view';
 
 export interface Scene {
@@ -27,11 +28,10 @@ export interface Scene {
   filters: Filters;
   tool: Tool;
   activeAllianceId: string;
-  hover: { x: number; y: number } | null;
-  ghost: Ghost | null;
   route: RoutePreview | null;
   picks: Picks;
   selected: { x: number; y: number } | null;
+  drops: DropSpot[] | null;
   background: HTMLImageElement | null;
   extra: ExtraLayer[];
   assets: Assets;
@@ -55,6 +55,8 @@ export function landEdges(cells: Iterable<number>, has: (k: number) => boolean):
   return Float32Array.from(out);
 }
 
+const ICON_PX = 96;
+
 const makeCanvas = (w: number, h: number): HTMLCanvasElement => {
   const c = document.createElement('canvas');
   c.width = Math.max(1, w);
@@ -69,7 +71,14 @@ export class Assets {
   private landCanvas: HTMLCanvasElement | null = null;
   private edges = new Map<number, Float32Array>();
   private paths = new Map<number, Path2D>();
-  readonly icons: Record<string, HTMLImageElement> = {};
+  /** Tile box of each alliance's land, to skip the outlines that are off screen. */
+  private boxes = new Map<number, [number, number, number, number]>();
+  /** The resource icons as bitmaps: drawing an SVG image thousands of times a frame is what made zooming slow. */
+  readonly icons: Record<string, HTMLCanvasElement> = {};
+  /** The colour of each existing alliance, by index. */
+  readonly colors: string[];
+  /** The buildings by alliance: one colour change per alliance instead of one per building. */
+  readonly groups: { ai: number; flags: ExistingBuilding[]; others: ExistingBuilding[] }[];
   private planKey: PlanState | null = null;
   private planHidden = '';
   private planCache: { canvas: HTMLCanvasElement; edges: { color: string; lines: Float32Array }[] } | null = null;
@@ -81,13 +90,37 @@ export class Assets {
       if (list) list.push(k);
       else byOwner.set(ai, [k]);
     }
-    for (const [ai, cells] of byOwner) this.edges.set(ai, landEdges(cells, (k) => world.owner.get(k) === ai));
+    for (const [ai, cells] of byOwner) {
+      this.edges.set(ai, landEdges(cells, (k) => world.owner.get(k) === ai));
+      let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity];
+      for (const k of cells) {
+        const x = (k % KEY) * CELL;
+        const y = Math.floor(k / KEY) * CELL;
+        if (x < x0) x0 = x;
+        if (y < y0) y0 = y;
+        if (x + CELL > x1) x1 = x + CELL;
+        if (y + CELL > y1) y1 = y + CELL;
+      }
+      this.boxes.set(ai, [x0, y0, x1, y1]);
+    }
+    this.colors = world.alliances.map((a) => existingColor(a.id));
+    const groups = new Map<number, { ai: number; flags: ExistingBuilding[]; others: ExistingBuilding[] }>();
+    for (const b of world.buildings) {
+      let g = groups.get(b.ai);
+      if (!g) groups.set(b.ai, (g = { ai: b.ai, flags: [], others: [] }));
+      (b.kind === 0 ? g.flags : g.others).push(b);
+    }
+    this.groups = [...groups.values()];
     if (typeof Image !== 'undefined') {
       for (const [name, svg] of Object.entries(RESOURCE_ICONS)) {
         const im = new Image();
-        im.onload = onLoad;
+        im.onload = () => {
+          const c = makeCanvas(ICON_PX, ICON_PX);
+          c.getContext('2d')?.drawImage(im, 0, 0, ICON_PX, ICON_PX);
+          this.icons[name] = c;
+          onLoad();
+        };
         im.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-        this.icons[name] = im;
       }
     }
   }
@@ -160,6 +193,12 @@ export class Assets {
     }
     this.paths.set(ai, p);
     return p;
+  }
+
+  /** Is any of the alliance's land inside this box of tiles? */
+  landInBox(ai: number, x0: number, y0: number, x1: number, y1: number): boolean {
+    const b = this.boxes.get(ai);
+    return !!b && b[0] <= x1 && b[2] >= x0 && b[1] <= y1 && b[3] >= y0;
   }
 
   /** The land of the plan's alliances (raster + outlines), rebuilt only when the plan's state or the hidden alliances change. */
@@ -257,7 +296,8 @@ function drawExtra(ctx: CanvasRenderingContext2D, s: Scene, over: boolean): void
 }
 
 // ---- the scene -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-export function drawScene(ctx: CanvasRenderingContext2D, s: Scene): void {
+/** The map without what is placed on it: picture, zones, red zones, land. */
+export function drawWorld(ctx: CanvasRenderingContext2D, s: Scene): void {
   const { world, view: v, W, H, dpr } = s;
   const b = world.bounds;
   const z = v.z;
@@ -287,7 +327,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, s: Scene): void {
 
   // 2. the red zones: the terrain as the building being placed sees it (a flag may go closer to a mountain than a fortress)
   if (s.layers.mask) {
-    const kind = s.tool === 'cf' ? 'fort' : 'flag';
+    const kind = s.tool === 'cf' || s.tool === 'drop' ? 'fort' : 'flag';
     const mask = s.assets.mask(kind);
     if (mask) {
       const box = world.terrain.box;
@@ -309,15 +349,27 @@ export function drawScene(ctx: CanvasRenderingContext2D, s: Scene): void {
     ctx.imageSmoothingEnabled = true;
     ctx.globalAlpha = 0.9;
     ctx.lineWidth = Math.max(1, 1.2) / z;
+    const x0 = -v.tx / z;
+    const x1 = (W - v.tx) / z;
+    const y0 = (v.ty - H) / z;
+    const y1 = v.ty / z;
     for (const a of world.alliances) {
-      if (s.filters.hiddenExisting.has(a.index)) continue;
+      if (s.filters.hiddenExisting.has(a.index) || !s.assets.landInBox(a.index, x0, y0, x1, y1)) continue;
       const path = s.assets.existingPath(a.index);
       if (!path) continue;
-      ctx.strokeStyle = existingColor(a.id);
+      ctx.strokeStyle = s.assets.colors[a.index];
       ctx.stroke(path);
     }
     ctx.globalAlpha = 1;
   }
+}
+
+export function drawScene(ctx: CanvasRenderingContext2D, s: Scene): void {
+  const { world, view: v, dpr } = s;
+  const b = world.bounds;
+  const z = v.z;
+  drawWorld(ctx, s);
+  worldT(ctx, v, dpr);
 
   // 4. the land of the plan: stronger, so it stands out from the rest
   {
@@ -347,7 +399,6 @@ export function drawScene(ctx: CanvasRenderingContext2D, s: Scene): void {
   ctx.strokeRect(b.minX, b.minY, b.width, b.height);
 
   screenT(ctx, dpr);
-  if (s.layers.grid) drawGrid(ctx, s);
   if (s.layers.cities) drawCities(ctx, s);
   if (s.layers.points) drawPoints(ctx, s);
   if (s.layers.buildings) drawBuildings(ctx, s);
@@ -357,41 +408,14 @@ export function drawScene(ctx: CanvasRenderingContext2D, s: Scene): void {
   if (s.route) drawRoute(ctx, s);
   drawPicks(ctx, s);
   if (s.selected) drawSelected(ctx, s);
-  if (s.ghost) drawGhost(ctx, s);
+  if (s.drops && s.tool === 'drop') drawDrops(ctx, s);
 }
 
-function drawGrid(ctx: CanvasRenderingContext2D, s: Scene): void {
-  const { view: v, W, H } = s;
-  const b = s.world.bounds;
-  const step = gridStep(v.z);
-  ctx.font = '11px ui-monospace, SFMono-Regular, Menlo, monospace';
-  ctx.textBaseline = 'top';
-  ctx.textAlign = 'left';
-  ctx.lineWidth = 1;
-  const x0 = Math.ceil(b.minX / step) * step;
-  for (let gx = x0; gx <= b.minX + b.width; gx += step) {
-    const [X] = toScreen(v, gx, 0);
-    if (X < -1 || X > W + 1) continue;
-    const major = gx % (step * 5) === 0 || gx % 100 === 0;
-    ctx.strokeStyle = major ? 'rgba(255,255,255,.32)' : 'rgba(255,255,255,.14)';
-    ctx.beginPath();
-    ctx.moveTo(Math.round(X) + 0.5, 0);
-    ctx.lineTo(Math.round(X) + 0.5, H);
-    ctx.stroke();
-    halo(ctx, String(gx), X + 3, H - 16, 'rgba(255,255,255,.85)');
-  }
-  const y0 = Math.ceil(b.minY / step) * step;
-  for (let gy = y0; gy <= b.minY + b.height; gy += step) {
-    const [, Y] = toScreen(v, 0, gy);
-    if (Y < -1 || Y > H + 1) continue;
-    const major = gy % (step * 5) === 0 || gy % 100 === 0;
-    ctx.strokeStyle = major ? 'rgba(255,255,255,.32)' : 'rgba(255,255,255,.14)';
-    ctx.beginPath();
-    ctx.moveTo(0, Math.round(Y) + 0.5);
-    ctx.lineTo(W, Math.round(Y) + 0.5);
-    ctx.stroke();
-    halo(ctx, String(gy), 4, Y + 2, 'rgba(255,255,255,.85)');
-  }
+/** What moves with the cursor, on its own canvas. */
+export function drawTop(ctx: CanvasRenderingContext2D, s: Scene, ghost: Ghost | null): void {
+  screenT(ctx, s.dpr);
+  ctx.clearRect(0, 0, s.W, s.H);
+  if (ghost) drawGhost(ctx, s, ghost);
 }
 
 function drawCities(ctx: CanvasRenderingContext2D, s: Scene): void {
@@ -411,6 +435,9 @@ function drawPoints(ctx: CanvasRenderingContext2D, s: Scene): void {
   const z = v.z;
   const iconPx = Math.min(44, Math.max(14, SIZE.flag * 2.4 * z));
   const useIcon = z * 3.25 >= 9;
+  const dotR = Math.max(2.2, 1.5 * z);
+  const dots = new Map<string, { path: Path2D; res: number; alpha: number }>();
+  const rings: { x: number; y: number; r: number; color: string }[] = [];
   for (const p of world.points) {
     if (filters.res[p.res] === false) continue;
     const inPlan = state.claimed.has(p.cell);
@@ -420,67 +447,86 @@ function drawPoints(ctx: CanvasRenderingContext2D, s: Scene): void {
     if (X < -30 || Y < -30 || X > W + 30 || Y > H + 30) continue;
     const name = world.resources[p.res];
     const icon = name ? s.assets.icons[name] : undefined;
-    if (useIcon && icon && icon.complete && icon.naturalWidth) {
-      ctx.globalAlpha = taken && !inPlan ? 0.65 : 1;
+    const faded = taken && !inPlan;
+    if (useIcon && icon) {
+      ctx.globalAlpha = faded ? 0.65 : 1;
       ctx.drawImage(icon, X - iconPx / 2, Y - iconPx / 2, iconPx, iconPx);
       ctx.globalAlpha = 1;
     } else {
-      const r = Math.max(2.2, 1.5 * z);
-      ctx.beginPath();
-      ctx.arc(X, Y, r, 0, 6.2832);
-      ctx.fillStyle = resColor(p.res);
-      ctx.globalAlpha = taken && !inPlan ? 0.6 : 1;
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = 'rgba(0,0,0,.6)';
-      ctx.stroke();
+      const key = `${p.res}|${faded}`;
+      let d = dots.get(key);
+      if (!d) dots.set(key, (d = { path: new Path2D(), res: p.res, alpha: faded ? 0.6 : 1 }));
+      d.path.moveTo(X + dotR, Y);
+      d.path.arc(X, Y, dotR, 0, 6.2832);
     }
     if (inPlan) {                                                                 // inside the plan's land: a ring in the colour of the alliance that gets it
       const owner = s.plan.alliances.find((a) => a.id === state.claimed.get(p.cell));
-      if (owner && !s.filters.hiddenPlan.has(owner.id)) {
-        ctx.beginPath();
-        ctx.arc(X, Y, (useIcon ? iconPx / 2 : Math.max(2.2, 1.5 * z)) + 2.5, 0, 6.2832);
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = owner.color;
-        ctx.stroke();
-      }
+      if (owner && !s.filters.hiddenPlan.has(owner.id)) rings.push({ x: X, y: Y, r: (useIcon ? iconPx / 2 : dotR) + 2.5, color: owner.color });
     }
+  }
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(0,0,0,.6)';
+  for (const d of dots.values()) {
+    ctx.globalAlpha = d.alpha;
+    ctx.fillStyle = resColor(d.res);
+    ctx.fill(d.path);
+    ctx.globalAlpha = 1;
+    ctx.stroke(d.path);
+  }
+  ctx.lineWidth = 2;
+  for (const r of rings) {
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, r.r, 0, 6.2832);
+    ctx.strokeStyle = r.color;
+    ctx.stroke();
   }
 }
 
 function drawBuildings(ctx: CanvasRenderingContext2D, s: Scene): void {
-  const { view: v, W, H, world, filters } = s;
+  const { view: v, W, H, filters } = s;
   const z = v.z;
-  ctx.lineWidth = 1;
-  for (const b of world.buildings) {
-    if (filters.hiddenExisting.has(b.ai)) continue;
-    const [X, Y] = toScreen(v, b.x, b.y);
-    if (X < -30 || Y < -30 || X > W + 30 || Y > H + 30) continue;
-    const col = existingColor(world.alliances[b.ai].id);
+  const flagR = Math.max(1.5, 0.7 * z);
+  for (const g of s.assets.groups) {
+    if (filters.hiddenExisting.has(g.ai)) continue;
+    const col = s.assets.colors[g.ai];
     ctx.fillStyle = col;
-    ctx.strokeStyle = 'rgba(5,8,12,.9)';
-    if (b.kind === 0) {
-      const r = Math.max(1.5, 0.7 * z);
-      ctx.fillRect(X - r, Y - r, 2 * r, 2 * r);
-      if (r > 2.5) ctx.strokeRect(X - r, Y - r, 2 * r, 2 * r);
-    } else if (b.kind === 3) {
-      ctx.beginPath();
-      ctx.arc(X, Y, Math.max(2.5, 1.25 * z), 0, 6.2832);
-      ctx.fill();
-      if (z > 3) ctx.stroke();
-    } else {
-      const r = Math.max(3.2, 1.5 * z);
-      ctx.fillRect(X - r, Y - r, 2 * r, 2 * r);
-      ctx.lineWidth = 1.6;
-      ctx.strokeStyle = '#fff';
-      ctx.strokeRect(X - r, Y - r, 2 * r, 2 * r);
+    const flags = new Path2D();
+    for (const b of g.flags) {
+      const [X, Y] = toScreen(v, b.x, b.y);
+      if (X < -30 || Y < -30 || X > W + 30 || Y > H + 30) continue;
+      flags.rect(X - flagR, Y - flagR, 2 * flagR, 2 * flagR);
+    }
+    ctx.fill(flags);
+    if (flagR > 2.5) {
       ctx.lineWidth = 1;
-      if (z > 4) {
-        ctx.font = '700 10px system-ui, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        halo(ctx, 'CF', X, Y, '#fff');
+      ctx.strokeStyle = 'rgba(5,8,12,.9)';
+      ctx.stroke(flags);
+    }
+    for (const b of g.others) {
+      const [X, Y] = toScreen(v, b.x, b.y);
+      if (X < -30 || Y < -30 || X > W + 30 || Y > H + 30) continue;
+      ctx.fillStyle = col;
+      if (b.kind === 3) {
+        ctx.beginPath();
+        ctx.arc(X, Y, Math.max(2.5, 1.25 * z), 0, 6.2832);
+        ctx.fill();
+        if (z > 3) {
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = 'rgba(5,8,12,.9)';
+          ctx.stroke();
+        }
+      } else {
+        const r = Math.max(3.2, 1.5 * z);
+        ctx.fillRect(X - r, Y - r, 2 * r, 2 * r);
+        ctx.lineWidth = 1.6;
+        ctx.strokeStyle = '#fff';
+        ctx.strokeRect(X - r, Y - r, 2 * r, 2 * r);
+        if (z > 4) {
+          ctx.font = '700 10px system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          halo(ctx, 'CF', X, Y, '#fff');
+        }
       }
     }
   }
@@ -498,7 +544,7 @@ function drawObjectives(ctx: CanvasRenderingContext2D, s: Scene): void {
     const r = Math.min(24, Math.max(6, (OBJECTIVE_SIZE[o.type] * z) / 2));
     const by = state.capturedBy.get(o.id);
     const planOwner = by ? plan.alliances.find((a) => a.id === by) : undefined;
-    const fill = planOwner ? planOwner.color : o.ai >= 0 ? existingColor(world.alliances[o.ai].id) : '#e8edf2';
+    const fill = planOwner ? planOwner.color : o.ai >= 0 ? s.assets.colors[o.ai] : '#e8edf2';
     objectiveGlyph(ctx, o.type, X, Y, r);
     ctx.fillStyle = fill;
     ctx.fill();
@@ -521,6 +567,9 @@ function drawObjectives(ctx: CanvasRenderingContext2D, s: Scene): void {
     }
   }
 }
+
+/** The flags added to a route to reach more points, on top of the fewest-flags chain: white in every alliance's colours, so they read apart at a glance. */
+const ADDED_FLAG = '#ffffff';
 
 function drawPlanItems(ctx: CanvasRenderingContext2D, s: Scene): void {
   const { view: v, W, H, plan, state, filters } = s;
@@ -548,14 +597,14 @@ function drawPlanItems(ctx: CanvasRenderingContext2D, s: Scene): void {
         halo(ctx, 'CF', X, Y);
       }
     } else {
-      const r = Math.min(14, Math.max(4.5, (SIZE.flag * z) / 2));
+      const r = Math.min(14, Math.max(5.5, (SIZE.flag * z) / 2));
       ctx.beginPath();
       ctx.arc(X, Y, r, 0, 6.2832);
       if (on) {
-        ctx.fillStyle = col;
+        ctx.fillStyle = it.extra ? ADDED_FLAG : col;
         ctx.fill();
-        ctx.lineWidth = mine ? 2.6 : 1.8;
-        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = it.extra ? 3 : mine ? 1.8 : 1.3;
+        ctx.strokeStyle = it.extra ? col : '#fff';
         ctx.stroke();
       } else {                                                                      // a flag that does not count: hollow, dashed, red
         ctx.fillStyle = 'rgba(0,0,0,.45)';
@@ -602,6 +651,7 @@ function drawRoute(ctx: CanvasRenderingContext2D, s: Scene): void {
     first = false;
   }
   for (const it of route.items) {
+    if (it.extra) continue;                                                         // they branch off: the dashed line is the chain from A to B
     const [X, Y] = toScreen(v, it.x, it.y);
     if (first) ctx.moveTo(X, Y);
     else ctx.lineTo(X, Y);
@@ -625,19 +675,23 @@ function drawRoute(ctx: CanvasRenderingContext2D, s: Scene): void {
       ctx.setLineDash([]);
       continue;
     }
-    n++;
     const r = Math.min(14, Math.max(5, (SIZE.flag * z) / 2));
     ctx.beginPath();
     ctx.arc(X, Y, r, 0, 6.2832);
-    ctx.globalAlpha = 0.7;
+    if (it.extra) {
+      ctx.fillStyle = ADDED_FLAG;
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = route.color;
+      ctx.stroke();
+      continue;
+    }
+    n++;
     ctx.fillStyle = route.color;
     ctx.fill();
-    ctx.globalAlpha = 1;
-    ctx.setLineDash([3, 2]);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = 'rgba(5,8,12,.9)';
     ctx.stroke();
-    ctx.setLineDash([]);
     if (z >= 2) {
       ctx.font = '700 10px system-ui, sans-serif';
       ctx.textAlign = 'center';
@@ -685,12 +739,46 @@ function drawSelected(ctx: CanvasRenderingContext2D, s: Scene): void {
   ctx.setLineDash([]);
 }
 
+const DROP = '#ffd43b';
+
+/** The spots of the CF initial drop: the land each CF would claim, its rank and how many points it takes in. */
+function drawDrops(ctx: CanvasRenderingContext2D, s: Scene): void {
+  const { view: v, W, H } = s;
+  s.drops!.forEach((d, i) => {
+    const cx = Math.floor(d.x / CELL);
+    const cy = Math.floor(d.y / CELL);
+    const [x0, y0] = toScreen(v, (cx - REACH.cf) * CELL, (cy + REACH.cf + 1) * CELL);
+    const [x1, y1] = toScreen(v, (cx + REACH.cf + 1) * CELL, (cy - REACH.cf) * CELL);
+    if (x1 < -40 || y1 < -40 || x0 > W + 40 || y0 > H + 40) return;
+    ctx.fillStyle = withAlpha(DROP, 0.2);
+    ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = DROP;
+    ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    const [X, Y] = toScreen(v, d.x, d.y);
+    ctx.beginPath();
+    ctx.arc(X, Y, 10, 0, 6.2832);
+    ctx.fillStyle = DROP;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#1a1405';
+    ctx.stroke();
+    ctx.font = '800 11px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#1a1405';
+    ctx.fillText(String(i + 1), X, Y + 0.5);
+    ctx.font = '700 12px system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    halo(ctx, `${d.total} pts`, X + 13, Y);
+  });
+}
+
 const GHOST_OK = '#3fb950';
 const GHOST_WARN = '#f0883e';
 const GHOST_BAD = '#f85149';
 
-function drawGhost(ctx: CanvasRenderingContext2D, s: Scene): void {
-  const g = s.ghost!;
+function drawGhost(ctx: CanvasRenderingContext2D, s: Scene, g: Ghost): void {
   const { view: v } = s;
   const z = v.z;
   const r = g.result;

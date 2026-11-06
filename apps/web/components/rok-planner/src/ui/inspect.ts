@@ -23,7 +23,7 @@ export function describeAt(world: World, plan: PlanDoc, state: PlanState, x: num
     const a = plan.alliances.find((q) => q.id === it.a);
     const on = state.byAlliance.get(it.a)?.active.get(it.id) !== false;
     offer(Math.hypot(it.x - x, it.y - y) - 0.2, {
-      x: it.x, y: it.y, title: `${it.k === 'cf' ? 'Planned CF' : 'Planned flag'} · ${a?.name ?? ''}`,
+      x: it.x, y: it.y, title: `${it.k === 'cf' ? 'Planned CF' : it.extra ? 'Planned flag (added)' : 'Planned flag'} · ${a?.name ?? ''}`,
       lines: [`at ${it.x}, ${it.y}`, on ? 'counts toward the land' : 'does not count: it does not border land that reaches a CF'],
     });
   }

@@ -1,9 +1,12 @@
 // Colours: one per alliance, stable. The alliances that already exist on the map get a muted colour from their game id (the same on every visit and every data refresh); the alliances of a
-// plan get a strong one from a short list that never looks like the red of the refusals, so a planned alliance always stands out from the map.
+// plan get a strong one from a short list. No alliance gets a red: red is the no-build zones and the refusals.
 
-/** The hue (0..359) of an existing alliance: the golden angle on its id, like map_render.py. */
+/** Squeezes a hue 0..359 into 50..285: yellow to violet, with the oranges, pinks and reds left out (they read as no-build zones under the red layer). */
+const safeHue = (h: number): number => 50 + (h % 360) * (235 / 360);
+
+/** The hue of an existing alliance: the golden angle on its id, away from the reds. */
 export function hueOfId(id: number): number {
-  return Math.floor((Math.abs(id) % 1000003) * 137.508) % 360;
+  return Math.floor(safeHue(Math.floor((Math.abs(id) % 1000003) * 137.508) % 360));
 }
 
 /** The muted colour of an existing alliance: the hue by id, three lightness steps so that alliances with close hues still tell apart. */
@@ -37,14 +40,12 @@ function hslToHex(h: number, s: number, l: number): string {
   return `#${f(0)}${f(8)}${f(4)}`;
 }
 
-/** The colours a plan alliance gets, in order: golden-angle hues from blue on, none of them near red. */
+/** The colours a plan alliance gets, in order: golden-angle hues, none of them near red. */
 export const PLAN_PALETTE: string[] = (() => {
   const out: string[] = [];
   let h = 205;
   for (let i = 0; i < 24; i++) {
-    let hue = h % 360;
-    if (hue > 340 || hue < 22) hue = (hue + 45) % 360;
-    out.push(hslToHex(hue, 85, i % 2 ? 62 : 54));
+    out.push(hslToHex(safeHue(h), 85, i % 2 ? 62 : 54));
     h += 137.508;
   }
   return out;

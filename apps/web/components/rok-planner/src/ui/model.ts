@@ -3,11 +3,10 @@ import type { PlacementResult } from '../core/rules';
 import type { Kind, ObjectiveType } from '../core/types';
 import type { View } from './view';
 
-export type Tool = 'view' | 'flag' | 'cf' | 'erase' | 'route';
+export type Tool = 'view' | 'flag' | 'cf' | 'erase' | 'route' | 'drop';
 
 export interface Layers {
   background: boolean;
-  grid: boolean;
   /** The red no-build zones of the terrain. */
   mask: boolean;
   /** The land of the alliances that exist now. */
@@ -20,7 +19,7 @@ export interface Layers {
   cities: boolean;
 }
 
-export const DEFAULT_LAYERS: Layers = { background: true, grid: true, mask: true, land: true, buildings: true, objectives: true, points: true, cities: false };
+export const DEFAULT_LAYERS: Layers = { background: true, mask: true, land: true, buildings: true, objectives: true, points: true, cities: false };
 /** The red zones are drawn at 40% by default: enough to see them, not enough to hide the map. */
 export const DEFAULT_MASK_OPACITY = 0.4;
 
@@ -62,7 +61,7 @@ export interface Ghost {
 }
 
 export interface RoutePreview {
-  items: { k: Kind; x: number; y: number }[];
+  items: { k: Kind; x: number; y: number; extra?: boolean }[];
   color: string;
   newCf: boolean;
 }

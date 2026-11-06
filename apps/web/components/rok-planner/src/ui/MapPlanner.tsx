@@ -5,10 +5,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import { addItem, addItems, commit, emptyPlan, redo, removeItem, renamePlan, reset, sanitizePlan, undo } from '../core/plan';
 import type { History, PlanDoc } from '../core/plan';
-import { buildReport } from '../core/report';
+import { findCfDrops } from '../core/drop';
+import type { DropSpot } from '../core/drop';
 import { PRESETS, planRoute } from '../core/route';
 import type { RouteOptions, RouteResult } from '../core/route';
-import { describeReason } from '../core/rules';
+import { checkPlacement, describeReason } from '../core/rules';
 import type { PlacementResult } from '../core/rules';
 import { computeState } from '../core/state';
 import type { Kind, MapDataFile } from '../core/types';
@@ -18,6 +19,7 @@ import { ConflictError } from '../store/types';
 import type { PlanRole, PlanStore, PlanSummary, PlanUser, ShareMode, StoredPlan } from '../store/types';
 import { MapCanvas } from './MapCanvas';
 import type { MapCanvasHandle } from './MapCanvas';
+import { CELL, REACH } from '../core/geometry';
 import { describeAt } from './inspect';
 import type { Card } from './inspect';
 import { DEFAULT_FILTERS, DEFAULT_LAYERS, DEFAULT_MASK_OPACITY } from './model';
@@ -27,7 +29,7 @@ import { FiltersPanel } from './panels/FiltersPanel';
 import { GoPanel } from './panels/GoPanel';
 import { PlanPanel } from './panels/PlanPanel';
 import type { SaveStatus } from './panels/PlanPanel';
-import { ReportPanel } from './panels/ReportPanel';
+import { DropDialog, DropPanel } from './panels/DropPanel';
 import { RoutePanel } from './panels/RoutePanel';
 import { STYLES } from './styles';
 
@@ -142,6 +144,9 @@ export function MapPlanner(props: MapPlannerProps) {
   const [routeOptions, setRouteOptions] = useState<RouteOptions>({ ...PRESETS.fewest });
   const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
   const [routeBusy, setRouteBusy] = useState(false);
+  const [dropOpen, setDropOpen] = useState(false);
+  const [dropRes, setDropRes] = useState<number[]>([1, 2, 3, 4]);
+  const [drops, setDrops] = useState<DropSpot[] | null>(null);
   const [card, setCard] = useState<Card | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [sideOpen, setSideOpen] = useState(true);
@@ -170,6 +175,7 @@ export function MapPlanner(props: MapPlannerProps) {
     setTool(current.role === 'viewer' ? 'view' : doc.items.some((i) => i.k === 'cf') ? 'flag' : 'cf');
     setPicks({ a: null, b: null });
     setRouteResult(null);
+    setDrops(null);
     setCard(null);
     setFilters((f) => ({ ...f, hiddenPlan: new Set() }));
   }, []);
@@ -246,23 +252,27 @@ export function MapPlanner(props: MapPlannerProps) {
 
   // ---- derived
   const state = useMemo(() => (world && plan ? computeState(world, plan) : null), [world, plan]);
-  const report = useMemo(() => (world && plan && state ? buildReport(world, plan, state) : null), [world, plan, state]);
   const active = plan?.alliances.find((a) => a.id === activeId) ?? plan?.alliances[0];
   const aid = active?.id ?? '';
 
-  // ---- editing
+  // ---- editing: what was worked out for the old plan no longer holds
+  const planMoved = useCallback(() => {
+    setRouteResult(null);
+    setDrops(null);
+    setTool((t) => (t === 'drop' ? 'view' : t));
+  }, []);
   const change = useCallback((next: PlanDoc) => {
     setHist((h) => (h ? commit(h, next) : h));
-    setRouteResult(null);
-  }, []);
+    planMoved();
+  }, [planMoved]);
   const doUndo = useCallback(() => {
     setHist((h) => (h ? undo(h) : h));
-    setRouteResult(null);
-  }, []);
+    planMoved();
+  }, [planMoved]);
   const doRedo = useCallback(() => {
     setHist((h) => (h ? redo(h) : h));
-    setRouteResult(null);
-  }, []);
+    planMoved();
+  }, [planMoved]);
 
   const inactiveCount = (w: World, p: PlanDoc): number => {
     const st = computeState(w, p);
@@ -342,6 +352,37 @@ export function MapPlanner(props: MapPlannerProps) {
     setPicks({ a: null, b: null });
     setTool('view');
     toast(`Added ${routeResult.items.length} building${routeResult.items.length === 1 ? '' : 's'} to ${active?.name ?? 'the plan'}. Undo takes them back.`, 'ok');
+  };
+
+  // ---- CF initial drop
+  const closeDrop = (): void => {
+    setDropOpen(false);
+    rootRef.current?.focus({ preventScroll: true });              // the focused button goes away with the popup: the keyboard shortcuts must keep working
+  };
+  const findDrops = (): void => {
+    if (!world || !plan || !aid) return;
+    closeDrop();
+    setTool('drop');
+    const spots = findCfDrops(world, plan, aid, dropRes);
+    setDrops(spots);
+    if (spots.length) mapRef.current?.fit();
+    else toast('No free spot takes in any of those points.', 'warn');
+  };
+  const placeDrop = (spot: DropSpot): void => {
+    if (!plan || !world || !state || readOnly) return;
+    const r = checkPlacement({ world, plan, state }, aid, 'cf', spot.x, spot.y);
+    if (!r.ok) {
+      toast(r.why.slice(0, 2).map(describeReason).join(' '), 'error');
+      return;
+    }
+    change(addItem(plan, aid, 'cf', spot.x, spot.y));
+    setTool('flag');
+    toast(`CF placed for ${active?.name ?? 'the alliance'}: it takes in ${spot.total} resource point${spot.total === 1 ? '' : 's'}.`, 'ok');
+  };
+  const onDropPick = (x: number, y: number): void => {
+    const hit = drops?.find((d) => Math.max(Math.abs(Math.floor(d.x / CELL) - Math.floor(x / CELL)), Math.abs(Math.floor(d.y / CELL) - Math.floor(y / CELL))) <= REACH.cf);
+    if (hit) placeDrop(hit);
+    else toast('Click one of the numbered spots.');
   };
 
   // ---- saving
@@ -493,12 +534,23 @@ export function MapPlanner(props: MapPlannerProps) {
       }
       return;
     }
+    if (k === 'escape' && dropOpen) {
+      closeDrop();
+      return;
+    }
+    if (k === 'd' && !readOnly) {
+      setDropOpen(true);
+      return;
+    }
     const tools: Record<string, Tool> = { f: 'flag', c: 'cf', e: 'erase', v: 'view', escape: 'view', r: 'route' };
     if (tools[k] && !(readOnly && (k === 'f' || k === 'c' || k === 'e'))) setTool(tools[k]);
   };
 
-  const extraActive = (extraLayers ?? []).filter((l) => extraOn[l.id] ?? l.defaultOn !== false);
-  const routePreview = routeResult?.ok && routeResult.items.length && active ? { items: routeResult.items, color: active.color, newCf: routeResult.newCf } : null;
+  // kept stable between renders: a new object here would make the map draw itself again
+  const extraActive = useMemo(() => (extraLayers ?? []).filter((l) => extraOn[l.id] ?? l.defaultOn !== false), [extraLayers, extraOn]);
+  const routeColor = active?.color;
+  const routePreview = useMemo(() => (routeResult?.ok && routeResult.items.length && routeColor ? { items: routeResult.items, color: routeColor, newCf: routeResult.newCf } : null), [routeResult, routeColor]);
+  const selected = useMemo(() => (card ? { x: card.x, y: card.y } : null), [card]);
 
   const toolButtons: { id: Tool; label: string; key: string; title: string; edit?: boolean }[] = [
     { id: 'view', label: 'Look', key: 'V', title: 'Pan and look: click a thing to see what it is' },
@@ -506,6 +558,7 @@ export function MapPlanner(props: MapPlannerProps) {
     { id: 'cf', label: 'CF', key: 'C', title: 'Place fortresses (left click). Right click deletes', edit: true },
     { id: 'erase', label: 'Erase', key: 'E', title: 'Click a building of the plan to delete it', edit: true },
     { id: 'route', label: 'Route', key: 'R', title: 'Find the flags from A to B' },
+    { id: 'drop', label: 'CF drop', key: 'D', title: 'Find the spots where a CF takes in the most resource points', edit: true },
   ];
 
   if (loadError) {
@@ -521,7 +574,7 @@ export function MapPlanner(props: MapPlannerProps) {
     <div ref={rootRef} className={`rokp ${className ?? ''}`} style={style} tabIndex={-1} onKeyDown={onKeyDown} onPointerDown={(e) => !(e.target as HTMLElement).closest('input,select,textarea') && rootRef.current?.focus({ preventScroll: true })}>
       <style dangerouslySetInnerHTML={{ __html: STYLES }} />
       <aside className={`rokp-side${sideOpen ? '' : ' closed'}`} aria-label="Planner panels">
-        {world && plan && state && report ? (
+        {world && plan && state ? (
           <>
             <PlanPanel
               hasStore={!!store}
@@ -595,7 +648,23 @@ export function MapPlanner(props: MapPlannerProps) {
               onApply={applyRoute}
               onDiscard={() => setRouteResult(null)}
             />
-            <ReportPanel world={world} report={report} />
+            <DropPanel
+              world={world}
+              tool={tool}
+              readOnly={readOnly}
+              allianceName={active?.name ?? ''}
+              spots={drops}
+              onOpen={() => setDropOpen(true)}
+              onClear={() => {
+                setDrops(null);
+                setTool((t) => (t === 'drop' ? 'view' : t));
+              }}
+              onGo={(s) => {
+                setTool('drop');
+                mapRef.current?.centerOn(s.x, s.y, 6);
+              }}
+              onPlace={placeDrop}
+            />
             <GoPanel
               hasPlan={plan.items.length > 0}
               onGo={(x, y) => mapRef.current?.centerOn(x, y, 8)}
@@ -648,7 +717,9 @@ export function MapPlanner(props: MapPlannerProps) {
             readOnly={readOnly}
             route={routePreview}
             picks={picks}
-            selected={card ? { x: card.x, y: card.y } : null}
+            selected={selected}
+            drops={drops}
+            onDropPick={onDropPick}
             extra={extraActive}
             initialView={initialView}
             onPlace={onPlace}
@@ -673,8 +744,8 @@ export function MapPlanner(props: MapPlannerProps) {
                 disabled={readOnly && !!b.edit}
                 title={`${b.title} (${b.key})`}
                 onClick={() => {
-                  setTool(b.id);
-                  if (b.id !== 'route') setPicks((p) => p);
+                  if (b.id === 'drop') setDropOpen(true);
+                  else setTool(b.id);
                 }}
               >
                 {b.label}
@@ -713,7 +784,10 @@ export function MapPlanner(props: MapPlannerProps) {
 
         {readOnly && <div className="rokp-banner">This plan was shared with you to look at. Changes are switched off.</div>}
         {!readOnly && (tool === 'flag' || tool === 'cf') && <div className="rokp-tip">Left click places · right click deletes · drag to move · wheel to zoom</div>}
+        {tool === 'drop' && <div className="rokp-tip">{drops?.length ? 'Click a numbered spot to place the CF there' : 'Press CF drop and choose the nodes'}</div>}
         {tool === 'route' && <div className="rokp-tip">{!picks.a ? 'Click A, the start' : !picks.b ? 'Click B, the target (a holy site or pass works)' : 'Press “Find the route” in the panel'}</div>}
+
+        {dropOpen && world && state && <DropDialog world={world} state={state} selected={dropRes} onChange={setDropRes} onFind={findDrops} onClose={closeDrop} />}
 
         <div className="rokp-toasts" aria-live="polite">
           {toasts.map((t) => (

@@ -1,13 +1,13 @@
 // The route finder: given two points A and B, the flags (and the CF when the alliance has no land there) that carry an alliance's land from A to B.
 //
 // The land is a union of 3 x 3-tile cells and a flag claims 3 x 3 cells, so a chain of flags is a path over the cells: from one flag to the next the centre moves at most 3 cells (that is
-// when the two squares still share an edge; a pure corner contact only counts when the plan allows it). Every cell gets ONE usable position (terrain, objects, cities and the buildings
-// already in the plan checked exactly, like a placement) or none. Then:
-//   * "fewest flags": the path with the fewest flags (ties: the shortest); a wide corridor around the straight line A-B, so it can go around anything;
-//   * "direct": the same, but inside a narrow corridor, and among equal paths the one that hugs the straight line;
-//   * "nodes": a wider corridor and the best value of resource points (and holy sites / passes) the land picks up, spending at most `extraFlags` more flags than the minimum.
-// The value is a weight per resource kind (a kind with weight 0 is ignored). The result is a list of buildings; it changes nothing until the caller adds it to the plan.
-import { CELL, PointGrid, REACH, SIZE, cellKey, cellOf, footprint, radiusFor, touches } from './geometry';
+// when the two squares still share an edge). Every cell gets ONE usable position (terrain, objects, cities and the buildings already in the plan checked exactly, like a placement) or none. Then:
+//   * "fewest flags": the chain with the fewest flags (ties: the shortest). Resource points play no part;
+//   * "nodes": the same number of flags, the chain that takes in the most resource points (and holy sites / passes). Up to `extraFlags` more flags then branch off the route towards more of
+//     them; those are marked, because the route reaches B without them.
+// The value is a weight per resource kind (a kind with weight 0 is ignored). The search area is worked out here, not asked for. The result is a list of buildings; it changes nothing until the
+// caller adds it to the plan.
+import { CELL, KEY, PointGrid, REACH, SIZE, cellKey, cellOf, footprint, radiusFor, touches } from './geometry';
 import type { PlanDoc } from './plan';
 import { checkPlacement } from './rules';
 import { computeState } from './state';
@@ -15,13 +15,13 @@ import type { AllianceState, PlanState } from './state';
 import type { CellKey, Kind } from './types';
 import type { World } from './world';
 
-export type RouteMode = 'fewest' | 'direct' | 'nodes';
+export type RouteMode = 'fewest' | 'nodes';
+
+export const MAX_EXTRA_FLAGS = 20;
 
 export interface RouteOptions {
   mode: RouteMode;
-  /** Half-width of the corridor around the straight line A-B, in tiles. */
-  margin: number;
-  /** 'nodes' mode: how many flags beyond the minimum may be spent. */
+  /** 'nodes' mode: how many flags may be added to the fewest-flags chain. */
   extraFlags: number;
   /** Weight of each resource code (0 or missing = ignore it). */
   weights: Record<number, number>;
@@ -30,9 +30,8 @@ export interface RouteOptions {
 }
 
 export const PRESETS: Record<RouteMode, RouteOptions> = {
-  fewest: { mode: 'fewest', margin: 60, extraFlags: 0, weights: {}, objectiveWeight: 0 },
-  direct: { mode: 'direct', margin: 9, extraFlags: 0, weights: {}, objectiveWeight: 0 },
-  nodes: { mode: 'nodes', margin: 40, extraFlags: 3, weights: { 1: 1, 2: 1, 3: 1, 4: 1 }, objectiveWeight: 3 },
+  fewest: { mode: 'fewest', extraFlags: 0, weights: {}, objectiveWeight: 0 },
+  nodes: { mode: 'nodes', extraFlags: 5, weights: { 1: 1, 2: 1, 3: 1, 4: 1 }, objectiveWeight: 3 },
 };
 
 export interface RouteRequest {
@@ -45,29 +44,49 @@ export interface RouteRequest {
 }
 
 export interface RouteStats {
-  /** Flags of the route (the CF is not counted). */
+  /** Flags of the chain from A to B: the fewest that reach B (the CF is not counted). */
   flags: number;
-  /** Flags of the shortest possible chain in the same corridor, for comparison. */
-  minFlags: number;
+  /** Flags added on top of the chain, to reach more resource points. */
+  extraFlags: number;
   newTiles: number;
   /** Length of the polyline A - buildings, in tiles. */
   length: number;
   nodes: Record<number, number>;
   nodesTotal: number;
+  /** The resource points only the added flags bring. */
+  extraNodes: number;
   captured: string[];
+}
+
+export interface RouteItem {
+  k: Kind;
+  x: number;
+  y: number;
+  /** An added flag: the route reaches B without it. */
+  extra?: boolean;
 }
 
 export interface RouteResult {
   ok: boolean;
   message: string;
-  items: { k: Kind; x: number; y: number }[];
+  items: RouteItem[];
   newCf: boolean;
   stats: RouteStats | null;
 }
 
 const FLAG_COST = 1000;
-const MAX_CELLS = 90000;
+const MAX_CELLS = 500000;
 const MAX_TRIALS = 30;
+/** The search starts this far (tiles) from the straight line A-B. */
+const START_MARGIN = 60;
+/** A route starts from land this close to the line A-B: A means something even for an alliance with land all over the map. */
+const SOURCE_BAND = 60;
+/** More room around the line when flags will branch off the route. */
+const BRANCH_ROOM = 65;
+/** The longest move from one flag to the next that keeps the squares sharing an edge: 3 cells one way and 2 the other, in tiles. */
+const MAX_STEP = CELL * Math.hypot(REACH.flag * 2 + 1, REACH.flag * 2);
+/** What the two ends of a chain may add to its length (from A to its land, from the last flag to B). */
+const END_SLACK = 14;
 const SAMPLES: [number, number][] = [[1.5, 1.5], [0.75, 1.5], [2.25, 1.5], [1.5, 0.75], [1.5, 2.25], [0.75, 0.75], [2.25, 0.75], [0.75, 2.25], [2.25, 2.25]];
 
 const fail = (message: string): RouteResult => ({ ok: false, message, items: [], newCf: false, stats: null });
@@ -136,7 +155,6 @@ interface Ctx {
   state: PlanState;
   req: RouteRequest;
   weights: Record<number, number>;
-  corner: boolean;
   a: [number, number];
   b: [number, number];
   /** Cell of B. */
@@ -198,13 +216,13 @@ function buildCorridor(c: Ctx, margin: number, banned: ReadonlySet<CellKey>): Co
   return { cx0, cy0, w, h, valid, px, py };
 }
 
-/** The (dx, dy) cell offsets a flag's square can have to a square of `reach` cells around the land it borders: touching by an edge or overlapping; the pure corners only with `corner`. */
-function neighbourOffsets(corner: boolean, reach: number): [number, number][] {
+/** The (dx, dy) cell offsets within `reach`. A flag's square at such an offset touches by an edge or overlaps; without `corners`, the offsets where the squares would only meet at a corner are left out. */
+function neighbourOffsets(corners: boolean, reach: number): [number, number][] {
   const out: [number, number][] = [];
   for (let dy = -reach; dy <= reach; dy++) {
     for (let dx = -reach; dx <= reach; dx++) {
       if (!dx && !dy) continue;
-      if (!corner && Math.abs(dx) === reach && Math.abs(dy) === reach) continue;
+      if (!corners && Math.abs(dx) === reach && Math.abs(dy) === reach) continue;
       out.push([dx, dy]);
     }
   }
@@ -217,7 +235,6 @@ export function planRoute(world: World, plan: PlanDoc, req: RouteRequest): Route
   if (!alliance) return fail('Pick an alliance first.');
   const state = computeState(world, plan);
   const as = state.byAlliance.get(alliance.id)!;
-  const corner = plan.settings.corner;
   const opt = req.options;
   const [a, b] = [req.from, req.to];
   if (world.terrain.outside(a[0], a[1]) || world.terrain.outside(b[0], b[1])) return fail('A and B must both be on the map.');
@@ -233,44 +250,137 @@ export function planRoute(world: World, plan: PlanDoc, req: RouteRequest): Route
   if (objective && objective.ai >= 0 && objective.ai !== as.baseIndex) return fail(`${objective.name} already belongs to ${world.alliances[objective.ai]?.tag || 'another alliance'}.`);
   if (!objective && ownedByOther(bKey)) return fail('B is inside the land of another alliance: it cannot be claimed.');
   if (as.land.has(bKey) || (objective && as.captured.some((o) => o.id === objective.id))) {
-    return { ok: true, message: "B is already inside this alliance's land: no flag is needed.", items: [], newCf: false, stats: { flags: 0, minFlags: 0, newTiles: 0, length: 0, nodes: {}, nodesTotal: 0, captured: [] } };
+    return { ok: true, message: "B is already inside this alliance's land: no flag is needed.", items: [], newCf: false, stats: { flags: 0, extraFlags: 0, newTiles: 0, length: 0, nodes: {}, nodesTotal: 0, extraNodes: 0, captured: [] } };
   }
-  const capture = !!objective && plan.settings.autoCapture;
   const ctx: Ctx = {
-    world, plan, allianceId: alliance.id, as, state, req, weights: opt.mode === 'nodes' ? opt.weights : {}, corner, a, b, bc, objectiveId: objective?.id,
-    targetOffsets: capture ? neighbourOffsets(corner, REACH.flag + REACH.site + 1) : neighbourOffsets(true, REACH.flag), ownedByOther,
+    world, plan, allianceId: alliance.id, as, state, req, weights: opt.mode === 'nodes' ? opt.weights : {}, a, b, bc, objectiveId: objective?.id,
+    targetOffsets: objective ? neighbourOffsets(false, REACH.flag + REACH.site + 1) : neighbourOffsets(true, REACH.flag), ownedByOther,
   };
 
+  // The search area sorts itself out. It starts around the straight line; it grows when no chain fits, and when the chain found is long enough that a shorter one could still run outside it.
+  const room = opt.mode === 'nodes' ? BRANCH_ROOM : 0;
+  const whole = Math.hypot(world.bounds.width, world.bounds.height);
   const banned = new Set<CellKey>();
-  const maxWiden = opt.mode === 'direct' ? 120 : 280;
-  let margin = opt.margin;
-  let widened = 0;
+  let margin = START_MARGIN + room;
+  let best: RouteResult | null = null;
   let last = 'No route found.';
   for (let n = 0; n < MAX_TRIALS; n++) {
     const t = trial(ctx, margin, banned);
-    if (t.kind === 'ok') {
-      if (widened) t.result.message += ` The corridor had to be ${widened} tiles wider to find a way.`;
-      return t.result;
-    }
     if (t.kind === 'ban') {
       t.cells.forEach((k) => banned.add(k));
       continue;
     }
+    if (t.kind === 'ok') {
+      if (!best || t.result.stats!.flags <= best.stats!.flags) best = t.result;
+      const need = Math.min(whole, lensMargin(a, b, t.result.stats!.flags) + room);
+      if (need <= margin) return best;
+      margin = need;
+      continue;
+    }
     last = t.message;
-    if (!t.widen || widened >= maxWiden) break;
-    widened += 40;
-    margin += 40;
+    if (!t.widen || margin >= whole) break;
+    margin = Math.min(whole, margin * 2);
   }
-  return fail(last);
+  return best ?? fail(last);
+}
+
+/** How far from the straight line A-B a chain of fewer than `flags` flags could possibly run: beyond this it would be too long to get from A to B. */
+function lensMargin(a: [number, number], b: [number, number], flags: number): number {
+  const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+  const len = Math.max(0, flags - 1) * MAX_STEP + 2 * END_SLACK;
+  return len <= d ? 0 : Math.sqrt(len * len - d * d) / 2;
 }
 
 type Trial = { kind: 'ok'; result: RouteResult } | { kind: 'ban'; cells: CellKey[] } | { kind: 'none'; message: string; widen: boolean };
 
+/** What a flag at a cell would bring: the value per cell (resource points by weight), and the holy sites and passes it would reach. */
+class Prizes {
+  readonly cellVal: Float64Array;
+  private objectives = new Map<number, number[]>();
+  private reached = new Set<number>();
+
+  constructor(private readonly c: Ctx, private readonly cor: Corridor, land: ReadonlySet<CellKey>) {
+    const { world, state } = c;
+    const opt = c.req.options;
+    const { cx0, cy0, w, h } = cor;
+    this.cellVal = new Float64Array(w * h);
+    for (const p of world.points) {
+      const cx = Math.floor(p.x / CELL);
+      const cy = Math.floor(p.y / CELL);
+      if (cx < cx0 || cy < cy0 || cx >= cx0 + w || cy >= cy0 + h || land.has(p.cell) || c.ownedByOther(p.cell)) continue;
+      this.cellVal[(cy - cy0) * w + (cx - cx0)] += c.weights[p.res] ?? 0;
+    }
+    if (opt.objectiveWeight > 0) {
+      const zone = neighbourOffsets(false, REACH.flag + REACH.site + 1);
+      world.objectives.forEach((o, oi) => {
+        if (o.ai >= 0 || state.capturedBy.has(o.id) || land.has(o.cell)) return;
+        const ox = Math.floor(o.x / CELL);
+        const oy = Math.floor(o.y / CELL);
+        for (const [dx, dy] of zone) {
+          const cx = ox + dx;
+          const cy = oy + dy;
+          if (cx < cx0 || cy < cy0 || cx >= cx0 + w || cy >= cy0 + h) continue;
+          const key = (cy - cy0) * w + (cx - cx0);
+          const list = this.objectives.get(key);
+          if (list) list.push(oi);
+          else this.objectives.set(key, [oi]);
+        }
+      });
+    }
+  }
+
+  /** What a flag at n adds, leaving out what the flags at `before` already bring (the cells of their squares, and the sites they reach). */
+  gain(n: number, before: readonly number[] = []): number {
+    const { cx0, cy0, w, h } = this.cor;
+    const nx = cx0 + (n % w);
+    const ny = cy0 + Math.floor(n / w);
+    let g = 0;
+    for (let y = ny - REACH.flag; y <= ny + REACH.flag; y++) {
+      if (y < cy0 || y >= cy0 + h) continue;
+      for (let x = nx - REACH.flag; x <= nx + REACH.flag; x++) {
+        if (x < cx0 || x >= cx0 + w) continue;
+        const v = this.cellVal[(y - cy0) * w + (x - cx0)];
+        if (v === 0) continue;
+        let seen = false;
+        for (const m of before) {
+          if (Math.abs(cx0 + (m % w) - x) <= REACH.flag && Math.abs(cy0 + Math.floor(m / w) - y) <= REACH.flag) {
+            seen = true;
+            break;
+          }
+        }
+        if (!seen) g += v;
+      }
+    }
+    const here = this.objectives.get(n);
+    if (here) {
+      for (const oi of here) {
+        if (this.reached.has(oi) || before.some((m) => this.objectives.get(m)?.includes(oi))) continue;
+        g += this.c.req.options.objectiveWeight;
+      }
+    }
+    return g;
+  }
+
+  /** The flag at n is placed: what it brings cannot be brought twice. */
+  take(n: number): void {
+    const { cx0, cy0, w, h } = this.cor;
+    const nx = cx0 + (n % w);
+    const ny = cy0 + Math.floor(n / w);
+    for (let y = ny - REACH.flag; y <= ny + REACH.flag; y++) {
+      if (y < cy0 || y >= cy0 + h) continue;
+      for (let x = nx - REACH.flag; x <= nx + REACH.flag; x++) {
+        if (x >= cx0 && x < cx0 + w) this.cellVal[(y - cy0) * w + (x - cx0)] = 0;
+      }
+    }
+    this.objectives.get(n)?.forEach((oi) => this.reached.add(oi));
+  }
+}
+
 function trial(c: Ctx, margin: number, banned: ReadonlySet<CellKey>): Trial {
-  const { world, plan, as, state, allianceId, corner, a, b, req } = c;
+  const { world, plan, as, allianceId, a, b, req } = c;
   const opt = req.options;
   const cor = buildCorridor(c, margin, banned);
-  if (!cor) return { kind: 'none', message: 'The corridor is too big: use a smaller margin or closer points.', widen: false };
+  if (!cor) return { kind: 'none', message: 'The map is too big to search for a route.', widen: false };
   const { cx0, cy0, w, h, valid, px, py } = cor;
   const N = w * h;
   const inBox = (cx: number, cy: number): boolean => cx >= cx0 && cy >= cy0 && cx < cx0 + w && cy < cy0 + h;
@@ -294,21 +404,23 @@ function trial(c: Ctx, margin: number, banned: ReadonlySet<CellKey>): Trial {
   };
   const linked = (from: number, to: number): boolean => {
     const cl = claimOf(from);
-    return cl === null || touches(cl, fpOf(to), corner);
+    return cl === null || touches(cl, fpOf(to));
   };
 
-  // ---- the sources: cells whose flag borders the land that counts; without such land in the corridor a new CF at A starts the route
+  // ---- the sources: cells near the line A-B whose flag borders the land that counts; without such land a new CF at A starts the route
   let land: ReadonlySet<CellKey> = as.land;
   let newCf: { x: number; y: number } | null = null;
   const hasFort = (as.baseIndex >= 0 && world.fortAlliances.has(as.baseIndex)) || as.cf > 0;
   const sources: number[] = [];
   const collect = (set: ReadonlySet<CellKey>): void => {
-    for (let n = 0; n < N; n++) if (valid[n] && touches(set, footprint(REACH.flag, px[n], py[n]), corner)) sources.push(n);
+    for (let n = 0; n < N; n++) {
+      if (valid[n] && segDist(px[n], py[n], a[0], a[1], b[0], b[1]) <= SOURCE_BAND && touches(set, fpOf(n))) sources.push(n);
+    }
   };
   if (hasFort && land.size) collect(land);
   if (!sources.length) {
     newCf = findCfSpot(c);
-    if (!newCf) return { kind: 'none', message: 'This alliance has no land in the corridor and there is no valid spot for a new CF near A.', widen: false };
+    if (!newCf) return { kind: 'none', message: 'This alliance has no land near the line A-B and there is no valid spot for a new CF near A.', widen: false };
     land = new Set([...land, ...footprint(REACH.cf, newCf.x, newCf.y)]);
     collect(land);
     if (!sources.length) return { kind: 'none', message: 'A new CF near A has no room for a flag next to it.', widen: false };
@@ -327,27 +439,24 @@ function trial(c: Ctx, margin: number, banned: ReadonlySet<CellKey>): Trial {
   }
   if (!targets) return { kind: 'none', message: 'No flag can be placed where it would reach B (terrain, objects or other land are in the way).', widen: true };
 
-  const offs = neighbourOffsets(corner, REACH.flag + REACH.flag + 1);
-  const lineDev = new Float32Array(N);
-  for (let n = 0; n < N; n++) if (valid[n]) lineDev[n] = segDist(px[n], py[n], a[0], a[1], b[0], b[1]);
+  const offs = neighbourOffsets(false, REACH.flag + REACH.flag + 1);
 
-  // ---- Dijkstra from the sources: fewest flags, then the shortest (and, 'direct', the straightest)
-  const devW = opt.mode === 'direct' ? 0.6 : 0.02;
+  // ---- Dijkstra from the sources: the fewest flags, then the shortest
   const cost = new Float64Array(N).fill(Infinity);
   const flagsTo = new Int32Array(N).fill(-1);
   const from = new Int32Array(N).fill(-1);
   const heap = new Heap();
   for (const s of sources) {
-    cost[s] = FLAG_COST + devW * lineDev[s];
+    cost[s] = FLAG_COST;
     flagsTo[s] = 1;
     heap.push(cost[s], s);
   }
-  let best = -1;
+  let end = -1;
   while (heap.size) {
     const [c0, u] = heap.pop();
     if (c0 > cost[u]) continue;
     if (target[u]) {
-      best = u;
+      end = u;
       break;
     }
     const [ux, uy] = cellAt(u);
@@ -357,7 +466,7 @@ function trial(c: Ctx, margin: number, banned: ReadonlySet<CellKey>): Trial {
       if (!inBox(vx, vy)) continue;
       const v = (vy - cy0) * w + (vx - cx0);
       if (!valid[v] || !linked(u, v)) continue;
-      const nc = c0 + FLAG_COST + 0.1 * Math.hypot(px[v] - px[u], py[v] - py[u]) + devW * lineDev[v];
+      const nc = c0 + FLAG_COST + 0.1 * Math.hypot(px[v] - px[u], py[v] - py[u]);
       if (nc < cost[v]) {
         cost[v] = nc;
         flagsTo[v] = flagsTo[u] + 1;
@@ -366,40 +475,56 @@ function trial(c: Ctx, margin: number, banned: ReadonlySet<CellKey>): Trial {
       }
     }
   }
-  if (best < 0) return { kind: 'none', message: 'No chain of flags reaches B inside the corridor: terrain, objects or the land of other alliances are in the way.', widen: true };
-  const minFlags = flagsTo[best];
+  if (end < 0) return { kind: 'none', message: 'No chain of flags reaches B: terrain, objects or the land of other alliances are in the way.', widen: true };
+  const minFlags = flagsTo[end];
 
-  let pathCells = chain(from, best);
-  const wants = Object.values(c.weights).some((v) => v > 0) || opt.objectiveWeight > 0;
-  if (opt.mode === 'nodes' && opt.extraFlags > 0 && wants) pathCells = valuePath(c, cor, land, sources, target, offs, minFlags + opt.extraFlags, linked) ?? pathCells;
-  const items: { k: Kind; x: number; y: number }[] = pathCells.map((n) => ({ k: 'flag' as Kind, x: round2(px[n]), y: round2(py[n]) }));
-  if (newCf) items.unshift({ k: 'cf', x: round2(newCf.x), y: round2(newCf.y) });
+  let pathCells = chain(from, end);
+  const wants = opt.mode === 'nodes' && (Object.values(c.weights).some((v) => v > 0) || opt.objectiveWeight > 0);
+  let added: number[] = [];
+  if (wants) {
+    const prizes = new Prizes(c, cor, land);
+    pathCells = bestShortestChain(cor, prizes, sources, target, offs, minFlags, linked) ?? pathCells;
+    if (opt.extraFlags > 0) added = addBranches(cor, prizes, land, pathCells, Math.min(opt.extraFlags, MAX_EXTRA_FLAGS), offs, linked, fpOf, claimOf);
+  }
+  const chainItems: RouteItem[] = pathCells.map((n) => ({ k: 'flag' as Kind, x: round2(px[n]), y: round2(py[n]) }));
+  if (newCf) chainItems.unshift({ k: 'cf', x: round2(newCf.x), y: round2(newCf.y) });
 
   // ---- the proof: place the buildings one by one with the real rules, then measure the result
   let cur = plan;
-  for (let n = 0; n < items.length; n++) {
-    const it = items[n];
+  const placed = (it: RouteItem, id: string): PlanDoc => ({ ...cur, items: [...cur.items, { id, a: allianceId, k: it.k, x: it.x, y: it.y }] });
+  for (let n = 0; n < chainItems.length; n++) {
+    const it = chainItems[n];
     const r = checkPlacement({ world, plan: cur, state: computeState(world, cur) }, allianceId, it.k, it.x, it.y);
     if (!r.ok) {
       const [cx, cy] = cellOf(it.x, it.y);
       return { kind: 'ban', cells: [cellKey(cx, cy)] };
     }
-    cur = { ...cur, items: [...cur.items, { id: `route${n}`, a: allianceId, k: it.k, x: it.x, y: it.y }] };
+    cur = placed(it, `route${n}`);
   }
-  const after = computeState(world, cur).byAlliance.get(allianceId)!;
-  const reached = c.objectiveId ? after.captured.some((o) => o.id === c.objectiveId) || after.land.has(cellKey(c.bc[0], c.bc[1])) : after.land.has(cellKey(c.bc[0], c.bc[1]));
+  const afterChain = computeState(world, cur).byAlliance.get(allianceId)!;
+  const reached = c.objectiveId ? afterChain.captured.some((o) => o.id === c.objectiveId) || afterChain.land.has(cellKey(c.bc[0], c.bc[1])) : afterChain.land.has(cellKey(c.bc[0], c.bc[1]));
   if (!reached) {
     const [cx, cy] = cellAt(pathCells[pathCells.length - 1]);
     return { kind: 'ban', cells: [cellKey(cx, cy)] };
   }
+  // The added flags are a bonus: one the rules refuse is simply left out.
+  const items = [...chainItems];
+  added.forEach((n, i) => {
+    const it: RouteItem = { k: 'flag', x: round2(px[n]), y: round2(py[n]), extra: true };
+    if (!checkPlacement({ world, plan: cur, state: computeState(world, cur) }, allianceId, it.k, it.x, it.y).ok) return;
+    items.push(it);
+    cur = placed(it, `added${i}`);
+  });
+  const after = computeState(world, cur).byAlliance.get(allianceId)!;
 
-  const nFlags = items.length - (newCf ? 1 : 0);
+  const extraFlags = items.length - chainItems.length;
+  const nFlags = chainItems.length - (newCf ? 1 : 0);
   const stats: RouteStats = {
-    flags: nFlags, minFlags, newTiles: (after.land.size - as.land.size) * CELL * CELL, length: 0, nodes: {}, nodesTotal: 0,
+    flags: nFlags, extraFlags, newTiles: (after.land.size - as.land.size) * CELL * CELL, length: 0, nodes: {}, nodesTotal: 0, extraNodes: 0,
     captured: after.captured.filter((o) => !as.captured.some((p) => p.id === o.id)).map((o) => o.name),
   };
   let prev: [number, number] = a;
-  for (const it of items) {
+  for (const it of chainItems) {
     stats.length += Math.hypot(it.x - prev[0], it.y - prev[1]);
     prev = [it.x, it.y];
   }
@@ -408,11 +533,11 @@ function trial(c: Ctx, margin: number, banned: ReadonlySet<CellKey>): Trial {
     if (after.land.has(p.cell) && !as.land.has(p.cell)) {
       stats.nodes[p.res] = (stats.nodes[p.res] ?? 0) + 1;
       stats.nodesTotal++;
+      if (!afterChain.land.has(p.cell)) stats.extraNodes++;
     }
   }
-  const extra = nFlags - minFlags;
-  const message = `${nFlags} flag${nFlags === 1 ? '' : 's'}${newCf ? ' and a new CF at A' : ''}: ${extra > 0 ? `${extra} more than the shortest chain, to pick up resource points on the way` : 'the shortest chain in this corridor'}.`;
-  void state;
+  const head = `${nFlags} flag${nFlags === 1 ? '' : 's'}${newCf ? ' and a new CF at A' : ''}: the fewest that reach B`;
+  const message = extraFlags > 0 ? `${head}, plus ${extraFlags} added for ${stats.extraNodes} more resource point${stats.extraNodes === 1 ? '' : 's'}.` : `${head}.`;
   return { kind: 'ok', result: { ok: true, message, items, newCf: !!newCf, stats } };
 }
 
@@ -437,113 +562,120 @@ function findCfSpot(c: Ctx): { x: number; y: number } | null {
   return null;
 }
 
-/** The best-value chain with at most `budget` flags: a layered DP over (cell, flags used), pruned to the cells that can still reach B in budget. null when nothing fits. */
-function valuePath(c: Ctx, cor: Corridor, land: ReadonlySet<CellKey>, sources: number[], target: Uint8Array, offs: [number, number][], budget: number, linked: (from: number, to: number) => boolean): number[] | null {
-  const { world, state } = c;
-  const opt = c.req.options;
-  const { cx0, cy0, w, h, valid } = cor;
+/** Among the chains with exactly `minFlags` flags, the one that takes in the most. In such a chain a cell can only ever be flag number (its distance from the sources), so one value per cell is enough. */
+function bestShortestChain(cor: Corridor, prizes: Prizes, sources: number[], target: Uint8Array, offs: [number, number][], minFlags: number, linked: (from: number, to: number) => boolean): number[] | null {
+  const { cx0, cy0, w, h, valid, px, py } = cor;
   const N = w * h;
-  const prefix = new Float64Array((w + 1) * (h + 1));            // prefix sums of the value of the points of each cell
-  const cellVal = new Float64Array(N);
-  for (const p of world.points) {
-    const cx = Math.floor(p.x / CELL);
-    const cy = Math.floor(p.y / CELL);
-    if (cx < cx0 || cy < cy0 || cx >= cx0 + w || cy >= cy0 + h || land.has(p.cell) || c.ownedByOther(p.cell)) continue;
-    cellVal[(cy - cy0) * w + (cx - cx0)] += c.weights[p.res] ?? 0;
-  }
-  for (let j = 0; j < h; j++) {
-    for (let i = 0; i < w; i++) prefix[(j + 1) * (w + 1) + i + 1] = cellVal[j * w + i] + prefix[j * (w + 1) + i + 1] + prefix[(j + 1) * (w + 1) + i] - prefix[j * (w + 1) + i];
-  }
-  const rect = (x0: number, y0: number, x1: number, y1: number): number => {           // the value of cells x0..x1, y0..y1 (cell coordinates), clamped to the corridor
-    const a0 = Math.max(x0 - cx0, 0);
-    const b0 = Math.max(y0 - cy0, 0);
-    const a1 = Math.min(x1 - cx0, w - 1) + 1;
-    const b1 = Math.min(y1 - cy0, h - 1) + 1;
-    if (a1 <= a0 || b1 <= b0) return 0;
-    return prefix[b1 * (w + 1) + a1] - prefix[b0 * (w + 1) + a1] - prefix[b1 * (w + 1) + a0] + prefix[b0 * (w + 1) + a0];
-  };
-  // the holy sites and passes a flag at a cell would capture (its land touches theirs), as a list per cell
-  const prize = new Map<number, number[]>();
-  if (opt.objectiveWeight > 0) {
-    const zone = neighbourOffsets(c.corner, REACH.flag + REACH.site + 1);
-    world.objectives.forEach((o, oi) => {
-      if (o.ai >= 0 || state.capturedBy.has(o.id) || land.has(o.cell)) return;
-      const ox = Math.floor(o.x / CELL);
-      const oy = Math.floor(o.y / CELL);
-      for (const [dx, dy] of zone) {
-        const cx = ox + dx;
-        const cy = oy + dy;
-        if (cx < cx0 || cy < cy0 || cx >= cx0 + w || cy >= cy0 + h) continue;
-        const key = (cy - cy0) * w + (cx - cx0);
-        const list = prize.get(key);
-        if (list) list.push(oi);
-        else prize.set(key, [oi]);
-      }
-    });
-  }
-  const gain = (n: number, from: number): number => {                // what the flag at n adds on top of the flag at `from` (-1 = none)
-    const nx = cx0 + (n % w);
-    const ny = cy0 + Math.floor(n / w);
-    let g = rect(nx - 1, ny - 1, nx + 1, ny + 1);
-    if (from >= 0) {
-      const mx = cx0 + (from % w);
-      const my = cy0 + Math.floor(from / w);
-      const ox0 = Math.max(nx, mx) - 1;
-      const ox1 = Math.min(nx, mx) + 1;
-      const oy0 = Math.max(ny, my) - 1;
-      const oy1 = Math.min(ny, my) + 1;
-      if (ox0 <= ox1 && oy0 <= oy1) g -= rect(ox0, oy0, ox1, oy1);
-    }
-    const here = prize.get(n);
-    if (here) {
-      const before = from >= 0 ? prize.get(from) : undefined;
-      for (const oi of here) if (!before || !before.includes(oi)) g += opt.objectiveWeight;
-    }
-    return g;
-  };
-
-  // distance (in flags) from every cell to a target, to prune the layers
-  const toT = new Int32Array(N).fill(-1);
-  const queue: number[] = [];
-  for (let n = 0; n < N; n++) {
-    if (target[n]) {
-      toT[n] = 0;
-      queue.push(n);
-    }
-  }
-  for (let qi = 0; qi < queue.length; qi++) {
-    const u = queue[qi];
-    const ux = cx0 + (u % w);
-    const uy = cy0 + Math.floor(u / w);
+  const neighbours = (n: number, visit: (v: number) => void): void => {
+    const ux = cx0 + (n % w);
+    const uy = cy0 + Math.floor(n / w);
     for (const [dx, dy] of offs) {
       const vx = ux + dx;
       const vy = uy + dy;
       if (vx < cx0 || vy < cy0 || vx >= cx0 + w || vy >= cy0 + h) continue;
       const v = (vy - cy0) * w + (vx - cx0);
-      if (valid[v] && toT[v] < 0 && linked(v, u)) {
-        toT[v] = toT[u] + 1;
-        queue.push(v);
+      if (valid[v]) visit(v);
+    }
+  };
+  // flags from the sources (the first flag is number 1)
+  const fromS = new Int32Array(N).fill(-1);
+  const layers: number[][] = [[]];
+  for (const s of sources) {
+    if (fromS[s] < 0) {
+      fromS[s] = 1;
+      layers[0].push(s);
+    }
+  }
+  for (let k = 1; k < minFlags; k++) {
+    const next: number[] = [];
+    for (const u of layers[k - 1]) {
+      neighbours(u, (v) => {
+        if (fromS[v] < 0 && linked(u, v)) {
+          fromS[v] = k + 1;
+          next.push(v);
+        }
+      });
+    }
+    layers.push(next);
+  }
+  // flags still to go to a target
+  const toT = new Int32Array(N).fill(-1);
+  let front: number[] = [];
+  for (let n = 0; n < N; n++) {
+    if (target[n]) {
+      toT[n] = 0;
+      front.push(n);
+    }
+  }
+  for (let k = 1; k < minFlags; k++) {
+    const next: number[] = [];
+    for (const u of front) {
+      neighbours(u, (v) => {
+        if (toT[v] < 0 && linked(v, u)) {
+          toT[v] = k;
+          next.push(v);
+        }
+      });
+    }
+    front = next;
+  }
+  const onChain = (n: number): boolean => fromS[n] > 0 && toT[n] >= 0 && fromS[n] + toT[n] === minFlags;
+  const val = new Float64Array(N).fill(-Infinity);
+  const par = new Int32Array(N).fill(-1);
+  for (const s of layers[0]) if (onChain(s)) val[s] = prizes.gain(s);
+  for (let k = 1; k < minFlags; k++) {
+    for (const u of layers[k - 1]) {
+      if (val[u] === -Infinity) continue;
+      neighbours(u, (v) => {
+        if (fromS[v] !== k + 1 || !onChain(v) || !linked(u, v)) return;
+        const nv = val[u] + prizes.gain(v, [u]) - 1e-4 * Math.hypot(px[v] - px[u], py[v] - py[u]);      // ties go to the shorter chain
+        if (nv > val[v]) {
+          val[v] = nv;
+          par[v] = u;
+        }
+      });
+    }
+  }
+  let bestN = -1;
+  for (const n of layers[minFlags - 1] ?? []) if (target[n] && val[n] > (bestN < 0 ? -Infinity : val[bestN])) bestN = n;
+  return bestN < 0 ? null : chain(par, bestN);
+}
+
+/**
+ * The flags to add on top of the chain, up to `budget`: branches that grow from the route's own land towards the resource points. Each round takes the branch with the most value per flag
+ * (a far rich patch can beat a near poor one) and stops when nothing is left to take. Returned in placing order: every flag borders the land of the ones before it.
+ */
+function addBranches(cor: Corridor, prizes: Prizes, startLand: ReadonlySet<CellKey>, chainCells: number[], budget: number, offs: [number, number][], linked: (from: number, to: number) => boolean, fpOf: (n: number) => CellKey[], claimOf: (n: number) => Set<CellKey> | null): number[] {
+  const { cx0, cy0, w, h, valid } = cor;
+  const N = w * h;
+  const dist = new Int32Array(N).fill(-1);       // flags needed to put a flag on the cell, growing from the route's land
+  const par = new Int32Array(N).fill(-1);
+  const used = new Uint8Array(N);
+  const near: [number, number][] = [[0, 0], ...neighbourOffsets(false, REACH.flag * 2)];   // the cells whose flag square shares an edge with, or overlaps, one cell of land
+  const seedFromCell = (k: CellKey, queue: number[]): void => {
+    const cx = k % KEY;
+    const cy = Math.floor(k / KEY);
+    for (const [dx, dy] of near) {
+      const x = cx + dx;
+      const y = cy + dy;
+      if (x < cx0 || y < cy0 || x >= cx0 + w || y >= cy0 + h) continue;
+      const n = (y - cy0) * w + (x - cx0);
+      if (valid[n] && !used[n] && dist[n] !== 1) {
+        dist[n] = 1;
+        par[n] = -1;
+        queue.push(n);
       }
     }
-  }
-  const K = budget;
-  const val: Float32Array[] = [];
-  const par: Int32Array[] = [];
-  for (let k = 0; k <= K; k++) {
-    val.push(new Float32Array(N).fill(-Infinity));
-    par.push(new Int32Array(N).fill(-2));
-  }
-  for (const s of sources) {
-    if (toT[s] >= 0 && 1 + toT[s] <= K) {
-      val[1][s] = gain(s, -1);
-      par[1][s] = -1;
-    }
-  }
-  for (let k = 1; k < K; k++) {
-    const cur = val[k];
-    for (let u = 0; u < N; u++) {
-      const vu = cur[u];
-      if (vu === -Infinity) continue;
+  };
+  const landOf = (n: number): readonly CellKey[] => {
+    const cl = claimOf(n);
+    return cl === null ? fpOf(n) : [...cl];
+  };
+  /** Breadth-first from `queue`, improving what is already known: after a branch only the cells near it change. */
+  const spread = (queue: number[]): void => {
+    for (let q = 0; q < queue.length; q++) {
+      const u = queue[q];
+      if (dist[u] >= budget) continue;
       const ux = cx0 + (u % w);
       const uy = cy0 + Math.floor(u / w);
       for (const [dx, dy] of offs) {
@@ -551,33 +683,61 @@ function valuePath(c: Ctx, cor: Corridor, land: ReadonlySet<CellKey>, sources: n
         const vy = uy + dy;
         if (vx < cx0 || vy < cy0 || vx >= cx0 + w || vy >= cy0 + h) continue;
         const v = (vy - cy0) * w + (vx - cx0);
-        if (!valid[v] || toT[v] < 0 || k + 1 + toT[v] > K || !linked(u, v)) continue;
-        const nv = vu + gain(v, u) - 1e-4;                       // a hair of cost per flag: ties go to the shorter chain
-        if (nv > val[k + 1][v]) {
-          val[k + 1][v] = nv;
-          par[k + 1][v] = u;
-        }
+        if (!valid[v] || used[v] || (dist[v] >= 0 && dist[v] <= dist[u] + 1) || !linked(u, v)) continue;
+        dist[v] = dist[u] + 1;
+        par[v] = u;
+        queue.push(v);
       }
     }
+  };
+
+  for (const n of chainCells) {
+    used[n] = 1;
+    prizes.take(n);
   }
-  let bestV = -Infinity;
-  let bestK = -1;
-  let bestN = -1;
-  for (let k = 1; k <= K; k++) {
-    for (let n = 0; n < N; n++) {
-      if (target[n] && val[k][n] > bestV + 1e-9) {
-        bestV = val[k][n];
-        bestK = k;
-        bestN = n;
-      }
-    }
-  }
-  if (bestN < 0) return null;
+  const first: number[] = [];
+  for (const n of chainCells) for (const k of landOf(n)) if (!startLand.has(k)) seedFromCell(k, first);
+  spread(first);
+
   const out: number[] = [];
-  let n = bestN;
-  for (let k = bestK; k >= 1 && n >= 0; k--) {
-    out.push(n);
-    n = par[k][n];
+  let left = budget;
+  while (left > 0) {
+    let bestN = -1;
+    let bestRatio = 0;
+    let bestLen = 0;
+    for (let n = 0; n < N; n++) {
+      const d = dist[n];
+      if (d < 1 || d > left || used[n] || prizes.gain(n) <= 0) continue;
+      // the value of the branch that ends here
+      let total = 0;
+      const path: number[] = [];
+      for (let u = n; u >= 0 && path.length <= left; u = par[u]) {
+        total += prizes.gain(u, path);
+        path.push(u);
+      }
+      const len = path.length;
+      if (len > left) continue;
+      const ratio = total / len;
+      if (ratio > bestRatio + 1e-9 || (Math.abs(ratio - bestRatio) <= 1e-9 && len < bestLen)) {
+        bestRatio = ratio;
+        bestN = n;
+        bestLen = len;
+      }
+    }
+    if (bestN < 0) break;
+    const branch: number[] = [];
+    for (let u = bestN; u >= 0; u = par[u]) branch.push(u);
+    branch.reverse();
+    const queue: number[] = [];
+    for (const n of branch) {
+      used[n] = 1;
+      prizes.take(n);
+      out.push(n);
+      left--;
+      dist[n] = -1;
+      for (const k of landOf(n)) seedFromCell(k, queue);
+    }
+    spread(queue);
   }
-  return out.reverse();
+  return out;
 }

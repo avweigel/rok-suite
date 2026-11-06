@@ -1,7 +1,15 @@
-> **In rok-suite:** this folder holds `src/` and this README, copied from `rok-bot/rok_planner`. The tests stay there. The rest lives in the app:
-> `public/rok-planner/k3923.json` (the data file: copy it again after a new scan), `lib/supabase/migrations/add-map-plans.sql` (the table, with an explicit grant added),
-> `components/kingdom-planner/HomeMapPlanner.tsx` and `mapLayers.ts` (the section, the walled zones, the baulur points).
-> **Two changes to `src/`, keep them when copying again:** `onRequireSignIn` receives the plan (`src/ui/MapPlanner.tsx`), so an unsaved plan survives the Discord sign-in; `ExtraLayer.over` draws a layer above the land and the map's things (`src/ui/model.ts`, `src/ui/draw.ts`), so the zone names and baulur points stay readable.
+> **In rok-suite this copy has moved on from `rok-bot/rok_planner`: do not copy `src/` over it.** After a new scan, copy only the data file to `public/rok-planner/k3923.json`.
+> The rest lives in the app: `lib/supabase/migrations/add-map-plans.sql` (the table, with an explicit grant added), `components/kingdom-planner/HomeMapPlanner.tsx` and `mapLayers.ts` (the section, the walled zones, the baulur points).
+> Tests: `tsx --test components/rok-planner/tests/*.test.ts` from `apps/web`.
+>
+> What differs from the original, and from the text below where it says otherwise:
+> * **Drawing:** three stacked canvases (`src/ui/MapCanvas.tsx`). A hover redraws only the ghost; while the view moves the finished picture is moved with a CSS transform and redrawn at rest; a low-resolution map fills the gaps at its edges.
+> * **Rules:** corners never count as bordering (checked in the game) and holy sites and passes always join the land. Both settings are gone; a plan saved with them still opens.
+> * **Route:** no margin (the search area is worked out, and is wide enough that the chain really has the fewest flags) and no "direct" mode. "More nodes" keeps the fewest flags from A to B, takes the richest such chain, and adds up to 20 flags as branches off the route; those are marked (`extra`) and drawn white.
+> * **CF initial drop** (`src/core/drop.ts`, `src/ui/panels/DropPanel.tsx`): pick the kinds of resource point in a popup, get the spots where one CF takes in the most.
+> * **Gone:** the grid and the report.
+> * **Colours:** no alliance gets a red, orange or pink.
+> * **Host API:** `onRequireSignIn` receives the plan, so an unsaved plan survives the Discord sign-in; `ExtraLayer.over` draws a layer above the land and the map's things.
 
 # @rok/planner — alliance land planner for the Rise of Kingdoms home map
 
