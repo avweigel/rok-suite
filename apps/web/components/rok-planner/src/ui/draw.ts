@@ -6,6 +6,7 @@ import type { PlanDoc } from '../core/plan';
 import { describeReason } from '../core/rules';
 import type { PlanState } from '../core/state';
 import type { ExistingBuilding, ObjectiveType } from '../core/types';
+import type { JumpView } from '../core/walljump';
 import type { World } from '../core/world';
 import { RESOURCE_ICONS } from './resourceIcons';
 import { DEFAULT_MASK_OPACITY, OBJECTIVE_SIZE, resColor } from './model';
@@ -34,6 +35,8 @@ export interface Scene {
   drops: DropSpot[] | null;
   /** Buildings that are, or would be, removed by the plan. */
   marks: readonly [number, number][];
+  /** The wall jumps to highlight; null when the toggle is off. */
+  jumps: JumpView[] | null;
   background: HTMLImageElement | null;
   extra: ExtraLayer[];
   assets: Assets;
@@ -415,6 +418,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, s: Scene): void {
   if (s.layers.buildings) drawBuildings(ctx, s);
   if (s.layers.objectives) drawObjectives(ctx, s);
   drawExtra(ctx, s, true);
+  if (s.jumps) drawJumps(ctx, s);
   if (s.marks.length) drawMarks(ctx, s);
   drawPlanItems(ctx, s);
   if (s.route) drawRoute(ctx, s);
@@ -582,6 +586,97 @@ function drawObjectives(ctx: CanvasRenderingContext2D, s: Scene): void {
 
 /** The flags added to a route to reach more points, on top of the fewest-flags chain: white in every alliance's colours, so they read apart at a glance. */
 const ADDED_FLAG = '#ffffff';
+
+const JUMP = '#ffee58';
+
+/** Wall jumps: a band over the wall where it can be crossed and the two flags suggested; close up, a dot on every spot a flag can jump from, and the squares that touch. Fainter where somebody holds the land. */
+function drawJumps(ctx: CanvasRenderingContext2D, s: Scene): void {
+  const { view: v, W, H } = s;
+  const z = v.z;
+  const seen = (X: number, Y: number): boolean => X > -40 && Y > -40 && X < W + 40 && Y < H + 40;
+  const close = z >= 2.5;
+  const spotR = Math.min(4, z * 0.6);
+  const open = new Path2D();
+  const held = new Path2D();
+  for (const j of s.jumps!) {
+    const path = j.open ? open : held;
+    for (const [ax, ay, bx, by] of j.pairs) {
+      const [X0, Y0] = toScreen(v, ax, ay);
+      const [X1, Y1] = toScreen(v, bx, by);
+      if (!seen(X0, Y0) && !seen(X1, Y1)) continue;
+      if (close) {
+        path.moveTo(X0 + spotR, Y0);
+        path.arc(X0, Y0, spotR, 0, 6.2832);
+        path.moveTo(X1 + spotR, Y1);
+        path.arc(X1, Y1, spotR, 0, 6.2832);
+      } else {
+        path.moveTo(X0, Y0);
+        path.lineTo(X1, Y1);
+      }
+    }
+  }
+  if (close) {
+    ctx.fillStyle = withAlpha(JUMP, 0.2);
+    ctx.fill(held);
+    ctx.fillStyle = withAlpha(JUMP, 0.6);
+    ctx.fill(open);
+  } else {
+    ctx.lineCap = 'round';
+    ctx.lineWidth = Math.max(2, z * 1.5);
+    ctx.strokeStyle = withAlpha(JUMP, 0.18);
+    ctx.stroke(held);
+    ctx.strokeStyle = withAlpha(JUMP, 0.45);
+    ctx.stroke(open);
+    ctx.lineCap = 'butt';
+  }
+  const dot = Math.max(3.5, Math.min(7, z * 1.6));
+  for (const j of s.jumps!) {
+    const [ax, ay, bx, by] = j.best;
+    const [X0, Y0] = toScreen(v, ax, ay);
+    const [X1, Y1] = toScreen(v, bx, by);
+    if (!seen(X0, Y0) && !seen(X1, Y1)) continue;
+    ctx.globalAlpha = j.open ? 1 : 0.5;
+    if (close) {
+      for (const [x, y] of [[ax, ay], [bx, by]]) {
+        const cx = Math.floor(x / CELL);
+        const cy = Math.floor(y / CELL);
+        const [x0, y0] = toScreen(v, (cx - REACH.flag) * CELL, (cy + REACH.flag + 1) * CELL);
+        const [x1, y1] = toScreen(v, (cx + REACH.flag + 1) * CELL, (cy - REACH.flag) * CELL);
+        ctx.fillStyle = withAlpha(JUMP, 0.14);
+        ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = JUMP;
+        ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+      }
+    }
+    ctx.beginPath();
+    ctx.moveTo(X0, Y0);
+    ctx.lineTo(X1, Y1);
+    ctx.lineWidth = 3.5;
+    ctx.strokeStyle = 'rgba(8,12,16,.9)';
+    ctx.stroke();
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = JUMP;
+    ctx.stroke();
+    for (const [X, Y] of [[X0, Y0], [X1, Y1]]) {
+      ctx.beginPath();
+      ctx.arc(X, Y, dot, 0, 6.2832);
+      ctx.fillStyle = JUMP;
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(8,12,16,.95)';
+      ctx.stroke();
+    }
+    if (z >= 3) {
+      ctx.font = '600 11px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      halo(ctx, `${ax},${ay}`, X0, Y0 + dot + 3, JUMP);
+      halo(ctx, `${bx},${by}`, X1, Y1 + dot + 3, JUMP);
+    }
+    ctx.globalAlpha = 1;
+  }
+}
 
 /** A cross where a building of another alliance is, or would be, removed. */
 function drawMarks(ctx: CanvasRenderingContext2D, s: Scene): void {

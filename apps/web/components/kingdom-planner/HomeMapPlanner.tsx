@@ -12,6 +12,7 @@ import { baulurLayer, zoneLayer, zoneNamesLayer } from '@/components/kingdom-pla
 import { zoneLabelFont } from '@/components/zones/zone-layers';
 import { useAuth } from '@/lib/supabase/auth-context';
 import { createClient } from '@/lib/supabase/client';
+import { zoneAt } from '@/lib/zones/zones';
 
 const EXTRA_LAYERS = [zoneLayer, zoneNamesLayer, baulurLayer];
 
@@ -84,6 +85,7 @@ export default function HomeMapPlanner() {
         shareUrl={shareUrl}
         onRequireSignIn={onRequireSignIn}
         extraLayers={layers}
+        zoneOf={zoneAt}
         style={{ height: 'calc(100vh - 150px)', minHeight: 560 }}
       />
     </div>

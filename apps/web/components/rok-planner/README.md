@@ -8,6 +8,7 @@
 > * **Route:** no margin (the search area is worked out, and is wide enough that the chain really has the fewest flags) and no "direct" mode. "More nodes" keeps the fewest flags from A to B, takes the richest such chain, and adds up to 20 flags as branches off the route; those are marked (`extra`) and drawn white.
 > * **CF initial drop** (`src/core/drop.ts`, `src/ui/panels/DropPanel.tsx`): pick the kinds of resource point in a popup, get the spots where one CF takes in the most.
 > * **Ignoring the alliances** (`src/core/removal.ts`): route and CF drop can go as if the others were not there and list what would have to be removed. A plan can assume buildings gone (`removed`, by position): the map, the rules and the routes then work on a map without them.
+> * **Wall jumps** (`src/core/walljump.ts`): a toggle that highlights where two flags on opposite sides of a wall have land that touches.
 > * **Gone:** the grid, the report and "Go to".
 > * **Colours:** no alliance gets a red, orange, pink or violet.
 > * **Host API:** `onRequireSignIn` receives the plan, so an unsaved plan survives the Discord sign-in; `ExtraLayer.over` draws a layer above the land and the map's things.

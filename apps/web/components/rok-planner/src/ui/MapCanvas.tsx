@@ -14,6 +14,7 @@ import { checkPlacement } from '../core/rules';
 import type { PlacementResult } from '../core/rules';
 import type { PlanState } from '../core/state';
 import type { Kind } from '../core/types';
+import type { JumpView } from '../core/walljump';
 import type { World } from '../core/world';
 import { Assets, drawScene, drawTop, drawWorld, hitRadiusTiles } from './draw';
 import type { Scene } from './draw';
@@ -49,6 +50,7 @@ export interface MapCanvasProps {
   selected: { x: number; y: number } | null;
   drops: DropSpot[] | null;
   marks: readonly [number, number][];
+  jumps: JumpView[] | null;
   extra: ExtraLayer[];
   initialView?: { x: number; y: number; zoom: number };
   onPlace(kind: Kind, x: number, y: number, result: PlacementResult): void;
@@ -66,7 +68,7 @@ const REST_MS = 180;
 /** The low-resolution map is redrawn this long after what it shows changed. */
 const UNDER_MS = 400;
 /** What the picture on the base canvas depends on. */
-const PICTURE: (keyof MapCanvasProps)[] = ['world', 'plan', 'state', 'layers', 'maskOpacity', 'backgroundOpacity', 'filters', 'tool', 'activeAllianceId', 'route', 'picks', 'selected', 'drops', 'marks', 'extra'];
+const PICTURE: (keyof MapCanvasProps)[] = ['world', 'plan', 'state', 'layers', 'maskOpacity', 'backgroundOpacity', 'filters', 'tool', 'activeAllianceId', 'route', 'picks', 'selected', 'drops', 'marks', 'jumps', 'extra'];
 
 const usesFortMask = (tool: Tool): boolean => tool === 'cf' || tool === 'drop';
 
@@ -101,7 +103,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(function Ma
     const p = latest.current;
     return {
       world: p.world, plan: p.plan, state: p.state, view: v, W, H, dpr, layers: p.layers, maskOpacity: p.maskOpacity, backgroundOpacity: p.backgroundOpacity, filters: p.filters,
-      tool: p.tool, activeAllianceId: p.activeAllianceId, route: p.route, picks: p.picks, selected: p.selected, drops: p.drops, marks: p.marks, background: bg.current, extra: p.extra, assets: a,
+      tool: p.tool, activeAllianceId: p.activeAllianceId, route: p.route, picks: p.picks, selected: p.selected, drops: p.drops, marks: p.marks, jumps: p.jumps, background: bg.current, extra: p.extra, assets: a,
     };
   }, []);
 

@@ -22,6 +22,7 @@ export interface FiltersPanelProps {
   extra: ExtraLayer[];
   extraOn: Record<string, boolean>;
   onExtraOn(next: Record<string, boolean>): void;
+  wallJumps: { on: boolean; inner: boolean; count: number | null; onToggle(v: boolean): void; onInner(v: boolean): void };
 }
 
 const CODES = [1, 2, 3, 4];
@@ -96,6 +97,13 @@ export function FiltersPanel(p: FiltersPanelProps) {
         {p.extra.map((l) => (
           <Check key={l.id} checked={p.extraOn[l.id] !== false} onChange={(v) => p.onExtraOn({ ...p.extraOn, [l.id]: v })} label={l.label} />
         ))}
+        <Check
+          checked={p.wallJumps.on}
+          onChange={p.wallJumps.onToggle}
+          label={`Wall jumps${p.wallJumps.count !== null ? ` (${p.wallJumps.count})` : ''}`}
+          hint="Where two flags on opposite sides of a wall have land that touches, so the wall can be crossed without a pass."
+        />
+        {p.wallJumps.on && <Check checked={p.wallJumps.inner} onChange={p.wallJumps.onInner} label="Also ridges inside a zone" />}
       </Section>
 
       <Section title="Resource points" defaultOpen={false} hint="The points that feed an alliance's storage (not the gathering nodes of the players).">

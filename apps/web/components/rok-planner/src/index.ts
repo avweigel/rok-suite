@@ -22,6 +22,8 @@ export { MAX_EXTRA_FLAGS, PRESETS, planRoute } from './core/route';
 export type { RouteOptions, RouteRequest, RouteResult } from './core/route';
 export { findCfDrops } from './core/drop';
 export type { DropOptions, DropSpot } from './core/drop';
+export { findWallJumps, openJumps } from './core/walljump';
+export type { JumpView, WallJump, ZoneOf } from './core/walljump';
 export { applyRemoved, describeRemovals } from './core/removal';
 export type { RemovalGroup, Spot } from './core/removal';
 export type { MapDataFile } from './core/types';

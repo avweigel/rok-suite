@@ -7,6 +7,8 @@ import { addItem, addItems, addRemoved, commit, emptyPlan, redo, removeItem, ren
 import type { History, PlanDoc } from '../core/plan';
 import { findCfDrops } from '../core/drop';
 import { applyRemoved } from '../core/removal';
+import { findWallJumps, openJumps } from '../core/walljump';
+import type { ZoneOf } from '../core/walljump';
 import type { DropSpot } from '../core/drop';
 import { PRESETS, planRoute } from '../core/route';
 import type { RouteOptions, RouteResult } from '../core/route';
@@ -59,6 +61,8 @@ export interface MapPlannerProps {
   onRequireSignIn?: (plan: PlanDoc) => void;
   /** Extra drawing under the planner's own layers (your zone colours, borders...). */
   extraLayers?: ExtraLayer[];
+  /** The zone of a spot, so that wall jumps can tell walls between zones from ridges inside one. */
+  zoneOf?: ZoneOf;
   className?: string;
   style?: CSSProperties;
 }
@@ -91,7 +95,7 @@ function defaultShareUrl(shareId: string): string {
 }
 
 export function MapPlanner(props: MapPlannerProps) {
-  const { dataUrl = '/rok-planner/k3923.json', data, backgroundUrl, store, sharedId, planId, initialPlan, initialView, onPlanChange, shareUrl, onRequireSignIn, extraLayers, className, style } = props;
+  const { dataUrl = '/rok-planner/k3923.json', data, backgroundUrl, store, sharedId, planId, initialPlan, initialView, onPlanChange, shareUrl, onRequireSignIn, extraLayers, zoneOf, className, style } = props;
 
   // ---- the map data
   const [baseWorld, setBaseWorld] = useState<World | null>(null);
@@ -150,6 +154,8 @@ export function MapPlanner(props: MapPlannerProps) {
   const [routeBusy, setRouteBusy] = useState(false);
   const [dropOpen, setDropOpen] = useState(false);
   const [dropRes, setDropRes] = useState<number[]>([1, 2, 3, 4]);
+  const [showJumps, setShowJumps] = useState(false);
+  const [jumpsInner, setJumpsInner] = useState(false);
   const [dropOwned, setDropOwned] = useState(true);
   const [drops, setDrops] = useState<DropSpot[] | null>(null);
   const [dropFocus, setDropFocus] = useState(-1);
@@ -261,6 +267,14 @@ export function MapPlanner(props: MapPlannerProps) {
   const active = plan?.alliances.find((a) => a.id === activeId) ?? plan?.alliances[0];
   const aid = active?.id ?? '';
 
+  // ---- wall jumps: the terrain's are worked out once, who holds the land follows the plan
+  const allJumps = useMemo(() => (showJumps && baseWorld ? findWallJumps(baseWorld, zoneOf) : null), [showJumps, baseWorld, zoneOf]);
+  const jumps = useMemo(() => {
+    if (!allJumps || !world || !state) return null;
+    const baseIndex = state.byAlliance.get(aid)?.baseIndex ?? -1;
+    return openJumps(allJumps.filter((j) => jumpsInner || j.between), world, baseIndex, (k) => (state.claimed.get(k) ?? aid) !== aid);
+  }, [allJumps, jumpsInner, world, state, aid]);
+
   // ---- editing: what was worked out for the old plan no longer holds
   const planMoved = useCallback(() => {
     setRouteResult(null);
@@ -337,6 +351,22 @@ export function MapPlanner(props: MapPlannerProps) {
 
   const onInspect = (x: number, y: number, reach: number): void => {
     if (!world || !plan || !state) return;
+    const jump = jumps?.find((j) => Math.hypot((j.best[0] + j.best[2]) / 2 - x, (j.best[1] + j.best[3]) / 2 - y) <= Math.max(reach, 6));
+    if (jump) {
+      const [ax, ay, bx, by] = jump.best;
+      setCard({
+        x: (ax + bx) / 2,
+        y: (ay + by) / 2,
+        title: 'Wall jump',
+        lines: [
+          jump.between ? `Between ${jump.zoneA} and ${jump.zoneB}` : `A ridge inside ${jump.zoneA}`,
+          `Flags at ${ax}, ${ay} and ${bx}, ${by}: their land touches`,
+          jump.pairs.length > 1 ? `${jump.pairs.length} ways to do it along this stretch` : 'Only this way',
+          jump.open ? 'Free right now' : 'Somebody holds this land right now',
+        ],
+      });
+      return;
+    }
     setCard(describeAt(world, plan, state, x, y, reach));
   };
 
@@ -547,6 +577,10 @@ export function MapPlanner(props: MapPlannerProps) {
       closeDrop();
       return;
     }
+    if (k === 'w') {
+      setShowJumps((v) => !v);
+      return;
+    }
     if (k === 'd' && !readOnly) {
       setDropOpen(true);
       return;
@@ -704,6 +738,7 @@ export function MapPlanner(props: MapPlannerProps) {
               extra={extraLayers ?? []}
               extraOn={extraOn}
               onExtraOn={setExtraOn}
+              wallJumps={{ on: showJumps, inner: jumpsInner, count: jumps ? jumps.length : null, onToggle: setShowJumps, onInner: setJumpsInner }}
             />
             <p className="rokp-foot">
               Map data from {world.sources.objects ? `the objects scan of ${world.sources.objects.replace('T', ' ')}` : 'our scans'}
@@ -735,6 +770,7 @@ export function MapPlanner(props: MapPlannerProps) {
             selected={selected}
             drops={drops}
             marks={marks}
+            jumps={jumps}
             onDropPick={onDropPick}
             extra={extraActive}
             initialView={initialView}
@@ -767,6 +803,9 @@ export function MapPlanner(props: MapPlannerProps) {
                 {b.label}
               </button>
             ))}
+            <button type="button" className={showJumps ? 'on' : ''} aria-pressed={showJumps} title="Show where two flags can touch across a wall (W)" onClick={() => setShowJumps(!showJumps)}>
+              Wall jumps
+            </button>
             <span className="rokp-sep" />
             <button type="button" disabled={!hist || hist.past.length === 0 || readOnly} onClick={doUndo} title="Undo (Ctrl+Z)">
               ↶ Undo
