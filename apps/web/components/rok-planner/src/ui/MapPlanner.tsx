@@ -162,6 +162,7 @@ export function MapPlanner(props: MapPlannerProps) {
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [extraOn, setExtraOn] = useState<Record<string, boolean>>({});
   const [picks, setPicks] = useState<Picks>({ a: null, b: null });
+  const [pickFor, setPickFor] = useState<'a' | 'b' | null>(null);  // a point asked for by its button; null: A, then B
   const [routeOptions, setRouteOptions] = useState<RouteOptions>({ ...PRESETS.fewest });
   const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
   const [routeBusy, setRouteBusy] = useState(false);
@@ -368,20 +369,30 @@ export function MapPlanner(props: MapPlannerProps) {
     if (!world) return;
     setRouteResult(null);
     const r1 = (v: number): number => Math.round(v * 10) / 10;
+    // B snaps to a holy site or pass next to the click
+    const target = (): Pick<Picks, 'b' | 'objectiveId'> => {
+      let near: { id: string; x: number; y: number } | null = null;
+      let nd = 4;
+      for (const o of world.objectives) {
+        const d = Math.hypot(o.x - x, o.y - y);
+        if (d < nd) {
+          nd = d;
+          near = o;
+        }
+      }
+      return { b: near ? [r1(near.x), r1(near.y)] : [r1(x), r1(y)], objectiveId: near?.id };
+    };
+    if (pickFor) {                                                 // the point its button asked for, the other one stays
+      setPicks(pickFor === 'a' ? { ...picks, a: [r1(x), r1(y)] } : { a: picks.a, ...target() });
+      setPickFor(null);
+      setTool('view');
+      return;
+    }
     if (!picks.a || (picks.a && picks.b)) {
       setPicks({ a: [r1(x), r1(y)], b: null });
       return;
     }
-    let near: { id: string; x: number; y: number } | null = null;
-    let nd = 4;
-    for (const o of world.objectives) {
-      const d = Math.hypot(o.x - x, o.y - y);
-      if (d < nd) {
-        nd = d;
-        near = o;
-      }
-    }
-    setPicks({ a: picks.a, b: near ? [r1(near.x), r1(near.y)] : [r1(x), r1(y)], objectiveId: near?.id });
+    setPicks({ a: picks.a, ...target() });
   };
 
   const onInspect = (x: number, y: number, reach: number): void => {
@@ -682,7 +693,10 @@ export function MapPlanner(props: MapPlannerProps) {
       return;
     }
     const tools: Record<string, Tool> = { f: 'flag', c: 'cf', e: 'erase', v: 'view', escape: 'view', r: 'route' };
-    if (tools[k] && !((readOnly || !aid) && (k === 'f' || k === 'c' || k === 'e'))) setTool(tools[k]);
+    if (tools[k] && !((readOnly || !aid) && (k === 'f' || k === 'c' || k === 'e'))) {
+      setPickFor(null);
+      setTool(tools[k]);
+    }
   };
 
   // kept stable between renders: a new object here would make the map draw itself again
@@ -784,6 +798,8 @@ export function MapPlanner(props: MapPlannerProps) {
             )}
             <RoutePanel
               onRouteFor={routeFor}
+              pickFor={tool === 'route' ? pickFor : null}
+              onPickFor={setPickFor}
               world={world}
               plan={plan}
               activeId={aid}
@@ -893,7 +909,10 @@ export function MapPlanner(props: MapPlannerProps) {
                 title={`${b.title} (${b.key})`}
                 onClick={() => {
                   if (b.id === 'drop') setDropOpen(true);
-                  else setTool(b.id);
+                  else {
+                    setPickFor(null);
+                    setTool(b.id);
+                  }
                 }}
               >
                 {b.label}
@@ -943,7 +962,11 @@ export function MapPlanner(props: MapPlannerProps) {
         {!readOnly && plan && plan.alliances.length === 0 && <div className="rokp-tip">{blank ? 'Empty kingdom: add' : 'Add'} an alliance in the panel to start</div>}
         {!readOnly && aid && (tool === 'flag' || tool === 'cf') && <div className="rokp-tip">Left click places · right click deletes · drag to move · wheel to zoom</div>}
         {tool === 'drop' && <div className="rokp-tip">{drops?.length ? 'Click a yellow spot to place the CF there' : 'Press CF drop and choose the nodes'}</div>}
-        {tool === 'route' && <div className="rokp-tip">{!picks.a ? 'Click A, the start' : !picks.b ? 'Click B, the target (a holy site or pass works)' : 'Press “Find the route” in the panel'}</div>}
+        {tool === 'route' && (
+          <div className="rokp-tip">
+            {pickFor === 'a' ? 'Click A, the start' : pickFor === 'b' ? 'Click B, the target (a holy site or pass works)' : !picks.a ? 'Click A, the start' : !picks.b ? 'Click B, the target (a holy site or pass works)' : 'Press “Find the route” in the panel'}
+          </div>
+        )}
 
         {dropOpen && world && state && <DropDialog world={world} state={state} selected={dropRes} onChange={setDropRes} includeOwned={dropOwned} onIncludeOwned={setDropOwned} onFind={findDrops} onClose={closeDrop} />}
 

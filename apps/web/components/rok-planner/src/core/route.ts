@@ -3,8 +3,8 @@
 // The land is a union of 3 x 3-tile cells and a flag claims 3 x 3 cells, so a chain of flags is a path over the cells: from one flag to the next the centre moves at most 3 cells (that is
 // when the two squares still share an edge). Every cell gets ONE usable position (terrain, objects, cities and the buildings already in the plan checked exactly, like a placement) or none. Then:
 //   * "fewest flags": the chain with the fewest flags (ties: the shortest). Resource points play no part;
-//   * "nodes": the same number of flags, the chain that takes in the most resource points (and holy sites / passes). Up to `extraFlags` more flags then branch off the route towards more of
-//     them; those are marked, because the route reaches B without them.
+//   * "nodes": the same number of flags, the chain that takes in the most resource points (and holy sites / passes). Up to `extraFlags` more flags then widen the route, at most
+//     BRANCH_DEPTH flags out from its land, to take in more of them; those are marked, because the route reaches B without them.
 // Either mode can go around the alliances on the map, or (`ignoreOthers`) go as if they were not there and say what would have to go for the route to stand.
 // The value is a weight per resource kind (a kind with weight 0 is ignored). The search area is worked out here, not asked for. The result is a list of buildings; it changes nothing until the
 // caller adds it to the plan.
@@ -91,6 +91,8 @@ const START_MARGIN = 60;
 const SOURCE_BAND = 60;
 /** More room around the line when flags will branch off the route. */
 const BRANCH_ROOM = 65;
+/** How far an extra flag may stand from the route's land, in flags: the route widens a little, it does not go off to a patch far away. */
+const BRANCH_DEPTH = 2;
 /** The longest move from one flag to the next that keeps the squares sharing an edge: 3 cells one way and 2 the other, in tiles. */
 const MAX_STEP = CELL * Math.hypot(REACH.flag * 2 + 1, REACH.flag * 2);
 /** What the two ends of a chain may add to its length (from A to its land, from the last flag to B). */
@@ -704,17 +706,19 @@ function bestShortestChain(cor: Corridor, prizes: Prizes, sources: number[], tar
 }
 
 /**
- * The flags to add on top of the chain, up to `budget`: branches that grow from the route's own land towards the resource points. Each round takes the branch with the most value per flag
- * (a far rich patch can beat a near poor one) and stops when nothing is left to take. Returned in placing order: every flag borders the land of the ones before it.
+ * The flags to add on top of the chain, up to `budget`: short branches, at most BRANCH_DEPTH flags out from the route's land, towards the resource points next to it. Each round takes the
+ * branch with the most value per flag and stops when nothing is left to take. Returned in placing order: every flag borders the land of the ones before it.
  */
 function addBranches(cor: Corridor, prizes: Prizes, startLand: ReadonlySet<CellKey>, chainCells: number[], budget: number, offs: [number, number][], linked: (from: number, to: number) => boolean, fpOf: (n: number) => CellKey[], claimOf: (n: number) => Set<CellKey> | null): number[] {
   const { cx0, cy0, w, h, valid } = cor;
   const N = w * h;
-  const dist = new Int32Array(N).fill(-1);       // flags needed to put a flag on the cell, growing from the route's land
+  const dist = new Int32Array(N).fill(-1);       // how far out a flag on the cell stands, in flags from the route's land (1: it borders it)
   const par = new Int32Array(N).fill(-1);
   const used = new Uint8Array(N);
   const near: [number, number][] = [[0, 0], ...neighbourOffsets(false, REACH.flag * 2)];   // the cells whose flag square shares an edge with, or overlaps, one cell of land
-  const seedFromCell = (k: CellKey, queue: number[]): void => {
+  /** The cells whose flag borders this cell of land: a flag there stands `depth` flags out, and starts a branch of its own. */
+  const seedFromCell = (k: CellKey, queue: number[], depth: number): void => {
+    if (depth > BRANCH_DEPTH) return;
     const cx = k % KEY;
     const cy = Math.floor(k / KEY);
     for (const [dx, dy] of near) {
@@ -722,8 +726,8 @@ function addBranches(cor: Corridor, prizes: Prizes, startLand: ReadonlySet<CellK
       const y = cy + dy;
       if (x < cx0 || y < cy0 || x >= cx0 + w || y >= cy0 + h) continue;
       const n = (y - cy0) * w + (x - cx0);
-      if (valid[n] && !used[n] && dist[n] !== 1) {
-        dist[n] = 1;
+      if (valid[n] && !used[n] && (dist[n] < 0 || depth <= dist[n])) {
+        dist[n] = depth;
         par[n] = -1;
         queue.push(n);
       }
@@ -737,7 +741,7 @@ function addBranches(cor: Corridor, prizes: Prizes, startLand: ReadonlySet<CellK
   const spread = (queue: number[]): void => {
     for (let q = 0; q < queue.length; q++) {
       const u = queue[q];
-      if (dist[u] >= budget) continue;
+      if (dist[u] >= BRANCH_DEPTH) continue;
       const ux = cx0 + (u % w);
       const uy = cy0 + Math.floor(u / w);
       for (const [dx, dy] of offs) {
@@ -758,7 +762,7 @@ function addBranches(cor: Corridor, prizes: Prizes, startLand: ReadonlySet<CellK
     prizes.take(n);
   }
   const first: number[] = [];
-  for (const n of chainCells) for (const k of landOf(n)) if (!startLand.has(k)) seedFromCell(k, first);
+  for (const n of chainCells) for (const k of landOf(n)) if (!startLand.has(k)) seedFromCell(k, first, 1);
   spread(first);
 
   const out: number[] = [];
@@ -769,7 +773,7 @@ function addBranches(cor: Corridor, prizes: Prizes, startLand: ReadonlySet<CellK
     let bestLen = 0;
     for (let n = 0; n < N; n++) {
       const d = dist[n];
-      if (d < 1 || d > left || used[n] || prizes.gain(n) <= 0) continue;
+      if (d < 1 || used[n] || prizes.gain(n) <= 0) continue;
       // the value of the branch that ends here
       let total = 0;
       const path: number[] = [];
@@ -792,12 +796,13 @@ function addBranches(cor: Corridor, prizes: Prizes, startLand: ReadonlySet<CellK
     branch.reverse();
     const queue: number[] = [];
     for (const n of branch) {
+      const depth = dist[n];
       used[n] = 1;
       prizes.take(n);
       out.push(n);
       left--;
       dist[n] = -1;
-      for (const k of landOf(n)) seedFromCell(k, queue);
+      for (const k of landOf(n)) seedFromCell(k, queue, depth + 1);
     }
     spread(queue);
   }

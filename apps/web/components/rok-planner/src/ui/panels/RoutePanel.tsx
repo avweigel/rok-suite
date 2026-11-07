@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { PlanDoc } from '../../core/plan';
 import { MAX_EXTRA_FLAGS, PRESETS } from '../../core/route';
 import type { RouteMode, RouteOptions, RouteResult } from '../../core/route';
@@ -27,11 +28,14 @@ export interface RoutePanelProps {
   onGo(x: number, y: number): void;
   /** "p:<plan alliance id>" or "e:<game id of an alliance on the map>". */
   onRouteFor(value: string): void;
+  /** The point the next click on the map sets, when one was asked for; null: A then B. */
+  pickFor: 'a' | 'b' | null;
+  onPickFor(t: 'a' | 'b' | null): void;
 }
 
 const MODE_TEXT: Record<RouteMode, string> = {
   fewest: 'The chain with the fewest flags, going around anything in the way. Resource points play no part.',
-  nodes: 'Still the fewest flags from A to B, on the way that takes in the most resource points. The extra flags then branch off it to reach more.',
+  nodes: 'Still the fewest flags from A to B, on the way that takes in the most resource points. The extra flags then widen it a little (at most 2 flags out from the route) to take in more.',
 };
 
 const num = (s: string): number | null => {
@@ -39,13 +43,36 @@ const num = (s: string): number | null => {
   return s.trim() !== '' && Number.isFinite(v) ? v : null;
 };
 
-function Coord(props: { label: string; value: [number, number] | null; onChange(v: [number, number] | null): void; color: string }) {
+/** X and Y of a point. What is typed stays in the fields; the point goes to the planner once both are numbers (and is taken back when one is cleared). */
+function Coord(props: { label: string; value: [number, number] | null; onChange(v: [number, number] | null): void; color: string; picking: boolean; onPick(): void }) {
   const v = props.value;
+  const [xs, setXs] = useState(v ? String(v[0]) : '');
+  const [ys, setYs] = useState(v ? String(v[1]) : '');
+  const [seen, setSeen] = useState(v);
+  if (v !== seen) {                                                // set from outside (a click on the map, Clear): show it
+    setSeen(v);
+    setXs(v ? String(v[0]) : '');
+    setYs(v ? String(v[1]) : '');
+  }
+  const change = (nx: string, ny: string): void => {
+    setXs(nx);
+    setYs(ny);
+    const x = num(nx);
+    const y = num(ny);
+    const next: [number, number] | null = x !== null && y !== null ? [x, y] : null;
+    if (next ? !v || v[0] !== next[0] || v[1] !== next[1] : v !== null) {
+      setSeen(next);                                               // ours: the fields already show it
+      props.onChange(next);
+    }
+  };
   return (
     <div className="rokp-row">
       <span className="rokp-pin" style={{ background: props.color }}>{props.label}</span>
-      <input className="rokp-input rokp-num" inputMode="decimal" placeholder="X" aria-label={`${props.label} x`} value={v ? v[0] : ''} onChange={(e) => { const x = num(e.target.value); props.onChange(x === null ? null : [x, v ? v[1] : 0]); }} />
-      <input className="rokp-input rokp-num" inputMode="decimal" placeholder="Y" aria-label={`${props.label} y`} value={v ? v[1] : ''} onChange={(e) => { const y = num(e.target.value); props.onChange(y === null ? null : [v ? v[0] : 0, y]); }} />
+      <input className="rokp-input rokp-num" inputMode="decimal" placeholder="X" aria-label={`${props.label} x`} value={xs} onChange={(e) => change(e.target.value, ys)} />
+      <input className="rokp-input rokp-num" inputMode="decimal" placeholder="Y" aria-label={`${props.label} y`} value={ys} onChange={(e) => change(xs, e.target.value)} />
+      <button type="button" className={`rokp-ico${props.picking ? ' on' : ''}`} aria-pressed={props.picking} title={`Pick ${props.label} on the map`} onClick={props.onPick}>
+        ⌖
+      </button>
     </div>
   );
 }
@@ -65,8 +92,15 @@ export function RoutePanel(p: RoutePanelProps) {
   return (
     <Section title="Route from A to B" defaultOpen={p.tool === 'route'} forceOpen={p.tool === 'route'} hint="Finds the flags that carry an alliance's land from A to B. It changes nothing until you press Add to plan.">
       <div className="rokp-row">
-        <button type="button" className={p.tool === 'route' ? 'rokp-primary' : ''} onClick={() => p.onTool(p.tool === 'route' ? 'view' : 'route')}>
-          {p.tool === 'route' ? 'Picking on the map…' : 'Pick A and B on the map'}
+        <button
+          type="button"
+          className={p.tool === 'route' && !p.pickFor ? 'rokp-primary' : ''}
+          onClick={() => {
+            p.onPickFor(null);
+            p.onTool(p.tool === 'route' && !p.pickFor ? 'view' : 'route');
+          }}
+        >
+          {p.tool === 'route' && !p.pickFor ? 'Picking on the map…' : 'Pick A and B on the map'}
         </button>
         {(p.picks.a || p.picks.b) && (
           <button type="button" onClick={() => { p.onPicks({ a: null, b: null }); p.onDiscard(); }}>
@@ -74,9 +108,21 @@ export function RoutePanel(p: RoutePanelProps) {
           </button>
         )}
       </div>
-      {p.tool === 'route' && <p className="rokp-hint">{!p.picks.a ? 'Click the map for A, the start.' : !p.picks.b ? 'Now click B, the target. Click a holy site or a pass to aim at it.' : 'Click again to start over.'}</p>}
-      <Coord label="A" color="#2f9e44" value={p.picks.a} onChange={(v) => p.onPicks({ ...p.picks, a: v })} />
-      <Coord label="B" color="#d6336c" value={p.picks.b} onChange={(v) => p.onPicks({ a: p.picks.a, b: v })} />
+      {p.tool === 'route' && (
+        <p className="rokp-hint">
+          {p.pickFor === 'a'
+            ? 'Click the map for A, the start.'
+            : p.pickFor === 'b'
+              ? 'Click the map for B. Click a holy site or a pass to aim at it.'
+              : !p.picks.a
+                ? 'Click the map for A, the start.'
+                : !p.picks.b
+                  ? 'Now click B, the target. Click a holy site or a pass to aim at it.'
+                  : 'Click again to start over.'}
+        </p>
+      )}
+      <Coord label="A" color="#2f9e44" value={p.picks.a} onChange={(v) => p.onPicks({ ...p.picks, a: v })} picking={p.tool === 'route' && p.pickFor === 'a'} onPick={() => { p.onPickFor('a'); p.onTool('route'); }} />
+      <Coord label="B" color="#d6336c" value={p.picks.b} onChange={(v) => p.onPicks({ a: p.picks.a, b: v })} picking={p.tool === 'route' && p.pickFor === 'b'} onPick={() => { p.onPickFor('b'); p.onTool('route'); }} />
       {objective && <p className="rokp-hint">B is {objective.name}: the route ends as soon as the land touches it.</p>}
       <div className="rokp-label">Route for</div>
       <div className="rokp-row">
