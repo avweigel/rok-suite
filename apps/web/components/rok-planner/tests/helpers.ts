@@ -17,6 +17,14 @@ export function realData(): MapDataFile {
   return real;
 }
 
+export const KVK_PATH = join(__dirname, '..', '..', '..', 'public', 'rok-planner', 'mighty_assembly.json');
+let kvk: MapDataFile | null = null;
+/** The KvK map (Mighty Assembly): format 2, its own kinds of structure, crystals, no alliance. */
+export function kvkData(): MapDataFile {
+  if (!kvk) kvk = JSON.parse(readFileSync(KVK_PATH, 'utf8')) as MapDataFile;
+  return kvk;
+}
+
 export function pairs(list: [number, number][]): string {
   return Buffer.from(new Float32Array(list.flat()).buffer).toString('base64');
 }

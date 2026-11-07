@@ -36,7 +36,7 @@ export interface RouteOptions {
 
 export const PRESETS: Record<RouteMode, RouteOptions> = {
   fewest: { mode: 'fewest', extraFlags: 0, ignoreOthers: false, weights: {}, objectiveWeight: 0 },
-  nodes: { mode: 'nodes', extraFlags: 5, ignoreOthers: false, weights: { 1: 1, 2: 1, 3: 1, 4: 1 }, objectiveWeight: 3 },
+  nodes: { mode: 'nodes', extraFlags: 5, ignoreOthers: false, weights: { 1: 1, 2: 1, 3: 1, 4: 1, 9: 1 }, objectiveWeight: 3 },
 };
 
 export interface RouteRequest {
@@ -322,7 +322,7 @@ function routeIn(world: World, plan: PlanDoc, req: RouteRequest, avoid: Readonly
   }
   const ctx: Ctx = {
     world, plan, allianceId: alliance.id, as, state, req, weights: opt.mode === 'nodes' ? opt.weights : {}, a, b, bc, objectiveId: objective?.id,
-    targetOffsets: objective ? neighbourOffsets(false, REACH.flag + REACH.site + 1) : neighbourOffsets(true, REACH.flag), ownedByOther, avoid,
+    targetOffsets: objective ? neighbourOffsets(false, REACH.flag + objective.reach + 1) : neighbourOffsets(true, REACH.flag), ownedByOther, avoid,
   };
 
   // The search area sorts itself out. It starts around the straight line; it grows when no chain fits, and when the chain found is long enough that a shorter one could still run outside it.
@@ -379,9 +379,11 @@ class Prizes {
       this.cellVal[(cy - cy0) * w + (cx - cx0)] += c.weights[p.res] ?? 0;
     }
     if (opt.objectiveWeight > 0) {
-      const zone = neighbourOffsets(false, REACH.flag + REACH.site + 1);
+      const zones = new Map<number, ReturnType<typeof neighbourOffsets>>();     // one per reach: a bastion's is smaller
       world.objectives.forEach((o, oi) => {
         if (o.ai >= 0 || state.capturedBy.has(o.id) || land.has(o.cell)) return;
+        let zone = zones.get(o.reach);
+        if (!zone) zones.set(o.reach, (zone = neighbourOffsets(false, REACH.flag + o.reach + 1)));
         const ox = Math.floor(o.x / CELL);
         const oy = Math.floor(o.y / CELL);
         for (const [dx, dy] of zone) {

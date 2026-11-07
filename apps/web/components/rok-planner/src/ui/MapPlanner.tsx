@@ -16,7 +16,7 @@ import { checkPlacement, describeReason } from '../core/rules';
 import type { PlacementResult } from '../core/rules';
 import { computeState } from '../core/state';
 import type { Kind, MapDataFile } from '../core/types';
-import { loadWorld } from '../core/world';
+import { loadWorld, resourceCodes } from '../core/world';
 import type { World } from '../core/world';
 import { ConflictError } from '../store/types';
 import type { PlanRole, PlanStore, PlanSummary, PlanUser, ShareMode, StoredPlan } from '../store/types';
@@ -163,7 +163,7 @@ export function MapPlanner(props: MapPlannerProps) {
   const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
   const [routeBusy, setRouteBusy] = useState(false);
   const [dropOpen, setDropOpen] = useState(false);
-  const [dropRes, setDropRes] = useState<number[]>([1, 2, 3, 4]);
+  const [dropPicked, setDropRes] = useState<number[] | null>(null);  // null: every kind the map has
   const [showJumps, setShowJumps] = useState(false);
   const [jumpsInner, setJumpsInner] = useState(false);
   const [jumpsCf, setJumpsCf] = useState(true);
@@ -462,6 +462,7 @@ export function MapPlanner(props: MapPlannerProps) {
   };
 
   // ---- CF initial drop
+  const dropRes = dropPicked ?? (world ? resourceCodes(world) : []);
   const closeDrop = (): void => {
     setDropOpen(false);
     rootRef.current?.focus({ preventScroll: true });              // the focused button goes away with the popup: the keyboard shortcuts must keep working

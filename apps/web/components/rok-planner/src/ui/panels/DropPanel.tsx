@@ -4,16 +4,16 @@
 import { useMemo, useState } from 'react';
 import type { DropSpot } from '../../core/drop';
 import type { PlanState } from '../../core/state';
+import { resourceCodes } from '../../core/world';
 import type { World } from '../../core/world';
 import { Check, RemovalList, ResIcon, Section, cap, plural } from '../components';
 import type { Tool } from '../model';
 
-const CODES = [1, 2, 3, 4];
 const PAGE = 50;
 
 export function DropDialog(p: { world: World; state: PlanState; selected: readonly number[]; onChange(next: number[]): void; includeOwned: boolean; onIncludeOwned(v: boolean): void; onFind(): void; onClose(): void }) {
   const { world, state } = p;
-  const codes = CODES.filter((c) => world.resources[c]);
+  const codes = resourceCodes(world);
   const counts = useMemo(() => {
     const free: Record<number, number> = {};
     const all: Record<number, number> = {};
@@ -84,7 +84,7 @@ export function DropPanel(p: { world: World; tool: Tool; readOnly: boolean; alli
                 <div className="rokp-grow">
                   <div className="rokp-dropnodes">
                     <b>{plural(s.total, 'point')}</b>
-                    {CODES.filter((c) => s.nodes[c]).map((c) => (
+                    {resourceCodes(world).filter((c) => s.nodes[c]).map((c) => (
                       <span key={c} className="rokp-nodechip">
                         <ResIcon name={world.resources[c]} code={c} size={16} />
                         {s.nodes[c]}

@@ -5,11 +5,11 @@ import { CELL, KEY, REACH, SIZE, radiusFor } from '../core/geometry';
 import type { PlanDoc } from '../core/plan';
 import { describeReason } from '../core/rules';
 import type { PlanState } from '../core/state';
-import type { ExistingBuilding, ObjectiveType } from '../core/types';
+import type { ExistingBuilding, Glyph } from '../core/types';
 import type { JumpView } from '../core/walljump';
 import type { World } from '../core/world';
 import { RESOURCE_ICONS } from './resourceIcons';
-import { DEFAULT_MASK_OPACITY, OBJECTIVE_SIZE, resColor } from './model';
+import { DEFAULT_MASK_OPACITY, resColor } from './model';
 import type { ExtraLayer, Filters, Ghost, Layers, Picks, RoutePreview, Tool } from './model';
 import { toScreen } from './view';
 import type { View } from './view';
@@ -283,12 +283,24 @@ function star(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): v
   ctx.closePath();
 }
 
-/** The marker of a holy site or pass at (x, y) in pixels. */
-function objectiveGlyph(ctx: CanvasRenderingContext2D, type: ObjectiveType, x: number, y: number, r: number): void {
-  if (type === 'altar') polygon(ctx, x, y, r, 4);
-  else if (type === 'shrine') polygon(ctx, x, y, r, 6);
-  else if (type === 'temple') star(ctx, x, y, r * 1.15);
-  else {
+/** The marker of a structure at (x, y) in pixels, by the drawing its kind asks for. */
+function objectiveGlyph(ctx: CanvasRenderingContext2D, glyph: Glyph, x: number, y: number, r: number): void {
+  if (glyph === 'altar' || glyph === 'diamond') polygon(ctx, x, y, r, 4);
+  else if (glyph === 'shrine') polygon(ctx, x, y, r, 6);
+  else if (glyph === 'temple') star(ctx, x, y, r * 1.15);
+  else if (glyph === 'pyramid') polygon(ctx, x, y + r * 0.1, r * 1.1, 3);
+  else if (glyph === 'tower') {
+    ctx.beginPath();                                           // a tower: a body with a crenellated top
+    ctx.moveTo(x - r * 0.7, y + r);
+    ctx.lineTo(x - r * 0.7, y - r);
+    ctx.lineTo(x - r * 0.3, y - r);
+    ctx.lineTo(x - r * 0.3, y - r * 0.6);
+    ctx.lineTo(x + r * 0.3, y - r * 0.6);
+    ctx.lineTo(x + r * 0.3, y - r);
+    ctx.lineTo(x + r * 0.7, y - r);
+    ctx.lineTo(x + r * 0.7, y + r);
+    ctx.closePath();
+  } else {
     ctx.beginPath();                                           // a gate: an arch
     ctx.moveTo(x - r, y + r);
     ctx.lineTo(x - r, y - r * 0.2);
@@ -557,11 +569,11 @@ function drawObjectives(ctx: CanvasRenderingContext2D, s: Scene): void {
     if (o.ai >= 0 && filters.hiddenExisting.has(o.ai)) continue;
     const [X, Y] = toScreen(v, o.x, o.y);
     if (X < -40 || Y < -40 || X > W + 40 || Y > H + 40) continue;
-    const r = Math.min(24, Math.max(6, (OBJECTIVE_SIZE[o.type] * z) / 2));
+    const r = Math.min(24, Math.max(5, (o.size * z) / 2));
     const by = state.capturedBy.get(o.id);
     const planOwner = by ? plan.alliances.find((a) => a.id === by) : undefined;
     const fill = planOwner ? planOwner.color : o.ai >= 0 ? s.assets.colors[o.ai] : '#e8edf2';
-    objectiveGlyph(ctx, o.type, X, Y, r);
+    objectiveGlyph(ctx, o.glyph, X, Y, r);
     ctx.fillStyle = fill;
     ctx.fill();
     ctx.lineWidth = planOwner ? 3 : 1.8;

@@ -1,5 +1,6 @@
-> **In rok-suite this copy has moved on from `rok-bot/rok_planner`: do not copy `src/` over it.** After a new scan, copy only the data file to `public/rok-planner/k3923.json`.
-> The rest lives in the app: `lib/supabase/migrations/add-map-plans.sql` (the table, with an explicit grant added), `components/kingdom-planner/HomeMapPlanner.tsx` and `mapLayers.ts` (the section, the walled zones, the baulur points).
+> **In rok-suite this copy has moved on from `rok-bot/rok_planner`: do not copy `src/` over it.** After a new scan, copy only the data files to `public/rok-planner/` (`k3923.json`, `mighty_assembly.json`); port upstream code changes by hand.
+> The rest lives in the app: `lib/supabase/migrations/add-map-plans.sql` (the table, with an explicit grant added), `components/kingdom-planner/MapPlannerSection.tsx` (a map section: store, Discord, address), `HomeMapPlanner.tsx` and `mapLayers.ts` (home map: walled zones, baulur points), `KvkMapPlanner.tsx` (the Mighty Assembly, picture `public/rok-planner/mighty_assembly.jpg`: `rok-bot/scan_kvk/mighty_assembly_4096.jpg` at 3072 px).
+> Data format 2 (the kinds table: names, drawings, reach and buff of each structure; crystals, code 9) was ported from upstream on 2026-11-07. Each map keeps its plan in its own address parameters: `mplan` / `mpid` (home), `kplan` / `kpid` (KvK).
 > Tests: `tsx --test components/rok-planner/tests/*.test.ts` from `apps/web`.
 >
 > What differs from the original, and from the text below where it says otherwise:
@@ -9,6 +10,7 @@
 > * **CF initial drop** (`src/core/drop.ts`, `src/ui/panels/DropPanel.tsx`): pick the kinds of resource point in a popup, get the spots where one CF takes in the most.
 > * **Ignoring the alliances** (`src/core/removal.ts`): route and CF drop can go as if the others were not there and list what would have to be removed. A plan can assume buildings gone (`removed`, by position): the map, the rules and the routes then work on a map without them.
 > * **Wall jumps** (`src/core/walljump.ts`): a toggle that highlights where two flags on opposite sides of a wall have land that touches, and where only a CF on one side and a flag on the other do it (the CF's square is bigger).
+> * **New plan** starts on an empty kingdom (`blank`: none of the game's alliances, none of the plan's); the "Empty kingdom" switch brings the map back.
 > * **Gone:** the grid, the report and "Go to".
 > * **Colours:** no alliance gets a red, orange, pink or violet.
 > * **Host API:** `onRequireSignIn` receives the plan, so an unsaved plan survives the Discord sign-in; `ExtraLayer.over` draws a layer above the land and the map's things.

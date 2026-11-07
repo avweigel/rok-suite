@@ -32,7 +32,7 @@ export function describeAt(world: World, plan: PlanDoc, state: PlanState, x: num
     const planName = by ? plan.alliances.find((q) => q.id === by)?.name : undefined;
     offer(Math.hypot(o.x - x, o.y - y), {
       x: o.x, y: o.y, title: o.name,
-      lines: [`at ${o.x}, ${o.y}`, o.ai >= 0 ? `owned by ${allianceLabel(world, o.ai)}` : planName ? `captured by ${planName} in the plan` : 'nobody owns it', 'its land is 5 x 5 cells around it'],
+      lines: [`at ${o.x}, ${o.y}`, ...(o.buff ? [`gives: ${o.buff}`] : []), o.ai >= 0 ? `owned by ${allianceLabel(world, o.ai)}` : planName ? `captured by ${planName} in the plan` : 'nobody owns it', `its land is ${2 * o.reach + 1} x ${2 * o.reach + 1} cells around it`],
     });
   }
   for (const p of world.points) {

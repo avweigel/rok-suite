@@ -2,14 +2,19 @@
 // refuse a building. Pure: no DOM, no React.
 import { PointGrid, REACH, cellKey, cellOf, decodeLevels, decodeMeshes, decodePairs, footprint, radiusFor, terrainDistance } from './geometry';
 import type { MeshSet } from './geometry';
-import type { CellKey, ExistingAlliance, ExistingBuilding, MapDataFile, Objective, ResourcePoint, TerrainKind } from './types';
+import type { CellKey, ExistingAlliance, ExistingBuilding, KindDef, MapDataFile, Objective, ResourcePoint, TerrainKind } from './types';
 
 /** Why an entry of the blocker grids refuses a building: the tag stored with it. */
 export const BLOCK = { node: 0, building: 1, point: 2, minor: 3, city: 4 } as const;
 export type BlockTag = (typeof BLOCK)[keyof typeof BLOCK];
 
-export const SITE_NAMES = ['Storm Altar', 'Shrine of Honor', 'Lost Temple'] as const;
-const SITE_TYPES = ['altar', 'shrine', 'temple'] as const;
+/** The structures of format 1 files (they had no table): the home map's. Sites are kinds 0-2, passes kind 3. */
+const V1_KINDS: KindDef[] = [
+  { id: 'altar', name: 'Storm Altar', glyph: 'altar', size: 3, reach: REACH.site },
+  { id: 'shrine', name: 'Shrine of Honor', glyph: 'shrine', size: 4, reach: REACH.site },
+  { id: 'temple', name: 'Lost Temple', glyph: 'temple', size: 5.25, reach: REACH.site },
+  { id: 'pass', name: 'Pass', glyph: 'pass', size: 4, reach: REACH.site },
+];
 /** The `size` fields of the objects that refuse buildings (cmd_dictionary.md): flag 1.4, fortress 3.0 / 3.75, centre 2.5, type-9 point 3.25, tribal village / type 10 / gathering node 1.8. */
 const BUILDING_SIZE = [1.4, 3.0, 3.75, 2.5];
 const POINT_SIZE = 3.25;
@@ -77,6 +82,8 @@ export interface World {
   alliances: ExistingAlliance[];
   allianceIndexById: Map<number, number>;
   buildings: ExistingBuilding[];
+  /** The kinds of structure of this map, in the order of the data file. */
+  kinds: KindDef[];
   objectives: Objective[];
   points: ResourcePoint[];
   /** Flat (x, y) pairs. */
@@ -107,7 +114,7 @@ interface Claim {
 /** The land of the existing alliances: every building claims its square of cells; where two squares overlap the OLDER building keeps the cell (holy sites and passes were there first). */
 export function deriveLand(buildings: ExistingBuilding[], objectives: Objective[]): { owner: Map<CellKey, number>; landOf: Map<number, Set<CellKey>> } {
   const claims: Claim[] = [];
-  for (const o of objectives) if (o.ai >= 0) claims.push({ built: 0, ai: o.ai, reach: REACH.site, x: o.x, y: o.y });
+  for (const o of objectives) if (o.ai >= 0) claims.push({ built: 0, ai: o.ai, reach: o.reach, x: o.x, y: o.y });
   for (const b of buildings) {
     if (b.kind === 0) claims.push({ built: b.built, ai: b.ai, reach: REACH.flag, x: b.x, y: b.y });
     else if (b.kind === 1 || b.kind === 2) claims.push({ built: b.built, ai: b.ai, reach: REACH.cf, x: b.x, y: b.y });
@@ -161,7 +168,7 @@ export function rebuildWorld(world: World, buildings: ExistingBuilding[], object
 }
 
 export function loadWorld(data: MapDataFile): World {
-  if (!data || data.v !== 1 || !Array.isArray(data.bounds) || !Array.isArray(data.alliances)) throw new Error('This is not a planner data file (wrong format or version).');
+  if (!data || (data.v !== 1 && data.v !== 2) || !Array.isArray(data.bounds) || !Array.isArray(data.alliances)) throw new Error('This is not a planner data file (wrong format or version).');
   const [minX, minY, width, height] = data.bounds;
   const radii = data.radii;
   let terrain: Terrain;
@@ -177,15 +184,19 @@ export function loadWorld(data: MapDataFile): World {
   const alliances: ExistingAlliance[] = data.alliances.map(([id, tag, name], index) => ({ index, id, tag, name }));
   const allianceIndexById = new Map(alliances.map((a) => [a.id, a.index] as const));
   const buildings: ExistingBuilding[] = data.buildings.map(([x, y, kind, ai, built]) => ({ x, y, kind: kind as ExistingBuilding['kind'], ai, built }));
+  const kinds: KindDef[] = data.v === 2 ? (data.kinds ?? []).map((k) => ({ ...k, reach: Math.max(0, Math.round(k.reach)) })) : V1_KINDS;
+  const rows: [number, number, number, number][] =
+    data.v === 2 ? data.objectives ?? [] : [...(data.sites ?? []), ...(data.passes ?? []).map(([x, y, ai]): [number, number, number, number] => [x, y, 3, ai])];
   const objectives: Objective[] = [];
-  data.sites.forEach(([x, y, kind, ai], i) => {
+  const counts = new Map<string, number>();
+  for (const [x, y, k, ai] of rows) {
+    const kind = kinds[k];
+    if (!kind) continue;
+    const n = counts.get(kind.id) ?? 0;
+    counts.set(kind.id, n + 1);
     const [cx, cy] = cellOf(x, y);
-    objectives.push({ id: `site${i}`, type: SITE_TYPES[kind] ?? 'altar', name: SITE_NAMES[kind] ?? 'Holy site', x, y, ai, cell: cellKey(cx, cy) });
-  });
-  data.passes.forEach(([x, y, ai], i) => {
-    const [cx, cy] = cellOf(x, y);
-    objectives.push({ id: `pass${i}`, type: 'pass', name: 'Pass', x, y, ai, cell: cellKey(cx, cy) });
-  });
+    objectives.push({ id: `${kind.id}${n}`, type: kind.id, name: kind.name, glyph: kind.glyph, size: kind.size, reach: kind.reach, ...(kind.buff ? { buff: kind.buff } : {}), x, y, ai, cell: cellKey(cx, cy) });
+  }
   const points: ResourcePoint[] = data.points.map(([x, y, res, ai]) => {
     const [cx, cy] = cellOf(x, y);
     return { x, y, res, ai, cell: cellKey(cx, cy) };
@@ -207,9 +218,23 @@ export function loadWorld(data: MapDataFile): World {
   for (const [k, v] of Object.entries(data.resources ?? {})) resources[Number(k)] = v;
 
   return {
-    data, name: data.name, generated: data.generated, sources: data.sources ?? {}, bounds: { minX, minY, width, height }, resources, terrain, alliances, allianceIndexById, buildings, objectives, points,
+    data, name: data.name, generated: data.generated, sources: data.sources ?? {}, bounds: { minX, minY, width, height }, resources, terrain, alliances, allianceIndexById, buildings, kinds, objectives, points,
     cities, minor, hard, gather, owner, landOf, fortAlliances, forts, radii,
   };
+}
+
+/** The resource codes this map has, in order (1 food, 2 wood, 3 stone, 4 gold, 9 crystal...). */
+export function resourceCodes(world: World): number[] {
+  return Object.keys(world.resources).map(Number).filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
+}
+
+/** A kind's name for n of them: "1 Lost Temple", "4 Shrines of Honor", "13 Passes". */
+export function kindName(kind: Pick<KindDef, 'name'>, n: number): string {
+  if (n === 1) return kind.name;
+  const m = kind.name.match(/^(.*?)( of .*)?$/)!;
+  const head = m[1];
+  const plural = /(s|x|z|ch|sh)$/i.test(head) ? `${head}es` : `${head}s`;
+  return plural + (m[2] ?? '');
 }
 
 /** Short name of an existing alliance for messages: its tag, else its name, else its id. */

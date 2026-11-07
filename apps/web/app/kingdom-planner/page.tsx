@@ -2,13 +2,13 @@
 
 // Kingdom Planner (officers and admins): the AoO planner, the home kingdom
 // map (alliance land planner with the walled zones, passes and baulur points)
-// and the KvK map (to come). Shared plan links stay open to everyone: AoO
-// (?plan=…) and map (?mplan=…).
+// and the KvK map (the same planner on the Mighty Assembly). Shared plan links
+// stay open to everyone: AoO (?plan=…), home map (?mplan=…), KvK map (?kplan=…).
 
 import { useCallback, useState, useSyncExternalStore } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Castle, Map as MapIcon } from 'lucide-react';
+import { Castle } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
 import { LockedPlaceholder } from '@/components/LockedPlaceholder';
 import { meetsRole, useAuthRole } from '@/lib/auth-role';
@@ -24,6 +24,11 @@ function Spinner() {
 
 const AooPlanner = dynamic(() => import('@/components/kingdom-planner/AooPlanner'), { ssr: false, loading: Spinner });
 const HomeMapPlanner = dynamic(() => import('@/components/kingdom-planner/HomeMapPlanner'), { ssr: false, loading: Spinner });
+const KvkMapPlanner = dynamic(() => import('@/components/kingdom-planner/KvkMapPlanner'), { ssr: false, loading: Spinner });
+
+/** The address parameters of a map plan (see MapPlannerSection: each map has its own). */
+const HOME_PARAMS = ['mplan', 'mpid'];
+const KVK_PARAMS = ['kplan', 'kpid'];
 
 const SECTIONS = [
   { id: 'aoo', label: 'AOO' },
@@ -56,16 +61,19 @@ function KingdomPlanner() {
   const canPlan = warRoom.isAtLeast('officer') || meetsRole(role, 'officer');
 
   const raw = searchParams.get('section');
-  // A link to a map plan opens the map, whatever else it says.
-  const hasMapPlan = searchParams.has('mplan') || searchParams.has('mpid');
-  const section: SectionId = isSection(raw) ? raw : hasMapPlan ? 'home-map' : 'aoo';
-  // Once opened, the map stays mounted: a plan not saved yet lives in its state.
+  // A link to a map plan opens its map, when it does not say the section.
+  const hasHomePlan = HOME_PARAMS.some((k) => searchParams.has(k));
+  const hasKvkPlan = KVK_PARAMS.some((k) => searchParams.has(k));
+  const section: SectionId = isSection(raw) ? raw : hasKvkPlan ? 'kvk-map' : hasHomePlan ? 'home-map' : 'aoo';
+  // Once opened, a map stays mounted: a plan not saved yet lives in its state.
   const [mapOpened, setMapOpened] = useState(section === 'home-map');
   if (section === 'home-map' && !mapOpened) setMapOpened(true);
+  const [kvkOpened, setKvkOpened] = useState(section === 'kvk-map');
+  if (section === 'kvk-map' && !kvkOpened) setKvkOpened(true);
   const setSection = useCallback(
     (next: SectionId) => {
       const params = new URLSearchParams(searchParams.toString());
-      if (next === 'aoo' && !params.has('mplan') && !params.has('mpid')) params.delete('section');
+      if (next === 'aoo' && ![...HOME_PARAMS, ...KVK_PARAMS].some((k) => params.has(k))) params.delete('section');
       else params.set('section', next);
       const qs = params.toString();
       router.replace(qs ? `?${qs}` : '/kingdom-planner', { scroll: false });
@@ -77,6 +85,7 @@ function KingdomPlanner() {
   if (!canPlan) {
     // A shared plan link: the plan only.
     if (searchParams.get('plan')) return <AooPlanner officer={false} />;
+    if (searchParams.get('kplan') && (raw === 'kvk-map' || !searchParams.get('mplan'))) return <KvkMapPlanner />;
     if (searchParams.get('mplan')) return <HomeMapPlanner />;
     return <LockedPlaceholder title="Kingdom Planner" description="Officer or admin access required." />;
   }
@@ -119,13 +128,9 @@ function KingdomPlanner() {
         </div>
       )}
 
-      {section === 'kvk-map' && (
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-10">
-          <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--background-card)] p-10 text-center">
-            <MapIcon className="mx-auto mb-3 text-[var(--text-muted)]" />
-            <h2 className="text-sm font-semibold text-[var(--foreground)]">KvK Map</h2>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Coming soon.</p>
-          </div>
+      {kvkOpened && (
+        <div className={section === 'kvk-map' ? undefined : 'hidden'}>
+          <KvkMapPlanner />
         </div>
       )}
     </div>

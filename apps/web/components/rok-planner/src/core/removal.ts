@@ -89,7 +89,7 @@ function coversOf(world: World): Map<CellKey, Cover[]> {
     if (b.kind === 0) put(REACH.flag, b.x, b.y, b.ai);
     else if (b.kind === 1 || b.kind === 2) put(REACH.cf, b.x, b.y, b.ai);
   }
-  for (const o of world.objectives) if (o.ai >= 0) put(REACH.site, o.x, o.y, o.ai);
+  for (const o of world.objectives) if (o.ai >= 0) put(o.reach, o.x, o.y, o.ai);
   coverCache.set(world, map);
   return map;
 }

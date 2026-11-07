@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { existingColor } from '../../core/colors';
 import type { ObjectiveType } from '../../core/types';
+import { kindName, resourceCodes } from '../../core/world';
 import type { World } from '../../core/world';
 import { Check, ResIcon, Section, cap } from '../components';
 import type { ExtraLayer, Filters, Layers } from '../model';
@@ -24,10 +25,8 @@ export interface FiltersPanelProps {
   wallJumps: { on: boolean; inner: boolean; cf: boolean; count: number | null; cfCount: number | null; onToggle(v: boolean): void; onInner(v: boolean): void; onCf(v: boolean): void };
 }
 
-const CODES = [1, 2, 3, 4];
-const OBJ_TYPES: ObjectiveType[] = ['temple', 'shrine', 'altar', 'pass'];
-const OBJ_NAME: Record<ObjectiveType, [string, string]> = {
-  temple: ['Lost Temple', 'Lost Temples'],
+/** The home map's structures, in short. */
+const SHORT: Record<string, [string, string]> = {
   shrine: ['shrine', 'shrines'],
   altar: ['altar', 'altars'],
   pass: ['pass', 'passes'],
@@ -71,7 +70,10 @@ export function FiltersPanel(p: FiltersPanelProps) {
       .sort((a, b) => (owned.get(b.index) ?? 0) - (owned.get(a.index) ?? 0) || a.tag.localeCompare(b.tag));
   }, [holders, query, owned]);
 
-  const resCodes = CODES.filter((c) => world.resources[c]);
+  const resCodes = resourceCodes(world);
+  // the biggest structures first
+  const kinds = useMemo(() => world.kinds.map((k, i) => ({ k, i })).sort((a, b) => b.k.size - a.k.size || a.i - b.i).map(({ k }) => k), [world]);
+  const sitesName = (id: string, n: number): string => SHORT[id]?.[n === 1 ? 0 : 1] ?? kindName(world.kinds.find((k) => k.id === id) ?? { name: id }, n);
   const toggleAlliance = (i: number): void => {
     const next = new Set(filters.hiddenExisting);
     if (next.has(i)) next.delete(i);
@@ -171,9 +173,9 @@ export function FiltersPanel(p: FiltersPanelProps) {
                             {nodes[c]}
                           </span>
                         ))}
-                      {OBJ_TYPES.filter((t) => sites[t]).map((t) => (
-                        <span key={t}>
-                          {sites[t]} {OBJ_NAME[t][sites[t] === 1 ? 0 : 1]}
+                      {kinds.filter((k) => sites[k.id]).map((k) => (
+                        <span key={k.id}>
+                          {sites[k.id]} {sitesName(k.id, sites[k.id]!)}
                         </span>
                       ))}
                     </span>

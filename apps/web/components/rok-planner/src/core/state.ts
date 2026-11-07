@@ -49,7 +49,7 @@ export function computeState(world: World, plan: PlanDoc): PlanState {
   const byAlliance = new Map<string, AllianceState>();
   const forts: PlannedFort[] = world.forts.map((f) => ({ cx: f.cx, cy: f.cy, plan: null, ai: f.ai }));
 
-  const free = world.objectives.map((o) => ({ o, fp: footprint(REACH.site, o.x, o.y) }));
+  const free = world.objectives.map((o) => ({ o, fp: footprint(o.reach, o.x, o.y) }));
 
   for (const alliance of plan.alliances) {
     const baseIndex = alliance.baseId != null ? world.allianceIndexById.get(alliance.baseId) ?? -1 : -1;

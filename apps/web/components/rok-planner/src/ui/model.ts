@@ -33,6 +33,7 @@ export interface Filters {
   /** Resource points inside nobody's land / inside somebody's land. */
   pointsFree: boolean;
   pointsTaken: boolean;
+  /** Kind id -> shown (absent = shown). */
   objectives: Readonly<Record<ObjectiveType, boolean>>;
 }
 
@@ -42,16 +43,13 @@ export const DEFAULT_FILTERS: Filters = {
   res: {},
   pointsFree: true,
   pointsTaken: true,
-  objectives: { altar: true, shrine: true, temple: true, pass: true },
+  objectives: {},
 };
 
-export const RES_COLORS: Record<number, string> = { 1: '#7bc96f', 2: '#c08a5a', 3: '#b9c4d0', 4: '#f2cc60' };
+export const RES_COLORS: Record<number, string> = { 1: '#7bc96f', 2: '#c08a5a', 3: '#b9c4d0', 4: '#f2cc60', 9: '#7fb2ff' };
 export const RES_FALLBACK = '#c9a0ff';
 export const resColor = (code: number): string => RES_COLORS[code] ?? RES_FALLBACK;
 
-export const OBJECTIVE_LABEL: Record<ObjectiveType, string> = { altar: 'Storm Altars', shrine: 'Shrines', temple: 'Lost Temple', pass: 'Passes (gates)' };
-/** Size in tiles of the objects, for the markers. */
-export const OBJECTIVE_SIZE: Record<ObjectiveType, number> = { altar: 3, shrine: 4, temple: 5.25, pass: 4 };
 
 export interface Ghost {
   x: number;

@@ -3,6 +3,7 @@
 import type { PlanDoc } from '../../core/plan';
 import { MAX_EXTRA_FLAGS, PRESETS } from '../../core/route';
 import type { RouteMode, RouteOptions, RouteResult } from '../../core/route';
+import { resourceCodes } from '../../core/world';
 import type { World } from '../../core/world';
 import { Check, RemovalList, ResIcon, Section, Seg, cap, plural } from '../components';
 import type { Picks, Tool } from '../model';
@@ -51,7 +52,7 @@ function Coord(props: { label: string; value: [number, number] | null; onChange(
 
 export function RoutePanel(p: RoutePanelProps) {
   const { world, options, result } = p;
-  const codes = [1, 2, 3, 4].filter((c) => world.resources[c]);
+  const codes = resourceCodes(world);
   const active = p.plan.alliances.find((a) => a.id === p.activeId);
   const ready = !!p.picks.a && !!p.picks.b && !p.busy;
   const objective = p.picks.objectiveId ? world.objectives.find((o) => o.id === p.picks.objectiveId) : undefined;
