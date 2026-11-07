@@ -10,14 +10,22 @@ import { LeadBoard } from '@/components/apply/LeadBoard';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { SignInButton } from '@/components/SignInButton';
 import { useAuthRole, meetsRole } from '@/lib/auth-role';
+import { AuthGate } from '@/components/AuthGate';
 
 type Tab = 'submit' | 'review' | 'board';
 
 export default function ApplyPage() {
+  return (
+    <AuthGate require="power" title="Submit lead info">
+      <ApplyPageInner />
+    </AuthGate>
+  );
+}
+
+function ApplyPageInner() {
   const t = useTranslations('apply');
   const { role } = useAuthRole();
-  // Review access is granted to both admin and officer. The submit form is
-  // open to everyone — applicants don't need to sign in.
+  // Signed in only (any role). Review access is granted to both admin and officer.
   const isAdmin = meetsRole(role, ['admin', 'officer']);
   const [tab, setTab] = useState<Tab>(isAdmin ? 'review' : 'submit');
 
@@ -39,7 +47,7 @@ export default function ApplyPage() {
           </Link>
           <div className="flex items-center gap-1">
             <LanguageSwitcher dropdownDown />
-            {/* Subdued so public visitors don't think they have to sign in */}
+            {/* The account menu: role and Sign out */}
             <div className="opacity-70 hover:opacity-100 transition-opacity">
               <SignInButton />
             </div>

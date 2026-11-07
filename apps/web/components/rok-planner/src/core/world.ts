@@ -5,7 +5,7 @@ import type { MeshSet } from './geometry';
 import type { CellKey, ExistingAlliance, ExistingBuilding, KindDef, MapDataFile, Objective, ResourcePoint, TerrainKind } from './types';
 
 /** Why an entry of the blocker grids refuses a building: the tag stored with it. */
-export const BLOCK = { node: 0, building: 1, point: 2, minor: 3, city: 4 } as const;
+export const BLOCK = { node: 0, building: 1, point: 2, minor: 3, city: 4, gate: 5 } as const;
 export type BlockTag = (typeof BLOCK)[keyof typeof BLOCK];
 
 /** The structures of format 1 files (they had no table): the home map's. Sites are kinds 0-2, passes kind 3. */
@@ -101,6 +101,13 @@ export interface World {
   fortAlliances: Set<number>;
   forts: FortCell[];
   radii: { flag: number; pit: number; fort: number };
+  /** [minX, minY, maxX, maxY]: where a fortress is refused, flags only. */
+  noFort: [number, number, number, number][];
+}
+
+/** Is (x, y) in an area where the game refuses a fortress? */
+export function fortBanned(world: Pick<World, 'noFort'>, x: number, y: number): boolean {
+  return world.noFort.some(([x0, y0, x1, y1]) => x > x0 && x < x1 && y > y0 && y < y1);
 }
 
 interface Claim {
@@ -135,12 +142,16 @@ export function deriveLand(buildings: ExistingBuilding[], objectives: Objective[
   return { owner, landOf };
 }
 
-function buildHard(buildings: ExistingBuilding[], points: ResourcePoint[], minor: Float32Array, cities: Float32Array, cityRadius: number): PointGrid {
+/** Nothing can be built on the ground around a gate, like around a CF: its size says how far. */
+export const gateRadius = (o: Pick<Objective, 'size'>): number => radiusFor(o.size);
+
+function buildHard(buildings: ExistingBuilding[], points: ResourcePoint[], minor: Float32Array, cities: Float32Array, cityRadius: number, objectives: Objective[]): PointGrid {
   const hard = new PointGrid(4);
   for (const b of buildings) hard.add(b.x, b.y, buildingRadius(b.kind), BLOCK.building);
   for (const p of points) hard.add(p.x, p.y, radiusFor(POINT_SIZE), BLOCK.point);
   for (let i = 0; i + 1 < minor.length; i += 2) hard.add(minor[i], minor[i + 1], radiusFor(MINOR_SIZE), BLOCK.minor);
   for (let i = 0; i + 1 < cities.length; i += 2) hard.add(cities[i], cities[i + 1], cityRadius, BLOCK.city);
+  for (const o of objectives) if (o.type === 'pass') hard.add(o.x, o.y, gateRadius(o), BLOCK.gate);
   return hard;
 }
 
@@ -163,7 +174,7 @@ export function rebuildWorld(world: World, buildings: ExistingBuilding[], object
   const points = world.points.map((p) => (p.ai >= 0 && !owner.has(p.cell) ? { ...p, ai: -1 } : p));
   return {
     ...world, buildings, objectives, points, owner, landOf, ...fortsOf(buildings),
-    hard: buildHard(buildings, points, world.minor, world.cities, world.data.cityRadius),
+    hard: buildHard(buildings, points, world.minor, world.cities, world.data.cityRadius, objectives),
   };
 }
 
@@ -204,7 +215,7 @@ export function loadWorld(data: MapDataFile): World {
 
   const minor = decodePairs(data.minor);
   const cities = decodePairs(data.cities);
-  const hard = buildHard(buildings, points, minor, cities, data.cityRadius);
+  const hard = buildHard(buildings, points, minor, cities, data.cityRadius, objectives);
   let gather: PointGrid | null = null;
   if (data.nodes) {
     gather = new PointGrid(4);
@@ -219,7 +230,7 @@ export function loadWorld(data: MapDataFile): World {
 
   return {
     data, name: data.name, generated: data.generated, sources: data.sources ?? {}, bounds: { minX, minY, width, height }, resources, terrain, alliances, allianceIndexById, buildings, kinds, objectives, points,
-    cities, minor, hard, gather, owner, landOf, fortAlliances, forts, radii,
+    cities, minor, hard, gather, owner, landOf, fortAlliances, forts, radii, noFort: data.noFort ?? [],
   };
 }
 

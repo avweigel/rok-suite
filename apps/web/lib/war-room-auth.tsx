@@ -1,26 +1,20 @@
 'use client';
 
+// The War Room's sign-in (used by Migration, Upload, Kingdom Planner) is the
+// site's own: the role comes from lib/auth-role (the Sign in button), so one
+// login and one sign-out cover every page. Only the officer's name, used to
+// sign the changes made on Migration, is kept here (localStorage).
+
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import { dropLegacyLogin, useAuthRole } from '@/lib/auth-role';
+
 export type WarRoomRole = 'viewer' | 'power' | 'officer' | 'admin';
-import { ADMIN_PASSWORD, OFFICER_PASSWORD, POWER_PASSWORD } from '@/lib/auth-passwords';
 
-const PASSWORDS: Record<Exclude<WarRoomRole, 'viewer'>, string> = {
-  power: POWER_PASSWORD,
-  officer: OFFICER_PASSWORD,
-  admin: ADMIN_PASSWORD,
-};
-
-// 'power' is no longer a separate login tier — what was previously gated to
-// power+ is now available with no login. Viewer and power share rank 1, so
-// `isAtLeast('power')` returns true for anyone, including unlogged users.
+// 'power' is no longer a separate tier here: viewer and power share rank 1,
+// so `isAtLeast('power')` is true for anyone, signed in or not.
 const ROLE_RANK: Record<WarRoomRole, number> = { viewer: 1, power: 1, officer: 2, admin: 3 };
 
 const OFFICER_NAME_KEY = 'warroom-officer-name';
-const ROLE_KEY = 'warroom-role';
-
-function isValidRole(v: string | null): v is WarRoomRole {
-  return v === 'viewer' || v === 'power' || v === 'officer' || v === 'admin';
-}
 
 interface WarRoomAuthContextType {
   role: WarRoomRole;
@@ -36,60 +30,35 @@ interface WarRoomAuthContextType {
 const WarRoomAuthContext = createContext<WarRoomAuthContextType | undefined>(undefined);
 
 export function WarRoomAuthProvider({ children }: { children: ReactNode }) {
-  const [role, setRole] = useState<WarRoomRole>('viewer');
+  const { role: siteRole, unlockWith, signOut } = useAuthRole();
+  const role: WarRoomRole = siteRole ?? 'viewer';
   const [officerName, setOfficerNameState] = useState<string | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
-  // Restore officer name + role from localStorage on mount so signing in
-  // persists across page navigations (each page wraps its own provider).
   useEffect(() => {
+    dropLegacyLogin();
     const savedName = localStorage.getItem(OFFICER_NAME_KEY);
     if (savedName) setOfficerNameState(savedName);
-    const savedRole = localStorage.getItem(ROLE_KEY);
-    if (isValidRole(savedRole) && savedRole !== 'viewer') setRole(savedRole);
   }, []);
 
   const setOfficerName = useCallback((name: string | null) => {
     setOfficerNameState(name);
-    if (name) {
-      localStorage.setItem(OFFICER_NAME_KEY, name);
-    } else {
-      localStorage.removeItem(OFFICER_NAME_KEY);
-    }
+    if (name) localStorage.setItem(OFFICER_NAME_KEY, name);
+    else localStorage.removeItem(OFFICER_NAME_KEY);
   }, []);
 
-  const isAtLeast = useCallback(
-    (minimumRole: WarRoomRole) => ROLE_RANK[role] >= ROLE_RANK[minimumRole],
-    [role]
+  const isAtLeast = useCallback((minimumRole: WarRoomRole) => ROLE_RANK[role] >= ROLE_RANK[minimumRole], [role]);
+
+  const login = useCallback(
+    (password: string): boolean => {
+      const ok = unlockWith(password) !== null;
+      if (ok) setShowLoginPrompt(false);
+      return ok;
+    },
+    [unlockWith],
   );
 
-  const login = useCallback((password: string): boolean => {
-    // Check from most- to least-privileged so stronger creds win ties.
-    if (PASSWORDS.admin && password === PASSWORDS.admin) {
-      setRole('admin');
-      localStorage.setItem(ROLE_KEY, 'admin');
-      setShowLoginPrompt(false);
-      return true;
-    }
-    if (PASSWORDS.officer && password === PASSWORDS.officer) {
-      setRole('officer');
-      localStorage.setItem(ROLE_KEY, 'officer');
-      setShowLoginPrompt(false);
-      return true;
-    }
-    if (PASSWORDS.power && password === PASSWORDS.power) {
-      setRole('power');
-      localStorage.setItem(ROLE_KEY, 'power');
-      setShowLoginPrompt(false);
-      return true;
-    }
-    return false;
-  }, []);
-
-  const logout = useCallback(() => {
-    setRole('viewer');
-    localStorage.removeItem(ROLE_KEY);
-  }, []);
+  const logout = useCallback(() => signOut(), [signOut]);
 
   return (
     <WarRoomAuthContext.Provider value={{ role, officerName, setOfficerName, isAtLeast, login, logout, showLoginPrompt, setShowLoginPrompt }}>

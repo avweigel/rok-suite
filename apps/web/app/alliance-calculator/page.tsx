@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Flag, Wheat, Mountain, Coins, TrendingUp, Gem, Medal, CalendarClock, ChevronsUp, Timer, Warehouse } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { AppSidebar } from '@/components/AppSidebar';
+import { AuthGate } from '@/components/AuthGate';
 
 function LogIcon({ className }: { className?: string }) {
   return (
@@ -249,7 +250,15 @@ function loadPersistedState(): PersistedState | null {
   }
 }
 
-export default function FlagCalculatorPage() {
+export default function AllianceCalculatorPage() {
+  return (
+    <AuthGate require="power" sidebar title="Alliance Calculator">
+      <FlagCalculatorPage />
+    </AuthGate>
+  );
+}
+
+function FlagCalculatorPage() {
   const t = useTranslations('allianceCalculator');
   const [activeTab, setActiveTab] = useState<ActiveTab>('flags');
   const [mode, setMode] = useState<CalcMode>('by-time');

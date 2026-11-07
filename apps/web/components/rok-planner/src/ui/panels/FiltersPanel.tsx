@@ -22,7 +22,7 @@ export interface FiltersPanelProps {
   extra: ExtraLayer[];
   extraOn: Record<string, boolean>;
   onExtraOn(next: Record<string, boolean>): void;
-  wallJumps: { on: boolean; inner: boolean; cf: boolean; count: number | null; cfCount: number | null; onToggle(v: boolean): void; onInner(v: boolean): void; onCf(v: boolean): void };
+  wallJumps: { on: boolean; inner: boolean; cf: boolean; zones: boolean; count: number | null; cfCount: number | null; onToggle(v: boolean): void; onInner(v: boolean): void; onCf(v: boolean): void };
 }
 
 /** The home map's structures, in short. */
@@ -128,7 +128,14 @@ export function FiltersPanel(p: FiltersPanelProps) {
               label={`With a CF + flag${p.wallJumps.cfCount !== null ? ` (${p.wallJumps.cfCount})` : ''}`}
               hint="Where two flags are too far apart, but a CF on one side reaches: its square is bigger."
             />
-            <Check checked={p.wallJumps.inner} onChange={p.wallJumps.onInner} label="Also ridges inside a zone" />
+            {p.wallJumps.zones && (
+              <Check
+                checked={p.wallJumps.inner}
+                onChange={p.wallJumps.onInner}
+                label="Also ridges inside a zone"
+                hint="By default only the walls between two zones. This adds the mountain ridges inside one zone, where a jump saves a detour but does not reach another zone."
+              />
+            )}
           </>
         )}
       </Section>

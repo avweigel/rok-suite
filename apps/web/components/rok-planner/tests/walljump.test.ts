@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { SIZE, cellOf, footprint, radiusFor, touches } from '../src/core/geometry';
 import { addItems, emptyPlan } from '../src/core/plan';
 import { withoutOthers } from '../src/core/removal';
-import { BLOCK } from '../src/core/world';
+import { BLOCK, gateRadius } from '../src/core/world';
 import { PRESETS, planRoute } from '../src/core/route';
 import { computeState } from '../src/core/state';
 import { findWallJumps, openJumps } from '../src/core/walljump';
@@ -106,11 +106,15 @@ test('a pocket too small to matter is not the other side of a wall', () => {
   assert.equal(findWallJumps(walled(box)).length, 0);
 });
 
-test('next to a pass the pass is the way across', () => {
+test('next to a gate a jump still counts (the gate has to be taken first), but no flag stands on the ground around the gate', () => {
   const w = walled(thin, { passes: [[153, 150, -1]] });
+  const gate = w.objectives.find((o) => o.type === 'pass')!;
   const j = findWallJumps(w, zones);
-  assert.ok(j.length >= 2, 'the wall is cut in two stretches');
-  for (const s of j) for (const [ax, ay, bx, by] of s.pairs) assert.ok(Math.hypot((ax + bx) / 2 - 153, (ay + by) / 2 - 150) >= 14);
+  assert.ok(j.length >= 1);
+  const pairs = j.flatMap((s) => s.pairs);
+  assert.ok(pairs.some(([ax, ay, bx, by]) => Math.hypot((ax + bx) / 2 - 153, (ay + by) / 2 - 150) < 14), 'pairs right beside the gate are kept');
+  const keep = gateRadius(gate) + radiusFor(SIZE.flag);
+  for (const [ax, ay, bx, by] of pairs) assert.ok(Math.hypot(ax - 153, ay - 150) >= keep && Math.hypot(bx - 153, by - 150) >= keep, 'not on the gate');
 });
 
 test('a resource point takes away the spot it stands on', () => {

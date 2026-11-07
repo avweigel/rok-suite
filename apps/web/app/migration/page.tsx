@@ -222,13 +222,12 @@ export default function MigrationPage() {
   );
 }
 
-/** This page has its own sign-in (name + password), but the header/sidebar
- *  Sign in counts too — whichever grants more wins. */
+/** This page's sign-in (name + password) is the site's sign-in: the name only signs the changes. */
 function useEmigrationAccess() {
   const warRoom = useWarRoomAuth();
   const { role: siteRole, signOut } = useAuthRole();
-  const isAdmin = warRoom.isAtLeast('admin') || meetsRole(siteRole, 'admin');
-  const isOfficer = isAdmin || warRoom.isAtLeast('officer') || meetsRole(siteRole, 'officer');
+  const isAdmin = meetsRole(siteRole, 'admin');
+  const isOfficer = isAdmin || meetsRole(siteRole, 'officer');
   return {
     isOfficer,
     isAdmin,
@@ -240,9 +239,9 @@ function useEmigrationAccess() {
 }
 
 function MigrationPageInner() {
-  const { isAtLeast, officerName } = useWarRoomAuth();
+  const { officerName } = useWarRoomAuth();
   const { isOfficer, isAdmin } = useEmigrationAccess();
-  const canView = isAtLeast('power');
+  const canView = true;                                        // the emigration list is public; what officers do needs their sign-in
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -718,7 +717,7 @@ function MigrationPageInner() {
             <Lock className="mx-auto text-[var(--text-muted)] mb-3" />
             <h1 className="text-lg font-semibold text-[var(--foreground)] mb-2">Sign in required</h1>
             <p className="text-sm text-[var(--text-muted)] mb-4">
-              Emigration tracking requires at least power-user access. Use the Sign in button to continue.
+              Emigration tracking is for signed-in members. Use the Sign in button to continue.
             </p>
             <div className="flex items-center justify-center gap-2">
               <SessionBadge />

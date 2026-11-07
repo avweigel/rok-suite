@@ -63,6 +63,8 @@ export interface MapPlannerProps {
   extraLayers?: ExtraLayer[];
   /** The zone of a spot, so that wall jumps can tell walls between zones from ridges inside one. */
   zoneOf?: ZoneOf;
+  /** [minX, minY, maxX, maxY]: where the game refuses a CF, flags only (added to what the data file says). */
+  noFort?: [number, number, number, number][];
   onSignOut?: () => void;
   /** Changes when somebody signs in or out (the user id): the planner asks the store again. */
   authKey?: string | null;
@@ -102,7 +104,7 @@ function defaultShareUrl(shareId: string): string {
 }
 
 export function MapPlanner(props: MapPlannerProps) {
-  const { dataUrl = '/rok-planner/k3923.json', data, backgroundUrl, store, sharedId, planId, initialPlan, initialView, onPlanChange, shareUrl, onRequireSignIn, extraLayers, zoneOf, onSignOut, authKey, providerName, onImportLiveMap, className, style } = props;
+  const { noFort, dataUrl = '/rok-planner/k3923.json', data, backgroundUrl, store, sharedId, planId, initialPlan, initialView, onPlanChange, shareUrl, onRequireSignIn, extraLayers, zoneOf, onSignOut, authKey, providerName, onImportLiveMap, className, style } = props;
 
   // ---- the map data
   const [baseWorld, setBaseWorld] = useState<World | null>(null);
@@ -119,7 +121,7 @@ export function MapPlanner(props: MapPlannerProps) {
           file = (await res.json()) as MapDataFile;
         }
         await new Promise((r) => setTimeout(r, 0));                 // let the "loading" message paint before the heavy decoding
-        const w = loadWorld(file);
+        const w = loadWorld(noFort?.length ? { ...file, noFort: [...(file.noFort ?? []), ...noFort] } : file);
         if (!dead) setBaseWorld(w);
       } catch (e) {
         if (!dead) setLoadError((e as Error).message);
@@ -128,6 +130,7 @@ export function MapPlanner(props: MapPlannerProps) {
     return () => {
       dead = true;
     };
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- noFort is a constant of the host, read with the data
   }, [dataUrl, data]);
 
   // ---- the plan, its undo history, where it is saved
@@ -831,7 +834,7 @@ export function MapPlanner(props: MapPlannerProps) {
               extra={extraLayers ?? []}
               extraOn={extraOn}
               onExtraOn={setExtraOn}
-              wallJumps={{ on: showJumps, inner: jumpsInner, cf: jumpsCf, count: jumpCounts?.flags ?? null, cfCount: jumpCounts?.cf ?? null, onToggle: setShowJumps, onInner: setJumpsInner, onCf: setJumpsCf }}
+              wallJumps={{ on: showJumps, inner: jumpsInner, cf: jumpsCf, zones: !!zoneOf, count: jumpCounts?.flags ?? null, cfCount: jumpCounts?.cf ?? null, onToggle: setShowJumps, onInner: setJumpsInner, onCf: setJumpsCf }}
             />
             <p className="rokp-foot">
               Map data from {world.sources.objects ? `the objects scan of ${world.sources.objects.replace('T', ' ')}` : 'our scans'}

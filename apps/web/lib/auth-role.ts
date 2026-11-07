@@ -99,6 +99,18 @@ export function useAuthRole() {
       if (r) writeStored(r);
       return r;
     },
-    signOut: () => writeStored(null),
+    signOut: () => {
+      dropLegacyLogin();
+      writeStored(null);
+    },
   };
+}
+
+/** The War Room used to keep its own login in localStorage ('warroom-role'), which no sign-out cleared.
+ *  It is the site's login now (lib/war-room-auth.tsx): whatever is left of the old one goes. */
+export function dropLegacyLogin() {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem('warroom-role');
+  } catch { /* localStorage may be unavailable */ }
 }

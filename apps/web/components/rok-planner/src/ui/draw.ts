@@ -7,6 +7,7 @@ import { describeReason } from '../core/rules';
 import type { PlanState } from '../core/state';
 import type { ExistingBuilding, Glyph } from '../core/types';
 import type { JumpView } from '../core/walljump';
+import { gateRadius } from '../core/world';
 import type { World } from '../core/world';
 import { RESOURCE_ICONS } from './resourceIcons';
 import { DEFAULT_MASK_OPACITY, resColor } from './model';
@@ -361,6 +362,20 @@ export function drawWorld(ctx: CanvasRenderingContext2D, s: Scene): void {
       ctx.imageSmoothingEnabled = z < 2;
       ctx.drawImage(mask, box[0] - 0.5, box[1] - 0.5, box[2], box[3]);
       ctx.imageSmoothingEnabled = true;
+      ctx.fillStyle = 'rgb(229,72,77)';                             // around each gate: nothing can be built
+      const own = radiusFor(kind === 'fort' ? SIZE.cf : SIZE.flag);
+      ctx.beginPath();
+      for (const o of world.objectives) {
+        if (o.type !== 'pass') continue;
+        const r = gateRadius(o) + own;
+        ctx.moveTo(o.x + r, o.y);
+        ctx.arc(o.x, o.y, r, 0, 6.2832);
+      }
+      ctx.fill();
+      if (kind === 'fort' && world.noFort.length) {
+        ctx.fillStyle = 'rgb(229,72,77)';                           // no CF there: flags only
+        for (const [x0, y0, x1, y1] of world.noFort) ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+      }
       ctx.globalAlpha = 1;
     }
   }

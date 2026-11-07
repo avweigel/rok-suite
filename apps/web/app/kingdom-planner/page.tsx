@@ -12,7 +12,7 @@ import { Castle } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
 import { LockedPlaceholder } from '@/components/LockedPlaceholder';
 import { meetsRole, useAuthRole } from '@/lib/auth-role';
-import { WarRoomAuthProvider, useWarRoomAuth } from '@/lib/war-room-auth';
+import { WarRoomAuthProvider } from '@/lib/war-room-auth';
 
 function Spinner() {
   return (
@@ -56,9 +56,8 @@ function KingdomPlanner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isClient = useIsClient();
-  const warRoom = useWarRoomAuth();
   const { role } = useAuthRole();
-  const canPlan = warRoom.isAtLeast('officer') || meetsRole(role, 'officer');
+  const canPlan = meetsRole(role, 'officer');
 
   const raw = searchParams.get('section');
   // A link to a map plan opens its map, when it does not say the section.

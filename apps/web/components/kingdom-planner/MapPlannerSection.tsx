@@ -33,9 +33,11 @@ export interface MapPlannerSectionProps {
   backgroundUrl: string;
   extraLayers?: ExtraLayer[];
   zoneOf?: ZoneOf;
+  /** [minX, minY, maxX, maxY]: where the game refuses a CF, flags only. */
+  noFort?: [number, number, number, number][];
 }
 
-export function MapPlannerSection({ section, dataUrl, backgroundUrl, extraLayers, zoneOf }: MapPlannerSectionProps) {
+export function MapPlannerSection({ section, dataUrl, backgroundUrl, extraLayers, zoneOf, noFort }: MapPlannerSectionProps) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -101,6 +103,7 @@ export function MapPlannerSection({ section, dataUrl, backgroundUrl, extraLayers
         onRequireSignIn={onRequireSignIn}
         extraLayers={extraLayers}
         zoneOf={zoneOf}
+        noFort={noFort}
         providerName="Discord"
         authKey={authUser?.id ?? null}
         onSignOut={() => void signOut()}

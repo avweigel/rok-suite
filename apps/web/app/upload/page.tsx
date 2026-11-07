@@ -25,8 +25,8 @@ function UploadPageInner() {
   // Either sign-in works: the header Sign in button or the Emigration one.
   const { role } = useAuthRole();
   const warRoom = useWarRoomAuth();
-  const isAdmin = meetsRole(role, 'admin') || warRoom.isAtLeast('admin');
-  const isOfficer = isAdmin || meetsRole(role, 'officer') || warRoom.isAtLeast('officer');
+  const isAdmin = meetsRole(role, 'admin');
+  const isOfficer = isAdmin || meetsRole(role, 'officer');
   const actor = warRoom.officerName?.trim() || (isAdmin ? 'admin' : 'officer');
   const [historyKey, setHistoryKey] = useState(0);
 

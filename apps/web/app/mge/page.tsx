@@ -9,13 +9,14 @@ import {
   deleteMgeEvent,
   type MgeEvent,
 } from '@/lib/supabase/use-mge';
-import { Shield, Lock, Unlock, Plus, Crown, X, Trash2, CheckSquare, Square } from 'lucide-react';
+import { Shield, Plus, Crown, Trash2, CheckSquare, Square } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { MgeEventCard } from '@/components/mge/MgeEventCard';
 import { MgeEventSetup } from '@/components/mge/MgeEventSetup';
 import { tierSortValue } from '@/lib/mge/helpers';
 
-import { ADMIN_PASSWORD, OFFICER_PASSWORD } from '@/lib/auth-passwords';
+import { AuthGate } from '@/components/AuthGate';
+import { meetsRole, useAuthRole } from '@/lib/auth-role';
 
 interface RosterMember {
   id: string;
@@ -178,14 +179,21 @@ function generateRankingsMail(evt: MgeEvent): string {
 type StatusFilter = 'all' | 'active' | 'past';
 
 export default function MgePage() {
+  return (
+    <AuthGate require="power" sidebar title="MGE">
+      <MgePageInner />
+    </AuthGate>
+  );
+}
+
+function MgePageInner() {
   const t = useTranslations('mge');
   const { events, loading, error, refetch } = useMgeEvents();
 
-  // Two-level auth
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isOfficer, setIsOfficer] = useState(false);
-  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
-  const [password, setPassword] = useState('');
+  // Two levels, from the site's sign-in: officers manage, admins also create and delete.
+  const { role } = useAuthRole();
+  const isAdmin = meetsRole(role, 'admin');
+  const isOfficer = meetsRole(role, 'officer');
 
   // New event form
   const [showNewForm, setShowNewForm] = useState(false);
@@ -273,27 +281,6 @@ export default function MgePage() {
     if (changed) setSelectedIds(next);
   }, [visibleEvents, selectedIds]);
 
-  const handleLogin = () => {
-    if (password === ADMIN_PASSWORD) {
-      setIsAdmin(true);
-      setIsOfficer(true);
-      setShowPasswordPrompt(false);
-      setPassword('');
-    } else if (password === OFFICER_PASSWORD) {
-      setIsOfficer(true);
-      setShowPasswordPrompt(false);
-      setPassword('');
-    } else {
-      alert(t('incorrectPassword'));
-      setPassword('');
-    }
-  };
-
-  const handleLogout = () => {
-    setIsAdmin(false);
-    setIsOfficer(false);
-  };
-
   const handleCreateEvent = async (data: {
     date: string;
     commanders: { name: string; isFocus: boolean }[];
@@ -373,8 +360,6 @@ export default function MgePage() {
     [visibleEvents, selectedIds],
   );
 
-  const inputClass = 'rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50';
-  const inputStyle = { backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)', color: 'var(--foreground)' };
   const btnPrimary = 'px-4 py-2 rounded-md text-sm font-medium bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-fast';
 
   return (
@@ -389,35 +374,9 @@ export default function MgePage() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
-            {isAdmin ? (
-              <>
-                <button onClick={() => setShowNewForm(true)} className={btnPrimary}>
-                  <span className="flex items-center gap-1.5"><Plus size={16} /> {t('newEvent')}</span>
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="p-2 rounded-md hover:bg-blue-500/10 transition-fast"
-                  title={t('lockAdmin')}
-                >
-                  <Unlock size={18} className="text-blue-400" />
-                </button>
-              </>
-            ) : isOfficer ? (
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm hover:bg-blue-500/10 transition-fast text-blue-400"
-              >
-                {t('officerMode')}
-                <X size={14} />
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowPasswordPrompt(true)}
-                className="p-2 rounded-md hover:bg-[var(--background-secondary)] transition-fast"
-                style={{ color: 'var(--text-muted)' }}
-                title={t('login')}
-              >
-                <Lock size={18} />
+            {isAdmin && (
+              <button onClick={() => setShowNewForm(true)} className={btnPrimary}>
+                <span className="flex items-center gap-1.5"><Plus size={16} /> {t('newEvent')}</span>
               </button>
             )}
           </div>
@@ -431,30 +390,6 @@ export default function MgePage() {
             <span style={{ color: 'var(--text-secondary)' }}>
               {isAdmin ? t('adminAccess') : t('officerAccess')}
             </span>
-          </div>
-        )}
-
-        {/* Password prompt */}
-        {showPasswordPrompt && (
-          <div className="mb-4 p-4 rounded-lg border flex items-center gap-3"
-            style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}>
-            <Lock size={16} style={{ color: 'var(--text-muted)' }} />
-            <input
-              type="password"
-              placeholder={t('passwordPlaceholder')}
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleLogin()}
-              className={inputClass + ' flex-1'}
-              style={inputStyle}
-              autoFocus
-            />
-            <button onClick={handleLogin} className={btnPrimary}>{t('enter')}</button>
-            <button onClick={() => { setShowPasswordPrompt(false); setPassword(''); }}
-              className="p-2 rounded-md hover:bg-[var(--background-secondary)]"
-              style={{ color: 'var(--text-muted)' }}>
-              <X size={16} />
-            </button>
           </div>
         )}
 

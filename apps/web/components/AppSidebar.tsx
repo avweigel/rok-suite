@@ -27,6 +27,7 @@ import { KvkCountdownBanner } from './KvkCountdownBanner';
 import { ThemeToggle } from './ThemeToggle';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { SignInButton } from './SignInButton';
+import { useAuthRole } from '@/lib/auth-role';
 import { useTranslations } from 'next-intl';
 
 interface NavItem {
@@ -39,6 +40,8 @@ interface NavItem {
   hoverBg?: string;
   activeColor?: string;
   activeBg?: string;
+  /** Only for somebody signed in (any role). */
+  login?: boolean;
 }
 
 interface NavSection {
@@ -57,6 +60,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const t = useTranslations('nav');
   const t2 = useTranslations('common');
+  const { role } = useAuthRole();
+  const signedIn = role !== null;
 
   const navSections: NavSection[] = [
     {
@@ -64,19 +69,19 @@ export function AppSidebar({ children }: AppSidebarProps) {
       items: [
         { labelKey: 'home', href: '/', icon: <Home size={20} />, hoverColor: 'group-hover:text-violet-400', hoverBg: 'hover:bg-violet-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-[#4318ff] to-[#7c3aed]' },
         { labelKey: 'calendar', href: '/calendar', icon: <Calendar size={20} />, hoverColor: 'group-hover:text-rose-500', hoverBg: 'hover:bg-rose-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-rose-500 to-pink-500' },
-        { labelKey: 'allianceCalculator', href: '/alliance-calculator', icon: <Calculator size={20} />, hoverColor: 'group-hover:text-amber-500', hoverBg: 'hover:bg-amber-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-amber-500 to-orange-500' },
+        { labelKey: 'allianceCalculator', login: true, href: '/alliance-calculator', icon: <Calculator size={20} />, hoverColor: 'group-hover:text-amber-500', hoverBg: 'hover:bg-amber-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-amber-500 to-orange-500' },
         { labelKey: 'fineCalculator', href: '/fine-calculator', icon: <Scale size={20} />, hoverColor: 'group-hover:text-amber-400', hoverBg: 'hover:bg-amber-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-amber-500 to-yellow-500' },
         { labelKey: 'rokMail', href: '/rok-mail', icon: <ScrollText size={20} />, hoverColor: 'group-hover:text-pink-500', hoverBg: 'hover:bg-pink-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-pink-500 to-fuchsia-500' },
         ...(FEATURES.dkp
           ? [{ labelKey: 'dkp', href: '/dkp', icon: <Trophy size={20} />, hoverColor: 'group-hover:text-yellow-500', hoverBg: 'hover:bg-yellow-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-yellow-500 to-amber-500' }]
           : []),
         { labelKey: 'alliances', href: '/alliances', icon: <Users size={20} />, hoverColor: 'group-hover:text-sky-400', hoverBg: 'hover:bg-sky-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-sky-500 to-blue-500' },
-        { labelKey: 'scanUpload', href: '/upload', icon: <Upload size={20} />, hoverColor: 'group-hover:text-cyan-400', hoverBg: 'hover:bg-cyan-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-cyan-500 to-sky-500' },
+        { labelKey: 'scanUpload', login: true, href: '/upload', icon: <Upload size={20} />, hoverColor: 'group-hover:text-cyan-400', hoverBg: 'hover:bg-cyan-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-cyan-500 to-sky-500' },
         { labelKey: 'migration', href: '/migration', icon: <ClipboardList size={20} />, hoverColor: 'group-hover:text-orange-500', hoverBg: 'hover:bg-orange-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-orange-500 to-rose-500' },
-        { labelKey: 'kingdomPlanner', href: '/kingdom-planner', icon: <Castle size={20} />, hoverColor: 'group-hover:text-emerald-500', hoverBg: 'hover:bg-emerald-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-emerald-500 to-teal-500' },
-        { labelKey: 'mge', href: '/mge', icon: <Shield size={20} />, hoverColor: 'group-hover:text-amber-500', hoverBg: 'hover:bg-amber-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-amber-500 to-yellow-500' },
+        { labelKey: 'kingdomPlanner', login: true, href: '/kingdom-planner', icon: <Castle size={20} />, hoverColor: 'group-hover:text-emerald-500', hoverBg: 'hover:bg-emerald-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-emerald-500 to-teal-500' },
+        { labelKey: 'mge', login: true, href: '/mge', icon: <Shield size={20} />, hoverColor: 'group-hover:text-amber-500', hoverBg: 'hover:bg-amber-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-amber-500 to-yellow-500' },
         { labelKey: 'kingdomStats', href: '/kingdom/kingdom-stats', icon: <BarChart3 size={20} />, hoverColor: 'group-hover:text-green-500', hoverBg: 'hover:bg-green-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-green-500 to-emerald-500' },
-        { labelKey: 'applyLeader', href: '/apply', icon: <UserPlus size={20} />, hoverColor: 'group-hover:text-violet-400', hoverBg: 'hover:bg-violet-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-violet-500 to-purple-500' },
+        { labelKey: 'applyLeader', login: true, href: '/apply', icon: <UserPlus size={20} />, hoverColor: 'group-hover:text-violet-400', hoverBg: 'hover:bg-violet-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-violet-500 to-purple-500' },
       ],
     },
   ];
@@ -133,7 +138,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
 
             {/* Section items */}
             <div className="space-y-1">
-              {section.items.map((item) => {
+              {section.items.filter((item) => !item.login || signedIn).map((item) => {
                 const active = isActive(item.href);
                 return (
                   <Link

@@ -2,17 +2,16 @@
 //
 // The terrain says what a side is: the tiles a flag can stand on, connected, make a region, and the walls are what separates regions. A flag's square reaches further than the flag can stand, so
 // two flags in different regions may still share an edge. A CF's square (5 x 5 cells) reaches one cell further still: where two flags are too far apart, a CF on one side and a flag on the
-// other may do it; those are found too, and kept only where two flags would not do. Only regions big enough to be worth reaching count; next to a pass the pass is the way across (and the
-// land takes it on touching).
+// other may do it; those are found too, and kept only where two flags would not do. Only regions big enough to be worth reaching count. A jump next to a gate counts like any other: a gate has to be
+// taken before the land goes through it, and nothing can be built on the ground around it.
 // The result depends on the terrain and the fixed objects only, so it is worked out once per map. Who holds the land right now is asked separately (openJumps).
 import { PointGrid, REACH, SIZE, cellKey, radiusFor } from './geometry';
 import type { CellKey } from './types';
+import { fortBanned, gateRadius } from './world';
 import type { Terrain, World } from './world';
 
 /** A region smaller than this (tiles) is a pocket, not the other side of a wall. */
 const MIN_REGION = 500;
-/** Closer than this (tiles) to a pass, the pass is the way across. */
-const PASS_CLEAR = 14;
 /** Pairs this close (cells) belong to the same stretch of wall. */
 const SAME_STRETCH = 4;
 /** A CF jump this close (cells) to a jump with two flags is not needed. */
@@ -109,6 +108,7 @@ function compute(world: World, zoneOf?: ZoneOf): WallJump[] {
   const fixed = new PointGrid(4);
   for (const p of world.points) fixed.add(p.x, p.y, radiusFor(3.25), 0);
   for (let i = 0; i + 1 < world.minor.length; i += 2) fixed.add(world.minor[i], world.minor[i + 1], radiusFor(1.8), 0);
+  for (const o of world.objectives) if (o.type === 'pass') fixed.add(o.x, o.y, gateRadius(o), 0);
 
   /** Where a flag of this region can stand in this cell, null when nowhere. */
   const spots = new Map<string, [number, number] | null>();
@@ -151,7 +151,7 @@ function compute(world: World, zoneOf?: ZoneOf): WallJump[] {
         const i = x - bx;
         const j = y - by;
         if (i < 0 || j < 0 || i >= W || j >= H || region[j * W + i] !== r) continue;
-        if (t.refuses('fort', x, y) || fixed.find(x, y, Rcf)) continue;
+        if (t.refuses('fort', x, y) || fortBanned(world, x, y) || fixed.find(x, y, Rcf)) continue;
         found = [x, y];
         break;
       }
@@ -168,8 +168,6 @@ function compute(world: World, zoneOf?: ZoneOf): WallJump[] {
   };
 
   // ---- the pairs: squares that overlap or share an edge, never just a corner
-  const passes = world.objectives.filter((o) => o.type === 'pass');
-  const nearPass = (x: number, y: number): boolean => passes.some((o) => Math.abs(o.x - x) < PASS_CLEAR && Math.abs(o.y - y) < PASS_CLEAR && Math.hypot(o.x - x, o.y - y) < PASS_CLEAR);
   interface Pair {
     a: [number, number];
     b: [number, number];
@@ -199,7 +197,7 @@ function compute(world: World, zoneOf?: ZoneOf): WallJump[] {
               if (cf ? ra === rb : ra >= rb) continue;                          // two flags: each pair once; a CF: on either side
               const a = cf ? cfSpot(c, ra) : spot(c, ra);
               const b = a && spot(ny * cols + nx, rb);
-              if (!a || !b || nearPass((a[0] + b[0]) / 2, (a[1] + b[1]) / 2) || !wallBetween(a, b)) continue;
+              if (!a || !b || !wallBetween(a, b)) continue;
               out.push({ a, b, ra, rb, cx, cy, gap: Math.abs(dx) + Math.abs(dy) });
             }
           }

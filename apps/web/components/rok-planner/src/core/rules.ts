@@ -5,13 +5,14 @@ import { REACH, SIZE, cellKey, cellOf, footprint, radiusFor, touches } from './g
 import type { PlanDoc } from './plan';
 import type { PlanState } from './state';
 import type { CellKey, Kind } from './types';
-import { BLOCK, allianceLabel } from './world';
+import { BLOCK, allianceLabel, fortBanned } from './world';
 import type { BlockTag, World } from './world';
 
 export type Reason =
   | { code: 'noalliance' }
   | { code: 'outside' }
   | { code: 'terrain' }
+  | { code: 'cfzone' }
   | { code: 'blocked'; tag: BlockTag; d: number; reach: number; at: [number, number]; planned: boolean }
   | { code: 'node'; d: number; reach: number; at: [number, number] }
   | { code: 'foreign'; owner: string }
@@ -59,6 +60,7 @@ export function checkPlacement(env: PlaceEnv, allianceId: string, kind: Kind, x:
 
   if (world.terrain.outside(x, y)) why.push({ code: 'outside' });
   else if (world.terrain.refuses(kind === 'cf' ? 'fort' : 'flag', x, y)) why.push({ code: 'terrain' });
+  else if (kind === 'cf' && fortBanned(world, x, y)) why.push({ code: 'cfzone' });
 
   let blocked: Extract<Reason, { code: 'blocked' }> | null = null;
   const hit = world.hard.find(x, y, R);
@@ -100,7 +102,7 @@ export function checkPlacement(env: PlaceEnv, allianceId: string, kind: Kind, x:
   return { ok: why.length === 0, why, warn, cells };
 }
 
-const WHAT: Record<number, string> = { [BLOCK.node]: 'a gathering node', [BLOCK.building]: 'an alliance building', [BLOCK.point]: 'a resource point', [BLOCK.minor]: 'a tribal village', [BLOCK.city]: 'a city' };
+const WHAT: Record<number, string> = { [BLOCK.node]: 'a gathering node', [BLOCK.building]: 'an alliance building', [BLOCK.point]: 'a resource point', [BLOCK.minor]: 'a tribal village', [BLOCK.city]: 'a city', [BLOCK.gate]: 'a gate (pass): nothing can be built around it' };
 
 /** One refusal or warning as a sentence for the user. */
 export function describeReason(r: Reason): string {
@@ -111,6 +113,8 @@ export function describeReason(r: Reason): string {
       return 'That spot is outside the map.';
     case 'terrain':
       return 'The fixed terrain refuses it (mountain, lake, wall...).';
+    case 'cfzone':
+      return 'No CF in this zone: the game allows only flags here.';
     case 'blocked':
       return `Too close to ${r.planned ? 'a building of this plan' : WHAT[r.tag] ?? 'an object'} (${r.d.toFixed(1)} tiles away; anything closer than ${r.reach.toFixed(1)} is refused).`;
     case 'node':

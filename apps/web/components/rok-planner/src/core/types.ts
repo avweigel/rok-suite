@@ -13,6 +13,8 @@ export interface MapDataFile {
   /** Building radii in tiles against terrain and objects. */
   radii: { flag: number; pit: number; fort: number };
   cityRadius: number;
+  /** [minX, minY, maxX, maxY]: areas where the game refuses a fortress, flags only (the central zone of the KvK map). */
+  noFort?: [number, number, number, number][];
   /** Resource code -> name (1 food, 2 wood, 3 stone, 4 gold; 9 crystal in KvK). */
   resources: Record<string, string>;
   /** What each kind of structure is called, looks like and reaches (format 2). */
