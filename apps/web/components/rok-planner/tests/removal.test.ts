@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { addItems, addRemoved, restoreRemoved, sanitizePlan } from '../src/core/plan';
-import { findCfDrops } from '../src/core/drop';
-import { applyRemoved, describeRemovals, withoutOthers } from '../src/core/removal';
+import { dropRemovals, findCfDrops } from '../src/core/drop';
+import { applyRemoved, describeRemovals, emptyKingdom, withoutOthers, worldOfPlan } from '../src/core/removal';
 import { PRESETS, planRoute } from '../src/core/route';
 import { computeState } from '../src/core/state';
 import { loadWorld } from '../src/core/world';
@@ -105,11 +105,28 @@ test('CF drop counting the owned points: ignores the alliances and says what mus
   const all = findCfDrops(w, doc, 'A', [1], { includeOwned: true });
   assert.equal(all[0].total, 8, 'the rich spot inside the land of Alpha comes first');
   assert.equal(all[0].owned, 8);
-  assert.deepEqual(all[0].removals.map((g) => g.label), ['AAA']);
-  assert.deepEqual(all[0].removed, [[64, 64]]);
-  const gone = addRemoved(doc, all[0].removed);
+  assert.deepEqual(all[0].owners, ['AAA'], 'whose land it is, before anything is worked out');
+  assert.equal(all[0].checked, false, 'what must go is worked out when asked');
+  const spot = dropRemovals(w, doc, 'A', all[0], [1]);
+  assert.equal(spot.checked, true);
+  assert.ok(!spot.impossible);
+  assert.deepEqual(spot.removals.map((g) => g.label), ['AAA']);
+  assert.deepEqual(spot.removed, [[64, 64]]);
+  const gone = addRemoved(doc, spot.removed);
   const after = applyRemoved(w, gone.removed);
-  assert.ok(checkPlacement(env(after, gone), 'A', 'cf', all[0].x, all[0].y).ok, 'it stands once they are gone');
+  assert.ok(checkPlacement(env(after, gone), 'A', 'cf', spot.x, spot.y).ok, 'it stands once they are gone');
+});
+
+test('an empty kingdom: nobody on the map, nothing refused for their sake, and the same map every time', () => {
+  const w = tinyWorld({ buildings: [[60, 60, 1, 0, 50], [72, 60, 0, 0, 60]] });
+  const base = plan(w);
+  const empty = emptyKingdom(w);
+  assert.equal(empty.owner.size, 0);
+  assert.equal(empty.buildings.length, 0);
+  assert.equal(emptyKingdom(w), empty, 'built once');
+  assert.equal(worldOfPlan(w, { blank: true, removed: [[60, 60]] }), empty, 'blank wins over the removals');
+  assert.equal(worldOfPlan(w, {}), w);
+  assert.ok(checkPlacement(env(empty, base), 'A', 'cf', 60.5, 60).ok);
 });
 
 test('on the real map: ignoring the alliances, fast, every building accepted once the removals are applied', () => {
@@ -122,7 +139,16 @@ test('on the real map: ignoring the alliances, fast, every building accepted onc
   const dropMs = Date.now() - t0;
   assert.ok(spots.length >= 5);
   assert.ok(spots[0].total > findCfDrops(w, base, 'A', [1, 2, 3, 4])[0].total, 'more points than on free land alone');
-  assert.ok(dropMs < 6000, `drop took ${dropMs} ms`);
+  assert.ok(dropMs < 3000, `drop took ${dropMs} ms`);
+  for (const s of spots.slice(0, 4)) {
+    const t = Date.now();
+    const c = dropRemovals(w, base, 'A', s, [1, 2, 3, 4]);
+    assert.ok(Date.now() - t < 3000, `removals took ${Date.now() - t} ms`);
+    if (c.impossible) continue;
+    const gone = addRemoved(base, c.removed);
+    const after = applyRemoved(w, gone.removed);
+    assert.ok(checkPlacement(env(after, gone), 'A', 'cf', c.x, c.y).ok, `CF at ${c.x}, ${c.y} once ${c.removed.length} buildings are gone`);
+  }
   const t1 = Date.now();
   const r = planRoute(w, base, { allianceId: 'A', from: [300, 300], to: [700, 800], options: { ...PRESETS.nodes, extraFlags: 10, ignoreOthers: true } });
   const routeMs = Date.now() - t1;

@@ -41,6 +41,22 @@ export function applyRemoved(world: World, removed: readonly Spot[] | undefined)
   );
 }
 
+const emptyCache = new WeakMap<World, World>();
+/** The map with nobody's buildings on it, the kingdom of a blank plan: built once per map. */
+export function emptyKingdom(world: World): World {
+  let w = emptyCache.get(world);
+  if (!w) {
+    w = withoutOthers(world, -1);
+    emptyCache.set(world, w);
+  }
+  return w;
+}
+
+/** The map as a plan sees it: empty for a blank plan, else without what the plan assumes gone. */
+export function worldOfPlan(world: World, plan: Pick<PlanDoc, 'blank' | 'removed'>): World {
+  return plan.blank ? emptyKingdom(world) : applyRemoved(world, plan.removed);
+}
+
 /** The map with only this alliance's buildings on it (baseIndex -1: nobody's). */
 export function withoutOthers(world: World, baseIndex: number): World {
   return rebuildWorld(

@@ -5,7 +5,6 @@ import { existingColor } from '../../core/colors';
 import type { ObjectiveType } from '../../core/types';
 import type { World } from '../../core/world';
 import { Check, ResIcon, Section, cap } from '../components';
-import { OBJECTIVE_LABEL } from '../model';
 import type { ExtraLayer, Filters, Layers } from '../model';
 
 export interface FiltersPanelProps {
@@ -22,43 +21,57 @@ export interface FiltersPanelProps {
   extra: ExtraLayer[];
   extraOn: Record<string, boolean>;
   onExtraOn(next: Record<string, boolean>): void;
-  wallJumps: { on: boolean; inner: boolean; count: number | null; onToggle(v: boolean): void; onInner(v: boolean): void };
+  wallJumps: { on: boolean; inner: boolean; cf: boolean; count: number | null; cfCount: number | null; onToggle(v: boolean): void; onInner(v: boolean): void; onCf(v: boolean): void };
 }
 
 const CODES = [1, 2, 3, 4];
 const OBJ_TYPES: ObjectiveType[] = ['temple', 'shrine', 'altar', 'pass'];
+const OBJ_NAME: Record<ObjectiveType, [string, string]> = {
+  temple: ['Lost Temple', 'Lost Temples'],
+  shrine: ['shrine', 'shrines'],
+  altar: ['altar', 'altars'],
+  pass: ['pass', 'passes'],
+};
 
 export function FiltersPanel(p: FiltersPanelProps) {
   const { world, filters } = p;
   const [query, setQuery] = useState('');
   const set = <K extends keyof Layers>(k: K) => (v: boolean) => p.onLayers({ ...p.layers, [k]: v });
 
-  const counts = useMemo(() => {
-    const c: Record<number, number> = {};
-    for (const pt of world.points) c[pt.res] = (c[pt.res] ?? 0) + 1;
-    return c;
-  }, [world]);
-  const objCounts = useMemo(() => {
-    const c: Record<string, number> = {};
-    for (const o of world.objectives) c[o.type] = (c[o.type] ?? 0) + 1;
-    return c;
-  }, [world]);
   const owned = useMemo(() => {
     const c = new Map<number, number>();
     for (const b of world.buildings) c.set(b.ai, (c.get(b.ai) ?? 0) + 1);
     return c;
   }, [world]);
+  // What each alliance holds: the resource points inside its land, by kind, and its holy sites and passes.
+  const holdings = useMemo(() => {
+    const nodes = new Map<number, Record<number, number>>();
+    const sites = new Map<number, Partial<Record<ObjectiveType, number>>>();
+    for (const pt of world.points) {
+      const ai = world.owner.get(pt.cell);
+      if (ai === undefined) continue;
+      const r = nodes.get(ai) ?? {};
+      r[pt.res] = (r[pt.res] ?? 0) + 1;
+      nodes.set(ai, r);
+    }
+    for (const o of world.objectives) {
+      if (o.ai < 0) continue;
+      const r = sites.get(o.ai) ?? {};
+      r[o.type] = (r[o.type] ?? 0) + 1;
+      sites.set(o.ai, r);
+    }
+    return { nodes, sites };
+  }, [world]);
+  // the ones on the map: with buildings or holy sites (none on an empty kingdom)
+  const holders = useMemo(() => world.alliances.filter((a) => owned.has(a.index) || holdings.sites.has(a.index)), [world, owned, holdings]);
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return world.alliances
+    return holders
       .filter((a) => !q || a.tag.toLowerCase().includes(q) || a.name.toLowerCase().includes(q))
       .sort((a, b) => (owned.get(b.index) ?? 0) - (owned.get(a.index) ?? 0) || a.tag.localeCompare(b.tag));
-  }, [world, query, owned]);
+  }, [holders, query, owned]);
 
   const resCodes = CODES.filter((c) => world.resources[c]);
-  const toggleRes = (c: number): void => p.onFilters({ ...filters, res: { ...filters.res, [c]: filters.res[c] === false } });
-  const onlyRes = (c: number): void => p.onFilters({ ...filters, res: Object.fromEntries(resCodes.map((k) => [k, k === c])) });
-  const toggleObj = (t: ObjectiveType): void => p.onFilters({ ...filters, objectives: { ...filters.objectives, [t]: filters.objectives[t] === false } });
   const toggleAlliance = (i: number): void => {
     const next = new Set(filters.hiddenExisting);
     if (next.has(i)) next.delete(i);
@@ -94,56 +107,36 @@ export function FiltersPanel(p: FiltersPanelProps) {
         <Check checked={p.layers.objectives} onChange={set('objectives')} label="Holy sites and passes" />
         <Check checked={p.layers.points} onChange={set('points')} label="Resource points" />
         <Check checked={p.layers.cities} onChange={set('cities')} label="Cities" hint="Positions only. They refuse buildings." />
-        {p.extra.map((l) => (
-          <Check key={l.id} checked={p.extraOn[l.id] !== false} onChange={(v) => p.onExtraOn({ ...p.extraOn, [l.id]: v })} label={l.label} />
-        ))}
+        {p.extra
+          .filter((l) => !l.alwaysOn)
+          .map((l) => (
+            <Check key={l.id} checked={p.extraOn[l.id] !== false} onChange={(v) => p.onExtraOn({ ...p.extraOn, [l.id]: v })} label={l.label} />
+          ))}
         <Check
           checked={p.wallJumps.on}
           onChange={p.wallJumps.onToggle}
           label={`Wall jumps${p.wallJumps.count !== null ? ` (${p.wallJumps.count})` : ''}`}
           hint="Where two flags on opposite sides of a wall have land that touches, so the wall can be crossed without a pass."
         />
-        {p.wallJumps.on && <Check checked={p.wallJumps.inner} onChange={p.wallJumps.onInner} label="Also ridges inside a zone" />}
+        {p.wallJumps.on && (
+          <>
+            <Check
+              checked={p.wallJumps.cf}
+              onChange={p.wallJumps.onCf}
+              label={`With a CF + flag${p.wallJumps.cfCount !== null ? ` (${p.wallJumps.cfCount})` : ''}`}
+              hint="Where two flags are too far apart, but a CF on one side reaches: its square is bigger."
+            />
+            <Check checked={p.wallJumps.inner} onChange={p.wallJumps.onInner} label="Also ridges inside a zone" />
+          </>
+        )}
       </Section>
 
-      <Section title="Resource points" defaultOpen={false} hint="The points that feed an alliance's storage (not the gathering nodes of the players).">
-        <div className="rokp-chips">
-          {resCodes.map((c) => (
-            <div key={c} className="rokp-chiprow">
-              <button type="button" className={`rokp-chip${filters.res[c] === false ? '' : ' on'}`} onClick={() => toggleRes(c)}>
-                <ResIcon name={world.resources[c]} code={c} size={22} />
-                <span className="rokp-grow">{cap(world.resources[c])}</span>
-                <span className="rokp-n">{counts[c] ?? 0}</span>
-              </button>
-              <button type="button" className="rokp-only" onClick={() => onlyRes(c)} title="Show only this resource">
-                only
-              </button>
-            </div>
-          ))}
-        </div>
-        <Check checked={filters.pointsFree} onChange={(v) => p.onFilters({ ...filters, pointsFree: v })} label="In nobody's land" hint="An alliance can still take them" />
-        <Check checked={filters.pointsTaken} onChange={(v) => p.onFilters({ ...filters, pointsTaken: v })} label="Already inside a land" hint="Of an alliance that exists, or of this plan" />
-        <button type="button" onClick={() => p.onFilters({ ...filters, res: {}, pointsFree: true, pointsTaken: true })}>
-          Show all
-        </button>
-      </Section>
-
-      <Section title="Holy sites and passes" defaultOpen={false}>
-        <div className="rokp-chips">
-          {OBJ_TYPES.filter((t) => objCounts[t]).map((t) => (
-            <button key={t} type="button" className={`rokp-chip${filters.objectives[t] === false ? '' : ' on'}`} onClick={() => toggleObj(t)}>
-              <span className="rokp-grow">{OBJECTIVE_LABEL[t]}</span>
-              <span className="rokp-n">{objCounts[t]}</span>
-            </button>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Alliances on the map" defaultOpen={false} count={world.alliances.length - filters.hiddenExisting.size}>
+      <Section title="Alliances on the map" defaultOpen={false} count={holders.filter((a) => !filters.hiddenExisting.has(a.index)).length}>
+        {holders.length === 0 && <p className="rokp-hint">Nobody: this plan is on an empty kingdom.</p>}
         <input className="rokp-input" placeholder="Search a tag or name" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search alliances" />
         <div className="rokp-row rokp-wrap">
           <button type="button" onClick={() => p.onFilters({ ...filters, hiddenExisting: new Set() })}>All</button>
-          <button type="button" onClick={() => p.onFilters({ ...filters, hiddenExisting: new Set(world.alliances.map((a) => a.index)) })}>None</button>
+          <button type="button" onClick={() => p.onFilters({ ...filters, hiddenExisting: new Set(holders.map((a) => a.index)) })}>None</button>
           <button
             type="button"
             title="Hide the alliances in the list below"
@@ -157,17 +150,38 @@ export function FiltersPanel(p: FiltersPanelProps) {
           </button>
         </div>
         <ul className="rokp-list rokp-scroll">
-          {list.map((a) => (
-            <li key={a.index}>
-              <Check
-                checked={!filters.hiddenExisting.has(a.index)}
-                onChange={() => toggleAlliance(a.index)}
-                swatch={existingColor(a.id)}
-                label={a.tag ? `[${a.tag}] ${a.name}` : a.name || `Alliance ${a.id}`}
-                hint={`${owned.get(a.index) ?? 0} buildings`}
-              />
-            </li>
-          ))}
+          {list.map((a) => {
+            const nodes = holdings.nodes.get(a.index) ?? {};
+            const sites = holdings.sites.get(a.index) ?? {};
+            return (
+              <li key={a.index}>
+                <Check
+                  checked={!filters.hiddenExisting.has(a.index)}
+                  onChange={() => toggleAlliance(a.index)}
+                  swatch={existingColor(a.id)}
+                  label={a.tag ? `[${a.tag}] ${a.name}` : a.name || `Alliance ${a.id}`}
+                  hint={
+                    <span className="rokp-own">
+                      <span>{owned.get(a.index) ?? 0} buildings</span>
+                      {resCodes
+                        .filter((c) => nodes[c])
+                        .map((c) => (
+                          <span key={c} title={`${cap(world.resources[c])} points in its land`}>
+                            <ResIcon name={world.resources[c]} code={c} size={13} />
+                            {nodes[c]}
+                          </span>
+                        ))}
+                      {OBJ_TYPES.filter((t) => sites[t]).map((t) => (
+                        <span key={t}>
+                          {sites[t]} {OBJ_NAME[t][sites[t] === 1 ? 0 : 1]}
+                        </span>
+                      ))}
+                    </span>
+                  }
+                />
+              </li>
+            );
+          })}
         </ul>
       </Section>
     </>

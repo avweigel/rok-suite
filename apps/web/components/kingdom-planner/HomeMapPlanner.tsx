@@ -29,13 +29,18 @@ function readDraft(): PlanDoc | undefined {
   }
 }
 
+/** "Import live map" (top right of the map): to be wired to the scanner tool. A thrown error is shown to the user. */
+async function importLiveMap(): Promise<void> {
+  throw new Error('Import live map is not connected to the scanner tool yet.');
+}
+
 const shareUrl = (shareId: string) => `${window.location.origin}/kingdom-planner?section=home-map&mplan=${shareId}`;
 
 export default function HomeMapPlanner() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const { signInWithDiscord } = useAuth();
+  const { signInWithDiscord, signOut, user: authUser } = useAuth();
   const store = useMemo(() => createSupabaseStore(createClient()), []);
   const [draft] = useState(readDraft);
   const [layers, setLayers] = useState(EXTRA_LAYERS);
@@ -86,6 +91,10 @@ export default function HomeMapPlanner() {
         onRequireSignIn={onRequireSignIn}
         extraLayers={layers}
         zoneOf={zoneAt}
+        providerName="Discord"
+        authKey={authUser?.id ?? null}
+        onSignOut={() => void signOut()}
+        onImportLiveMap={importLiveMap}
         style={{ height: 'calc(100vh - 150px)', minHeight: 560 }}
       />
     </div>

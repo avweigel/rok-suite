@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { cellOf, footprint, touches } from '../src/core/geometry';
-import { addItems } from '../src/core/plan';
+import { SIZE, cellOf, footprint, radiusFor, touches } from '../src/core/geometry';
+import { addItems, emptyPlan } from '../src/core/plan';
+import { withoutOthers } from '../src/core/removal';
+import { BLOCK } from '../src/core/world';
 import { PRESETS, planRoute } from '../src/core/route';
 import { computeState } from '../src/core/state';
 import { findWallJumps, openJumps } from '../src/core/walljump';
@@ -50,8 +52,46 @@ test('a thin wall can be jumped: two flags on opposite sides, with land that tou
   }
 });
 
-test('a wall too thick for two squares to touch cannot be jumped', () => {
+test('a wall too thick for two squares to touch cannot be jumped, not even with a CF', () => {
   assert.equal(findWallJumps(walled((x) => x >= 140 && x < 170), zones).length, 0);
+});
+
+test('where two flags are enough, no CF jump is added', () => {
+  assert.ok(findWallJumps(walled(thin), zones).every((j) => !j.cf));
+});
+
+test('a wall too wide for two flags can be crossed with a CF on one side and a flag on the other', () => {
+  const w = walled((x) => x >= 150 && x < 160);
+  const jumps = findWallJumps(w, zones);
+  assert.ok(jumps.length >= 1);
+  assert.ok(jumps.every((j) => j.cf), 'only with a CF');
+  assert.ok(jumps.some((j) => j.pairs.some(([ax]) => ax < 150)) && jumps.some((j) => j.pairs.some(([ax]) => ax >= 160)), 'the CF may stand on either side');
+  assert.equal(jumps.length, 1, 'one stretch of wall, whichever side the CF is on');
+  assert.ok(jumps[0].cfEitherSide);
+  for (const j of jumps) {
+    for (const [ax, ay, bx, by] of j.pairs) {
+      assert.ok(!w.terrain.refuses('fort', ax, ay), 'a CF can stand there');
+      assert.ok(touches(new Set(footprint(2, ax, ay)), footprint(1, bx, by)), 'the CF square and the flag square touch');
+      assert.ok(!touches(new Set(footprint(1, ax, ay)), footprint(1, bx, by)), 'two flags there would not');
+    }
+  }
+  // With the real rules: the CF, then the flag across the wall, and the land is on both sides.
+  const [ax, ay, bx, by] = jumps[0].best;
+  let doc = plan(w);
+  assert.ok(checkPlacement(env(w, doc), 'A', 'cf', ax, ay).ok);
+  doc = addItems(doc, 'A', [{ k: 'cf', x: ax, y: ay }]);
+  assert.ok(checkPlacement(env(w, doc), 'A', 'flag', bx, by).ok, 'the flag borders the CF land across the wall');
+  doc = addItems(doc, 'A', [{ k: 'flag', x: bx, y: by }]);
+  const st = computeState(w, doc).byAlliance.get('A')!;
+  assert.equal(st.inactive, 0);
+});
+
+test('who holds the land for a CF jump: a CF needs land nobody owns, not even the alliance itself', () => {
+  const w = walled((x) => x >= 150 && x < 160, { buildings: [[140, 150, 1, 0, 50]] });
+  const jumps = findWallJumps(w, zones).filter((j) => j.cf);
+  const near = jumps.filter((j) => j.pairs.some(([ax, ay]) => Math.abs(ax - 140) < 12 && Math.abs(ay - 150) < 12));
+  assert.ok(near.length > 0);
+  for (const j of openJumps(near, w, 0, () => false)) for (const [ax, ay] of [j.best]) assert.ok(!j.open || Math.abs(ax - 140) >= 7.5 || Math.abs(ay - 150) >= 7.5, 'never a CF inside the land of Alpha, even for Alpha');
 });
 
 test('a ridge inside one zone is told apart from a wall between zones', () => {
@@ -119,15 +159,40 @@ test('on the real map: many jumps, in a moment, each one real', () => {
   const ms = Date.now() - t0;
   assert.ok(ms < 6000, `took ${ms} ms`);
   assert.ok(jumps.length > 80, `${jumps.length} stretches`);
+  const withCf = jumps.filter((j) => j.cf);
+  assert.ok(withCf.length > 5, `${withCf.length} that need a CF`);
   for (const j of jumps) {
     const [ax, ay, bx, by] = j.best;
     assert.ok(j.pairs.length > 0);
-    assert.ok(!w.terrain.refuses('flag', ax, ay) && !w.terrain.refuses('flag', bx, by), `${j.best}`);
-    assert.ok(touches(new Set(footprint(1, ax, ay)), footprint(1, bx, by)), `${j.best}`);
+    assert.ok(!w.terrain.refuses(j.cf ? 'fort' : 'flag', ax, ay) && !w.terrain.refuses('flag', bx, by), `${j.best}`);
+    assert.ok(touches(new Set(footprint(j.cf ? 2 : 1, ax, ay)), footprint(1, bx, by)), `${j.best}`);
     // Between them there really is something a flag cannot stand on.
     let wall = false;
     for (let t = 0; t <= 1 && !wall; t += 0.04) wall = w.terrain.level(ax + (bx - ax) * t, ay + (by - ay) * t) >= 3;
     assert.ok(wall, `no wall between ${j.best}`);
   }
   assert.equal(findWallJumps(w), jumps, 'worked out once per map');
+
+  // With the real rules, on the map without the alliances: the CF, then the flag across the wall. Only a city standing there right now may refuse it.
+  const bare = withoutOthers(w, -1);
+  const base = emptyPlan(w.data.map);
+  const aid = base.alliances[0].id;
+  let placed = 0;
+  for (const j of withCf) {
+    const [ax, ay, bx, by] = j.best;
+    const r1 = checkPlacement({ world: bare, plan: base, state: computeState(bare, base) }, aid, 'cf', ax, ay);
+    if (!r1.ok) {
+      assert.ok(r1.why.every((r) => r.code === 'blocked' && r.tag === BLOCK.city), `CF at ${ax},${ay}: ${r1.why.map((r) => r.code).join()}`);
+      continue;
+    }
+    const p1 = addItems(base, aid, [{ k: 'cf', x: ax, y: ay }]);
+    const r2 = checkPlacement({ world: bare, plan: p1, state: computeState(bare, p1) }, aid, 'flag', bx, by);
+    assert.ok(r2.ok || r2.why.every((r) => r.code === 'blocked' && r.tag === BLOCK.city), `flag at ${bx},${by} after the CF: ${r2.why.map((r) => r.code).join()}`);
+    if (r2.ok) placed++;
+  }
+  assert.ok(placed >= withCf.length * 0.85, `${placed} of ${withCf.length} placed`);
+  // A city on the spot shows: the stretch is not open while it stands there.
+  const views = openJumps(withCf, w, -1, () => false);
+  for (const v of views) if (v.open) assert.ok(!w.hard.find(v.best[0], v.best[1], radiusFor(SIZE.cf)), 'open means nothing stands on the CF spot');
+  assert.ok(views.some((v) => !v.open), 'some are taken right now');
 });

@@ -24,6 +24,8 @@ export interface RoutePanelProps {
   onApply(): void;
   onDiscard(): void;
   onGo(x: number, y: number): void;
+  /** "p:<plan alliance id>" or "e:<game id of an alliance on the map>". */
+  onRouteFor(value: string): void;
 }
 
 const MODE_TEXT: Record<RouteMode, string> = {
@@ -53,6 +55,9 @@ export function RoutePanel(p: RoutePanelProps) {
   const active = p.plan.alliances.find((a) => a.id === p.activeId);
   const ready = !!p.picks.a && !!p.picks.b && !p.busy;
   const objective = p.picks.objectiveId ? world.objectives.find((o) => o.id === p.picks.objectiveId) : undefined;
+  // The alliances on the map with a fortress, that no alliance of the plan continues yet: picking one adds it to the plan.
+  const continued = new Set(p.plan.alliances.map((a) => a.baseId).filter((x): x is number => x != null));
+  const onMap = world.alliances.filter((a) => world.fortAlliances.has(a.index) && !continued.has(a.id)).sort((a, b) => (a.tag || a.name).localeCompare(b.tag || b.name));
   const set = (patch: Partial<RouteOptions>): void => p.onOptions({ ...options, ...patch });
   const preset = (m: RouteMode): void => p.onOptions({ ...PRESETS[m], ignoreOthers: options.ignoreOthers });
 
@@ -73,7 +78,27 @@ export function RoutePanel(p: RoutePanelProps) {
       <Coord label="B" color="#d6336c" value={p.picks.b} onChange={(v) => p.onPicks({ a: p.picks.a, b: v })} />
       {objective && <p className="rokp-hint">B is {objective.name}: the route ends as soon as the land touches it.</p>}
       <div className="rokp-label">Route for</div>
-      <p className="rokp-sub">{active ? <><span className="rokp-sw" style={{ background: active.color }} /> {active.name}</> : 'Pick an alliance in the list above.'}</p>
+      <div className="rokp-row">
+        {active && <span className="rokp-sw" style={{ background: active.color }} />}
+        <select className="rokp-select rokp-grow" value={active ? `p:${active.id}` : ''} onChange={(e) => p.onRouteFor(e.target.value)} aria-label="Route for" disabled={p.readOnly}>
+          {!active && <option value="">Pick an alliance</option>}
+          <optgroup label="This plan">
+            {p.plan.alliances.map((a) => (
+              <option key={a.id} value={`p:${a.id}`}>
+                {a.name}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="On the map (from its land)">
+            {onMap.map((u) => (
+              <option key={u.id} value={`e:${u.id}`}>
+                {u.tag ? `[${u.tag}] ` : ''}
+                {u.name}
+              </option>
+            ))}
+          </optgroup>
+        </select>
+      </div>
       <div className="rokp-label">What matters</div>
       <Seg<RouteMode>
         value={options.mode}

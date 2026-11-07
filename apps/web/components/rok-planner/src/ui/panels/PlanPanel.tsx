@@ -30,6 +30,11 @@ export interface PlanPanelProps {
   onExport(): void;
   onImport(file: File): void;
   onSignIn?: () => void;
+  onSignOut?: () => void;
+  /** Who signs people in ("Discord"), for the account line. */
+  providerName?: string;
+  /** Why saving cannot work right now (the database is not ready...), shown plainly. */
+  storeProblem?: string;
   onConflictLoad(): void;
   onConflictOverwrite(): void;
 }
@@ -77,6 +82,34 @@ export function PlanPanel(p: PlanPanelProps) {
 
   return (
     <Section title="Plan" defaultOpen>
+      {p.hasStore && (
+        <div className={`rokp-account${p.user ? ' on' : ''}`}>
+          {p.user ? (
+            <>
+              <span className="rokp-grow">
+                Signed in{p.providerName ? ` with ${p.providerName}` : ''} as <b>{p.user.name}</b>
+              </span>
+              {p.onSignOut && (
+                <button type="button" className="rokp-link" onClick={p.onSignOut}>
+                  Sign out
+                </button>
+              )}
+            </>
+          ) : p.user === null ? (
+            <>
+              <span className="rokp-grow">Not signed in: plans cannot be saved to your account.</span>
+              {p.onSignIn && (
+                <button type="button" className="rokp-link" onClick={p.onSignIn}>
+                  Sign in{p.providerName ? ` with ${p.providerName}` : ''}
+                </button>
+              )}
+            </>
+          ) : (
+            <span className="rokp-grow">Checking who you are…</span>
+          )}
+        </div>
+      )}
+      {p.storeProblem && <p className="rokp-msg bad">{p.storeProblem}</p>}
       <div className="rokp-row">
         <input className="rokp-input rokp-grow" value={draft} disabled={readOnly} maxLength={60} aria-label="Plan name" onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()} />
         <span className={tone}>{pill}</span>
@@ -115,16 +148,6 @@ export function PlanPanel(p: PlanPanelProps) {
         />
       </div>
       {!p.hasStore && <p className="rokp-hint">Plans are not stored on this site. Use Export to keep a plan and Import to open it again.</p>}
-      {p.hasStore && p.user === null && (
-        <p className="rokp-hint">
-          Sign in to keep your plans and share them.{' '}
-          {p.onSignIn && (
-            <button type="button" className="rokp-link" onClick={p.onSignIn}>
-              Sign in
-            </button>
-          )}
-        </p>
-      )}
       {p.hasStore && p.user && p.currentId && p.role === 'owner' && p.via === 'own' && (
         <div className="rokp-box">
           <div className="rokp-label">Who can open it</div>
@@ -166,7 +189,6 @@ export function PlanPanel(p: PlanPanelProps) {
           )}
         </div>
       )}
-      {p.user && <p className="rokp-hint">Signed in as {p.user.name}.</p>}
     </Section>
   );
 }

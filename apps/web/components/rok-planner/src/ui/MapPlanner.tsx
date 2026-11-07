@@ -3,10 +3,10 @@
 // The planner: the map, the toolbar and the side panels, wired to the plan, the undo history and the store.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
-import { addItem, addItems, addRemoved, commit, emptyPlan, redo, removeItem, renamePlan, reset, restoreRemoved, sanitizePlan, undo } from '../core/plan';
+import { addAlliance, addItem, addItems, addRemoved, blankPlan, commit, emptyPlan, redo, removeItem, renamePlan, reset, restoreRemoved, sanitizePlan, undo } from '../core/plan';
 import type { History, PlanDoc } from '../core/plan';
-import { findCfDrops } from '../core/drop';
-import { applyRemoved } from '../core/removal';
+import { dropRemovals, findCfDrops } from '../core/drop';
+import { worldOfPlan } from '../core/removal';
 import { findWallJumps, openJumps } from '../core/walljump';
 import type { ZoneOf } from '../core/walljump';
 import type { DropSpot } from '../core/drop';
@@ -63,6 +63,13 @@ export interface MapPlannerProps {
   extraLayers?: ExtraLayer[];
   /** The zone of a spot, so that wall jumps can tell walls between zones from ridges inside one. */
   zoneOf?: ZoneOf;
+  onSignOut?: () => void;
+  /** Changes when somebody signs in or out (the user id): the planner asks the store again. */
+  authKey?: string | null;
+  /** Who signs people in ("Discord"), for the account line. */
+  providerName?: string;
+  /** "Import live map": the host fetches a fresh map; a thrown error is shown to the user. */
+  onImportLiveMap?: () => Promise<void> | void;
   className?: string;
   style?: CSSProperties;
 }
@@ -95,7 +102,7 @@ function defaultShareUrl(shareId: string): string {
 }
 
 export function MapPlanner(props: MapPlannerProps) {
-  const { dataUrl = '/rok-planner/k3923.json', data, backgroundUrl, store, sharedId, planId, initialPlan, initialView, onPlanChange, shareUrl, onRequireSignIn, extraLayers, zoneOf, className, style } = props;
+  const { dataUrl = '/rok-planner/k3923.json', data, backgroundUrl, store, sharedId, planId, initialPlan, initialView, onPlanChange, shareUrl, onRequireSignIn, extraLayers, zoneOf, onSignOut, authKey, providerName, onImportLiveMap, className, style } = props;
 
   // ---- the map data
   const [baseWorld, setBaseWorld] = useState<World | null>(null);
@@ -132,10 +139,13 @@ export function MapPlanner(props: MapPlannerProps) {
   const [conflict, setConflict] = useState<StoredPlan | null>(null);
   const [user, setUser] = useState<PlanUser | null | undefined>(undefined);
   const [list, setList] = useState<PlanSummary[]>([]);
+  const [storeProblem, setStoreProblem] = useState('');
+  const [importing, setImporting] = useState(false);
   const plan = hist?.present ?? null;
-  // The map as this plan sees it: without what the plan assumes gone. Everything below works on it.
+  // The map as this plan sees it: without what the plan assumes gone, or with nobody on it (an empty kingdom). Everything below works on it.
   const removedList = plan?.removed;
-  const world = useMemo(() => (baseWorld ? applyRemoved(baseWorld, removedList) : null), [baseWorld, removedList]);
+  const blank = plan?.blank === true;
+  const world = useMemo(() => (baseWorld ? worldOfPlan(baseWorld, { blank: blank || undefined, removed: removedList }) : null), [baseWorld, blank, removedList]);
   const readOnly = cur.role === 'viewer';
   const pristine = saved === null && plan !== null && plan.items.length === 0 && (hist?.past.length ?? 0) === 0;
   const dirty = plan !== null && plan !== saved && !pristine;
@@ -156,8 +166,10 @@ export function MapPlanner(props: MapPlannerProps) {
   const [dropRes, setDropRes] = useState<number[]>([1, 2, 3, 4]);
   const [showJumps, setShowJumps] = useState(false);
   const [jumpsInner, setJumpsInner] = useState(false);
+  const [jumpsCf, setJumpsCf] = useState(true);
   const [dropOwned, setDropOwned] = useState(true);
   const [drops, setDrops] = useState<DropSpot[] | null>(null);
+  const [dropUsed, setDropUsed] = useState<number[]>([]);         // the kinds the list was found for
   const [dropFocus, setDropFocus] = useState(-1);
   const [card, setCard] = useState<Card | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -184,7 +196,7 @@ export function MapPlanner(props: MapPlannerProps) {
     setErrorText('');
     setConflict(null);
     setActiveId(doc.alliances[0]?.id ?? '');
-    setTool(current.role === 'viewer' ? 'view' : doc.items.some((i) => i.k === 'cf') ? 'flag' : 'cf');
+    setTool(current.role === 'viewer' || doc.alliances.length === 0 ? 'view' : doc.items.some((i) => i.k === 'cf') ? 'flag' : 'cf');
     setPicks({ a: null, b: null });
     setRouteResult(null);
     setDrops(null);
@@ -217,19 +229,30 @@ export function MapPlanner(props: MapPlannerProps) {
         setUser(null);
         return;
       }
+      let u: PlanUser | null = null;
       try {
-        const u = await store.user();
-        if (dead) return;
-        setUser(u);
-        if (u) setList(await store.list(baseWorld.data.map));
+        u = await store.user();
       } catch {
-        if (!dead) setUser(null);
+        /* nobody signed in */
+      }
+      if (dead) return;
+      setUser(u);
+      setStoreProblem('');
+      if (!u) return;
+      // Signed in is signed in: a list that does not load is a problem of its own, not a sign-out.
+      try {
+        const plans = await store.list(baseWorld.data.map);
+        if (!dead) setList(plans);
+      } catch (e) {
+        if (dead) return;
+        const m = (e as Error).message;
+        setStoreProblem(/could not find the table|does not exist|PGRST205/i.test(m) ? 'Saving is not set up on the database yet: the table of plans is missing.' : m);
       }
     })();
     return () => {
       dead = true;
     };
-  }, [baseWorld, store]);
+  }, [baseWorld, store, authKey]);
 
   // ---- the plan the URL asks for, or an empty one
   const curRef = useRef(cur);
@@ -272,8 +295,13 @@ export function MapPlanner(props: MapPlannerProps) {
   const jumps = useMemo(() => {
     if (!allJumps || !world || !state) return null;
     const baseIndex = state.byAlliance.get(aid)?.baseIndex ?? -1;
-    return openJumps(allJumps.filter((j) => jumpsInner || j.between), world, baseIndex, (k) => (state.claimed.get(k) ?? aid) !== aid);
-  }, [allJumps, jumpsInner, world, state, aid]);
+    return openJumps(allJumps.filter((j) => (jumpsInner || j.between) && (jumpsCf || !j.cf)), world, baseIndex, (k) => (state.claimed.get(k) ?? aid) !== aid);
+  }, [allJumps, jumpsInner, jumpsCf, world, state, aid]);
+  const jumpCounts = useMemo(() => {
+    if (!allJumps) return null;
+    const shown = allJumps.filter((j) => jumpsInner || j.between);
+    return { flags: shown.filter((j) => !j.cf).length, cf: shown.filter((j) => j.cf).length };
+  }, [allJumps, jumpsInner]);
 
   // ---- editing: what was worked out for the old plan no longer holds
   const planMoved = useCallback(() => {
@@ -303,6 +331,10 @@ export function MapPlanner(props: MapPlannerProps) {
 
   const onPlace = (kind: Kind, x: number, y: number, result: PlacementResult): void => {
     if (!plan || !world || !state || readOnly) return;
+    if (!aid) {
+      toast('Add an alliance in the panel first.', 'warn');
+      return;
+    }
     if (!result.ok) {
       toast(result.why.slice(0, 2).map(describeReason).join(' '), 'error');
       return;
@@ -360,9 +392,10 @@ export function MapPlanner(props: MapPlannerProps) {
         title: 'Wall jump',
         lines: [
           jump.between ? `Between ${jump.zoneA} and ${jump.zoneB}` : `A ridge inside ${jump.zoneA}`,
-          `Flags at ${ax}, ${ay} and ${bx}, ${by}: their land touches`,
+          jump.cf ? `CF at ${ax}, ${ay} and a flag at ${bx}, ${by}: two flags are too far apart here, the CF's bigger square reaches` : `Flags at ${ax}, ${ay} and ${bx}, ${by}: their land touches`,
+          ...(jump.cfEitherSide ? ['The CF can go on either side along this stretch'] : []),
           jump.pairs.length > 1 ? `${jump.pairs.length} ways to do it along this stretch` : 'Only this way',
-          jump.open ? 'Free right now' : 'Somebody holds this land right now',
+          jump.open ? 'Free right now' : "Somebody's land, a city or a building is in the way right now",
         ],
       });
       return;
@@ -390,6 +423,44 @@ export function MapPlanner(props: MapPlannerProps) {
     toast(`Added ${routeResult.items.length} building${routeResult.items.length === 1 ? '' : 's'} to ${active?.name ?? 'the plan'}. Undo takes them back.`, 'ok');
   };
 
+  // ---- "Route for": an alliance of the plan, or one on the map (added to the plan, continuing its land)
+  const routeFor = (value: string): void => {
+    if (!plan || !world) return;
+    if (value.startsWith('p:')) {
+      setActiveId(value.slice(2));
+      return;
+    }
+    const gameId = Number(value.slice(2));
+    const known = plan.alliances.find((a) => a.baseId === gameId);
+    if (known) {
+      setActiveId(known.id);
+      return;
+    }
+    const ea = world.alliances[world.allianceIndexById.get(gameId) ?? -1];
+    if (!ea || readOnly) return;
+    try {
+      const r = addAlliance(plan, { baseId: gameId, name: (ea.tag ? `[${ea.tag}] ${ea.name}` : ea.name).slice(0, 60) || `Alliance ${gameId}` });
+      change(r.plan);
+      setActiveId(r.alliance.id);
+      toast(`${r.alliance.name} added to the plan, from its land on the map.`, 'ok');
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    }
+  };
+
+  // ---- Import live map: the host does the fetching
+  const importLive = async (): Promise<void> => {
+    if (!onImportLiveMap || importing) return;
+    setImporting(true);
+    try {
+      await onImportLiveMap();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   // ---- CF initial drop
   const closeDrop = (): void => {
     setDropOpen(false);
@@ -401,27 +472,48 @@ export function MapPlanner(props: MapPlannerProps) {
     setTool('drop');
     const spots = findCfDrops(world, plan, aid, dropRes, { includeOwned: dropOwned });
     setDrops(spots);
+    setDropUsed(dropRes);
     setDropFocus(-1);
     if (spots.length) mapRef.current?.fit();
-    else toast('No free spot takes in any of those points.', 'warn');
+    else toast('No spot takes in 2 or more of those points.', 'warn');
   };
-  const placeDrop = (spot: DropSpot): void => {
+  /** With the owned points counted, what must go is worked out for one spot at a time, when it is looked at. */
+  const checkDrop = (spot: DropSpot, i: number): DropSpot => {
+    if (spot.checked || !world || !plan) return spot;
+    const done = dropRemovals(world, plan, aid, spot, dropUsed);
+    setDrops((cur) => (cur && cur[i] === spot ? cur.map((d, j) => (j === i ? done : d)) : cur));
+    return done;
+  };
+  const goDrop = (spot: DropSpot, i: number): void => {
+    const s = checkDrop(spot, i);
+    setTool('drop');
+    setDropFocus(i);
+    mapRef.current?.centerOn(s.x, s.y, 6);
+    if (s.impossible) toast('No way to clear this spot for a CF, even removing buildings.', 'warn');
+  };
+  const placeDrop = (spot: DropSpot, i: number): void => {
     if (!plan || !baseWorld || readOnly) return;
-    const next = addRemoved(plan, spot.removed);
-    const w = applyRemoved(baseWorld, next.removed);
-    const r = checkPlacement({ world: w, plan: next, state: computeState(w, next) }, aid, 'cf', spot.x, spot.y);
+    const s = checkDrop(spot, i);
+    if (s.impossible) {
+      toast('No way to clear this spot for a CF, even removing buildings.', 'error');
+      return;
+    }
+    const next = addRemoved(plan, s.removed);
+    const w = worldOfPlan(baseWorld, next);
+    const r = checkPlacement({ world: w, plan: next, state: computeState(w, next) }, aid, 'cf', s.x, s.y);
     if (!r.ok) {
       toast(r.why.slice(0, 2).map(describeReason).join(' '), 'error');
       return;
     }
-    change(addItem(next, aid, 'cf', spot.x, spot.y));
+    change(addItem(next, aid, 'cf', s.x, s.y));
     setTool('flag');
-    toast(`CF placed for ${active?.name ?? 'the alliance'}: it takes in ${spot.total} resource point${spot.total === 1 ? '' : 's'}.`, 'ok');
+    const gone = s.removed.length ? `, once ${s.removed.length} building${s.removed.length === 1 ? ' is' : 's are'} assumed gone` : '';
+    toast(`CF placed for ${active?.name ?? 'the alliance'}: it takes in ${s.total} resource point${s.total === 1 ? '' : 's'}${gone}.`, 'ok');
   };
   const onDropPick = (x: number, y: number): void => {
-    const hit = drops?.find((d) => Math.max(Math.abs(Math.floor(d.x / CELL) - Math.floor(x / CELL)), Math.abs(Math.floor(d.y / CELL) - Math.floor(y / CELL))) <= REACH.cf);
-    if (hit) placeDrop(hit);
-    else toast('Click one of the numbered spots.');
+    const i = drops ? drops.findIndex((d) => Math.max(Math.abs(Math.floor(d.x / CELL) - Math.floor(x / CELL)), Math.abs(Math.floor(d.y / CELL) - Math.floor(y / CELL))) <= REACH.cf) : -1;
+    if (drops && i >= 0) placeDrop(drops[i], i);
+    else toast('Click one of the yellow spots.');
   };
 
   // ---- saving
@@ -471,7 +563,7 @@ export function MapPlanner(props: MapPlannerProps) {
 
   const newPlan = (): void => {
     if (!world || !guardUnsaved()) return;
-    adopt(emptyPlan(world.data.map), FRESH, null);
+    adopt(blankPlan(world.data.map), FRESH, null);
     onPlanChange?.({ id: null, shareId: null });
   };
   const openPlan = async (id: string): Promise<void> => {
@@ -581,16 +673,16 @@ export function MapPlanner(props: MapPlannerProps) {
       setShowJumps((v) => !v);
       return;
     }
-    if (k === 'd' && !readOnly) {
+    if (k === 'd' && !readOnly && aid) {
       setDropOpen(true);
       return;
     }
     const tools: Record<string, Tool> = { f: 'flag', c: 'cf', e: 'erase', v: 'view', escape: 'view', r: 'route' };
-    if (tools[k] && !(readOnly && (k === 'f' || k === 'c' || k === 'e'))) setTool(tools[k]);
+    if (tools[k] && !((readOnly || !aid) && (k === 'f' || k === 'c' || k === 'e'))) setTool(tools[k]);
   };
 
   // kept stable between renders: a new object here would make the map draw itself again
-  const extraActive = useMemo(() => (extraLayers ?? []).filter((l) => extraOn[l.id] ?? l.defaultOn !== false), [extraLayers, extraOn]);
+  const extraActive = useMemo(() => (extraLayers ?? []).filter((l) => l.alwaysOn || (extraOn[l.id] ?? l.defaultOn !== false)), [extraLayers, extraOn]);
   const routeColor = active?.color;
   const routePreview = useMemo(() => (routeResult?.ok && routeResult.items.length && routeColor ? { items: routeResult.items, color: routeColor, newCf: routeResult.newCf } : null), [routeResult, routeColor]);
   const selected = useMemo(() => (card ? { x: card.x, y: card.y } : null), [card]);
@@ -646,6 +738,9 @@ export function MapPlanner(props: MapPlannerProps) {
               onExport={exportPlan}
               onImport={(f) => void importPlan(f)}
               onSignIn={onRequireSignIn ? () => onRequireSignIn(plan) : undefined}
+              onSignOut={onSignOut}
+              providerName={providerName}
+              storeProblem={storeProblem}
               onConflictLoad={() => conflict && adoptStored(conflict, cur.via)}
               onConflictOverwrite={() => conflict && void savePlan({ version: conflict.version })}
             />
@@ -674,7 +769,7 @@ export function MapPlanner(props: MapPlannerProps) {
               }}
               onError={(m) => toast(m, 'error')}
             />
-            {baseWorld && (
+            {baseWorld && !blank && (
               <RemovedPanel
                 baseWorld={baseWorld}
                 plan={plan}
@@ -684,6 +779,7 @@ export function MapPlanner(props: MapPlannerProps) {
               />
             )}
             <RoutePanel
+              onRouteFor={routeFor}
               world={world}
               plan={plan}
               activeId={aid}
@@ -716,11 +812,7 @@ export function MapPlanner(props: MapPlannerProps) {
                 setDrops(null);
                 setTool((t) => (t === 'drop' ? 'view' : t));
               }}
-              onGo={(s, i) => {
-                setTool('drop');
-                setDropFocus(i);
-                mapRef.current?.centerOn(s.x, s.y, 6);
-              }}
+              onGo={goDrop}
               onGoTo={(x, y) => mapRef.current?.centerOn(x, y, 8)}
               onPlace={placeDrop}
             />
@@ -738,7 +830,7 @@ export function MapPlanner(props: MapPlannerProps) {
               extra={extraLayers ?? []}
               extraOn={extraOn}
               onExtraOn={setExtraOn}
-              wallJumps={{ on: showJumps, inner: jumpsInner, count: jumps ? jumps.length : null, onToggle: setShowJumps, onInner: setJumpsInner }}
+              wallJumps={{ on: showJumps, inner: jumpsInner, cf: jumpsCf, count: jumpCounts?.flags ?? null, cfCount: jumpCounts?.cf ?? null, onToggle: setShowJumps, onInner: setJumpsInner, onCf: setJumpsCf }}
             />
             <p className="rokp-foot">
               Map data from {world.sources.objects ? `the objects scan of ${world.sources.objects.replace('T', ' ')}` : 'our scans'}
@@ -793,7 +885,7 @@ export function MapPlanner(props: MapPlannerProps) {
                 key={b.id}
                 type="button"
                 className={tool === b.id ? 'on' : ''}
-                disabled={readOnly && !!b.edit}
+                disabled={(readOnly || !aid) && !!b.edit}
                 title={`${b.title} (${b.key})`}
                 onClick={() => {
                   if (b.id === 'drop') setDropOpen(true);
@@ -831,6 +923,12 @@ export function MapPlanner(props: MapPlannerProps) {
           </div>
         )}
 
+        {onImportLiveMap && (
+          <button type="button" className="rokp-import" disabled={importing} onClick={() => void importLive()} title="Load the map as it is in the game right now">
+            {importing ? 'Importing…' : 'Import live map'}
+          </button>
+        )}
+
         <div className="rokp-zoom">
           <button type="button" onClick={() => mapRef.current?.zoomIn()} title="Zoom in" aria-label="Zoom in">+</button>
           <button type="button" onClick={() => mapRef.current?.zoomOut()} title="Zoom out" aria-label="Zoom out">−</button>
@@ -838,8 +936,9 @@ export function MapPlanner(props: MapPlannerProps) {
         </div>
 
         {readOnly && <div className="rokp-banner">This plan was shared with you to look at. Changes are switched off.</div>}
-        {!readOnly && (tool === 'flag' || tool === 'cf') && <div className="rokp-tip">Left click places · right click deletes · drag to move · wheel to zoom</div>}
-        {tool === 'drop' && <div className="rokp-tip">{drops?.length ? 'Click a numbered spot to place the CF there' : 'Press CF drop and choose the nodes'}</div>}
+        {!readOnly && plan && plan.alliances.length === 0 && <div className="rokp-tip">{blank ? 'Empty kingdom: add' : 'Add'} an alliance in the panel to start</div>}
+        {!readOnly && aid && (tool === 'flag' || tool === 'cf') && <div className="rokp-tip">Left click places · right click deletes · drag to move · wheel to zoom</div>}
+        {tool === 'drop' && <div className="rokp-tip">{drops?.length ? 'Click a yellow spot to place the CF there' : 'Press CF drop and choose the nodes'}</div>}
         {tool === 'route' && <div className="rokp-tip">{!picks.a ? 'Click A, the start' : !picks.b ? 'Click B, the target (a holy site or pass works)' : 'Press “Find the route” in the panel'}</div>}
 
         {dropOpen && world && state && <DropDialog world={world} state={state} selected={dropRes} onChange={setDropRes} includeOwned={dropOwned} onIncludeOwned={setDropOwned} onFind={findDrops} onClose={closeDrop} />}

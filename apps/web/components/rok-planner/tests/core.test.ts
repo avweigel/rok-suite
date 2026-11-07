@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { CELL, cellKey, cellOf, footprint, radiusFor, terrainDistance, touches } from '../src/core/geometry';
-import { addAlliance, addItem, addItems, clearAlliance, commit, emptyPlan, itemAt, newHistory, redo, removeAlliance, removeItem, renamePlan, sanitizePlan, undo, updateAlliance, LIMITS } from '../src/core/plan';
+import { addAlliance, addItem, addItems, blankPlan, clearAlliance, commit, emptyPlan, setBlank, itemAt, newHistory, redo, removeAlliance, removeItem, renamePlan, sanitizePlan, undo, updateAlliance, LIMITS } from '../src/core/plan';
 import { PLAN_PALETTE, hueOfId } from '../src/core/colors';
 import { describeReason } from '../src/core/rules';
 import { computeState } from '../src/core/state';
@@ -299,7 +299,8 @@ test('a plan from outside is checked: wrong versions, other maps, bad shapes and
   assert.throws(() => sanitizePlan(null), /not an object/);
   assert.throws(() => sanitizePlan({ ...good, v: 2 }), /version/);
   assert.throws(() => sanitizePlan(good, 'other'), /another map/);
-  assert.throws(() => sanitizePlan({ ...good, alliances: [] }), /alliances/);
+  assert.throws(() => sanitizePlan({ ...good, alliances: 'x' }), /alliances/);
+  assert.throws(() => sanitizePlan({ ...good, alliances: Array.from({ length: LIMITS.alliances + 1 }, (_, i) => ({ ...good.alliances[0], id: `a${i}` })) }), /alliances/);
   assert.throws(() => sanitizePlan({ ...good, items: [{ id: 'i1', a: 'nope', k: 'cf', x: 1, y: 1 }] }), /not in the plan/);
   assert.throws(() => sanitizePlan({ ...good, items: [{ id: 'i1', a: good.alliances[0].id, k: 'tower', x: 1, y: 1 }] }), /neither/);
   assert.throws(() => sanitizePlan({ ...good, items: [{ id: 'i1', a: good.alliances[0].id, k: 'cf', x: 'a', y: 1 }] }), /coordinates/);
@@ -308,4 +309,21 @@ test('a plan from outside is checked: wrong versions, other maps, bad shapes and
   assert.throws(() => sanitizePlan(dup), /repeated/);
   const dirty = sanitizePlan({ ...good, name: '<b>x</b>'.repeat(30), alliances: [{ ...good.alliances[0], color: 'javascript:1', name: 5 }] });
   assert.ok(dirty.name.length <= LIMITS.name && /^#[0-9a-f]{6}$/.test(dirty.alliances[0].color) && dirty.alliances[0].name === 'Alliance 1');
+});
+
+test('a new plan on an empty kingdom: no alliances, and the switch comes and goes with a save', () => {
+  const b = blankPlan('t');
+  assert.deepEqual(b.alliances, []);
+  assert.equal(b.blank, true);
+  const back = sanitizePlan(JSON.parse(JSON.stringify(b)), 't');
+  assert.equal(back.blank, true, 'a save keeps it');
+  assert.deepEqual(back.alliances, [], 'no alliance is fine');
+  const off = setBlank(b, false);
+  assert.ok(!('blank' in off));
+  assert.ok(!('blank' in sanitizePlan({ ...b, blank: 'yes' })), 'only true counts');
+  assert.equal(setBlank(off, false), off, 'no change, the same plan');
+  assert.equal(setBlank(off, true).blank, true);
+  const one = addAlliance(b).plan;
+  assert.equal(one.alliances.length, 1);
+  assert.equal(one.blank, true);
 });

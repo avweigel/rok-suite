@@ -78,6 +78,8 @@ export interface ExtraLayer {
   id: string;
   label: string;
   defaultOn?: boolean;
+  /** Always drawn: no switch for it in the layers. */
+  alwaysOn?: boolean;
   over?: boolean;
   draw(ctx: CanvasRenderingContext2D, view: View, size: { width: number; height: number }): void;
 }

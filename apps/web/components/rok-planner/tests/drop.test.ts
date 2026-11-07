@@ -60,6 +60,18 @@ test('points inside somebody\'s land do not count, and neither do those the plan
   assert.equal(findCfDrops(w, after, 'A', [1]).reduce((n, s) => n + s.total, 0), 0, 'the plan has them all now');
 });
 
+test('the list goes down to two points, however long it gets', () => {
+  const pts: [number, number, number, number][] = [];
+  for (let k = 0; k < 15; k++) pts.push([20 + (k % 5) * 50, 20 + Math.floor(k / 5) * 60, 2, -1], [22.5 + (k % 5) * 50, 20 + Math.floor(k / 5) * 60, 2, -1]);
+  pts.push([280, 280, 2, -1]);
+  const w = tinyWorld({ points: pts });
+  const spots = findCfDrops(w, plan(w), 'A', [2]);
+  assert.equal(spots.length, 15, 'every pair, no cap');
+  assert.ok(spots.every((s) => s.total === 2), 'the lone point is not worth a spot');
+  assert.equal(findCfDrops(w, plan(w), 'A', [2], { minNodes: 1 }).length, 16);
+  assert.equal(findCfDrops(w, plan(w), 'A', [2], { limit: 4 }).length, 4);
+});
+
 test('on the real map: spots for each kind, in a moment, all placeable', () => {
   const w = loadWorld(realData());
   const doc = plan(w);
@@ -68,7 +80,8 @@ test('on the real map: spots for each kind, in a moment, all placeable', () => {
     const t0 = Date.now();
     const spots = findCfDrops(w, doc, 'A', res);
     const ms = Date.now() - t0;
-    assert.ok(spots.length > 0, `kinds ${res}`);
+    assert.ok(spots.length >= 10, `kinds ${res}: ${spots.length} spots`);
+    assert.ok(spots.every((s) => s.total >= 2));
     assert.ok(ms < 1500, `took ${ms} ms`);
     for (const s of spots) {
       assert.ok(checkPlacement(e, 'A', 'cf', s.x, s.y).ok);

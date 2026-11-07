@@ -30,7 +30,7 @@ export const zoneLayer: ExtraLayer = {
 export const zoneNamesLayer: ExtraLayer = {
   id: 'zone-names',
   label: 'Zone names',
-  defaultOn: true,
+  alwaysOn: true,
   over: true,
   draw(ctx, view, size) {
     const lab = Math.max(17, Math.min(36, view.z * 36));
@@ -52,7 +52,7 @@ export const zoneNamesLayer: ExtraLayer = {
 export const baulurLayer: ExtraLayer = {
   id: 'baulur',
   label: 'Baulur points',
-  defaultOn: true,
+  alwaysOn: true,
   over: true,
   draw(ctx, view, size) {
     const r = Math.max(5, Math.min(8, view.z * 6));

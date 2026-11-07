@@ -33,7 +33,13 @@ position:relative;display:flex;width:100%;height:100%;min-height:560px;color:var
 .rokp-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--rokp-muted);padding:20px;text-align:center}
 .rokp-bad{color:var(--rokp-bad)}
 
-.rokp-bar{position:absolute;left:10px;top:10px;display:flex;gap:5px;align-items:center;flex-wrap:wrap;max-width:calc(100% - 70px);background:rgba(14,19,24,.9);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:5px;z-index:4;color:#e6edf3}
+.rokp-import{position:absolute;right:54px;top:10px;z-index:4;background:rgba(14,19,24,.9)!important;border-color:rgba(255,255,255,.18)!important;color:#e6edf3!important;font-weight:600}
+.rokp-import:hover:not(:disabled){background:rgba(40,50,60,.95)!important}
+.rokp-account{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;border:1px solid var(--rokp-border);border-radius:8px;padding:6px 9px;margin:4px 0 8px;color:var(--rokp-muted)}
+.rokp-account.on{color:var(--rokp-fg);border-color:var(--rokp-ok)}
+.rokp-own{display:inline-flex;flex-wrap:wrap;align-items:center;gap:3px 9px}
+.rokp-own>span{display:inline-flex;align-items:center;gap:2px}
+.rokp-bar{position:absolute;left:10px;top:10px;display:flex;gap:5px;align-items:center;flex-wrap:wrap;max-width:calc(100% - 210px);background:rgba(14,19,24,.9);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:5px;z-index:4;color:#e6edf3}
 .rokp-bar button{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14);color:#e6edf3;padding:4px 10px}
 .rokp-bar button:hover:not(:disabled){background:rgba(255,255,255,.14)}
 .rokp-bar button.on{background:var(--rokp-primary);border-color:var(--rokp-primary)}
@@ -110,7 +116,8 @@ position:relative;display:flex;width:100%;height:100%;min-height:560px;color:var
 .rokp-rem summary{cursor:pointer;color:var(--rokp-muted);font-size:12px;margin-top:2px}
 .rokp-rem-spots{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;max-height:130px;overflow:auto}
 .rokp-rem-spots button{padding:0 6px;min-height:20px;font-size:11px}
-.rokp-drops{list-style:none;margin:6px 0;padding:0}
+.rokp-drops{list-style:none;margin:6px 0;padding:0 2px 0 0;max-height:min(60vh,560px);overflow:auto}
+.rokp-more{width:100%}
 .rokp-drops li{display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px solid var(--rokp-border)}
 .rokp-drops li:first-child{border-top:0}
 .rokp-drops button{padding:3px 8px;min-height:26px}

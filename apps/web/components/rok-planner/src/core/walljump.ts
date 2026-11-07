@@ -1,7 +1,9 @@
-// Wall jumps: where a wall can be crossed without a pass, because two flags standing on opposite sides of it have land that touches. Pure: no DOM, no React.
+// Wall jumps: where a wall can be crossed without a pass, because two buildings standing on opposite sides of it have land that touches. Pure: no DOM, no React.
 //
 // The terrain says what a side is: the tiles a flag can stand on, connected, make a region, and the walls are what separates regions. A flag's square reaches further than the flag can stand, so
-// two flags in different regions may still share an edge. Only regions big enough to be worth reaching count; next to a pass the pass is the way across (and the land takes it on touching).
+// two flags in different regions may still share an edge. A CF's square (5 x 5 cells) reaches one cell further still: where two flags are too far apart, a CF on one side and a flag on the
+// other may do it; those are found too, and kept only where two flags would not do. Only regions big enough to be worth reaching count; next to a pass the pass is the way across (and the
+// land takes it on touching).
 // The result depends on the terrain and the fixed objects only, so it is worked out once per map. Who holds the land right now is asked separately (openJumps).
 import { PointGrid, REACH, SIZE, cellKey, radiusFor } from './geometry';
 import type { CellKey } from './types';
@@ -13,9 +15,11 @@ const MIN_REGION = 500;
 const PASS_CLEAR = 14;
 /** Pairs this close (cells) belong to the same stretch of wall. */
 const SAME_STRETCH = 4;
+/** A CF jump this close (cells) to a jump with two flags is not needed. */
+const FLAGS_DO_IT = 6;
 const CELL = 3;
 
-/** Where the two flags stand: [ax, ay, bx, by]. */
+/** Where the two buildings stand: [ax, ay, bx, by]. With a CF, (ax, ay) is the CF. */
 export type JumpPair = [number, number, number, number];
 
 export interface WallJump {
@@ -25,6 +29,10 @@ export interface WallJump {
   best: JumpPair;
   /** The two sides are in different zones (false: a ridge inside one zone). */
   between: boolean;
+  /** It takes a CF on one side (at a) and a flag on the other: two flags are too far apart here. */
+  cf: boolean;
+  /** With a CF: along this stretch it can stand on either side. */
+  cfEitherSide: boolean;
   zoneA: string;
   zoneB: string;
 }
@@ -127,6 +135,31 @@ function compute(world: World, zoneOf?: ZoneOf): WallJump[] {
     return found;
   };
 
+  /** Where a CF of this region can stand in this cell: the terrain is stricter with a fortress, and it keeps more room around it. */
+  const Rcf = radiusFor(SIZE.cf);
+  const cfSpots = new Map<string, [number, number] | null>();
+  const cfSpot = (c: number, r: number): [number, number] | null => {
+    const key = `${c}:${r}`;
+    const known = cfSpots.get(key);
+    if (known !== undefined) return known;
+    const cx = cx0 + (c % cols);
+    const cy = cy0 + Math.floor(c / cols);
+    let found: [number, number] | null = null;
+    for (const y of [cy * CELL + 1, cy * CELL, cy * CELL + 2]) {
+      if (found) break;
+      for (const x of [cx * CELL + 1, cx * CELL, cx * CELL + 2]) {
+        const i = x - bx;
+        const j = y - by;
+        if (i < 0 || j < 0 || i >= W || j >= H || region[j * W + i] !== r) continue;
+        if (t.refuses('fort', x, y) || fixed.find(x, y, Rcf)) continue;
+        found = [x, y];
+        break;
+      }
+    }
+    cfSpots.set(key, found);
+    return found;
+  };
+
   /** Is there really something a flag cannot stand on between the two? */
   const wallBetween = (a: [number, number], b: [number, number]): boolean => {
     const steps = Math.max(2, Math.ceil(Math.hypot(a[0] - b[0], a[1] - b[1]) * 2));
@@ -135,7 +168,6 @@ function compute(world: World, zoneOf?: ZoneOf): WallJump[] {
   };
 
   // ---- the pairs: squares that overlap or share an edge, never just a corner
-  const reach = REACH.flag * 2 + 1;
   const passes = world.objectives.filter((o) => o.type === 'pass');
   const nearPass = (x: number, y: number): boolean => passes.some((o) => Math.abs(o.x - x) < PASS_CLEAR && Math.abs(o.y - y) < PASS_CLEAR && Math.hypot(o.x - x, o.y - y) < PASS_CLEAR);
   interface Pair {
@@ -147,32 +179,67 @@ function compute(world: World, zoneOf?: ZoneOf): WallJump[] {
     cy: number;
     gap: number;
   }
-  const pairs: Pair[] = [];
-  for (const [c, here] of inCell) {
-    const cx = c % cols;
-    const cy = Math.floor(c / cols);
-    for (let dy = -reach; dy <= reach; dy++) {
-      for (let dx = -reach; dx <= reach; dx++) {
-        if (Math.abs(dx) === reach && Math.abs(dy) === reach) continue;
-        const nx = cx + dx;
-        const ny = cy + dy;
-        if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
-        const there = inCell.get(ny * cols + nx);
-        if (!there) continue;
-        for (const ra of here) {
-          for (const rb of there) {
-            if (ra >= rb) continue;
-            const a = spot(c, ra);
-            const b = a && spot(ny * cols + nx, rb);
-            if (!a || !b || nearPass((a[0] + b[0]) / 2, (a[1] + b[1]) / 2) || !wallBetween(a, b)) continue;
-            pairs.push({ a, b, ra, rb, cx, cy, gap: Math.abs(dx) + Math.abs(dy) });
+  /** `cf`: a CF at a (its square reaches REACH.cf cells), a flag at b. */
+  const pairsOf = (cf: boolean): Pair[] => {
+    const reach = (cf ? REACH.cf : REACH.flag) + REACH.flag + 1;
+    const out: Pair[] = [];
+    for (const [c, here] of inCell) {
+      const cx = c % cols;
+      const cy = Math.floor(c / cols);
+      for (let dy = -reach; dy <= reach; dy++) {
+        for (let dx = -reach; dx <= reach; dx++) {
+          if (Math.abs(dx) === reach && Math.abs(dy) === reach) continue;
+          const nx = cx + dx;
+          const ny = cy + dy;
+          if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+          const there = inCell.get(ny * cols + nx);
+          if (!there) continue;
+          for (const ra of here) {
+            for (const rb of there) {
+              if (cf ? ra === rb : ra >= rb) continue;                          // two flags: each pair once; a CF: on either side
+              const a = cf ? cfSpot(c, ra) : spot(c, ra);
+              const b = a && spot(ny * cols + nx, rb);
+              if (!a || !b || nearPass((a[0] + b[0]) / 2, (a[1] + b[1]) / 2) || !wallBetween(a, b)) continue;
+              out.push({ a, b, ra, rb, cx, cy, gap: Math.abs(dx) + Math.abs(dy) });
+            }
           }
         }
       }
     }
+    return out;
+  };
+  const flagPairs = pairsOf(false);
+  // A CF jump counts only where two flags would not do.
+  const midCell = (p: Pair): [number, number] => [(p.a[0] + p.b[0]) / 2 / CELL, (p.a[1] + p.b[1]) / 2 / CELL];
+  const byMid = new Map<string, [number, number][]>();
+  const midKey = (ra: number, rb: number, x: number, y: number): string => `${Math.min(ra, rb)}:${Math.max(ra, rb)}:${Math.floor(x / FLAGS_DO_IT)}:${Math.floor(y / FLAGS_DO_IT)}`;
+  for (const p of flagPairs) {
+    const [x, y] = midCell(p);
+    const k = midKey(p.ra, p.rb, x, y);
+    const list = byMid.get(k);
+    if (list) list.push([x, y]);
+    else byMid.set(k, [[x, y]]);
   }
+  const flagsDoIt = (p: Pair): boolean => {
+    const [x, y] = midCell(p);
+    for (let gy = -1; gy <= 1; gy++) {
+      for (let gx = -1; gx <= 1; gx++) {
+        for (const [qx, qy] of byMid.get(midKey(p.ra, p.rb, x + gx * FLAGS_DO_IT, y + gy * FLAGS_DO_IT)) ?? []) {
+          if (Math.max(Math.abs(qx - x), Math.abs(qy - y)) <= FLAGS_DO_IT) return true;
+        }
+      }
+    }
+    return false;
+  };
+  const cfPairs = pairsOf(true).filter((p) => !flagsDoIt(p));
 
-  // ---- the stretches of wall
+  return [...stretchesOf(flagPairs, false), ...stretchesOf(cfPairs, true)].sort(
+    (x, y) => Number(y.between) - Number(x.between) || Number(x.cf) - Number(y.cf) || y.pairs.length - x.pairs.length,
+  );
+
+  /** Pairs grouped into stretches of wall, each with the way to suggest. */
+  function stretchesOf(pairs: Pair[], cf: boolean): WallJump[] {
+  const sides = (p: Pair): string => `${Math.min(p.ra, p.rb)}:${Math.max(p.ra, p.rb)}`;
   const parent = pairs.map((_, i) => i);
   const find = (x: number): number => {
     while (parent[x] !== x) {
@@ -188,13 +255,13 @@ function compute(world: World, zoneOf?: ZoneOf): WallJump[] {
     const gy = Math.floor(p.cy / size);
     for (let y = gy - 1; y <= gy + 1; y++) {
       for (let x = gx - 1; x <= gx + 1; x++) {
-        for (const o of buckets.get(`${p.ra}:${p.rb}:${x}:${y}`) ?? []) {
+        for (const o of buckets.get(`${sides(p)}:${x}:${y}`) ?? []) {
           const q = pairs[o];
           if (Math.max(Math.abs(p.cx - q.cx), Math.abs(p.cy - q.cy)) <= SAME_STRETCH) parent[find(i)] = find(o);
         }
       }
     }
-    const key = `${p.ra}:${p.rb}:${gx}:${gy}`;
+    const key = `${sides(p)}:${gx}:${gy}`;
     const list = buckets.get(key);
     if (list) list.push(i);
     else buckets.set(key, [i]);
@@ -226,28 +293,35 @@ function compute(world: World, zoneOf?: ZoneOf): WallJump[] {
       pairs: list.map((p): JumpPair => [p.a[0], p.a[1], p.b[0], p.b[1]]),
       best: [best.a[0], best.a[1], best.b[0], best.b[1]],
       between: !zoneOf || (za?.id ?? -1) !== (zb?.id ?? -1),
+      cf,
+      cfEitherSide: cf && new Set(list.map((p) => p.ra)).size > 1,
       zoneA: za?.name ?? '',
       zoneB: zb?.name ?? '',
     });
   }
-  return result.sort((x, y) => Number(y.between) - Number(x.between) || y.pairs.length - x.pairs.length);
+  return result;
+  }
 }
 
 export interface JumpView extends WallJump {
-  /** Both flags can be placed as the land is now, at least along part of the stretch. */
+  /** Both buildings can be placed as the land is now, at least along part of the stretch. */
   open: boolean;
 }
 
-/** Who holds the land right now: a stretch is open when a pair has both flags on land nobody else owns; the way suggested is then one of those. */
+/** What is in the way right now: a stretch is open when a pair has both buildings on land nobody else owns (a CF needs land nobody owns at all), with no city or building on the spot; the way
+ *  suggested is then one of those. */
 export function openJumps(jumps: readonly WallJump[], world: World, baseIndex: number, claimedByOthers: (k: CellKey) => boolean): JumpView[] {
-  const free = (x: number, y: number): boolean => {
+  const R = radiusFor(SIZE.flag);
+  const Rcf = radiusFor(SIZE.cf);
+  const free = (x: number, y: number, cf: boolean): boolean => {
     const k = cellKey(Math.floor(x / CELL), Math.floor(y / CELL));
     const o = world.owner.get(k);
-    return (o === undefined || o === baseIndex) && !claimedByOthers(k);
+    return (o === undefined || (!cf && o === baseIndex)) && !claimedByOthers(k) && !world.hard.find(x, y, cf ? Rcf : R);
   };
+  const ok = (p: JumpPair, cf: boolean): boolean => free(p[0], p[1], cf) && free(p[2], p[3], false);
   return jumps.map((j) => {
-    if (free(j.best[0], j.best[1]) && free(j.best[2], j.best[3])) return { ...j, open: true };
-    const p = j.pairs.find((q) => free(q[0], q[1]) && free(q[2], q[3]));
+    if (ok(j.best, j.cf)) return { ...j, open: true };
+    const p = j.pairs.find((q) => ok(q, j.cf));
     return p ? { ...j, best: p, open: true } : { ...j, open: false };
   });
 }

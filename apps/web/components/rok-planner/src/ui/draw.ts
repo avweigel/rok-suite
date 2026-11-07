@@ -589,24 +589,27 @@ const ADDED_FLAG = '#ffffff';
 
 const JUMP = '#ffee58';
 
-/** Wall jumps: a band over the wall where it can be crossed and the two flags suggested; close up, a dot on every spot a flag can jump from, and the squares that touch. Fainter where somebody holds the land. */
+/** Wall jumps: a band over the wall where it can be crossed and the two buildings suggested; close up, a dot on every spot a flag can jump from, and the squares that touch. Fainter where
+ *  somebody holds the land. Those that need a CF: a dashed band, and a square for the CF. */
 function drawJumps(ctx: CanvasRenderingContext2D, s: Scene): void {
   const { view: v, W, H } = s;
   const z = v.z;
   const seen = (X: number, Y: number): boolean => X > -40 && Y > -40 && X < W + 40 && Y < H + 40;
   const close = z >= 2.5;
   const spotR = Math.min(4, z * 0.6);
-  const open = new Path2D();
-  const held = new Path2D();
+  const bands = { open: new Path2D(), held: new Path2D(), openCf: new Path2D(), heldCf: new Path2D() };
   for (const j of s.jumps!) {
-    const path = j.open ? open : held;
+    const path = j.cf ? (j.open ? bands.openCf : bands.heldCf) : j.open ? bands.open : bands.held;
     for (const [ax, ay, bx, by] of j.pairs) {
       const [X0, Y0] = toScreen(v, ax, ay);
       const [X1, Y1] = toScreen(v, bx, by);
       if (!seen(X0, Y0) && !seen(X1, Y1)) continue;
       if (close) {
-        path.moveTo(X0 + spotR, Y0);
-        path.arc(X0, Y0, spotR, 0, 6.2832);
+        if (j.cf) path.rect(X0 - spotR, Y0 - spotR, 2 * spotR, 2 * spotR);
+        else {
+          path.moveTo(X0 + spotR, Y0);
+          path.arc(X0, Y0, spotR, 0, 6.2832);
+        }
         path.moveTo(X1 + spotR, Y1);
         path.arc(X1, Y1, spotR, 0, 6.2832);
       } else {
@@ -617,17 +620,26 @@ function drawJumps(ctx: CanvasRenderingContext2D, s: Scene): void {
   }
   if (close) {
     ctx.fillStyle = withAlpha(JUMP, 0.2);
-    ctx.fill(held);
+    ctx.fill(bands.held);
+    ctx.fill(bands.heldCf);
     ctx.fillStyle = withAlpha(JUMP, 0.6);
-    ctx.fill(open);
+    ctx.fill(bands.open);
+    ctx.fill(bands.openCf);
   } else {
     ctx.lineCap = 'round';
     ctx.lineWidth = Math.max(2, z * 1.5);
     ctx.strokeStyle = withAlpha(JUMP, 0.18);
-    ctx.stroke(held);
+    ctx.stroke(bands.held);
     ctx.strokeStyle = withAlpha(JUMP, 0.45);
-    ctx.stroke(open);
+    ctx.stroke(bands.open);
     ctx.lineCap = 'butt';
+    ctx.setLineDash([4, 3]);
+    ctx.lineWidth = Math.max(1.6, z * 1.1);
+    ctx.strokeStyle = withAlpha(JUMP, 0.25);
+    ctx.stroke(bands.heldCf);
+    ctx.strokeStyle = withAlpha(JUMP, 0.7);
+    ctx.stroke(bands.openCf);
+    ctx.setLineDash([]);
   }
   const dot = Math.max(3.5, Math.min(7, z * 1.6));
   for (const j of s.jumps!) {
@@ -637,11 +649,11 @@ function drawJumps(ctx: CanvasRenderingContext2D, s: Scene): void {
     if (!seen(X0, Y0) && !seen(X1, Y1)) continue;
     ctx.globalAlpha = j.open ? 1 : 0.5;
     if (close) {
-      for (const [x, y] of [[ax, ay], [bx, by]]) {
+      for (const [x, y, reach] of [[ax, ay, j.cf ? REACH.cf : REACH.flag], [bx, by, REACH.flag]]) {
         const cx = Math.floor(x / CELL);
         const cy = Math.floor(y / CELL);
-        const [x0, y0] = toScreen(v, (cx - REACH.flag) * CELL, (cy + REACH.flag + 1) * CELL);
-        const [x1, y1] = toScreen(v, (cx + REACH.flag + 1) * CELL, (cy - REACH.flag) * CELL);
+        const [x0, y0] = toScreen(v, (cx - reach) * CELL, (cy + reach + 1) * CELL);
+        const [x1, y1] = toScreen(v, (cx + reach + 1) * CELL, (cy - reach) * CELL);
         ctx.fillStyle = withAlpha(JUMP, 0.14);
         ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
         ctx.lineWidth = 1.5;
@@ -658,20 +670,29 @@ function drawJumps(ctx: CanvasRenderingContext2D, s: Scene): void {
     ctx.lineWidth = 1.6;
     ctx.strokeStyle = JUMP;
     ctx.stroke();
-    for (const [X, Y] of [[X0, Y0], [X1, Y1]]) {
+    for (const [X, Y, isCf] of [[X0, Y0, j.cf], [X1, Y1, false]] as const) {
       ctx.beginPath();
-      ctx.arc(X, Y, dot, 0, 6.2832);
+      const r = isCf ? dot * 1.35 : dot;
+      if (isCf) ctx.rect(X - r, Y - r, 2 * r, 2 * r);
+      else ctx.arc(X, Y, r, 0, 6.2832);
       ctx.fillStyle = JUMP;
       ctx.fill();
       ctx.lineWidth = 1.5;
       ctx.strokeStyle = 'rgba(8,12,16,.95)';
       ctx.stroke();
+      if (isCf && r >= 6) {
+        ctx.font = '800 9px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#1a1405';
+        ctx.fillText('CF', X, Y + 0.5);
+      }
     }
     if (z >= 3) {
       ctx.font = '600 11px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      halo(ctx, `${ax},${ay}`, X0, Y0 + dot + 3, JUMP);
+      halo(ctx, `${j.cf ? 'CF ' : ''}${ax},${ay}`, X0, Y0 + dot * (j.cf ? 1.35 : 1) + 3, JUMP);
       halo(ctx, `${bx},${by}`, X1, Y1 + dot + 3, JUMP);
     }
     ctx.globalAlpha = 1;
@@ -872,20 +893,49 @@ function drawSelected(ctx: CanvasRenderingContext2D, s: Scene): void {
 const DROP = '#ffd43b';
 
 /** The spots of the CF initial drop: the land each CF would claim, its rank and how many points it takes in. */
+/** The first spots are numbered; the rest of the list, often hundreds, are dots from afar, and their square, rank and count once zoomed in. */
+const TOP_DROPS = 20;
+
 function drawDrops(ctx: CanvasRenderingContext2D, s: Scene): void {
   const { view: v, W, H } = s;
-  s.drops!.forEach((d, i) => {
+  const spots = s.drops!;
+  const near = v.z >= 2.5;
+  const far = v.z < 1.5;
+  for (let i = spots.length - 1; i >= 0; i--) {                   // the best ones last, on top
+    const d = spots[i];
+    const top = i < TOP_DROPS;
     const cx = Math.floor(d.x / CELL);
     const cy = Math.floor(d.y / CELL);
     const [x0, y0] = toScreen(v, (cx - REACH.cf) * CELL, (cy + REACH.cf + 1) * CELL);
     const [x1, y1] = toScreen(v, (cx + REACH.cf + 1) * CELL, (cy - REACH.cf) * CELL);
-    if (x1 < -40 || y1 < -40 || x0 > W + 40 || y0 > H + 40) return;
-    ctx.fillStyle = withAlpha(DROP, 0.2);
-    ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = DROP;
-    ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    if (x1 < -40 || y1 < -40 || x0 > W + 40 || y0 > H + 40) continue;
     const [X, Y] = toScreen(v, d.x, d.y);
+    if (!top && far) {
+      ctx.fillStyle = withAlpha(DROP, 0.85);
+      ctx.fillRect(X - 1.5, Y - 1.5, 3, 3);
+      continue;
+    }
+    ctx.fillStyle = withAlpha(DROP, top ? 0.2 : 0.1);
+    ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+    ctx.lineWidth = top ? 2 : 1;
+    ctx.strokeStyle = top ? DROP : withAlpha(DROP, 0.75);
+    ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    if (!top) {
+      ctx.beginPath();
+      ctx.arc(X, Y, near ? 5 : 3.5, 0, 6.2832);
+      ctx.fillStyle = DROP;
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#1a1405';
+      ctx.stroke();
+      if (near) {
+        ctx.font = '700 11px system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        halo(ctx, `#${i + 1} · ${d.total} pts`, X + 8, Y);
+      }
+      continue;
+    }
     ctx.beginPath();
     ctx.arc(X, Y, 10, 0, 6.2832);
     ctx.fillStyle = DROP;
@@ -901,7 +951,7 @@ function drawDrops(ctx: CanvasRenderingContext2D, s: Scene): void {
     ctx.font = '700 12px system-ui, sans-serif';
     ctx.textAlign = 'left';
     halo(ctx, `${d.total} pts`, X + 13, Y);
-  });
+  }
 }
 
 const GHOST_OK = '#3fb950';

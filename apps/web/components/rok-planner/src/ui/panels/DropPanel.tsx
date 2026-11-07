@@ -1,7 +1,7 @@
 'use client';
 
 // CF initial drop: the popup that asks which resource points count, and the list of the best spots.
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { DropSpot } from '../../core/drop';
 import type { PlanState } from '../../core/state';
 import type { World } from '../../core/world';
@@ -9,6 +9,7 @@ import { Check, RemovalList, ResIcon, Section, cap, plural } from '../components
 import type { Tool } from '../model';
 
 const CODES = [1, 2, 3, 4];
+const PAGE = 50;
 
 export function DropDialog(p: { world: World; state: PlanState; selected: readonly number[]; onChange(next: number[]): void; includeOwned: boolean; onIncludeOwned(v: boolean): void; onFind(): void; onClose(): void }) {
   const { world, state } = p;
@@ -30,7 +31,7 @@ export function DropDialog(p: { world: World; state: PlanState; selected: readon
           ×
         </button>
         <b>CF initial drop</b>
-        <p className="rokp-hint">Which resource points should the CF take in? The planner shows the spots where one CF gets the most of them.</p>
+        <p className="rokp-hint">Which resource points should the CF take in? The planner lists every spot where one CF gets 2 or more of them, the richest first.</p>
         <div className="rokp-chips">
           {codes.map((c) => (
             <button key={c} type="button" className={`rokp-chip${p.selected.includes(c) ? ' on' : ''}`} aria-pressed={p.selected.includes(c)} onClick={() => toggle(c)}>
@@ -40,7 +41,7 @@ export function DropDialog(p: { world: World; state: PlanState; selected: readon
             </button>
           ))}
         </div>
-        <Check checked={p.includeOwned} onChange={p.onIncludeOwned} label="Count the points already in an alliance's land" hint={p.includeOwned ? 'The alliances are ignored: each spot says what would have to be removed.' : 'Only empty land and free points: the spots can be taken right now.'} />
+        <Check checked={p.includeOwned} onChange={p.onIncludeOwned} label="Count the points already in an alliance's land" hint={p.includeOwned ? 'The alliances are ignored: Go on a spot says what would have to be removed.' : 'Only empty land and free points: the spots can be taken right now.'} />
         <div className="rokp-row">
           <button type="button" className="rokp-grow" onClick={p.onClose}>Cancel</button>
           <button type="button" className="rokp-primary rokp-grow" disabled={p.selected.length === 0} autoFocus onClick={p.onFind}>
@@ -52,8 +53,16 @@ export function DropDialog(p: { world: World; state: PlanState; selected: readon
   );
 }
 
-export function DropPanel(p: { world: World; tool: Tool; readOnly: boolean; allianceName: string; spots: DropSpot[] | null; focus: number; onOpen(): void; onClear(): void; onGo(s: DropSpot, index: number): void; onGoTo(x: number, y: number): void; onPlace(s: DropSpot): void }) {
+export function DropPanel(p: { world: World; tool: Tool; readOnly: boolean; allianceName: string; spots: DropSpot[] | null; focus: number; onOpen(): void; onClear(): void; onGo(s: DropSpot, index: number): void; onGoTo(x: number, y: number): void; onPlace(s: DropSpot, index: number): void }) {
   const { world, spots } = p;
+  // the list grows a page at a time; a new search starts it again
+  const [page, setPage] = useState<{ of: DropSpot[] | null; n: number }>({ of: null, n: PAGE });
+  const shown = Math.max(page.of === spots ? page.n : PAGE, p.focus + 1);
+  const byTotal = useMemo(() => {
+    const c = new Map<number, number>();
+    for (const s of spots ?? []) c.set(s.total, (c.get(s.total) ?? 0) + 1);
+    return [...c].sort((a, b) => b[0] - a[0]);
+  }, [spots]);
   return (
     <Section title="CF initial drop" defaultOpen={false} forceOpen={p.tool === 'drop'} hint="Where one fortress, dropped on empty land, takes in the most resource points of the kinds you choose.">
       <div className="rokp-row">
@@ -62,12 +71,14 @@ export function DropPanel(p: { world: World; tool: Tool; readOnly: boolean; alli
         </button>
         {spots && <button type="button" onClick={p.onClear}>Clear</button>}
       </div>
-      {spots && spots.length === 0 && <p className="rokp-msg bad">No free spot takes in any of those points.</p>}
+      {spots && spots.length === 0 && <p className="rokp-msg bad">No spot takes in 2 or more of those points.</p>}
       {spots && spots.length > 0 && (
         <>
-          <p className="rokp-hint">For {p.allianceName}. Click a numbered spot on the map, or a button here.</p>
+          <p className="rokp-hint">
+            For {p.allianceName}: {plural(spots.length, 'spot')}, {byTotal.map(([t, n]) => `${n} with ${t}`).join(', ')} points. Click a yellow spot on the map, or a button here.
+          </p>
           <ol className="rokp-drops">
-            {spots.map((s, i) => (
+            {spots.slice(0, shown).map((s, i) => (
               <li key={`${s.x},${s.y}`}>
                 <span className="rokp-droprank">{i + 1}</span>
                 <div className="rokp-grow">
@@ -85,17 +96,29 @@ export function DropPanel(p: { world: World; tool: Tool; readOnly: boolean; alli
                     {s.others > 0 ? ` · +${s.others} of other kinds` : ''}
                     {s.foreignCells > 0 ? ` · covers ${s.foreignCells} taken cells` : ''}
                     {s.owned > 0 ? ` · ${s.owned} of them in somebody's land` : ''}
-                    {s.removals.length > 0 ? ` · remove from ${s.removals.map((g) => g.label).join(', ')}` : ''}
+                    {!s.checked && s.owners.length > 0 ? ` · land of ${listed(s.owners)}` : ''}
+                    {s.checked && s.removals.length > 0 ? ` · remove from ${listed(s.removals.map((g) => g.label))}` : ''}
+                    {s.impossible ? ' · cannot be cleared' : ''}
                   </small>
                   {p.focus === i && s.removals.length > 0 && <RemovalList groups={s.removals} onGo={p.onGoTo} />}
                 </div>
                 <button type="button" onClick={() => p.onGo(s, i)} title="Show it on the map, with what would have to go">Go</button>
-                <button type="button" className="rokp-primary" disabled={p.readOnly} onClick={() => p.onPlace(s)} title="Place the CF here">Place</button>
+                <button type="button" className="rokp-primary" disabled={p.readOnly || s.impossible} onClick={() => p.onPlace(s, i)} title="Place the CF here">Place</button>
               </li>
             ))}
           </ol>
+          {shown < spots.length && (
+            <button type="button" className="rokp-more" onClick={() => setPage({ of: spots, n: shown + PAGE })}>
+              Show {Math.min(PAGE, spots.length - shown)} more ({spots.length - shown} left)
+            </button>
+          )}
         </>
       )}
     </Section>
   );
+}
+
+/** A few names, then how many more. */
+function listed(names: string[]): string {
+  return names.length <= 3 ? names.join(', ') : `${names.slice(0, 3).join(', ')} +${names.length - 3}`;
 }

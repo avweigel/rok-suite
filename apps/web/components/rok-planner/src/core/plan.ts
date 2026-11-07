@@ -30,6 +30,8 @@ export interface PlanDoc {
   items: PlanItem[];
   /** Buildings and holy sites of other alliances this plan assumes gone: where they stand on the map. */
   removed?: [number, number][];
+  /** An empty kingdom: the game's alliances are left out, the plan starts from a map with nobody on it. */
+  blank?: true;
 }
 
 export const LIMITS = { alliances: 40, items: 4000, name: 60, coord: 4000, removed: 8000 } as const;
@@ -64,6 +66,20 @@ export function emptyPlan(map: string, name = 'New plan'): PlanDoc {
   const plan: PlanDoc = { v: 1, map, name, alliances: [], items: [] };
   plan.alliances.push(newAlliance(plan));
   return plan;
+}
+
+/** A plan on an empty kingdom: none of the game's alliances, none of its own yet. */
+export function blankPlan(map: string, name = 'New plan'): PlanDoc {
+  return { v: 1, map, name, alliances: [], items: [], blank: true };
+}
+
+/** Leaves the game's alliances out of the map, or brings them back. */
+export function setBlank(plan: PlanDoc, on: boolean): PlanDoc {
+  if (on === (plan.blank === true)) return plan;
+  if (on) return { ...plan, blank: true };
+  const { blank, ...rest } = plan;
+  void blank;
+  return rest;
 }
 
 export function addAlliance(plan: PlanDoc, patch: Partial<Omit<PlanAlliance, 'id'>> = {}): { plan: PlanDoc; alliance: PlanAlliance } {
@@ -159,7 +175,7 @@ export function sanitizePlan(raw: unknown, map?: string): PlanDoc {
   const r = raw as Record<string, unknown>;
   if (r.v !== 1) fail('unknown version');
   if (typeof r.map !== 'string' || (map !== undefined && r.map !== map)) fail(`it is for another map (${String(r.map).slice(0, 20)})`);
-  if (!Array.isArray(r.alliances) || r.alliances.length === 0 || r.alliances.length > LIMITS.alliances) fail('the list of alliances is missing or too long');
+  if (!Array.isArray(r.alliances) || r.alliances.length > LIMITS.alliances) fail('the list of alliances is missing or too long');
   if (!Array.isArray(r.items) || r.items.length > LIMITS.items) fail('the list of buildings is missing or too long');
   const ids = new Set<string>();
   const alliances: PlanAlliance[] = (r.alliances as unknown[]).map((raw1, n) => {
@@ -191,6 +207,7 @@ export function sanitizePlan(raw: unknown, map?: string): PlanDoc {
     alliances,
     items,
     ...(removed.length ? { removed } : {}),
+    ...(r.blank === true ? { blank: true as const } : {}),
   };
 }
 

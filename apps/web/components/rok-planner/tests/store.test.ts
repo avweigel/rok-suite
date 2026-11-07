@@ -143,7 +143,7 @@ test('Supabase store: a stored plan that is not valid is refused when it is read
   const db = new FakeDb();
   const me = createSupabaseStore(fakeSupabase(db, 'u1'));
   const p = await me.create(plain());
-  db.rows[0].data = { v: 1, map: 'k3923', alliances: [], items: [] };
+  db.rows[0].data = { v: 1, map: 'k3923', alliances: 'x', items: [] };
   await assert.rejects(me.load(p.summary.id), /Not a valid plan/);
 });
 

@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { LIMITS, addAlliance, clearAlliance, removeAlliance, updateAlliance } from '../../core/plan';
+import { LIMITS, addAlliance, clearAlliance, removeAlliance, setBlank, updateAlliance } from '../../core/plan';
 import type { PlanDoc } from '../../core/plan';
 import type { PlanState } from '../../core/state';
 import type { World } from '../../core/world';
-import { Section, plural } from '../components';
+import { Check, Section, plural } from '../components';
 
 export interface AlliancesPanelProps {
   world: World;
@@ -48,6 +48,14 @@ export function AlliancesPanel(p: AlliancesPanelProps) {
   const taken = new Set(plan.alliances.map((a) => a.baseId).filter((x): x is number => x != null));
   return (
     <Section title="Alliances of this plan" count={plan.alliances.length} hint="Pick the alliance you are placing for (the round button), then click the map. Right click a building to delete it.">
+      <Check
+        checked={plan.blank === true}
+        disabled={p.readOnly}
+        onChange={(v) => p.onChange(setBlank(plan, v))}
+        label="Empty kingdom"
+        hint={plan.blank ? 'The alliances of the game are left out: the map has nobody on it.' : 'Leave out the alliances of the game and plan on an empty map.'}
+      />
+      {plan.alliances.length === 0 && <p className="rokp-hint">No alliance yet: add one to start placing.</p>}
       <ul className="rokp-alliances">
         {plan.alliances.map((a) => {
           const s = state.byAlliance.get(a.id);
@@ -61,7 +69,7 @@ export function AlliancesPanel(p: AlliancesPanelProps) {
                 <button type="button" className="rokp-ico" title={p.hidden.has(a.id) ? 'Show on the map' : 'Hide from the map'} onClick={() => p.onToggleHidden(a.id)}>
                   {p.hidden.has(a.id) ? '◌' : '◉'}
                 </button>
-                {!p.readOnly && plan.alliances.length > 1 && (
+                {!p.readOnly && (plan.alliances.length > 1 || plan.blank) && (
                   <button
                     type="button"
                     className="rokp-ico"
