@@ -1,7 +1,7 @@
 'use client';
 
 // Commanders: compare pairings, browse every commander by what its skills do, and build a roster from what you own.
-// Not public yet (Davide, 2026-11-10): admins only, and hidden from the menu for everybody else.
+// Not public yet (Davide, 2026-11-10): officers and admins only, and hidden from the menu for everybody else.
 // The tool reads the address and draws charts, so it is loaded in the browser only.
 
 import dynamic from 'next/dynamic';
@@ -20,7 +20,7 @@ const CommandersTool = dynamic(() => import('@/components/commanders/CommandersT
 
 export default function CommandersPage() {
   return (
-    <AuthGate require="admin" sidebar title="Commanders" description="This section is not open yet: admins only.">
+    <AuthGate require="officer" sidebar title="Commanders" description="This section is not open yet: officers and admins only.">
       <AppSidebar>
         <CommandersTool />
       </AppSidebar>
