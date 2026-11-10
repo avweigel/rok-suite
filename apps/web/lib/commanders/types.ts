@@ -46,7 +46,10 @@ export interface TalentData {
   /** The steps it comes after: one of them maxed opens it (none: the top of the tree). */
   needs: number[];
   desc: string;
+  /** The numbers at max level. */
   vals: Record<string, number>;
+  /** The numbers at each level, 1 to max (only when it has more than one level). */
+  levels?: Record<string, number>[];
 }
 
 /** A bonus as the game gives it: its own id of the bonus (3002 cavalry Attack, 10007 skill damage...) and a percentage. */
@@ -58,7 +61,7 @@ export interface TextData {
   vals: Record<string, number>;
 }
 
-/** A piece of equipment, as it is with its special talent (30% more than without) and fully awakened. */
+/** A piece of equipment: as it comes, with its special talent (`...T`, 30% more), and what each level of awakening adds. */
 export interface GearData {
   id: number;
   name: string;
@@ -71,10 +74,15 @@ export interface GearData {
   /** An artifact or a curio, worn by the secondary commander: the unit type it turns that commander's skills to (99: any). */
   second?: number;
   stats: BonusData[];
+  statsT?: BonusData[];
   skill?: TextData;
-  /** What awakening it adds. */
-  awake?: BonusData[];
-  awakeSkill?: TextData & { name: string };
+  skillT?: TextData;
+  /** Levels of awakening it can take. */
+  awakeMax?: number;
+  /** [level, bonus id, value, value with the special talent]. */
+  awake?: [number, number, number, number][];
+  /** The skill its last level of awakening adds. */
+  awakeSkill?: { level: number; name: string; plain: TextData; talent: TextData };
 }
 
 export interface GearSetData {

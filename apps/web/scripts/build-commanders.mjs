@@ -361,12 +361,18 @@ function main() {
       note(`talent ${m.ID} (node ${m.Node}) of tree ${m.TreeType} has no text or no numbers: kept as an empty step of the tree`);
     }
     const desc = clean(raw);
-    const vals = {};
-    for (const p of desc.matchAll(/\{([a-zA-Z]+)(\d+)\}/g)) {
-      const v = row?.[`TextParam${p[2]}`];
-      if (typeof v === 'number') vals[`${p[1]}${p[2]}`] = num(p[1] === 's' ? v * 100 : v);
-      else note(`talent ${m.ID} (${t?.name}): {${p[1]}${p[2]}} has no number`);
-    }
+    const valsAt = (r, warn) => {
+      const vals = {};
+      for (const p of desc.matchAll(/\{([a-zA-Z]+)(\d+)\}/g)) {
+        const v = r?.[`TextParam${p[2]}`];
+        if (typeof v === 'number') vals[`${p[1]}${p[2]}`] = num(p[1] === 's' ? v * 100 : v);
+        else if (warn) note(`talent ${m.ID} (${t?.name}): {${p[1]}${p[2]}} has no number`);
+      }
+      return vals;
+    };
+    const vals = valsAt(row, true);
+    // the numbers at every level, for a tree where points are spent one by one
+    const levels = m.MaxLv > 1 ? Array.from({ length: m.MaxLv }, (_, i) => valsAt(nodeTop.get(m.Node)?.get(i + 1), false)) : null;
     (talents[m.TreeType] ??= []).push({
       id: m.ID,
       name: t?.name?.trim() ?? '',
@@ -375,6 +381,7 @@ function main() {
       needs: String(m.Condition).split(';').map(Number).filter((n) => n > 0),
       desc,
       vals,
+      ...(levels && Object.keys(vals).length ? { levels } : {}),
     });
     talentCount++;
   }
@@ -434,14 +441,16 @@ function main() {
     return { desc, vals };
   };
 
-  // Equipment: legendary and epic pieces, each as it is with its special talent (30% more) and fully awakened.
+  // Equipment: legendary and epic pieces, as they come and with their special talent (30% more), with what each level
+  // of awakening adds (the numbers again without and with the special talent).
   const withTalent = new Map(table(excel, 'equipment_talent', ['ID', 'BuffType1', 'BuffValue1', 'Skill_D']).map((r) => [r.ID, r]));
   const awakened = new Map();
-  for (const a of table(excel, 'equipment_Awakebuff', ['EquipmentID', 'AwakeNum', 'BuffType', 'TalentBuffValue', 'TalentSkill_D', 'LC_Title'])) {
+  for (const a of table(excel, 'equipment_Awakebuff', ['EquipmentID', 'AwakeNum', 'BuffType', 'BlankBuffValue', 'TalentBuffValue', 'BlankSkill_D', 'TalentSkill_D', 'LC_Title'])) {
     const list = awakened.get(a.EquipmentID) ?? [];
     list.push(a);
     awakened.set(a.EquipmentID, list);
   }
+  const same = (x, y) => JSON.stringify(x) === JSON.stringify(y);
   const gear = [];
   let unnamedGear = 0;
   for (const e of table(excel, 'equipment_equipment', ['ID', 'LC_N', 'Type', 'Quality', 'IsVisible', 'SuitGroup', 'ValidAwakeNum', 'BuffType1', 'BuffValue1', 'Skill_D', 'Skill_D2']).sort((x, y) => x.ID - y.ID)) {
@@ -453,20 +462,29 @@ function main() {
     }
     // an artifact or a curio, worn by the secondary commander: it changes which unit type that commander's skills are for
     const marker = [1, 2, 3].map((i) => (e[`BuffType${i}`] === 80000 || e[`BuffType${i}`] === 80001 ? e[`BuffValue${i}`] : 0)).find(Boolean);
-    const row = marker ? e : withTalent.get(e.ID) ?? e;
-    const item = { id: e.ID, name, slot: e.Type, rarity: e.Quality, stats: bonuses(row, 3) };
+    const special = marker ? null : withTalent.get(e.ID) ?? null;
+    const item = { id: e.ID, name, slot: e.Type, rarity: e.Quality, stats: bonuses(e, 3) };
+    if (special) {
+      const statsT = bonuses(special, 3);
+      if (!same(statsT, item.stats)) item.statsT = statsT;
+    }
     if (e.SuitGroup) item.set = e.SuitGroup;
     if (marker) item.second = marker;
-    const skill = [described(row.Skill_D, name), described(row.Skill_D2, name)].filter(Boolean);
+    const skill = [described(e.Skill_D, name), described(e.Skill_D2, name)].filter(Boolean);
     if (skill.length > 1) note(`${name}: two skill texts, the first is kept`);
     if (skill.length) item.skill = skill[0];
+    const skillT = special ? described(special.Skill_D, name) : null;
+    if (skillT && !same(skillT, item.skill)) item.skillT = skillT;
     // (a piece can be awakened only up to its own number of levels: one for the gathering sets)
+    if (e.ValidAwakeNum > 0) item.awakeMax = e.ValidAwakeNum;
     for (const a of (awakened.get(e.ID) ?? []).filter((x) => x.AwakeNum <= e.ValidAwakeNum).sort((x, y) => x.AwakeNum - y.AwakeNum)) {
-      const b = bonus(a.BuffType, a.TalentBuffValue);
-      if (b) (item.awake ??= []).push(b);
+      const plain = bonus(a.BuffType, a.BlankBuffValue);
+      const better = bonus(a.BuffType, a.TalentBuffValue);
+      if (plain && better) (item.awake ??= []).push([a.AwakeNum, plain[0], plain[1], better[1]]);
       else if (a.BuffType === 90000) {
-        const sk = described(a.TalentSkill_D, `${name} (awakened)`);
-        if (sk) item.awakeSkill = { name: T(a.LC_Title) ?? 'Awakened', ...sk };
+        const p = described(a.BlankSkill_D, `${name} (awakened)`);
+        const t = described(a.TalentSkill_D, `${name} (awakened)`);
+        if (p || t) item.awakeSkill = { level: a.AwakeNum, name: T(a.LC_Title) ?? 'Awakened', plain: p ?? t, talent: t ?? p };
       }
     }
     gear.push(item);

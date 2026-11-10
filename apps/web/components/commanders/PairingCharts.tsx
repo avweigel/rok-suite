@@ -276,7 +276,6 @@ export function NotesCard({ row, scenario, onScenario }: { row: PairView; scenar
   const build = row.ev.build;
   const kit = row.ev.loadout;
   const tag = `${chip} border-[var(--border)] text-[var(--text-secondary)]`;
-  const sub = 'mb-1 mt-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]';
   return (
     <section className={`${card} p-4`}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -323,77 +322,19 @@ export function NotesCard({ row, scenario, onScenario }: { row: PairView; scenar
           <p className="mt-2 text-[10px] leading-4 text-[var(--text-muted)]">The named talents taken (hover one to read it), plus the stat steps on the way. The points are spent where they do the most for this scenario.</p>
         </details>
       )}
-      {kit && (kit.formation || kit.commons.length > 0) && (
-        <details className="mt-2 rounded-lg bg-[var(--background-secondary)] px-3 py-2">
-          <summary className="cursor-pointer select-none text-xs text-[var(--text-secondary)]">
-            Formation of {row.a.label}: <span className="text-[var(--foreground)]">{kit.formation?.name ?? 'none adds anything here'}</span>
-          </summary>
-          {kit.formation && (
+      {kit && (
+        <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">
+          <span className="text-[var(--text-muted)]">Formation:</span> {kit.formation?.name ?? 'none'}
+          {kit.manual.formation ? ' (yours)' : ''}
+          {kit.gear.some(Boolean) && (
             <>
-              <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">{fillDesc(kit.formation.data)}</p>
-              <div className={sub}>Special inscriptions of its four armaments</div>
-              <div className="flex flex-wrap gap-1">
-                {kit.formation.specials.map((s) => (
-                  <span key={s.id} title={fillDesc(s.data)} className={`${chip} border-amber-500/40 text-amber-500`}>
-                    {s.name}
-                  </span>
-                ))}
-              </div>
+              {' · '}
+              <span className="text-[var(--text-muted)]">Equipment:</span> {kit.sets.length ? [...new Set(kit.sets.map((x) => x.name))].join(' + ') : `${kit.gear.filter(Boolean).length} pieces`}
+              {kit.manual.gear ? ' (yours)' : ''}
             </>
           )}
-          {kit.commons.length > 0 && (
-            <>
-              <div className={sub}>Common inscriptions</div>
-              <div className="flex flex-wrap gap-1">
-                {kit.commons.map((s) => (
-                  <span key={s.id} title={fillDesc(s.data)} className={tag}>
-                    {s.name}
-                  </span>
-                ))}
-              </div>
-            </>
-          )}
-          {kit.lines.length > 0 && (
-            <>
-              <div className={sub}>Attribute lines of the four armaments, added up</div>
-              <div className="flex flex-wrap gap-1">
-                {kit.lines.map((l) => (
-                  <span key={l} className={tag}>
-                    {l}
-                  </span>
-                ))}
-              </div>
-            </>
-          )}
-          <p className="mt-2 text-[10px] leading-4 text-[var(--text-muted)]">The formation that adds the most to these two commanders together, with legendary armaments at their best rolls (hover an inscription to read it). Only the primary commander&apos;s formation and armaments count.</p>
-        </details>
-      )}
-      {kit && kit.gear.length > 0 && (
-        <details className="mt-2 rounded-lg bg-[var(--background-secondary)] px-3 py-2">
-          <summary className="cursor-pointer select-none text-xs text-[var(--text-secondary)]">
-            Equipment of {row.a.label}: <span className="text-[var(--foreground)]">{kit.sets.length ? [...new Set(kit.sets.map((s) => s.name))].join(' + ') : `${kit.gear.length} pieces`}</span>
-          </summary>
-          <div className="mt-2 flex flex-wrap gap-1">
-            {kit.gear.map((g) => (
-              <span key={g.id} title={[...g.effects.map((e) => e.text)].filter((t, i, all) => all.indexOf(t) === i).join('\n')} className={tag}>
-                {g.name}
-              </span>
-            ))}
-          </div>
-          {kit.sets.length > 0 && (
-            <>
-              <div className={sub}>Set bonuses</div>
-              <ul className="space-y-0.5 text-xs text-[var(--text-secondary)]">
-                {kit.sets.map((s) => (
-                  <li key={`${s.name}-${s.pieces}`}>
-                    {s.name}, {s.pieces} pieces: {s.text}
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-          <p className="mt-2 text-[10px] leading-4 text-[var(--text-muted)]">The pieces that do the most for {row.a.label} in this scenario (hover one to see what was counted), each with its special talent and fully awakened. Only the primary commander&apos;s equipment counts.</p>
-        </details>
+          <span className="text-[var(--text-muted)]"> · see and change them below</span>
+        </p>
       )}
       {row.ev.controls.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1">

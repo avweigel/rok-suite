@@ -49,6 +49,8 @@ interface Base {
   /** Holds only when the primary commander's talents are of one of these troop types ("- Infantry: ..."), or of none of them ("- Otherwise: ..."). */
   only?: Unit[];
   except?: Unit[];
+  /** Holds only against enemy units of this type ("more damage to cavalry units", "less damage from archer units"). */
+  vs?: Unit;
   /** The sentence it was read from. */
   text: string;
 }
@@ -202,7 +204,7 @@ function condsOf(t: string): Cond[] {
 }
 
 /** What follows a number can narrow it: "...more damage to barbarians", "...less damage from cavalry units". */
-function tailOf(t: string, end: number): { conds: Cond[]; from?: Unit } {
+function tailOf(t: string, end: number): { conds: Cond[]; from?: Unit; to?: Unit } {
   const tail = t.slice(end, end + 90).split(/[.;:(]| and (?:gains?|takes?|deals?|loses?) /)[0];
   const conds: Cond[] = [];
   if (/\bto (?:barbarians?|neutral)|barbarian/.test(tail)) conds.push('pve');
@@ -210,7 +212,8 @@ function tailOf(t: string, end: number): { conds: Cond[]; from?: Unit } {
   if (/\bto (?:the )?(?:enemy )?(?:infantry|cavalry|archer|siege) units|to (?:enemy )?(?:troops|targets) (?:with|that|which|who)|when (?:it|their troop) has|while (?:it|their troop) has/.test(tail)) conds.push('situational');
   if (/on the map|while outside|outside of alliance territory/.test(tail)) conds.push('onMap');
   const from = /\bfrom (infantry|cavalry|archer|siege) units/.exec(tail);
-  return { conds, from: from ? (from[1] as Unit) : undefined };
+  const to = /\bto (?:the )?(?:enemy )?(infantry|cavalry|archer|siege) units/.exec(tail);
+  return { conds, from: from ? (from[1] as Unit) : undefined, to: to ? (to[1] as Unit) : undefined };
 }
 
 function triggerOf(t: string, active: boolean, kit: boolean): Trigger {
@@ -301,11 +304,17 @@ function extract(sentence: Sentence, ctx: Ctx): Effect[] {
     if (who === 'tower') return null;
     const tail = tailOf(t, end);
     const b = base(pos, tail.conds);
-    // "the target takes more damage from infantry units": it is our troop that has to be infantry
+    // "the target takes more damage from infantry units": it is our troop that has to be infantry; "takes less damage
+    // from cavalry units": it holds against cavalry (situational until the enemy's troop type is known)
     if (tail.from) {
       if (who === 'enemy') b.unit = tail.from;
-      else b.conds = [...new Set([...b.conds, 'situational' as Cond])];
+      else {
+        b.conds = [...new Set([...b.conds, 'situational' as Cond])];
+        b.vs = tail.from;
+      }
     }
+    // "deals 5% more damage to infantry units"
+    if (tail.to && who !== 'enemy') b.vs = tail.to;
     const e: Effect = { ...b, type: 'stat', stat: s, scope: who, value };
     out.push(e);
     return e;
