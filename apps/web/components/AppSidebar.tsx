@@ -16,6 +16,7 @@ import {
   Calculator,
   Scale,
   ScrollText,
+  Swords,
   Trophy,
   ClipboardList,
   Upload,
@@ -76,6 +77,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
           ? [{ labelKey: 'dkp', href: '/dkp', icon: <Trophy size={20} />, hoverColor: 'group-hover:text-yellow-500', hoverBg: 'hover:bg-yellow-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-yellow-500 to-amber-500' }]
           : []),
         { labelKey: 'alliances', href: '/alliances', icon: <Users size={20} />, hoverColor: 'group-hover:text-sky-400', hoverBg: 'hover:bg-sky-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-sky-500 to-blue-500' },
+        { labelKey: 'commanders', href: '/commanders', icon: <Swords size={20} />, hoverColor: 'group-hover:text-violet-400', hoverBg: 'hover:bg-violet-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-violet-500 to-indigo-500' },
         { labelKey: 'scanUpload', login: true, href: '/upload', icon: <Upload size={20} />, hoverColor: 'group-hover:text-cyan-400', hoverBg: 'hover:bg-cyan-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-cyan-500 to-sky-500' },
         { labelKey: 'migration', href: '/migration', icon: <ClipboardList size={20} />, hoverColor: 'group-hover:text-orange-500', hoverBg: 'hover:bg-orange-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-orange-500 to-rose-500' },
         { labelKey: 'kingdomPlanner', login: true, href: '/kingdom-planner', icon: <Castle size={20} />, hoverColor: 'group-hover:text-emerald-500', hoverBg: 'hover:bg-emerald-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-emerald-500 to-teal-500' },
