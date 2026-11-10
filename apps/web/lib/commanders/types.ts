@@ -20,8 +20,10 @@ export interface SkillData {
   awake?: boolean;
   /** "Target Type" of an active skill, as the game shows it: 1 single, 2 AoE, 3 single & AoE. */
   target?: 1 | 2 | 3;
-  /** "Upgrade Preview": a number of the skill at every level, lowest first (`l`: its name in `labels`; `p`: a percentage). */
-  up?: { l: number; v: number[]; p?: 1 }[];
+  /** "Upgrade Preview": a number of the skill at every level, lowest first (`l`: its name in `labels`; `n`: {p<n>} or {s<n>} in the text; `p`: a percentage). */
+  up?: { l: number; n?: number; v: number[]; p?: 1 }[];
+  /** An expertise that replaces a skill: the skill it replaces, for a commander without the expertise. */
+  before?: Omit<SkillData, 'slot' | 'before'>;
   /** The underlined words of the text: [the word as written, its number in `words`]. */
   kw?: [string, number][];
 }
@@ -127,6 +129,17 @@ export interface KitData {
   lines: Record<string, BonusData[][]>;
   /** The game's name of every bonus id used above. */
   buffs: Record<string, string>;
+  /** The civilizations: their buff, and their special unit (T5: Attack, Defense, Health, speed). */
+  civs?: CivData[];
+  /** The T5 of each unit type (1 infantry, 2 cavalry, 3 archers, 4 siege): Attack, Defense, Health, speed. */
+  t5?: Record<string, [number, number, number, number]>;
+}
+
+export interface CivData {
+  id: number;
+  name: string;
+  buff: { title: string; bonuses: BonusData[] };
+  unit?: { type: number; name: string; t5: [number, number, number, number] };
 }
 
 export interface CommandersFile {

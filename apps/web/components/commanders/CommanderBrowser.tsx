@@ -206,6 +206,11 @@ function CommanderDetail({ c, trees, target, onUse, onClose, highlighted, labels
           return (
             <li key={`${s.slot}-${s.id}`}>
               <SkillCard skill={s} labels={labels} words={words} simple={simple}>
+                {c.unread.some((u) => u.skill === s.name) && (
+                  <div className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] leading-4 text-amber-500">
+                    Not counted by the tool yet: {c.unread.filter((u) => u.skill === s.name).map((u) => u.text).join(' · ')}
+                  </div>
+                )}
                 {effects.length > 0 && (
                   <details className="mt-2">
                     <summary className="cursor-pointer select-none text-[11px] text-[var(--text-muted)]">What the tool reads from it ({effects.length})</summary>

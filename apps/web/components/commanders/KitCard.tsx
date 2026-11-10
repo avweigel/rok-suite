@@ -382,8 +382,27 @@ function FormationSide({ kit, chosen, auto, onSet }: { kit: Kit; chosen: number 
   );
 }
 
-/** One armament: its two inscriptions and its three attribute lines. */
-function ArmSide({ kit, slot, arm, formationName, top, onSet }: { kit: Kit; slot: number; arm: ArmsPick[number]; formationName: string | null; top: Inscription[]; onSet(v: ArmsPick[number]): void }) {
+/**
+ * One armament: its two inscriptions and its three attribute lines. `top`: the special and rare inscriptions offered
+ * (those of the formation, or of every formation with `formationOf` naming each one's).
+ */
+export function ArmSide({
+  kit,
+  slot,
+  arm,
+  formationName,
+  top,
+  onSet,
+  formationOf,
+}: {
+  kit: Kit;
+  slot: number;
+  arm: ArmsPick[number];
+  formationName: string | null;
+  top: Inscription[];
+  onSet(v: ArmsPick[number]): void;
+  formationOf?: (x: Inscription) => string | undefined;
+}) {
   const chosen = arm.inscriptions.map((id) => kit.inscriptions.get(id)).filter((x): x is Inscription => !!x);
   const special = chosen.find((x) => x.kind !== 'common') ?? null;
   const commons = chosen.filter((x) => x.kind === 'common');
@@ -398,26 +417,30 @@ function ArmSide({ kit, slot, arm, formationName, top, onSet }: { kit: Kit; slot
     const next = has ? commons.filter((c) => c.id !== x.id) : [...commons, x];
     write(special, next.slice(-(special ? 1 : 2)));
   };
-  const chip = (x: Inscription, on: boolean, onClick: () => void) => (
-    <button
-      key={x.id}
-      type="button"
-      title={fillDesc(x.data)}
-      aria-pressed={on}
-      onClick={onClick}
-      className="rounded-full border px-2 py-0.5 text-[10px]"
-      style={{ borderColor: on ? KIND_COLOR[x.kind] : 'var(--border)', background: on ? `${KIND_COLOR[x.kind]}26` : undefined, color: on ? 'var(--foreground)' : 'var(--text-secondary)' }}
-    >
-      {x.name}
-    </button>
-  );
+  const chip = (x: Inscription, on: boolean, onClick: () => void) => {
+    const of = x.kind !== 'common' ? formationOf?.(x) : undefined;
+    return (
+      <button
+        key={x.id}
+        type="button"
+        title={`${of ? `${of}: ` : ''}${fillDesc(x.data)}`}
+        aria-pressed={on}
+        onClick={onClick}
+        className="rounded-full border px-2 py-0.5 text-[10px]"
+        style={{ borderColor: on ? KIND_COLOR[x.kind] : 'var(--border)', background: on ? `${KIND_COLOR[x.kind]}26` : undefined, color: on ? 'var(--foreground)' : 'var(--text-secondary)' }}
+      >
+        {x.name}
+        {of && <span className="ml-1 text-[var(--text-muted)]">· {of.replace(/ Formation/, '')}</span>}
+      </button>
+    );
+  };
   return (
     <div className="min-w-0">
       <div className="mb-1 text-xs font-semibold text-[var(--foreground)]">{kit.armamentSlots[slot]}</div>
       {top.length > 0 && (
         <>
-          <div className={head}>Of {formationName ?? 'this formation'}</div>
-          <div className="mb-1.5 mt-0.5 flex flex-wrap gap-1">{top.map((x) => chip(x, special?.id === x.id, () => pickTop(x)))}</div>
+          <div className={head}>{formationOf ? 'Special and rare (they hold only with their own formation)' : `Of ${formationName ?? 'this formation'}`}</div>
+          <div className={`mb-1.5 mt-0.5 flex flex-wrap gap-1 ${formationOf ? 'max-h-28 overflow-auto' : ''}`}>{top.map((x) => chip(x, special?.id === x.id, () => pickTop(x)))}</div>
         </>
       )}
       <div className={head}>Common</div>

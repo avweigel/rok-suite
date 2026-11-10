@@ -24,9 +24,10 @@ export type DamageKind = 'direct' | 'additional' | 'smite' | 'combo' | 'true';
 /**
  * What sets an effect off: the active skill itself, a basic attack launched, an attack received, an active skill used,
  * every second, entering combat. `smite` and `combo` (equipment and armaments only): each time the troop deals smite
- * damage or launches a combo attack, which depends on the commanders it has.
+ * damage or launches a combo attack, which depends on the commanders it has. `hits`: each time the troop deals skill
+ * damage ("whenever their troop deals direct damage"), several times per skill used (every target, every tick).
  */
-export type Trigger = 'active' | 'attack' | 'hit' | 'skill' | 'second' | 'once' | 'always' | 'smite' | 'combo';
+export type Trigger = 'active' | 'attack' | 'hit' | 'skill' | 'hits' | 'second' | 'once' | 'always' | 'smite' | 'combo';
 export type ControlKind = 'silence' | 'disarm' | 'healImmune' | 'cleanse' | 'immune' | 'poison' | 'burn' | 'exhaustion' | 'pierce';
 
 interface Base {
@@ -48,6 +49,12 @@ interface Base {
   cooldown?: number;
   /** "Can stack up to N times": the value is that of one stack. */
   stacks?: number;
+  /** "Its duration resets whenever it gains another stack": the stacks pile up as long as new ones keep coming. */
+  resets?: boolean;
+  /** Holds only while the troop has fewer than this share of its units left (percent): for about that share of a fight. */
+  below?: number;
+  /** Goes off only against a target with a status put on it for a few seconds ("against an Exposed troop"): those seconds per cycle. */
+  window?: number;
   /** Holds only when the primary commander's talents are of one of these troop types ("- Infantry: ..."), or of none of them ("- Otherwise: ..."). */
   only?: Unit[];
   except?: Unit[];
@@ -130,8 +137,9 @@ export function statements(desc: string): Sentence[] {
         if (/\d/.test(head)) out.push({ lead, text: head, variant });
         header = [lead, head].filter(Boolean).join(' ');
         fresh = /:$/.test(text);
-        // one of the list is drawn, not all of it (unless the list is one version per kind of talents: "...based on the talents of...")
-        pick = /\bone of the following\b/i.test(head) && !/based on/i.test(head) ? { n: 0 } : undefined;
+        // one of the list is drawn, not all of it (unless the list is one version per kind of talents: "...based on the talents of...");
+        // "based on the number of troops surrounding it: 3 troops: 6%... 4 troops: 9%...": one of them holds, not all
+        pick = (/\bone of the following\b/i.test(head) && !/based on/i.test(head)) || /based on the number of/i.test(head) ? { n: 0 } : undefined;
         return;
       }
       out.push({ lead, text, variant, pick: drawn });
@@ -201,6 +209,8 @@ function condsOf(t: string): Cond[] {
   if (/less than \d+(?:\.\d+)?% (?:of (?:its|their) )?units|units remaining (?:is|are|drops?|falls?)|reduced to \d+(?:\.\d+)?% units|below \d+(?:\.\d+)?% of when|drops to \d+(?:\.\d+)?%|surrounded|(?:over|less than|more than) \d+(?:\.\d+)?% rage|stacks of poison|does(?: not)? have a shield|has a shield|the target is healed|(?:over|under|more than) \d+(?:\.\d+)?% units remaining|\d+(?:\.\d+)?% or more units remaining/.test(t)) c.add('situational');
   if (/exits? combat|leav\w+ (?:combat|battle|a building)|departing buildings|while routed|not in combat|out of combat/.test(t)) c.add('ooc');
   if (/gather|resource point|caravan/.test(t)) c.add('gather');
+  // "In Scenario Battles": a game mode of its own, not a fight this tool rates
+  if (/in scenario battles?/.test(t)) c.add('gather');
   if (c.has('garrison') && c.has('rally') && !/rall(?:y|ies|ied|ying)|attacking/.test(t)) c.delete('rally');
   return [...c];
 }
@@ -225,9 +235,15 @@ function triggerOf(t: string, active: boolean, kit: boolean): Trigger {
     if (/deal(?:s|ing)? (?:any type of )?smite damage/.test(t)) return 'smite';
   }
   // ("launches a combo attack against..." is what an active skill does itself; only "whenever it launches a combo attack" is a trigger)
-  if (/launch(?:es|ing)? (?:an?|any type of) (?:ranged )?(?:basic|normal) attack|launch(?:es|ing)? basic attacks|basic attack via|(?:whenever|when|each time|every time)[^,.]*?launch(?:es)? a combo attack/.test(t)) return 'attack';
+  if (/launch(?:es|ing)? (?:an?|any type of) (?:ranged )?(?:basic|normal) attack|launch(?:es|ing)? basic attacks|basic attack via|(?:whenever|when|each time|every time)[^,.]*?launch(?:es)? a combo attack|basic attacks? (?:have|has) an? \d+(?:\.\d+)?% chance/.test(t)) return 'attack';
   if (/is hit (?:with|by) (?:an?|any type of) (?:ranged )?(?:basic|normal) attack|is attacked|(?:whenever|when) (?:their|this commander's|the (?:wielder|wearer|user)'s) troop takes|whenever the garrison takes|whenever it takes/.test(t)) return 'hit';
+  // "whenever their rallied army activates a buff": all the time (a buff from somebody's skill, talent or equipment)
+  if (!active && /activates? a buff/.test(t)) return 'attack';
+  // "whenever it defeats an enemy troop", "helps kill": now and then in a fight, not every cycle
+  if (!active && /(?:defeats?|kills?|helps? (?:to )?kill|destroys?) (?:an? |another |the )?(?:enemy|troop|other|governor)/.test(t)) return 'once';
   if (active) return 'active';
+  // "whenever their troop deals direct / skill / additional damage": every hit of a skill, not once per skill used
+  if (!kit && /(?:whenever|each time|every time)[^.;]*?\bdeal(?:s|ing)? (?:ranged )?(?:skill|direct|additional) damage/.test(t)) return 'hits';
   if (/uses? an active skill|uses? (?:this|the|their) [\w' -]*skill|skill hits|deals? (?:ranged )?(?:skill|direct|smite) damage,|(?:wielder|wearer|user)'s troop deals (?:ranged )?(?:skill|direct) damage|dealing (?:ranged )?(?:skill|direct) damage/.test(t)) return 'skill';
   if (/per second|every second/.test(t)) return 'second';
   if (/enter(?:s|ing) (?:combat|battle|a battle)/.test(t)) return 'once';
@@ -255,6 +271,8 @@ interface Ctx {
   cooldown?: number;
   /** A piece of equipment, a formation or an inscription: not a commander's skill. */
   kit?: boolean;
+  /** The whole text, lower case (for what a sentence refers to elsewhere in it: how long a status lasts). */
+  whole?: string;
 }
 
 /** "skill/combo attack/smite damage": the first kind named stands for the whole list. */
@@ -278,11 +296,25 @@ function extract(sentence: Sentence, ctx: Ctx): Effect[] {
   const chances = [...t.matchAll(new RegExp(`${N}% chance`, 'g'))].map((m) => ({ at: m.index ?? 0, value: Number(m[1]) / 100 }));
   const chanceAt = (pos: number): number | undefined => (chances.filter((c) => c.at >= from && c.at < pos).pop() ?? chances.find((c) => c.at < from))?.value;
   // how long it lasts: what the sentence says, else its lead (a turn is a second); "the next skill damage it deals" waits a few seconds to be used
-  const duration = new RegExp(`(?:for|in|within) (?:the next )?${N} (?:seconds?|turns?)`);
+  const duration = new RegExp(`(?:for|in|within) (?:the (?:next|first) )?${N} (?:seconds?|turns?)`);
   const durM = duration.exec(t.slice(from)) ?? duration.exec(lead);
   const lasts = durM ? Number(durM[1]) : /\bthe next (?:ranged )?(?:skill|smite|combo attack|normal|counterattack)[\w ]*damage\b|\bits next combo attack\b/.test(t.slice(from)) ? NEXT_HIT : undefined;
   const cooldown = cooldownOf(t) ?? ctx.cooldown;
-  const trigger = triggerOf(t, ctx.active, !!ctx.kit);
+  // "whenever the units remaining of this commander's troop drops below 10% of when it entered combat": only for the
+  // end of a fight, that share of it (not about the target's units, which is a plain "situational")
+  const low = /(?:drops? (?:below|to)|falls? below|is below|are below|reduced to(?: less than)?|has less than|have less than|with less than|less than) (\d+(?:\.\d+)?)% (?:of when|units|of (?:its|their) units|of (?:its|their) (?:max(?:imum)? )?units)/.exec(t);
+  const ownLow = low && !/target|enemy|attacker|hit troop/.test(t.slice(Math.max(0, low.index - 40), low.index)) ? Number(low[1]) : undefined;
+  const below = ownLow !== undefined && ownLow <= 70 ? ownLow : undefined;
+  const found = triggerOf(t, ctx.active, !!ctx.kit);
+  // (crossing the threshold happens once in a fight)
+  const trigger = below !== undefined && found === 'always' && /whenever|when|drops|falls/.test(t) ? 'once' : found;
+  // "whenever it launches a basic attack against an Exposed troop": only while the target has that status, for as long
+  // as the text says it lasts ("is inflicted with the Exposed effect for 2 seconds"), else a few seconds
+  // (a status has a name of its own, capitalized in the game's text: "an Exposed troop")
+  const status = (trigger === 'attack' || trigger === 'hit') && !ctx.kit ? /against (?:an |a |the )([A-Z][\w'-]*) (?:troop|target)/.exec(sentence.text)?.[1]?.toLowerCase() : undefined;
+  const named = status && !/^(?:enemy|target|nearby|field|garrison|surrounded|single|infantry|cavalry|archer|siege|other|hit|current|attacking|rallied)$/.test(status) ? status : undefined;
+  const lasting = named ? new RegExp(`${named}(?: effect)?[^.]*?for (?:the next )?${N} seconds?`).exec(ctx.whole ?? '') : null;
+  const window = named ? (lasting ? Number(lasting[1]) : 3) : undefined;
   const siege = besieging(t);
   const scope = (pos: number): Scope | 'tower' => scopeAt(t, pos, siege);
   /** A gain that the wording puts next to the enemy ("...to up to 3 enemy troops, as well as deal 20% more damage") is still the troop's own. */
@@ -291,13 +323,16 @@ function extract(sentence: Sentence, ctx: Ctx): Effect[] {
     skill: ctx.skill,
     skillName: ctx.skillName,
     active: ctx.active,
-    conds: [...new Set([...conds, ...extra])],
+    // (a threshold on the troop's own units is counted by its share, not as "situational" on top of it)
+    conds: [...new Set([...conds, ...extra])].filter((c) => below === undefined || c !== 'situational'),
     unit: unitAt(t, pos),
     chance: chanceAt(pos),
     temp: ctx.active || lasts !== undefined || trigger !== 'always',
     duration: lasts,
     trigger,
     cooldown,
+    ...(below !== undefined ? { below } : {}),
+    ...(window !== undefined ? { window } : {}),
     text: sentence.lead ? `${sentence.lead}: ${sentence.text}` : sentence.text,
   });
   /** Every match of a pattern inside the sentence (not in its lead). */
@@ -310,6 +345,10 @@ function extract(sentence: Sentence, ctx: Ctx): Effect[] {
     if (who === 'tower') return null;
     // "deals 10% more ranged normal damage": the troop's own attacks from range, not anybody's combo or smite attacks
     if (s === 'dmgNormal' && who !== 'enemy' && /\branged (?:normal|basic attack)/.test(t.slice(pos, end))) s = 'dmgRanged';
+    // "increases the target's damage received ...: 3 troops: 6% more damage": what the target takes, not what it deals
+    if (who === 'enemy' && s === 'dmg' && /damage (?:received|taken)/.test(lead) && !/\bdeal/.test(t.slice(pos, end))) s = 'taken';
+    // "increases the healing from the Starlight skill by 150%": that one skill's healing, not every healing received
+    if (s === 'healing' && /healing (?:from|of) (?:the )?[\w' -]+ skill/.test(t)) return null;
     const tail = tailOf(t, end);
     const b = base(pos, tail.conds);
     // "the target takes more damage from infantry units": it is our troop that has to be infantry; "takes less damage
@@ -342,7 +381,10 @@ function extract(sentence: Sentence, ctx: Ctx): Effect[] {
     const kind: DamageKind = near.k === 'smite damage' ? 'smite' : near.k === 'combo attack' ? 'combo' : near.k === 'additional damage' ? 'additional' : near.k === 'true damage' ? 'true' : 'direct';
     const hits = kind === 'combo' ? Number(/launch\w* (\d+) (?:extra )?combo attacks?/.exec(before)?.[1] ?? 1) : 1;
     const upTo = [...before.matchAll(/up to (\d+) (?:other )?(?:nearby )?(?:enemy )?(?:troops|targets|enemies)/g)].pop();
-    const targets = upTo ? Number(upTo[1]) : /all (?:nearby )?(?:enemy )?(?:troops|targets|enemies)|all targets/.test(before) ? 5 : 1;
+    // "...to up to 5 enemy troops (Damage Factor 1500), and deals extra direct damage to the current target (Damage
+    // Factor 1000)": the second hit has its own, single target
+    const single = /\bto (?:the|its|their) (?:current )?target(?: troop)?\b|\bto a target troop\b|\bto the target troop\b/.test(before.slice((upTo?.index ?? -1) + 1));
+    const targets = upTo && !single ? Number(upTo[1]) : !upTo && /all (?:nearby )?(?:enemy )?(?:troops|targets|enemies)|all targets/.test(before) ? 5 : 1;
     const tick = new RegExp(`every second for (?:the next )?${N} seconds?`).exec(t);
     const ticks = kind === 'additional' && /every second/.test(t) ? Number(tick?.[1] ?? 1) : 1;
     const b = { ...base(m.index), unit: undefined };                // a damage factor is the troop's, whatever its units
@@ -362,8 +404,23 @@ function extract(sentence: Sentence, ctx: Ctx): Effect[] {
   });
 
   // Rage: taken from the enemy, gained, gained faster, cheaper skills
-  each(`(?:reduc\\w*|drain\\w*|steal\\w*) (?:(?:the target's|the attacker's|its|their|the enemy's|each target's|all targets') )?rage by ${N}|drain\\w* ${N} rage|(?:targets?|enemy troops?|enemies) loses? ${N} rage|troops hit[^.]*? lose ${N} rage`, (m) => {
+  each(`(?:reduc\\w*|drain\\w*|steal\\w*) (?:(?:the target's|the target troop's|the attacker's|its|their|the enemy's|each target's|all targets') )?rage by ${N}|drain\\w* ${N} rage|(?:targets?|enemy troops?|enemies):? loses? ${N} rage|troops hit[^.]*? lose ${N} rage`, (m) => {
     out.push({ ...base(m.index), unit: undefined, type: 'rage', scope: 'enemy', value: -Number(m[1] ?? m[2] ?? m[3] ?? m[4]), perSecond: /per second|every second/.test(t.slice(m.index, m.index + m[0].length + 30)) });
+  });
+  // Rage the troop itself loses: "their troop loses 300 Rage", "- Lose 50 Rage per second"
+  // (under "up to 5 nearby enemy troops:", "- Lose 50 Rage per second" is the enemies' loss)
+  each(`\\bloses? ${N} rage`, (m) => {
+    const before = t.slice(Math.max(from, m.index - 30), m.index);
+    // ("targets lose 100 Rage", "enemy troops lose...": read above)
+    if (/(?:targets?|troops? hit[^.]*|enemy troops?|enemies)[:\s]*$/.test(before)) return;
+    const own = /(?:their|this commander's|its|the) troop\s*$/.test(before);
+    const enemies = !own && scope(m.index) === 'enemy';
+    out.push({ ...base(m.index), unit: undefined, type: 'rage', scope: enemies ? 'enemy' : 'self', value: -Number(m[1]), perSecond: /per second|every second/.test(t.slice(m.index, m.index + m[0].length + 30)) });
+  });
+  // "has a 40% chance to use their active skill a second time", "30% chance of casting it a second time": that much of
+  // one more cast, counted as the Rage of one (1000)
+  each(`${N}% chance (?:of|to) (?:cast|us)\\w* (?:it|this skill|their active skill|its active skill|the [\\w' -]+ skill) a second time`, (m) => {
+    out.push({ ...base(m.index), unit: undefined, type: 'rage', scope: 'self', value: 1000, chance: Number(m[1]) / 100, perSecond: false });
   });
   each(`(?:gain\\w*|restor\\w*|recover\\w*|grant\\w*|generat\\w*) (?:an? )?(?:extra |additional )?${N} (?:extra |additional )?rage( (?:per|every) second)?`, (m) => {
     let who = scope(m.index);
@@ -489,11 +546,12 @@ function extract(sentence: Sentence, ctx: Ctx): Effect[] {
     stat(m.index, DMG[m[1]] ?? 'dmg', Number(m[2]), m.index + m[0].length, 'self');
   });
   // "ignores 50% of the hit troop's Defense" when dealing combo, smite or skill damage: that damage goes through as if the
-  // Defense (or Health) were that much lower, which is 1 / (1 - share) times the damage
+  // Defense were that much lower, counted the way the model counts the enemy's Defense going down (-50% Defense: 50%
+  // more damage; Health half that), so that the two weigh the same
   each(`ignores? ${N}% of the (?:hit troop's|enemy troop's|target's|target troop's) (defense|health)`, (m) => {
     const kind = /combo attack/.test(t) ? 'dmgCombo' : /smite/.test(t) ? 'dmgSmite' : /skill damage|direct damage/.test(t) ? 'dmgSkill' : 'dmg';
     const share = Math.min(0.75, Number(m[1]) / 100);
-    stat(m.index, kind, Math.round((1000 * share) / (1 - share)) / 10, m.index + m[0].length, 'self');
+    stat(m.index, kind, Math.round(1000 * share * (m[2] === 'health' ? 0.5 : 1)) / 10, m.index + m[0].length, 'self');
   });
 
   // "deals 20% more skill damage", "deal 30% less damage"
@@ -569,6 +627,31 @@ function extract(sentence: Sentence, ctx: Ctx): Effect[] {
 }
 
 /** Everything a skill does, at max level. */
+/**
+ * The sentences of a text that have a number (a percentage, a damage or healing factor, Rage) and gave no effect: what
+ * the tool does not count. Gathering, building, troop load, watchtowers and the like are left out on purpose.
+ */
+export function unreadSentences(text: string, effects: readonly Effect[]): string[] {
+  const flatten = (s: string): string =>
+    s
+      .trim()
+      .replace(/^(?:[-•]\s*|\d+\)\s*|\d+\.\s+)/, '')
+      .replace(/^(?:infantry|cavalry|archers?|siege|otherwise):\s*/i, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  const read = effects.map((e) => e.text.replace(/\s+/g, ' ').toLowerCase());
+  return text
+    .split(/\n|(?<=\.)\s+(?=[A-Z])/)
+    .map((s) => s.trim())
+    .filter((s) => /\d+(?:\.\d+)?%|damage factor|healing factor|\d+ rage/i.test(s))
+    .filter((s) => !/gather|build|research|load|training|resource|hospital capacity|healing speed|\bexp\b|experience|construction|watchtower|scout/i.test(s))
+    .filter((s) => {
+      const key = flatten(s).slice(0, 36);
+      return !read.some((r) => r.includes(key));
+    });
+}
+
 export function analyzeSkill(skill: SkillData): Effect[] {
   // "a bonus to Attack upon entering combat. Bonus = (1.5 x commander star level)%": at six stars, and there for the whole fight
   const text = fillDesc(skill).replace(/gains a bonus to (attack|defense|health) upon entering combat\. bonus = \((\d+(?:\.\d+)?) x commander star level\)%/i, (_, what: string, n: string) => `gains ${Number(n) * 6}% ${what}`);
@@ -586,25 +669,30 @@ export function analyzeKit(id: number, name: string, text: Pick<SkillData, 'desc
 }
 
 function read(text: string, given: Omit<Ctx, 'cooldown'>): Effect[] {
-  const ctx: Ctx = { ...given, cooldown: cooldownOf(text.toLowerCase()) };
+  // "(if Diaochan is in this commander's troop, it instead gains 120% Attack)": for one partner only, not counted
+  text = text.replace(/\s*\((?:if|when) [^()]*?(?:is in this commander's troop|is the (?:other|primary|secondary) commander)[^()]*\)/gi, '');
+  const ctx: Ctx = { ...given, cooldown: cooldownOf(text.toLowerCase()), whole: text.toLowerCase() };
   const list = statements(text);
   // the troop types that have a version of their own in this skill: "- Otherwise:" is for the rest
   const named = [...new Set(list.flatMap((s) => (Array.isArray(s.variant) ? s.variant : [])))];
   const out: Effect[] = [];
   let last: Effect[] = [];
-  const stacked = (effects: Effect[], n: number): void => {
+  const stacked = (effects: Effect[], n: number, resets: boolean): void => {
     for (const e of effects) {
       if (e.type !== 'stat') continue;
       e.stacks = n;
       e.temp = true;
+      if (resets) e.resets = true;
     }
   };
   list.forEach((s, i) => {
     // "This effect can stack up to 10 times", "Reign can stack up to 5 times", "Stacks up to 3 times": the sentence before it gave the value of one stack
     const stack = /\b(?:can stack|stacks) up to (\d+) times/i.exec(s.text);
     const own = !!stack && /%/.test(s.text);
+    // "...and its duration resets whenever it gains another stack"
+    const resets = !!stack && /duration resets/i.test(s.text);
     if (stack && !own && last.length) {
-      stacked(last, Number(stack[1]));
+      stacked(last, Number(stack[1]), resets);
       return;
     }
     // "Each stack lasts for 3 seconds."
@@ -622,7 +710,7 @@ function read(text: string, given: Omit<Ctx, 'cooldown'>): Effect[] {
     const status = /^(?:Targets?|Troops?|Enemies|Enemy troops?) (?:inflicted|afflicted) with ([A-Z][\w'-]*)/.exec(s.text)?.[1];
     const cause = status ? list.slice(0, i).reverse().find((p) => p.text.includes(status) && /inflict/i.test(p.text)) : undefined;
     const found = extract(cause ? { ...s, lead: [s.lead, cause.text].filter(Boolean).join(' ') } : s, ctx);
-    if (stack && own) stacked(found, Number(stack[1]));
+    if (stack && own) stacked(found, Number(stack[1]), resets);
     for (const e of found) {
       if (s.variant === 'otherwise') e.except = named;
       else if (s.variant?.length) e.only = s.variant;

@@ -2,12 +2,12 @@
 
 // The charts of the pairings being compared: where each stands among all pairings (radar), the damage factors of a
 // Rage cycle, what the troop gains and what the enemy loses (the game's own percentages), and the reasons in words.
+import { useState } from 'react';
 import { AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { Stat } from '@/lib/commanders/analyze';
-import { AXES, buildSummary, controlLabel, describeEffect } from '@/lib/commanders/model';
+import { AXES, BRIEF_LAYERS, buildSummary, controlLabel, describeEffect } from '@/lib/commanders/model';
 import type { Commander, Evaluation, Note, Rating, Scenario, StatTable, Synergy } from '@/lib/commanders/model';
-import { fillDesc } from '@/lib/commanders/types';
 import { card, chip } from './bits';
 
 export interface PairView {
@@ -296,9 +296,6 @@ export function BriefList({ notes, compact = false }: { notes: Note[]; compact?:
 
 export function NotesCard({ row, scenario, onScenario }: { row: PairView; scenario: Scenario; onScenario(s: Scenario): void }) {
   const pctile = (v: number | undefined): string => (v === undefined ? '…' : String(v));
-  const build = row.ev.build;
-  const kit = row.ev.loadout;
-  const tag = `${chip} border-[var(--border)] text-[var(--text-secondary)]`;
   return (
     <section className={`${card} p-4`}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -341,43 +338,16 @@ export function NotesCard({ row, scenario, onScenario }: { row: PairView; scenar
       </div>
       {row.brief.length > 0 && (
         <div className="mt-3 rounded-lg border border-[var(--border)] px-3 py-2">
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Why it works</div>
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Why it works</span>
+            <ToneLegend />
+          </div>
           <BriefList notes={row.brief} />
         </div>
       )}
-      {build && build.taken.length > 0 && (
-        <details className="mt-3 rounded-lg bg-[var(--background-secondary)] px-3 py-2">
-          <summary className="cursor-pointer select-none text-xs text-[var(--text-secondary)]">
-            Talents of {row.a.label}: <span className="text-[var(--foreground)]">{buildSummary(build)}</span>
-          </summary>
-          <div className="mt-2 flex flex-wrap gap-1">
-            {build.taken
-              .filter((t) => t.core)
-              .map((t) => (
-                <span key={t.id} title={fillDesc(t)} className={tag}>
-                  {t.name}
-                </span>
-              ))}
-          </div>
-          <p className="mt-2 text-[10px] leading-4 text-[var(--text-muted)]">The named talents taken (hover one to read it), plus the stat steps on the way. The points are spent where they do the most for this scenario.</p>
-        </details>
-      )}
-      {kit && (
-        <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">
-          <span className="text-[var(--text-muted)]">Formation:</span> {kit.formation?.name ?? 'none'}
-          {kit.manual.formation ? ' (yours)' : ''}
-          {kit.gear.some(Boolean) && (
-            <>
-              {' · '}
-              <span className="text-[var(--text-muted)]">Equipment:</span> {kit.sets.length ? [...new Set(kit.sets.map((x) => x.name))].join(' + ') : `${kit.gear.filter(Boolean).length} pieces`}
-              {kit.manual.gear ? ' (yours)' : ''}
-            </>
-          )}
-          <span className="text-[var(--text-muted)]"> · see and change them below</span>
-        </p>
-      )}
       {row.ev.controls.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1">
+        <div className="mt-3 flex flex-wrap items-center gap-1">
+          <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Controls on the enemy</span>
           {row.ev.controls.map((c, i) => (
             <span key={i} className={`${chip} border-rose-500/30 bg-rose-500/10 text-rose-400`} title={`${c.who === 'primary' ? row.a.label : row.b.label}: ${c.skillName}`}>
               {controlLabel(c.control)}
@@ -385,17 +355,156 @@ export function NotesCard({ row, scenario, onScenario }: { row: PairView; scenar
           ))}
         </div>
       )}
-      <ul className="mt-3 space-y-1.5">
-        {row.notes.map((n, i) => {
-          const Icon = TONE[n.tone].icon;
-          return (
-            <li key={i} className="flex gap-2 text-xs leading-5 text-[var(--text-secondary)]">
-              <Icon className={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 ${TONE[n.tone].cls}`} />
-              <span>{n.text}</span>
-            </li>
-          );
-        })}
-      </ul>
+      {row.notes.length > 0 && (
+        <details className="mt-3 rounded-lg bg-[var(--background-secondary)] px-3 py-2">
+          <summary className="cursor-pointer select-none text-xs text-[var(--text-secondary)]">More notes ({row.notes.length}): bonuses, Rage, the scenario&apos;s rules, what does not count here</summary>
+          <div className="mt-2">
+            <BriefList notes={row.notes} compact />
+          </div>
+        </details>
+      )}
+    </section>
+  );
+}
+
+/** What the three marks of a "why" mean. */
+export function ToneLegend() {
+  const items: [keyof typeof TONE, string][] = [
+    ['good', 'helps'],
+    ['warn', 'lost or works against'],
+    ['info', 'a fact'],
+  ];
+  return (
+    <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-[var(--text-muted)]">
+      {items.map(([tone, label]) => {
+        const Icon = TONE[tone].icon;
+        return (
+          <span key={tone} className="inline-flex items-center gap-1">
+            <Icon className={`h-3 w-3 ${TONE[tone].cls}`} />
+            {label}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+// ---- two pairings side by side ------------------------------------------------------------------------------
+/**
+ * Two of the pairings being compared, side by side: where each stands on every measure (bars), the numbers behind
+ * them, and their "why" part by part, so that the differences show.
+ */
+export function CompareCard({ rows }: { rows: PairView[] }) {
+  const [pick, setPick] = useState<[number, number]>([0, 1]);
+  const x = rows[Math.min(pick[0], rows.length - 1)];
+  const y = rows[Math.min(pick[1], rows.length - 1)] === x ? rows.find((r) => r !== x) : rows[Math.min(pick[1], rows.length - 1)];
+  if (!x || !y) return null;
+  const rx = x.rating;
+  const ry = y.rating;
+  const measures: { label: string; a: number | undefined; b: number | undefined }[] = [
+    { label: 'Overall', a: rx?.overall, b: ry?.overall },
+    { label: 'Skills only', a: rx?.skills, b: ry?.skills },
+    { label: 'Full build', a: rx?.kit, b: ry?.kit },
+    { label: 'Damage', a: rx?.offense, b: ry?.offense },
+    ...AXES.map((ax) => ({ label: ax.label, a: rx?.axes[ax.id], b: ry?.axes[ax.id] })),
+  ];
+  const data = measures.map((m) => ({ label: m.label, a: m.a ?? 0, b: m.b ?? 0 }));
+  const df = (r: PairView, buckets: string[]): number => Math.round(r.ev.damage.filter((d) => buckets.includes(d.bucket)).reduce((n, d) => n + d.value, 0));
+  const facts: { label: string; a: string; b: string }[] = [
+    { label: 'Synergy of the skills', a: signed(x.synergy.skills), b: signed(y.synergy.skills) },
+    { label: 'Build fit', a: signed(x.synergy.kit), b: signed(y.synergy.kit) },
+    { label: 'Damage engine', a: `×${one(x.ev.offense)}`, b: `×${one(y.ev.offense)}` },
+    { label: 'Skill damage factor / cycle', a: String(df(x, ['skill'])), b: String(df(y, ['skill'])) },
+    { label: 'Combo & smite factor / cycle', a: String(df(x, ['combo', 'smite'])), b: String(df(y, ['combo', 'smite'])) },
+    { label: 'Extra Rage / cycle', a: String(Math.round(x.ev.rage)), b: String(Math.round(y.ev.rage)) },
+    { label: 'Troop', a: x.ev.troop, b: y.ev.troop },
+    { label: 'Talents', a: x.ev.build ? buildSummary(x.ev.build) : '-', b: y.ev.build ? buildSummary(y.ev.build) : '-' },
+    { label: 'Formation', a: x.ev.loadout?.formation?.name ?? '-', b: y.ev.loadout?.formation?.name ?? '-' },
+    { label: 'Equipment sets', a: [...new Set(x.ev.loadout?.sets.map((s) => s.name) ?? [])].join(' + ') || '-', b: [...new Set(y.ev.loadout?.sets.map((s) => s.name) ?? [])].join(' + ') || '-' },
+  ];
+  const layerOf = (r: PairView, id: string): Note[] => r.brief.filter((n) => n.layer === id);
+  const head = (r: PairView) => (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="inline-flex h-5 w-5 items-center justify-center rounded text-[11px] font-bold text-black" style={{ background: r.color }}>
+        {r.name}
+      </span>
+      <span className="truncate">
+        {r.a.label} + {r.b.label}
+      </span>
+    </span>
+  );
+  return (
+    <section className={`${card} p-4`}>
+      <Title hint="Two pairings side by side: every measure (0-100, the share of all pairings beaten in this scenario), the numbers behind them, and their why part by part.">Compare</Title>
+      {rows.length > 2 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] text-[var(--text-secondary)]">
+          {[0, 1].map((side) => (
+            <span key={side} className="inline-flex items-center gap-1">
+              {side === 1 && <span className="mr-1">vs</span>}
+              {rows.map((r) => (
+                <button
+                  key={r.index}
+                  type="button"
+                  aria-pressed={pick[side] === rows.indexOf(r)}
+                  onClick={() => setPick(side === 0 ? [rows.indexOf(r), pick[1]] : [pick[0], rows.indexOf(r)])}
+                  className={`${chip} ${pick[side] === rows.indexOf(r) ? 'border-[#4318ff] bg-[#4318ff]/15 text-[var(--foreground)]' : 'border-[var(--border)]'}`}
+                >
+                  {r.name}
+                </button>
+              ))}
+            </span>
+          ))}
+        </div>
+      )}
+      <div style={{ height: 40 + data.length * 30 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 0 }} barCategoryGap={6}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+            <XAxis type="number" domain={[0, 100]} tick={tick} stroke="var(--border)" />
+            <YAxis type="category" dataKey="label" tick={tick} stroke="var(--border)" width={118} />
+            <Tooltip {...tooltip} cursor={{ fill: 'rgba(127,127,127,.08)' }} formatter={(v) => `beats ${v}% of pairings`} />
+            <Bar dataKey="a" name={`${x.name}: ${x.a.label} + ${x.b.label}`} fill={x.color} isAnimationActive={false} />
+            <Bar dataKey="b" name={`${y.name}: ${y.a.label} + ${y.b.label}`} fill={y.color} isAnimationActive={false} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <Legend rows={[x, y]} />
+
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full min-w-[520px] border-collapse text-xs">
+          <thead>
+            <tr className="text-left text-[var(--text-muted)]">
+              <th className="w-[150px] py-1 pr-2 font-medium" />
+              <th className="py-1 pr-2 font-medium text-[var(--foreground)]">{head(x)}</th>
+              <th className="py-1 font-medium text-[var(--foreground)]">{head(y)}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {facts.map((f) => (
+              <tr key={f.label} className="border-t border-[var(--border)] align-top">
+                <td className="py-1 pr-2 text-[var(--text-muted)]">{f.label}</td>
+                <td className={`py-1 pr-2 ${f.a !== f.b ? 'text-[var(--foreground)]' : 'text-[var(--text-secondary)]'}`}>{f.a}</td>
+                <td className={`py-1 ${f.a !== f.b ? 'text-[var(--foreground)]' : 'text-[var(--text-secondary)]'}`}>{f.b}</td>
+              </tr>
+            ))}
+            {BRIEF_LAYERS.map((l) => {
+              const na = layerOf(x, l.id);
+              const nb = layerOf(y, l.id);
+              if (!na.length && !nb.length) return null;
+              return (
+                <tr key={l.id} className="border-t border-[var(--border)] align-top">
+                  <td className="py-1.5 pr-2 text-[var(--text-muted)]">{l.label}</td>
+                  <td className="py-1.5 pr-2">{na.length ? <BriefList notes={na} compact /> : <span className="text-[var(--text-muted)]">—</span>}</td>
+                  <td className="py-1.5">{nb.length ? <BriefList notes={nb} compact /> : <span className="text-[var(--text-muted)]">—</span>}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="mt-2">
+        <ToneLegend />
+      </div>
     </section>
   );
 }

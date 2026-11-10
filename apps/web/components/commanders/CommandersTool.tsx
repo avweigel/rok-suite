@@ -7,23 +7,27 @@
 // from the texts.
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeftRight, Plus, Swords, Trash2 } from 'lucide-react';
-import { AXES, CAPS, COUNTER_EDGE, ENEMIES, FOCUSABLE, SCENARIOS, SKILLS_FIRST, STRUCTURE_RULE, TROOPS, bestPartners, briefOf, evaluate, fieldBuilder, indexes, notesFor, prepare, prepareKit, prepareTalents, rate, synergy, topPairs } from '@/lib/commanders/model';
-import type { CapId, Commander, Enemy, Field, KitPick, RankBy, Scenario, Setup, TalentPick, TroopType } from '@/lib/commanders/model';
+import { AXES, CAPS, COUNTER_EDGE, ENEMIES, FOCUSABLE, SCENARIOS, SKILLS_FIRST, STRUCTURE_RULE, TROOPS, bestPartners, briefOf, civSetting, countersOf, evaluate, fieldBuilder, formationTries, indexes, notesFor, prepare, prepareKit, prepareTalents, rate, synergy, topPairs } from '@/lib/commanders/model';
+import type { CapId, Commander, Enemy, Field, Kit, KitPick, RankBy, Scenario, Setup, TalentPick, TroopType } from '@/lib/commanders/model';
 import { decodePick, encodePick } from '@/lib/commanders/talentTree';
 import type { CommandersFile } from '@/lib/commanders/types';
 import { CommanderBrowser } from './CommanderBrowser';
 import { CommanderPicker } from './CommanderPicker';
-import { BriefList, DamageCard, NotesCard, RadarCard, StatBars } from './PairingCharts';
+import { BriefList, CompareCard, DamageCard, NotesCard, RadarCard, StatBars, ToneLegend } from './PairingCharts';
 import type { PairView } from './PairingCharts';
 import { PAIR_COLORS, PAIR_NAMES, RarityDot, card, chip } from './bits';
 import { KitCard } from './KitCard';
+import { RosterTool } from './RosterTool';
 import { TalentTreeCard } from './TalentTreeCard';
 
 interface Slot {
   a: number | null;
   b: number | null;
 }
-type Tab = 'pairings' | 'commanders';
+type Tab = 'pairings' | 'commanders' | 'roster';
+const TABS: Tab[] = ['pairings', 'commanders', 'roster'];
+/** Where the player's civilization is remembered in this browser. */
+const CIV_KEY = 'rok-commanders-civ';
 type TroopChoice = TroopType | 'auto';
 
 const DATA_URL = '/commanders/commanders.json';
@@ -39,7 +43,7 @@ const unpicked = 'border-[var(--border)] text-[var(--text-secondary)] hover:bord
  * talents spent by hand and kit=545~<code> for equipment and armaments set by hand (so a comparison can be shared as
  * a link).
  */
-function readUrl(): { slots: Slot[] | null; scenario: Scenario; troop: TroopChoice; enemy: Enemy; tab: Tab; tal: string[]; kit: string[]; focus: CapId[] } {
+function readUrl(): { slots: Slot[] | null; scenario: Scenario; troop: TroopChoice; enemy: Enemy; tab: Tab; tal: string[]; kit: string[]; focus: CapId[]; civ: { buff: number | null; unit: number | null } } {
   const q = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
   const raw = q.get('pairs');
   const slots = raw
@@ -58,7 +62,8 @@ function readUrl(): { slots: Slot[] | null; scenario: Scenario; troop: TroopChoi
     scenario: isScenario(sc) ? sc : 'field',
     troop: isTroop(troop) ? troop : 'auto',
     enemy: isEnemy(q.get('vs')) ? (q.get('vs') as Enemy) : 'any',
-    tab: q.get('tab') === 'commanders' ? 'commanders' : 'pairings',
+    tab: TABS.find((t) => t === q.get('tab')) ?? 'pairings',
+    civ: { buff: Number(q.get('cb')) || null, unit: Number(q.get('cu')) || null },
     tal: (q.get('tal') ?? '').split(',').filter(Boolean),
     focus: (q.get('focus') ?? '').split(',').filter((c): c is CapId => CAPS.some((k) => k.id === c)),
     kit: (q.get('kit') ?? '').split(',').filter(Boolean),
@@ -93,7 +98,107 @@ function PairBrief({ a, b, scenario, troop, setup, field }: { a: Commander; b: C
         </p>
       )}
       <BriefList notes={out.notes} compact />
+      <div className="mt-1.5">
+        <ToneLegend />
+      </div>
     </div>
+  );
+}
+
+/**
+ * The other side's best answers to the pairing on screen: for a rally, the garrisons that hold best against it; for a
+ * garrison, the rallies that break it (worked out from the other scenario's ranking, once it is ready).
+ */
+function CountersCard({ list, field, row, scenario, setup, legendaryOnly }: { list: Commander[]; field: Field | null; row: PairView; scenario: Scenario; setup: Setup; legendaryOnly: boolean }) {
+  const counters = useMemo(() => (field ? countersOf(list, field, row.a, row.b, scenario, row.ev.troop, setup, { legendaryOnly, limit: 6 }) : null), [list, field, row.a, row.b, scenario, row.ev.troop, setup, legendaryOnly]);
+  const rally = scenario === 'rally';
+  return (
+    <section className={`${card} p-4`}>
+      <h3 className="text-sm font-semibold text-[var(--foreground)]">
+        {rally ? 'Countered by: the garrisons that hold best against' : 'Countered by: the rallies that break'} {row.a.label} + {row.b.label}
+      </h3>
+      <p className="mb-2 text-[11px] leading-4 text-[var(--text-muted)]">
+        ×: how many times faster each one wears this pairing down than this pairing wears it down (above 1, it wins). Each side&apos;s damage, by kind, against the other&apos;s reductions and debuffs, over its toughness, with the troop-type triangle (an estimate). The best pairing of every primary {rally ? 'in a garrison' : 'in a rally'} is tried.
+      </p>
+      {!counters ? (
+        <p className="py-3 text-center text-[11px] text-[var(--text-muted)]">Ranking every {rally ? 'garrison' : 'rally'} pairing…</p>
+      ) : (
+        <ol className="space-y-1.5">
+          {counters.map((c) => (
+            <li key={`${c.a.id}-${c.b.id}`} className="flex gap-2 text-xs leading-5">
+              <span className={`w-12 flex-shrink-0 text-right font-semibold ${c.edge >= 1 ? 'text-rose-400' : 'text-[var(--text-secondary)]'}`}>×{c.edge.toFixed(2)}</span>
+              <span className="min-w-0">
+                <span className="inline-flex items-center gap-1.5 text-[var(--foreground)]">
+                  <RarityDot rarity={c.a.rarity} size={7} />
+                  {c.a.label} + {c.b.label}
+                  <span className="text-[10px] text-[var(--text-muted)]">({c.a.troop})</span>
+                </span>
+                {c.why.length > 0 && <span className="block text-[11px] leading-4 text-[var(--text-secondary)]">{c.why.join('; ')}</span>}
+              </span>
+            </li>
+          ))}
+          {counters.length > 0 && counters[0].edge < 1 && <li className="text-[11px] text-[var(--text-muted)]">None of them wins: this pairing wears every one of them down faster than they wear it.</li>}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+/** The pairing on screen with every formation in turn: what is gained or lost against the one taken, and a click to take another. */
+function FormationsCard({ field, kit, row, scenario, setup, onPick }: { field: Field | null; kit: Kit; row: PairView; scenario: Scenario; setup: Setup; onPick(formation: number): void }) {
+  const [open, setOpen] = useState(false);
+  const tries = useMemo(() => (open && field ? formationTries(field, kit, row.a, row.b, scenario, row.ev.troop, setup) : null), [open, field, kit, row.a, row.b, scenario, row.ev.troop, setup]);
+  const pct = (v: number): string => `${v >= 0 ? '+' : ''}${Math.round(v * 100)}%`;
+  return (
+    <section className={`${card} p-4`}>
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="flex-1 text-sm font-semibold text-[var(--foreground)]">
+          Every formation for {row.a.label} + {row.b.label}
+        </h3>
+        <button type="button" onClick={() => setOpen(!open)} className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--foreground)]">
+          {open ? 'Hide' : 'Try them all'}
+        </button>
+      </div>
+      <p className="mt-1 text-[11px] leading-4 text-[var(--text-muted)]">
+        The pairing with each formation and its four special inscriptions, the rest of the build worked out again. The percentages are the damage and the durability against the formation taken (at the top, the 0-100 ratings hardly move: these show what is really gained or lost).
+      </p>
+      {open && !tries && <p className="py-3 text-center text-[11px] text-[var(--text-muted)]">Ranking every possible pairing…</p>}
+      {tries && (
+        <div className="mt-2 overflow-x-auto">
+          <table className="w-full min-w-[480px] text-xs">
+            <thead>
+              <tr className="text-left text-[10px] uppercase tracking-wide text-[var(--text-muted)]">
+                <th className="py-1 pr-2 font-medium">Formation</th>
+                <th className="py-1 pr-2 text-right font-medium">Overall</th>
+                <th className="py-1 pr-2 text-right font-medium">Damage</th>
+                <th className="py-1 pr-2 text-right font-medium">Durability</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {tries.map((t) => (
+                <tr key={t.formation.id} className={`border-t border-[var(--border)] ${t.chosen ? 'bg-[#4318ff]/10' : ''}`}>
+                  <td className="py-1 pr-2">
+                    <span className="text-[var(--foreground)]">{t.formation.name}</span>
+                    <span className="block text-[10px] text-[var(--text-muted)]">{t.formation.specials.filter((x): x is NonNullable<typeof x> => !!x).map((x) => x.name).join(', ')}</span>
+                  </td>
+                  <td className="py-1 pr-2 text-right font-semibold text-[var(--foreground)]">{t.rating.overall}</td>
+                  <td className={`py-1 pr-2 text-right ${t.damage > 0.005 ? 'text-emerald-500' : t.damage < -0.005 ? 'text-rose-400' : 'text-[var(--text-muted)]'}`}>{t.chosen ? 'taken' : pct(t.damage)}</td>
+                  <td className={`py-1 pr-2 text-right ${t.durability > 0.005 ? 'text-emerald-500' : t.durability < -0.005 ? 'text-rose-400' : 'text-[var(--text-muted)]'}`}>{t.chosen ? '' : pct(t.durability)}</td>
+                  <td className="py-1 text-right">
+                    {!t.chosen && (
+                      <button type="button" onClick={() => onPick(t.formation.id)} className="rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--foreground)]">
+                        Use
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -139,6 +244,23 @@ export default function CommandersTool() {
   const [topTroop, setTopTroop] = useState<TroopType | null>(null);
   /** The list entry whose "why" is open. */
   const [why, setWhy] = useState<string | null>(null);
+  /** The player's civilization: whose buff, whose special unit (the game lets them differ). Remembered in this browser. */
+  const [civPick, setCivPick] = useState<{ buff: number | null; unit: number | null }>(() => {
+    if (initial.civ.buff || initial.civ.unit) return initial.civ;
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(CIV_KEY) ?? 'null') as { buff?: number; unit?: number } | null;
+      return { buff: saved?.buff ?? null, unit: saved?.unit ?? null };
+    } catch {
+      return { buff: null, unit: null };
+    }
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CIV_KEY, JSON.stringify(civPick));
+    } catch {
+      /* storage blocked: the choice lasts as long as the page */
+    }
+  }, [civPick]);
 
   useEffect(() => {
     let dead = false;
@@ -161,7 +283,8 @@ export default function CommandersTool() {
   const kit = useMemo(() => (file ? prepareKit(file.kit) : null), [file]);
   // The primary commander's talents, equipment, formation and armaments always count (the secondary brings its
   // skills). The ranking of every pairing uses what is worked out here; the pairings on screen use what is set by hand too.
-  const fieldSetup = useMemo<Setup>(() => ({ trees, kit, gear: true, arms: true, enemy, focus: aim }), [trees, kit, enemy, aim]);
+  const civ = useMemo(() => civSetting(kit, civPick.buff, civPick.unit), [kit, civPick]);
+  const fieldSetup = useMemo<Setup>(() => ({ trees, kit, gear: true, arms: true, enemy, focus: aim, civ }), [trees, kit, enemy, aim, civ]);
   const setup = useMemo<Setup>(() => ({ ...fieldSetup, custom, kits }), [fieldSetup, custom, kits]);
 
   // talents spent by hand in a shared link
@@ -170,7 +293,7 @@ export default function CommandersTool() {
     const tagsOf = (id: number) => list.find((c) => c.id === id)?.tags;
     setCustom(new Map(initial.tal.map((code) => decodePick(code, tagsOf, trees)).filter((x): x is NonNullable<typeof x> => !!x)));
   }, [trees, list, initial.tal]);
-  const counted = `${enemy}|${aim.join('+')}`;
+  const counted = `${enemy}|${aim.join('+')}|${civ?.key ?? ''}`;
 
   // Every possible pairing is ranked once per scenario (and again when what is counted changes): the scenario on
   // screen first, the others after it, a slice at a time so the page stays alive.
@@ -218,6 +341,10 @@ export default function CommandersTool() {
     else q.set('vs', enemy);
     // (old links could switch talents, equipment or armaments off: they always count now)
     for (const old of ['talents', 'gear', 'arms']) q.delete(old);
+    if (civPick.buff) q.set('cb', String(civPick.buff));
+    else q.delete('cb');
+    if (civPick.unit) q.set('cu', String(civPick.unit));
+    else q.delete('cu');
     if (tab === 'pairings') q.delete('tab');
     else q.set('tab', tab);
     const tal = trees ? [...custom].map(([id, pick]) => { const c = list.find((x) => x.id === id); return c ? encodePick(id, c.tags, trees, pick) : ''; }).filter(Boolean) : [];
@@ -228,7 +355,7 @@ export default function CommandersTool() {
     else q.delete('kit');
     const qs = q.toString();
     window.history.replaceState(null, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
-  }, [file, chosen, scenario, troopChoice, enemy, wanted, tab, custom, kits, trees, list]);
+  }, [file, chosen, scenario, troopChoice, enemy, wanted, tab, custom, kits, trees, list, civPick]);
 
   const views = useMemo<PairView[]>(() => {
     const out: PairView[] = [];
@@ -314,10 +441,27 @@ export default function CommandersTool() {
           <button type="button" className={seg(tab === 'commanders')} onClick={() => setTab('commanders')}>
             Commanders
           </button>
+          <button type="button" className={seg(tab === 'roster')} onClick={() => setTab('roster')}>
+            Your roster
+          </button>
         </nav>
       </header>
 
-      {tab === 'commanders' ? (
+      {tab === 'roster' ? (
+        <RosterTool
+          list={list}
+          kit={kit}
+          fieldFor={(sc) => fields[`${sc}|${counted}`] ?? null}
+          setup={fieldSetup}
+          onOpen={(a, b, sc) => {
+            // (at the max levels: the Pairings tab compares commanders as the game has them at their best)
+            setScenario(sc);
+            setChosen([{ a: a.id, b: b.id }]);
+            setFocus(0);
+            setTab('pairings');
+          }}
+        />
+      ) : tab === 'commanders' ? (
         <CommanderBrowser
           list={list}
           trees={trees}
@@ -380,6 +524,46 @@ export default function CommandersTool() {
                   Archers beat infantry, infantry beats cavalry, cavalry beats archers. With the enemy known, skills against one unit type count in full or not at all; the counter itself is counted as {COUNTER_EDGE}% (an estimate: the game&apos;s files do not give it).
                 </p>
               </div>
+              {kit && kit.civs.length > 0 && (
+                <div>
+                  <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Your civilization</div>
+                  <label className="mb-1 flex items-center gap-2 text-[11px] text-[var(--text-secondary)]">
+                    <span className="w-16 flex-shrink-0">Buff</span>
+                    <select
+                      value={civPick.buff ?? ''}
+                      onChange={(e) => setCivPick({ ...civPick, buff: Number(e.target.value) || null })}
+                      className="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--background-secondary)] px-1.5 py-1 text-[11px] text-[var(--foreground)]"
+                    >
+                      <option value="">None counted</option>
+                      {kit.civs.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.buffTitle} ({c.name}): {c.buffText}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex items-center gap-2 text-[11px] text-[var(--text-secondary)]">
+                    <span className="w-16 flex-shrink-0">Special unit</span>
+                    <select
+                      value={civPick.unit ?? ''}
+                      onChange={(e) => setCivPick({ ...civPick, unit: Number(e.target.value) || null })}
+                      className="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--background-secondary)] px-1.5 py-1 text-[11px] text-[var(--foreground)]"
+                    >
+                      <option value="">None counted</option>
+                      {kit.civs
+                        .filter((c) => c.unit)
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.unit?.name} ({c.name}, {c.unit?.troop}): {c.unit?.text || 'as the T5'}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <p className="mt-1 text-[11px] leading-4 text-[var(--text-muted)]">
+                    The game lets the buff and the special unit come from different civilizations. A special unit counts as what its T5 has over the T5 of its unit type, for troops of that type. Gathering, building and the like are left out. Remembered in this browser.
+                  </p>
+                </div>
+              )}
               <div>
                 <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Aim for</div>
                 {aim.length > 0 ? (
@@ -569,11 +753,50 @@ export default function CommandersTool() {
               <div className={`${card} p-10 text-center text-sm text-[var(--text-muted)]`}>{field || chosen ? 'Pick a primary and a secondary commander to see how they work together.' : 'Ranking every possible pairing…'}</div>
             ) : (
               <>
+                {/* the pairing's profile first, then its Rage cycle and what it gives and takes away */}
+                <RadarCard rows={views} />
+                <DamageCard rows={views} />
+                <div className="grid gap-4 2xl:grid-cols-2">
+                  <StatBars rows={views} side="self" />
+                  <StatBars rows={views} side="enemy" />
+                </div>
+                {views.length > 1 ? (
+                  <CompareCard rows={views} />
+                ) : (
+                  <section className={`${card} flex flex-wrap items-center gap-2 p-3 text-xs text-[var(--text-secondary)]`}>
+                    <span className="flex-1">Compare it with another pairing: the measures and the why side by side.</span>
+                    {slots[0]?.a && slots[0]?.b && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setChosen([...slots, { a: slots[0].b, b: slots[0].a }]);
+                          setFocus(slots.length);
+                        }}
+                        className="rounded-md border border-[var(--border)] px-2 py-1 hover:border-[var(--border-hover)] hover:text-[var(--foreground)]"
+                      >
+                        With the seats swapped
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setChosen([...slots, { a: null, b: null }]);
+                        setFocus(slots.length);
+                      }}
+                      className="rounded-md border border-[var(--border)] px-2 py-1 hover:border-[var(--border-hover)] hover:text-[var(--foreground)]"
+                    >
+                      Add a pairing
+                    </button>
+                  </section>
+                )}
                 <div className={`grid gap-4 ${views.length > 1 ? 'xl:grid-cols-2' : ''}`}>
                   {views.map((v) => (
                     <NotesCard key={v.index} row={v} scenario={scenario} onScenario={setScenario} />
                   ))}
                 </div>
+                {(scenario === 'rally' || scenario === 'garrison') && views.find((v) => v.index === at) && (
+                  <CountersCard list={list} field={fields[`${scenario === 'rally' ? 'garrison' : 'rally'}|${counted}`] ?? null} row={views.find((v) => v.index === at) as PairView} scenario={scenario} setup={setup} legendaryOnly={legendaryOnly} />
+                )}
                 {primary && (
                   <TalentTreeCard
                     key={primary.id}
@@ -608,12 +831,21 @@ export default function CommandersTool() {
                     }}
                   />
                 )}
-                <RadarCard rows={views} />
-                <DamageCard rows={views} />
-                <div className="grid gap-4 2xl:grid-cols-2">
-                  <StatBars rows={views} side="self" />
-                  <StatBars rows={views} side="enemy" />
-                </div>
+                {primary && kit && views.find((v) => v.index === at) && (
+                  <FormationsCard
+                    key={`forms-${primary.id}-${slots[at]?.b ?? 0}-${scenario}`}
+                    field={field}
+                    kit={kit}
+                    row={views.find((v) => v.index === at) as PairView}
+                    scenario={scenario}
+                    setup={setup}
+                    onPick={(formation) => {
+                      const next = new Map(kits);
+                      next.set(primary.id, { ...(kits.get(primary.id) ?? {}), formation });
+                      setKits(next);
+                    }}
+                  />
+                )}
               </>
             )}
             <details className={`${card} p-4 text-xs leading-5 text-[var(--text-secondary)]`}>
@@ -639,6 +871,15 @@ export default function CommandersTool() {
                 </li>
                 <li>Skill damage follows skill-damage bonuses; smite and combo attacks follow normal-damage bonuses, as the game states.</li>
                 <li>
+                  Stacks whose time starts again with every new stack (&quot;its duration resets whenever it gains another stack&quot;) pile up as long as new ones keep coming: they are counted on average over a 40-second fight, ramp-up included. &quot;Whenever their troop deals direct (skill) damage&quot; goes off on every hit, about three per skill used (every target, every tick: an estimate). Ignoring part of the enemy&apos;s Defense counts as that much Defense taken away.
+                </li>
+                <li>
+                  Countered by (rally and garrison): the best pairing of every primary on the other side is set against the one on screen. Each side&apos;s damage, skill and normal apart, goes through the other&apos;s reductions (damage taken, then skill or normal damage taken, one after the other) and debuffs, over its toughness, with the troop-type triangle; the number is how many times faster the other side wears it down.
+                </li>
+                <li>
+                  Order of the skills: when the Rage is full the primary&apos;s active skill goes off first and the secondary&apos;s right after. What the primary&apos;s skill starts (a buff for a few seconds, a debuff on the target) is there in full for the secondary&apos;s hit; neither hit meets what starts with it or after it, so a buff of the secondary&apos;s skill lifts the attacks that follow, not the two hits. That is one reason why A + B and B + A rate differently.
+                </li>
+                <li>
                   Overall rating: damage and durability, each as the share of all possible pairings it beats (open field 60% damage, conquest 50%, garrison 40%, barbarians 70%). Skills first: {Math.round(SKILLS_FIRST * 100)}% of it is the pairing on the two commanders&apos; skills alone, ranked among all pairings on their skills alone; the rest is the pairing with the primary&apos;s full build (talents, equipment, formation and armaments). The build is chosen for the kind of pairing, as a player would: next to a secondary that launches combo attacks it goes for combo and normal damage (Combo tree, combo equipment, Delta formation and its armaments), next to one that nukes for skill damage, next to one that smites for smite. A build lifts any secondary&apos;s damage, so the skills, which are what makes two commanders a pairing, come first.
                 </li>
                 <li>{STRUCTURE_RULE} That is why lasting weighs more in conquest and in a garrison, and why whatever cuts severe wounds counts more there.</li>
@@ -649,7 +890,10 @@ export default function CommandersTool() {
                   Several enemies at once: about 2 in the open field (a ball fight: hit, finish a skill cycle, pull back), 3 in a rally (the target and the troops swarming it), 2 on a garrison, 1 against barbarians. Area damage is counted on up to that many troops (15% less per extra target, as the skills say), every attacker is counterattacked, what goes off on being hit goes off that much more, and the counterattacks bring Rage (a faster skill cycle). In a rally, half of the fight is against the swarming field troops: what works only against troops on the map counts for half there. &quot;Vs many troops&quot; ranks just that.
                 </li>
                 <li>Enemy troops: archers beat infantry, infantry beats cavalry, cavalry beats archers. The game&apos;s files do not give the number: {COUNTER_EDGE}% more damage dealt and {COUNTER_EDGE}% less taken is an estimate.</li>
-                <li>These are estimates to compare pairings with, not a battle simulation: technology, civilisation, city buffs and troop counts are not in it.</li>
+                <li>
+                  Civilization (if set): its buff and its special unit, from the game&apos;s files. A special unit counts as what its T5 has over the T5 of its unit type (Elite Mamluk: Attack +3.2% and Health +2.8% for cavalry), for every troop of that type, skills alone included.
+                </li>
+                <li>These are estimates to compare pairings with, not a battle simulation: technology, city buffs and troop counts are not in it.</li>
               </ul>
             </details>
           </div>

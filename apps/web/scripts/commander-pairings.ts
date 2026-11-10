@@ -10,7 +10,7 @@
 //   pnpm.cmd pairings --help                           every option
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { AXES, CAPS, ENEMIES, FOCUSABLE, SCENARIOS, SKILLS_FIRST, TROOPS, briefOf, buildField, evaluate, partnerOf, prepare, prepareKit, prepareTalents, rate, rateAt, synergy, topPairs } from '../lib/commanders/model';
+import { AXES, CAPS, ENEMIES, FOCUSABLE, SCENARIOS, SKILLS_FIRST, TROOPS, briefOf, buildField, civSetting, countersOf, evaluate, formationTries, partnerOf, prepare, prepareKit, prepareTalents, rate, rateAt, synergy, topPairs } from '../lib/commanders/model';
 import type { CapId, Commander, Enemy, Field, Note, RankBy, Rating, Scenario, Setup, TroopType } from '../lib/commanders/model';
 import type { CommandersFile } from '../lib/commanders/types';
 
@@ -22,10 +22,15 @@ const HELP = `Ranks commander pairings with the model of the /commanders page.
   --troop <type>    only primaries of that troop type: ${TROOPS.map((t) => t.id).join(', ')}
   --vs <type>       the enemy's troop type: ${ENEMIES.map((e) => e.id).join(', ')} (default any)
   --aim <list>      what to aim for, comma separated (the filters of the page): ${[...FOCUSABLE].join(', ')}
+  --civ-buff <civ>  your civilization's buff, by civilization name (Arabia, France...)
+  --civ-unit <civ>  your special unit, by civilization name (the game lets the two differ)
   --all             every rarity (default: legendary commanders only)
   --every           every pairing (default: the best one of each primary, as on the page)
   --why             under each pairing, why it works
   --pair "<A+B>"    look at given pairings, primary first (several: "A+B;C+D"), with why they work
+  --formations      with --pair: each pairing with every formation in turn (and its special inscriptions), best first
+  --counters        with --pair, in rally and garrison: the pairings of the other side that beat each one
+                    (for a rally the garrisons that hold best against it, for a garrison the rallies that break it)
   --csv <file>      write every pairing of the scenarios to a CSV file (one row per pairing)
   --synergy         with --csv: add the synergy columns (slower)
   --data <file>     the commanders data (default public/commanders/commanders.json)
@@ -36,7 +41,7 @@ garrison 40%, barbarians 70%). Synergy: how much more damage the two give togeth
 
 // ---- options --------------------------------------------------------------------------------------------------
 const args = process.argv.slice(2).filter((a) => a !== '--');
-const KNOWN = new Set(['sc', 'top', 'by', 'troop', 'vs', 'aim', 'all', 'every', 'why', 'pair', 'csv', 'synergy', 'data', 'help']);
+const KNOWN = new Set(['sc', 'top', 'by', 'troop', 'vs', 'aim', 'civ-buff', 'civ-unit', 'all', 'every', 'why', 'pair', 'formations', 'counters', 'csv', 'synergy', 'data', 'help']);
 for (const a of args) if (a.startsWith('--') && !KNOWN.has(a.slice(2))) fail(`unknown option ${a} (see --help)`);
 const opt = (name: string): string | undefined => {
   const i = args.indexOf(`--${name}`);
@@ -74,7 +79,15 @@ const dataPath = [opt('data'), resolve(process.cwd(), 'public/commanders/command
 if (!dataPath) fail('commanders.json not found: run this from apps/web, or give --data <file>');
 const file = JSON.parse(readFileSync(dataPath, 'utf8')) as CommandersFile;
 const list = prepare(file.commanders);
-const setup: Setup = { trees: prepareTalents(file.talents ?? {}), kit: file.kit ? prepareKit(file.kit) : null, gear: true, arms: true, enemy, focus: aim };
+const kit = file.kit ? prepareKit(file.kit) : null;
+const civId = (name: string | undefined): number | null => {
+  if (!name) return null;
+  const n = name.trim().toLowerCase();
+  const c = kit?.civs.find((x) => x.name.toLowerCase() === n) ?? kit?.civs.find((x) => x.name.toLowerCase().includes(n));
+  return c ? c.id : fail(`no civilization called "${name}": ${kit?.civs.map((x) => x.name).join(', ')}`);
+};
+const civ = civSetting(kit, civId(opt('civ-buff')), civId(opt('civ-unit')));
+const setup: Setup = { trees: prepareTalents(file.talents ?? {}), kit, gear: true, arms: true, enemy, focus: aim, civ };
 
 const plain = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 function find(name: string): Commander {
@@ -119,12 +132,21 @@ if (opt('csv')) {
 }
 const q = (s: string): string => (/[",]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
 
+const fields = new Map<Scenario, Field>();
+function fieldOf(sc: Scenario): Field {
+  let field = fields.get(sc);
+  if (!field) {
+    const t0 = Date.now();
+    process.stderr.write(`Ranking every pairing in ${SCENARIOS.find((s) => s.id === sc)?.label ?? sc}… `);
+    fields.set(sc, (field = buildField(list, setup, sc)));
+    process.stderr.write(`${field.pairs.a.length} pairings in ${((Date.now() - t0) / 1000).toFixed(1)} s\n`);
+  }
+  return field;
+}
+
 for (const sc of scenarios) {
   const label = SCENARIOS.find((s) => s.id === sc)?.label ?? sc;
-  const t0 = Date.now();
-  process.stderr.write(`Ranking every pairing in ${label}… `);
-  const field = buildField(list, setup, sc);
-  process.stderr.write(`${field.pairs.a.length} pairings in ${((Date.now() - t0) / 1000).toFixed(1)} s\n`);
+  const field = fieldOf(sc);
 
   console.log(`\n== ${label}${enemy !== 'any' ? ` vs ${enemy}` : ''}${aim.length ? `, aiming for ${aim.map((c) => CAPS.find((k) => k.id === c)?.label ?? c).join(', ')}` : ''}${by !== 'overall' ? `, ranked by ${by}` : ''}`);
   if (pairs.length) {
@@ -134,6 +156,19 @@ for (const sc of scenarios) {
       console.log(line('   -', a, b, sc, field, r));
       console.log(`        axes: ${AXES.map((x) => `${x.label} ${r.axes[x.id]}`).join(' · ')}`);
       why(a, b, sc);
+      if (flag('formations') && setup.kit) {
+        console.log('        Every formation: overall · damage · durability (0-100), then damage and durability against the one taken (*):');
+        for (const f of formationTries(field, setup.kit, a, b, sc, a.troop, setup)) {
+          const specials = f.formation.specials.filter((x): x is NonNullable<typeof x> => !!x).map((x) => x.name);
+          console.log(`          ${f.chosen ? '*' : ' '} ${pad(f.rating.overall, 3)} · ${pad(f.rating.offense, 3)} · ${pad(f.rating.durability, 3)}  ${pad(signed(f.damage), 5)} dmg ${pad(signed(f.durability), 5)} dur  ${f.formation.name}${specials.length ? ` (${specials.join(', ')})` : ''}`);
+        }
+      }
+      if (flag('counters') && (sc === 'rally' || sc === 'garrison')) {
+        const other: Scenario = sc === 'rally' ? 'garrison' : 'rally';
+        const list5 = countersOf(list, fieldOf(other), a, b, sc, a.troop, setup, { legendaryOnly: !flag('all'), limit: Math.min(top, 10) });
+        console.log(`        ${sc === 'rally' ? 'Garrisons that hold best against it' : 'Rallies that break it'} (×: how many times faster they wear it down than it wears them down):`);
+        for (const c of list5) console.log(`          ×${c.edge.toFixed(2)}  ${c.a.label} + ${c.b.label} (${c.a.troop})${c.why.length ? ` — ${c.why.join('; ')}` : ''}`);
+      }
     }
   } else {
     const best = topPairs(field, list, { troop: troop ?? null, legendaryOnly: !flag('all'), limit: top, by, everyPairing: flag('every') });

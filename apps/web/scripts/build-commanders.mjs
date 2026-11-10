@@ -320,7 +320,8 @@ function main() {
       const label = m && T(m[3]);
       if (!m || !label) continue;
       const v = levels.map((r) => r[`Param${m[1]}`]).filter((x) => typeof x === 'number').map((x) => num(m[2] === '2' ? x * 100 : x));
-      if (v.length > 1) up.push({ l: labelOf(label), v, ...(m[2] === '2' ? { p: 1 } : {}) });
+      // n: the parameter, {p<n>} or {s<n>} in the text, so that the skill can be read at any level
+      if (v.length > 1) up.push({ l: labelOf(label), n: Number(m[1]), v, ...(m[2] === '2' ? { p: 1 } : {}) });
     }
     if (up.length) out.up = up;
     // the underlined words: <href=LC_HERO_KEYWORD_EXP_<n>:1><color=color1>word</color></href>
@@ -358,7 +359,8 @@ function main() {
     if (aw) {
       for (const [sk, target] of [[aw.Skill, aw.AwakeTarget], [aw.Skill2, aw.AwakeTarget2], [aw.Skill3, aw.AwakeTarget3]]) {
         if (!sk) continue;
-        if (target >= 1 && target <= 4) slots[target - 1] = { id: sk, slot: target, awake: true };
+        // (an expertise that replaces a skill keeps the skill it replaces, for a commander without the expertise)
+        if (target >= 1 && target <= 4) slots[target - 1] = { id: sk, slot: target, awake: true, before: slots[target - 1]?.id };
         else slots.push({ id: sk, slot: slots.length + 1, awake: true });
       }
     }
@@ -370,7 +372,8 @@ function main() {
         note(`${who.name} (${h.HeroID}): skill ${s.id} has no text, left out`);
         continue;
       }
-      skills.push({ ...sk, slot: s.slot, ...(s.awake ? { awake: true } : {}) });
+      const before = s.before && s.before !== s.id ? skillOf(s.before, s.slot) : null;
+      skills.push({ ...sk, slot: s.slot, ...(s.awake ? { awake: true } : {}), ...(before ? { before } : {}) });
     }
     if (skills.length === 0) continue;
     const tags = String(h.Tag).split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0);
@@ -587,7 +590,27 @@ function main() {
   for (const slot of Object.keys(lines)) lines[slot] = lines[slot].map((line) => [...line].map(([id, v]) => bonus(id, v)).filter(Boolean).sort((x, y) => x[0] - y[0]));
   // (the game's own keys for the four armament types: book, instrument, flag, medal)
   const armamentSlots = { 1: 'Scroll', 2: 'Instrument', 3: 'Flag', 4: 'Emblem' };
-  const kit = { gearSlots, gear, sets, formations, armamentSlots, inscriptions, lines, buffs };
+  // ---- civilizations -------------------------------------------------------------------------------------------
+  // A civilization brings a buff (its own, or another one chosen in the game) and its special units, which take the
+  // place of the T4 and T5 of one unit type with stats of their own. The T5 of every unit type, for comparison.
+  const training = new Map(table(excel, 'training_Training', ['Id', 'Hp', 'Atk', 'Def', 'Type', 'Tier', 'Speed', 'LC_N']).map((r) => [r.Id, r]));
+  const statsOf = (r) => [r.Atk, r.Def, r.Hp, r.Speed];
+  const t5 = {};
+  for (const r of training.values()) if (r.Tier === 5 && r.Id < 100 && r.Type >= 1 && r.Type <= 4 && !t5[r.Type]) t5[r.Type] = statsOf(r);
+  const civUnits = new Map();
+  for (const u of table(excel, 'civilization_CivUnits', ['CivID', 'OriginalUnits', 'TargetUnits'])) {
+    const r = training.get(u.TargetUnits);
+    if (r?.Tier === 5) civUnits.set(u.CivID, { type: r.Type, name: T(r.LC_N) ?? `Unit ${r.Id}`, t5: statsOf(r) });
+  }
+  const civNames = new Map(table(excel, 'CivilizationChoose_Info', ['Id', 'Name', 'DefaultCivBuff']).map((r) => [r.Id, r]));
+  const civs = [];
+  for (const b of table(excel, 'civilization_CivBuff', ['ID', 'CivID', 'BuffTitle', 'BuffType1', 'BuffValue1', 'BuffType2', 'BuffValue2', 'BuffType3', 'BuffValue3', 'BuffType4', 'BuffValue4'])) {
+    const info = civNames.get(b.CivID);
+    const bonuses = [1, 2, 3, 4].map((i) => bonus(b[`BuffType${i}`], b[`BuffValue${i}`])).filter(Boolean);
+    civs.push({ id: b.CivID, name: (info && T(info.Name)) ?? T(b.BuffTitle) ?? `Civilization ${b.CivID}`, buff: { title: T(b.BuffTitle) ?? '', bonuses }, ...(civUnits.get(b.CivID) ? { unit: civUnits.get(b.CivID) } : {}) });
+  }
+
+  const kit = { gearSlots, gear, sets, formations, armamentSlots, inscriptions, lines, buffs, civs, t5 };
 
   const day = (p) => statSync(p).mtime.toISOString().slice(0, 10);
   const out = {
