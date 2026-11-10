@@ -29,10 +29,8 @@ export interface TalentTreeCardProps {
   trees: TalentTrees;
   /** The talents spent by hand, if any. */
   pick: TalentPick | undefined;
-  /** The build this tool works out for the scenario (null when talents are not counted). */
+  /** The build this tool works out for the scenario. */
   auto: Build | null;
-  /** Whether talents are counted at all. */
-  counted: boolean;
   /** Pairing letter and colour, to say whose primary this is. */
   name: string;
   color: string;
@@ -81,7 +79,7 @@ const STARS = (() => {
   return Array.from({ length: 70 }, () => ({ x: rnd() * 236 - 118, y: rnd() * 236 - 118, r: 0.15 + rnd() * 0.45, o: 0.25 + rnd() * 0.6 }));
 })();
 
-export function TalentTreeCard({ commander, trees, pick, auto, counted, name, color, onChange }: TalentTreeCardProps) {
+export function TalentTreeCard({ commander, trees, pick, auto, name, color, onChange }: TalentTreeCardProps) {
   // (React's ids have characters that cannot be in a url(#...) reference)
   const uid = `tt${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const [mode, setMode] = useState<'add' | 'remove'>('add');
@@ -89,7 +87,7 @@ export function TalentTreeCard({ commander, trees, pick, auto, counted, name, co
   const [message, setMessage] = useState('');
   const steps = useMemo(() => stepsOf(commander.tags, trees), [commander, trees]);
   const { nodes, links } = useMemo(() => layout(commander.tags, trees), [commander, trees]);
-  const levels: TalentPick = pick ?? (counted && auto ? auto.levels : {});
+  const levels: TalentPick = pick ?? auto?.levels ?? {};
   const spent = spentOf(levels);
   const lv = (t: Talent): number => levels[t.id] ?? 0;
   const isOpen = (t: Talent): boolean =>
@@ -119,7 +117,7 @@ export function TalentTreeCard({ commander, trees, pick, auto, counted, name, co
     .join('');
 
   // the hexagon in the middle: three rhombi, one per tree, pointing the way their tree goes
-  const R = 15;
+  const R = 19;
   const v = (deg: number, r = R): [number, number] => [r * Math.cos((deg * Math.PI) / 180), r * Math.sin((deg * Math.PI) / 180)];
   const rhombi = [
     [-150, -90, -30],
@@ -140,7 +138,7 @@ export function TalentTreeCard({ commander, trees, pick, auto, counted, name, co
         <h3 className="min-w-0 flex-1 text-sm font-semibold text-[var(--foreground)]">
           Talents of {commander.label}
           <span className="ml-2 font-normal text-[var(--text-muted)]">
-            {spent}/{TALENT_POINTS} · {pick ? 'your build' : counted ? 'worked out for this scenario' : 'not counted'}
+            {spent}/{TALENT_POINTS} · {pick ? 'your build' : 'worked out for this scenario'}
           </span>
         </h3>
         <div className="inline-flex rounded-lg border border-[var(--border)] p-0.5">
@@ -217,21 +215,21 @@ export function TalentTreeCard({ commander, trees, pick, auto, counted, name, co
               <polygon key={i} points={points} fill={`url(#${uid}rh${i})`} stroke="#0b1426" strokeWidth={0.5} opacity={perTree[i] > 0 ? 1 : 0.75} />
             ))}
             {commander.tags.map((tag, i) => {
-              const [nx, ny] = v(middle[i], 8.4);
-              const [px, py] = v(middle[i], 11.8);
+              const [nx, ny] = v(middle[i], 10.4);
+              const [px, py] = v(middle[i], 14.6);
               return (
                 <g key={tag} className="pointer-events-none">
-                  <text x={nx} y={ny + 0.9} textAnchor="middle" fontSize={2.3} fontWeight={700} fill="#ffffff" stroke="#00000066" strokeWidth={0.35} paintOrder="stroke">
+                  <text x={nx} y={ny + 0.9} textAnchor="middle" fontSize={2.7} fontWeight={700} fill="#ffffff" stroke="#00000066" strokeWidth={0.35} paintOrder="stroke">
                     {TALENT_TAGS[tag] ?? `Tree ${tag}`}
                   </text>
-                  <text x={px} y={py + 1.1} textAnchor="middle" fontSize={3.1} fontWeight={800} fill="#ffffff" stroke="#00000066" strokeWidth={0.4} paintOrder="stroke">
+                  <text x={px} y={py + 1.1} textAnchor="middle" fontSize={3.6} fontWeight={800} fill="#ffffff" stroke="#00000066" strokeWidth={0.4} paintOrder="stroke">
                     {perTree[i]}
                   </text>
                 </g>
               );
             })}
-            <circle r={5.2} fill="#0d1628" stroke="#c9a24d" strokeWidth={0.7} />
-            <text y={1.3} textAnchor="middle" fontSize={3.6} fontWeight={800} fill={INK} className="pointer-events-none">
+            <polygon points={hex(0, 0, 6.6)} fill="#0d1628" stroke="#c9a24d" strokeWidth={0.8} />
+            <text y={1.5} textAnchor="middle" fontSize={4.2} fontWeight={800} fill={INK} className="pointer-events-none">
               {initials || commander.label.slice(0, 2)}
             </text>
 
@@ -243,7 +241,7 @@ export function TalentTreeCard({ commander, trees, pick, auto, counted, name, co
               const b = BRANCH[n.branch];
               const full = level >= t.max;
               const lit = level > 0;
-              const r = t.core ? 5 : 2.4;
+              const r = t.core ? 4.6 : 2.2;
               const Icon = iconOf(t);
               const label = (
                 <text x={n.x} y={n.y + r + (t.core ? 3 : 2.5)} textAnchor="middle" fontSize={t.core ? 2.5 : 2.1} fontWeight={700} fill={lit ? INK : DIM} stroke="#070d1a" strokeWidth={0.6} paintOrder="stroke" className="pointer-events-none">
@@ -278,7 +276,7 @@ export function TalentTreeCard({ commander, trees, pick, auto, counted, name, co
                   {t.core ? (
                     <>
                       <polygon points={hex(n.x, n.y, r)} fill={lit ? `url(#${uid}on${n.branch})` : `url(#${uid}off)`} stroke={lit ? b.light : open ? b.base : '#5a6880'} strokeWidth={lit || open ? 0.7 : 0.45} opacity={lit || open ? 1 : 0.8} />
-                      <Icon x={n.x - 2.6} y={n.y - 2.6} width={5.2} height={5.2} color={lit ? '#ffffff' : open ? b.light : DIM} strokeWidth={2.2} className="pointer-events-none" />
+                      <Icon x={n.x - 2.4} y={n.y - 2.4} width={4.8} height={4.8} color={lit ? '#ffffff' : open ? b.light : DIM} strokeWidth={2.2} className="pointer-events-none" />
                       {label}
                     </>
                   ) : (
@@ -301,9 +299,6 @@ export function TalentTreeCard({ commander, trees, pick, auto, counted, name, co
             <p className="text-[var(--text-muted)]">Point at a talent to read it. Click to add a point (the talents before it are maxed first when they have to be); right click, or the Remove mode, takes one away. The big hexagons are the named talents.</p>
           )}
           {message && <p className="mt-2 text-amber-500">{message}</p>}
-          <p className="mt-3 text-[10px] leading-4 text-[var(--text-muted)]">
-            Only the primary commander&apos;s talents count, as with equipment and armaments: a troop uses its primary&apos;s, and the secondary&apos;s do nothing. {!counted && 'Talents are switched off above: changing a point switches them back on.'}
-          </p>
         </div>
       </div>
     </section>

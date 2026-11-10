@@ -7,13 +7,13 @@
 // from the texts.
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeftRight, Plus, Swords, Trash2 } from 'lucide-react';
-import { AXES, COUNTER_EDGE, ENEMIES, SCENARIOS, STRUCTURE_RULE, TROOPS, bestPartners, evaluate, fieldBuilder, indexes, notesFor, prepare, prepareKit, prepareTalents, rate, synergy, topPairs } from '@/lib/commanders/model';
-import type { Commander, Enemy, Field, KitPick, RankBy, Scenario, Setup, TalentPick, TroopType } from '@/lib/commanders/model';
+import { AXES, CAPS, COUNTER_EDGE, ENEMIES, FOCUSABLE, SCENARIOS, SKILLS_FIRST, STRUCTURE_RULE, TROOPS, bestPartners, briefOf, evaluate, fieldBuilder, indexes, notesFor, prepare, prepareKit, prepareTalents, rate, synergy, topPairs } from '@/lib/commanders/model';
+import type { CapId, Commander, Enemy, Field, KitPick, RankBy, Scenario, Setup, TalentPick, TroopType } from '@/lib/commanders/model';
 import { decodePick, encodePick } from '@/lib/commanders/talentTree';
 import type { CommandersFile } from '@/lib/commanders/types';
 import { CommanderBrowser } from './CommanderBrowser';
 import { CommanderPicker } from './CommanderPicker';
-import { DamageCard, NotesCard, RadarCard, StatBars } from './PairingCharts';
+import { BriefList, DamageCard, NotesCard, RadarCard, StatBars } from './PairingCharts';
 import type { PairView } from './PairingCharts';
 import { PAIR_COLORS, PAIR_NAMES, RarityDot, card, chip } from './bits';
 import { KitCard } from './KitCard';
@@ -35,11 +35,11 @@ const picked = 'border-[#4318ff] bg-[#4318ff]/15 text-[var(--foreground)]';
 const unpicked = 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-hover)]';
 
 /**
- * What the address says: ?pairs=545-595,179-187&sc=rally&troop=cavalry&talents=0&gear=0&arms=0&tab=commanders, and
- * tal=545.1210300... for talents spent by hand and kit=545~<code> for equipment and armaments set by hand (so a
- * comparison can be shared as a link).
+ * What the address says: ?pairs=545-595,179-187&sc=rally&troop=cavalry&tab=commanders, and tal=545.1210300... for
+ * talents spent by hand and kit=545~<code> for equipment and armaments set by hand (so a comparison can be shared as
+ * a link).
  */
-function readUrl(): { slots: Slot[] | null; scenario: Scenario; troop: TroopChoice; enemy: Enemy; tab: Tab; talents: boolean; gear: boolean; arms: boolean; tal: string[]; kit: string[] } {
+function readUrl(): { slots: Slot[] | null; scenario: Scenario; troop: TroopChoice; enemy: Enemy; tab: Tab; tal: string[]; kit: string[]; focus: CapId[] } {
   const q = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
   const raw = q.get('pairs');
   const slots = raw
@@ -59,12 +59,42 @@ function readUrl(): { slots: Slot[] | null; scenario: Scenario; troop: TroopChoi
     troop: isTroop(troop) ? troop : 'auto',
     enemy: isEnemy(q.get('vs')) ? (q.get('vs') as Enemy) : 'any',
     tab: q.get('tab') === 'commanders' ? 'commanders' : 'pairings',
-    talents: q.get('talents') !== '0',
-    gear: q.get('gear') !== '0',
-    arms: q.get('arms') !== '0',
     tal: (q.get('tal') ?? '').split(',').filter(Boolean),
+    focus: (q.get('focus') ?? '').split(',').filter((c): c is CapId => CAPS.some((k) => k.id === c)),
     kit: (q.get('kit') ?? '').split(',').filter(Boolean),
   };
+}
+
+function WhyButton({ open, onClick }: { open: boolean; onClick(): void }) {
+  return (
+    <button
+      type="button"
+      aria-expanded={open}
+      title="Why this pairing"
+      onClick={onClick}
+      className={`flex-shrink-0 rounded-md px-1.5 py-1 text-[10px] font-medium ${open ? 'bg-[#4318ff]/15 text-[var(--foreground)]' : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'}`}
+    >
+      why
+    </button>
+  );
+}
+
+/** What makes a pairing of a list, worked out when asked for. */
+function PairBrief({ a, b, scenario, troop, setup, field }: { a: Commander; b: Commander; scenario: Scenario; troop: TroopType; setup: Setup; field: Field | null }) {
+  const out = useMemo(() => {
+    const ev = evaluate(a, b, scenario, troop, setup);
+    return { notes: briefOf(a, b, ev, setup), rating: field ? rate(field, ev) : null };
+  }, [a, b, scenario, troop, setup, field]);
+  return (
+    <div className="mb-1.5 ml-3 mt-0.5 rounded-md bg-[var(--background-secondary)] px-2 py-1.5">
+      {out.rating && (
+        <p className="mb-1 text-[10px] leading-4 text-[var(--text-muted)]">
+          Skills only {out.rating.skills} · with {a.label}&apos;s full build (talents, equipment, formation, armaments) {out.rating.kit}
+        </p>
+      )}
+      <BriefList notes={out.notes} compact />
+    </div>
+  );
 }
 
 /** Equipment and armaments set by hand, in an address: "545~" and the choice as JSON in base64url. */
@@ -92,10 +122,12 @@ export default function CommandersTool() {
   const [scenario, setScenario] = useState<Scenario>(initial.scenario);
   const [troopChoice, setTroopChoice] = useState<TroopChoice>(initial.troop);
   const [enemy, setEnemy] = useState<Enemy>(initial.enemy);
-  const [rankBy, setRankBy] = useState<RankBy>('overall');
-  const [withTalents, setWithTalents] = useState(initial.talents);
-  const [withGear, setWithGear] = useState(initial.gear);
-  const [withArms, setWithArms] = useState(initial.arms);
+  /** The capability filters of the Commanders tab: the pairings' choices go for them too. */
+  const [wanted, setWanted] = useState<ReadonlySet<CapId>>(() => new Set(initial.focus));
+  const aim = useMemo(() => [...wanted].filter((c) => FOCUSABLE.has(c)).sort(), [wanted]);
+  const [rankChoice, setRankBy] = useState<RankBy>(initial.focus.some((c) => FOCUSABLE.has(c)) ? 'focus' : 'overall');
+  // ranked by the filters while there are some to aim at
+  const rankBy: RankBy = rankChoice === 'focus' && aim.length === 0 ? 'overall' : rankChoice;
   /** Talents spent by hand, per commander. */
   const [custom, setCustom] = useState<ReadonlyMap<number, TalentPick>>(new Map());
   /** Equipment, formation and armaments set by hand, per commander. */
@@ -105,6 +137,8 @@ export default function CommandersTool() {
   const [fields, setFields] = useState<Record<string, Field>>({});
   const [legendaryOnly, setLegendaryOnly] = useState(true);
   const [topTroop, setTopTroop] = useState<TroopType | null>(null);
+  /** The list entry whose "why" is open. */
+  const [why, setWhy] = useState<string | null>(null);
 
   useEffect(() => {
     let dead = false;
@@ -125,9 +159,9 @@ export default function CommandersTool() {
   const byId = useMemo(() => new Map(list.map((c) => [c.id, c])), [list]);
   const trees = useMemo(() => (file ? prepareTalents(file.talents ?? {}) : null), [file]);
   const kit = useMemo(() => (file ? prepareKit(file.kit) : null), [file]);
-  // What is counted for the primary commander next to the skills of the two. The ranking of every pairing uses the
-  // talents worked out here; the pairings on screen use those spent by hand too.
-  const fieldSetup = useMemo<Setup>(() => ({ trees: withTalents ? trees : null, kit, gear: withGear, arms: withArms, enemy }), [trees, kit, withTalents, withGear, withArms, enemy]);
+  // The primary commander's talents, equipment, formation and armaments always count (the secondary brings its
+  // skills). The ranking of every pairing uses what is worked out here; the pairings on screen use what is set by hand too.
+  const fieldSetup = useMemo<Setup>(() => ({ trees, kit, gear: true, arms: true, enemy, focus: aim }), [trees, kit, enemy, aim]);
   const setup = useMemo<Setup>(() => ({ ...fieldSetup, custom, kits }), [fieldSetup, custom, kits]);
 
   // talents spent by hand in a shared link
@@ -136,7 +170,7 @@ export default function CommandersTool() {
     const tagsOf = (id: number) => list.find((c) => c.id === id)?.tags;
     setCustom(new Map(initial.tal.map((code) => decodePick(code, tagsOf, trees)).filter((x): x is NonNullable<typeof x> => !!x)));
   }, [trees, list, initial.tal]);
-  const counted = `${withTalents ? 1 : 0}${withGear ? 1 : 0}${withArms ? 1 : 0}|${enemy}`;
+  const counted = `${enemy}|${aim.join('+')}`;
 
   // Every possible pairing is ranked once per scenario (and again when what is counted changes): the scenario on
   // screen first, the others after it, a slice at a time so the page stays alive.
@@ -178,14 +212,12 @@ export default function CommandersTool() {
     else q.set('sc', scenario);
     if (troopChoice === 'auto') q.delete('troop');
     else q.set('troop', troopChoice);
+    if (wanted.size) q.set('focus', [...wanted].join(','));
+    else q.delete('focus');
     if (enemy === 'any') q.delete('vs');
     else q.set('vs', enemy);
-    if (withTalents) q.delete('talents');
-    else q.set('talents', '0');
-    if (withGear) q.delete('gear');
-    else q.set('gear', '0');
-    if (withArms) q.delete('arms');
-    else q.set('arms', '0');
+    // (old links could switch talents, equipment or armaments off: they always count now)
+    for (const old of ['talents', 'gear', 'arms']) q.delete(old);
     if (tab === 'pairings') q.delete('tab');
     else q.set('tab', tab);
     const tal = trees ? [...custom].map(([id, pick]) => { const c = list.find((x) => x.id === id); return c ? encodePick(id, c.tags, trees, pick) : ''; }).filter(Boolean) : [];
@@ -196,7 +228,7 @@ export default function CommandersTool() {
     else q.delete('kit');
     const qs = q.toString();
     window.history.replaceState(null, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
-  }, [file, chosen, scenario, troopChoice, enemy, withTalents, withGear, withArms, tab, custom, kits, trees, list]);
+  }, [file, chosen, scenario, troopChoice, enemy, wanted, tab, custom, kits, trees, list]);
 
   const views = useMemo<PairView[]>(() => {
     const out: PairView[] = [];
@@ -218,6 +250,7 @@ export default function CommandersTool() {
         ev,
         rating,
         synergy: synergy(a, b, scenario, troop, setup),
+        brief: briefOf(a, b, ev, setup),
         notes: notesFor(a, b, ev, swapped, rating ?? { overall: 0 }),
         scenarios: SCENARIOS.map((sc) => {
           const f = fields[`${sc.id}|${counted}`];
@@ -260,6 +293,7 @@ export default function CommandersTool() {
 
   const seg = (active: boolean): string => `px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${active ? 'bg-[#4318ff] text-white' : 'text-[var(--text-secondary)] hover:text-[var(--foreground)]'}`;
   const ranking = <p className="py-3 text-center text-[11px] text-[var(--text-muted)]">Ranking every possible pairing…</p>;
+  const damagePct = Math.round((SCENARIOS.find((s) => s.id === scenario)?.damage ?? 0.6) * 100);
 
   return (
     <div className="mx-auto max-w-[1500px] px-3 pb-10 pt-4 sm:px-6 sm:pt-6">
@@ -291,6 +325,13 @@ export default function CommandersTool() {
           onUse={(c, seat) => {
             change(at, seat === 'primary' ? { a: c.id } : { b: c.id });
             setTab('pairings');
+          }}
+          caps={wanted}
+          labels={file.labels ?? []}
+          words={file.words ?? {}}
+          onCaps={(next) => {
+            setWanted(next);
+            if ([...next].some((c) => FOCUSABLE.has(c))) setRankBy('focus');
           }}
         />
       ) : (
@@ -339,32 +380,33 @@ export default function CommandersTool() {
                   Archers beat infantry, infantry beats cavalry, cavalry beats archers. With the enemy known, skills against one unit type count in full or not at all; the counter itself is counted as {COUNTER_EDGE}% (an estimate: the game&apos;s files do not give it).
                 </p>
               </div>
-              <label className="flex items-start gap-2 text-xs text-[var(--text-secondary)]">
-                <input type="checkbox" className="mt-0.5" checked={withTalents} onChange={(e) => setWithTalents(e.target.checked)} />
-                <span>
-                  Count the primary commander&apos;s talent tree
-                  <span className="block text-[11px] leading-4 text-[var(--text-muted)]">Its 74 points, spent where the talents do the most for the scenario. The secondary brings skills only.</span>
-                </span>
-              </label>
-              {kit && (
-                <>
-                  <label className="flex items-start gap-2 text-xs text-[var(--text-secondary)]">
-                    <input type="checkbox" className="mt-0.5" checked={withGear} onChange={(e) => setWithGear(e.target.checked)} />
-                    <span>
-                      Count the primary commander&apos;s equipment
-                      <span className="block text-[11px] leading-4 text-[var(--text-muted)]">The eight pieces that do the most for it in the scenario, set bonuses included: legendary, with their special talent, fully awakened.</span>
-                    </span>
-                  </label>
-                  <label className="flex items-start gap-2 text-xs text-[var(--text-secondary)]">
-                    <input type="checkbox" className="mt-0.5" checked={withArms} onChange={(e) => setWithArms(e.target.checked)} />
-                    <span>
-                      Count its formation and armaments
-                      <span className="block text-[11px] leading-4 text-[var(--text-muted)]">The formation that adds the most to each pairing, with the four armaments made for it: special inscriptions, best rolls.</span>
-                    </span>
-                  </label>
-                </>
-              )}
-              <p className="text-[11px] leading-4 text-[var(--text-muted)]">Talents, equipment, formation and armaments count for the primary commander only: the troop uses the primary&apos;s, and putting them on the secondary does nothing. The secondary brings its skills.</p>
+              <div>
+                <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Aim for</div>
+                {aim.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {aim.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        title="Stop aiming for this"
+                        onClick={() => {
+                          const next = new Set(wanted);
+                          next.delete(c);
+                          setWanted(next);
+                        }}
+                        className={`${chip} ${picked}`}
+                      >
+                        {CAPS.find((k) => k.id === c)?.label} ×
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] leading-4 text-[var(--text-muted)]">Nothing in particular.</p>
+                )}
+                <p className="mt-1 text-[11px] leading-4 text-[var(--text-muted)]">
+                  The filters of the Commanders tab (march speed reduction, healing, skill damage...): talents, equipment, formation and armaments are then chosen to get the most of them, without forgetting damage and the troop&apos;s own speed, and the lists can be ranked by them.
+                </p>
+              </div>
               <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
                 <input type="checkbox" checked={legendaryOnly} onChange={(e) => setLegendaryOnly(e.target.checked)} />
                 Suggest legendary commanders only
@@ -430,30 +472,47 @@ export default function CommandersTool() {
                   ranking
                 ) : (
                   <ol className="space-y-0.5">
-                    {suggestions.map((sg) => (
-                      <li key={sg.commander.id}>
-                        <button type="button" onClick={() => change(at, { b: sg.commander.id })} title={`Put ${sg.commander.label} as secondary of pairing ${PAIR_NAMES[at]}`} className={`flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-xs hover:bg-[var(--background-secondary)] ${slots[at]?.b === sg.commander.id ? 'bg-[var(--background-secondary)]' : ''}`}>
-                          <RarityDot rarity={sg.commander.rarity} size={7} />
-                          <span className="min-w-0 flex-1 truncate text-[var(--foreground)]">{sg.commander.label}</span>
-                          <span className="w-10 flex-shrink-0 text-right text-[var(--text-muted)]">
-                            {sg.synergy >= 0 ? '+' : ''}
-                            {Math.round(sg.synergy * 100)}%
-                          </span>
-                          <span className="w-7 flex-shrink-0 text-right font-semibold text-[var(--foreground)]">{sg.rating.overall}</span>
-                        </button>
-                      </li>
-                    ))}
+                    {suggestions.map((sg) => {
+                      const key = `s-${primary.id}-${sg.commander.id}`;
+                      return (
+                        <li key={sg.commander.id}>
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => change(at, { b: sg.commander.id })} title={`Put ${sg.commander.label} as secondary of pairing ${PAIR_NAMES[at]}`} className={`flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1 text-left text-xs hover:bg-[var(--background-secondary)] ${slots[at]?.b === sg.commander.id ? 'bg-[var(--background-secondary)]' : ''}`}>
+                              <RarityDot rarity={sg.commander.rarity} size={7} />
+                              <span className="min-w-0 flex-1 truncate text-[var(--foreground)]">{sg.commander.label}</span>
+                              <span className="w-10 flex-shrink-0 text-right text-[var(--text-muted)]">
+                                {sg.synergy.skills >= 0 ? '+' : ''}
+                                {Math.round(sg.synergy.skills * 100)}%
+                              </span>
+                              <span className="w-7 flex-shrink-0 text-right font-semibold text-[var(--foreground)]">{sg.rating.overall}</span>
+                            </button>
+                            <WhyButton open={why === key} onClick={() => setWhy(why === key ? null : key)} />
+                          </div>
+                          {why === key && <PairBrief a={primary} b={sg.commander} scenario={scenario} troop={troopChoice === 'auto' ? primary.troop : troopChoice} setup={setup} field={field} />}
+                        </li>
+                      );
+                    })}
                   </ol>
                 )}
-                <p className="mt-2 text-[10px] leading-4 text-[var(--text-muted)]">Right: overall rating (0-100). Before it: the synergy with {primary.label}. Click one to try it in pairing {PAIR_NAMES[at]}.</p>
+                <p className="mt-2 text-[10px] leading-4 text-[var(--text-muted)]">Right: overall rating (0-100). Before it: the synergy of the two commanders&apos; skills with {primary.label}. &quot;Why&quot; tells what makes the pairing. Click one to try it in pairing {PAIR_NAMES[at]}.</p>
               </section>
             )}
 
             <section className={`${card} p-3`}>
-              <h3 className="mb-2 text-xs font-semibold text-[var(--foreground)]">Best pairings · {SCENARIOS.find((s) => s.id === scenario)?.label}</h3>
+              <h3 className="mb-2 text-xs font-semibold text-[var(--foreground)]">Best pairings</h3>
+              {/* each scenario has its own list (the same choice as the Scenario above); "…" while it is still being ranked */}
+              <div className="mb-2 flex flex-wrap gap-1">
+                {SCENARIOS.map((s) => (
+                  <button key={s.id} type="button" title={s.hint} aria-pressed={scenario === s.id} onClick={() => setScenario(s.id)} className={`${chip} ${scenario === s.id ? picked : unpicked}`}>
+                    {s.label}
+                    {!fields[`${s.id}|${counted}`] && ' …'}
+                  </button>
+                ))}
+              </div>
               <label className="mb-2 flex items-center gap-2 text-[11px] text-[var(--text-secondary)]">
                 Ranked by
                 <select value={rankBy} onChange={(e) => setRankBy(e.target.value as RankBy)} className="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--background-secondary)] px-1.5 py-1 text-[11px] text-[var(--foreground)]">
+                  {aim.length > 0 && <option value="focus">What you aim for ({aim.map((c) => CAPS.find((k) => k.id === c)?.label).join(', ')})</option>}
                   <option value="overall">Overall rating</option>
                   <option value="offense">Damage (all of it)</option>
                   {AXES.map((x) => (
@@ -477,22 +536,29 @@ export default function CommandersTool() {
                 ranking
               ) : (
                 <ol className="space-y-0.5">
-                  {top.map((p) => (
-                    <li key={`${p.a.id}-${p.b.id}`}>
-                      <button type="button" onClick={() => change(at, { a: p.a.id, b: p.b.id })} title={`Put this pairing in ${PAIR_NAMES[at]}`} className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-xs hover:bg-[var(--background-secondary)]">
-                        <RarityDot rarity={p.a.rarity} size={7} />
-                        <span className="min-w-0 flex-1 truncate text-[var(--foreground)]">
-                          {p.a.label} <span className="text-[var(--text-muted)]">+</span> {p.b.label}
-                        </span>
-                        <span className="w-7 flex-shrink-0 text-right font-semibold text-[var(--foreground)]">{p.overall}</span>
-                      </button>
-                    </li>
-                  ))}
+                  {top.map((p) => {
+                    const key = `t-${scenario}-${p.a.id}-${p.b.id}`;
+                    return (
+                      <li key={`${p.a.id}-${p.b.id}`}>
+                        <div className="flex items-center gap-1">
+                          <button type="button" onClick={() => change(at, { a: p.a.id, b: p.b.id })} title={`Put this pairing in ${PAIR_NAMES[at]}`} className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1 text-left text-xs hover:bg-[var(--background-secondary)]">
+                            <RarityDot rarity={p.a.rarity} size={7} />
+                            <span className="min-w-0 flex-1 truncate text-[var(--foreground)]">
+                              {p.a.label} <span className="text-[var(--text-muted)]">+</span> {p.b.label}
+                            </span>
+                            <span className="w-7 flex-shrink-0 text-right font-semibold text-[var(--foreground)]">{p.overall}</span>
+                          </button>
+                          <WhyButton open={why === key} onClick={() => setWhy(why === key ? null : key)} />
+                        </div>
+                        {why === key && <PairBrief a={p.a} b={p.b} scenario={scenario} troop={p.a.troop} setup={fieldSetup} field={field} />}
+                      </li>
+                    );
+                  })}
                   {top.length === 0 && <li className="py-2 text-center text-[11px] text-[var(--text-muted)]">No commander of that troop type.</li>}
                 </ol>
               )}
               <p className="mt-2 text-[10px] leading-4 text-[var(--text-muted)]">
-                The best pairing of each primary commander, by this page&apos;s own reading of skills, talents, equipment and armaments (whatever is ticked above), each with what this tool works out for it. The number is the overall rating, or the share of all pairings beaten on what the list is ranked by. Click one to load it in pairing {PAIR_NAMES[at]}.
+                The best pairing of each primary commander in {SCENARIOS.find((s) => s.id === scenario)?.label.toLowerCase()}, with the primary&apos;s talents, equipment, formation and armaments worked out for it. Every primary is tried with every secondary (about 20 000 pairings). The number is the overall rating: damage and durability ({damagePct}% and {100 - damagePct}% here), each as the share of all those pairings it beats; two thirds of it is the mix of the two commanders&apos; skills alone, one third the pairing with the primary&apos;s full build (talents, equipment, formation, armaments) chosen for it. Ranked by something else, it is the share beaten on that. &quot;Why&quot; tells what makes each pairing. Click one to load it in pairing {PAIR_NAMES[at]}.
               </p>
             </section>
           </div>
@@ -515,7 +581,6 @@ export default function CommandersTool() {
                     trees={trees}
                     pick={custom.get(primary.id)}
                     auto={views.find((v) => v.index === at)?.ev.build ?? null}
-                    counted={withTalents}
                     name={PAIR_NAMES[at]}
                     color={PAIR_COLORS[at]}
                     onChange={(pick) => {
@@ -523,7 +588,6 @@ export default function CommandersTool() {
                       if (pick) next.set(primary.id, pick);
                       else next.delete(primary.id);
                       setCustom(next);
-                      setWithTalents(true);
                     }}
                   />
                 )}
@@ -534,7 +598,6 @@ export default function CommandersTool() {
                     kit={kit}
                     loadout={views.find((v) => v.index === at)?.ev.loadout ?? null}
                     pick={kits.get(primary.id)}
-                    counted={{ gear: withGear, arms: withArms }}
                     name={PAIR_NAMES[at]}
                     color={PAIR_COLORS[at]}
                     onChange={(pick) => {
@@ -542,8 +605,6 @@ export default function CommandersTool() {
                       if (pick) next.set(primary.id, pick);
                       else next.delete(primary.id);
                       setKits(next);
-                      if (pick?.gear) setWithGear(true);
-                      if (pick?.arms || pick?.formation !== undefined) setWithArms(true);
                     }}
                   />
                 )}
@@ -561,13 +622,14 @@ export default function CommandersTool() {
                 <li>Skills, talents and their numbers come from the game&apos;s own files; every skill is at max level, expertise included. No pairing here is taken from anybody&apos;s recommendation, the game&apos;s included: everything is worked out from what the skills and talents say.</li>
                 <li>The percentages in the bar charts are the game&apos;s, read from the texts and summed. About nine sentences in ten are read; stack counters and effects whose size depends on the battle are not.</li>
                 <li>Only what holds for the scenario, the troop type and the seat (primary or secondary) is counted. A unit-type buff on a mixed troop counts for a third.</li>
-                <li>Talents: only the primary commander&apos;s count. Its 74 points are spent step by step on the talents that add the most to it in the scenario, following the tree as the game does (a step opens when one before it is maxed).</li>
+                <li>Talents, equipment, formation and armaments are the primary commander&apos;s (the troop uses those); the secondary brings its skills.</li>
+                <li>Talents: the 74 points are spent step by step on the talents that add the most in the scenario, for the kind of secondary next to it (skill damage, combo attacks, smite, or none), following the tree as the game does (a step opens when one before it is maxed). Equipment and armaments are chosen the same way: a primary has up to four builds, one per kind of secondary.</li>
                 <li>
-                  Equipment: only the primary commander&apos;s counts. Names, numbers, set bonuses and special skills are the game&apos;s. For each primary the eight pieces that add the most in the scenario are taken, set bonuses included, each as it is with its special talent (30% more) and fully awakened. Artifacts and
+                  Equipment: names, numbers, set bonuses and special skills are the game&apos;s. For each primary and kind of secondary the eight pieces that add the most in the scenario are taken, set bonuses included, each as it is with its special talent (30% more) and fully awakened. Artifacts and
                   curios, which are worn by the secondary commander, are not counted yet.
                 </li>
                 <li>
-                  Formation and armaments: only the primary&apos;s, as the game says. For each pairing the formation that adds the most to the two commanders together is taken (Wedge for skill damage, Delta for combo attacks, Pincer for smite and so on), with its four armaments: their three attribute lines at the
+                  Formation and armaments: for each pairing the formation that adds the most to the two commanders together is taken (Wedge for skill damage, Delta for combo attacks, Pincer for smite and so on), with its four armaments: their three attribute lines at the
                   highest roll, the special inscription of that formation, and one common inscription (a legendary armament holds two inscriptions, and only one of them can be special or rare).
                 </li>
                 <li>Bonuses of the same kind add up, as in the game: with equipment counted, an Attack buff of a skill is a smaller share of the total than it is without, while damage bonuses keep their weight.</li>
@@ -576,10 +638,12 @@ export default function CommandersTool() {
                   100 a second. A temporary or chance-based buff counts for the share of time it is up.
                 </li>
                 <li>Skill damage follows skill-damage bonuses; smite and combo attacks follow normal-damage bonuses, as the game states.</li>
-                <li>Overall rating: damage and durability, each as the share of all possible pairings it beats. Open field 60% damage, conquest 50%, garrison 40%, barbarians 70%.</li>
+                <li>
+                  Overall rating: damage and durability, each as the share of all possible pairings it beats (open field 60% damage, conquest 50%, garrison 40%, barbarians 70%). Skills first: {Math.round(SKILLS_FIRST * 100)}% of it is the pairing on the two commanders&apos; skills alone, ranked among all pairings on their skills alone; the rest is the pairing with the primary&apos;s full build (talents, equipment, formation and armaments). The build is chosen for the kind of pairing, as a player would: next to a secondary that launches combo attacks it goes for combo and normal damage (Combo tree, combo equipment, Delta formation and its armaments), next to one that nukes for skill damage, next to one that smites for smite. A build lifts any secondary&apos;s damage, so the skills, which are what makes two commanders a pairing, come first.
+                </li>
                 <li>{STRUCTURE_RULE} That is why lasting weighs more in conquest and in a garrison, and why whatever cuts severe wounds counts more there.</li>
                 <li>
-                  Synergy: how much more damage the pair&apos;s engine gives than the two commanders taken one at a time, each leading its own troop type. The primary&apos;s talents, equipment, formation and armaments are in it: a Delta formation raises the synergy with a secondary that launches combo attacks, a Wedge one with a secondary that deals skill damage.
+                  Synergy: how much more damage the two commanders&apos; skills give together than each of them leading its own troop type, on skills alone. Below it, second, the build: how much more the primary&apos;s talents, equipment, formation and armaments lift this pair than they lift the primary alone (a Delta formation with a secondary that launches combo attacks, a Wedge one with a secondary that deals skill damage).
                 </li>
                 <li>
                   Several enemies at once: about 2 in the open field (a ball fight: hit, finish a skill cycle, pull back), 3 in a rally (the target and the troops swarming it), 2 on a garrison, 1 against barbarians. Area damage is counted on up to that many troops (15% less per extra target, as the skills say), every attacker is counterattacked, what goes off on being hit goes off that much more, and the counterattacks bring Rage (a faster skill cycle). In a rally, half of the fight is against the swarming field troops: what works only against troops on the map counts for half there. &quot;Vs many troops&quot; ranks just that.

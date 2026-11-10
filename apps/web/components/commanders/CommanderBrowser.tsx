@@ -7,7 +7,7 @@ import { Search, X } from 'lucide-react';
 import { CAPS, CAP_GROUPS, TROOPS, condLabels, describeEffect } from '@/lib/commanders/model';
 import type { CapId, Commander, TalentTrees, TroopType } from '@/lib/commanders/model';
 import { RARITY, TALENT_TAGS } from '@/lib/commanders/types';
-import { RarityDot, SkillText, TagChips, card, chip } from './bits';
+import { RarityDot, SkillCard, SkillText, TagChips, card, chip } from './bits';
 
 export interface CommanderBrowserProps {
   list: Commander[];
@@ -15,6 +15,12 @@ export interface CommanderBrowserProps {
   /** The pairing the "use as" buttons fill ("A"). */
   target: string;
   onUse(c: Commander, seat: 'primary' | 'secondary'): void;
+  /** The capability filters: shared with the pairings, whose choices (talents, equipment, armaments) go for them. */
+  caps: ReadonlySet<CapId>;
+  onCaps(caps: ReadonlySet<CapId>): void;
+  /** The game's names of the numbers in "Upgrade Preview", and what the underlined words of a skill mean. */
+  labels: string[];
+  words: Record<string, string>;
 }
 
 const RARITIES = [5, 4, 3, 2];
@@ -28,11 +34,10 @@ function toggle<T>(set: ReadonlySet<T>, v: T): Set<T> {
   return next;
 }
 
-export function CommanderBrowser({ list, trees, target, onUse }: CommanderBrowserProps) {
+export function CommanderBrowser({ list, trees, target, onUse, caps, onCaps: setCaps, labels, words }: CommanderBrowserProps) {
   const [query, setQuery] = useState('');
   const [rarities, setRarities] = useState<ReadonlySet<number>>(new Set([5, 4]));
   const [troops, setTroops] = useState<ReadonlySet<TroopType>>(new Set());
-  const [caps, setCaps] = useState<ReadonlySet<CapId>>(new Set());
   const [openId, setOpenId] = useState<number | null>(null);
 
   const base = useMemo(() => {
@@ -131,7 +136,7 @@ export function CommanderBrowser({ list, trees, target, onUse }: CommanderBrowse
       <aside className="order-first min-w-0 lg:order-none">
         <div className="lg:sticky lg:top-4">
           {open ? (
-            <CommanderDetail key={open.id} c={open} trees={trees} target={target} onUse={onUse} onClose={() => setOpenId(null)} highlighted={caps} />
+            <CommanderDetail key={open.id} c={open} trees={trees} target={target} onUse={onUse} onClose={() => setOpenId(null)} highlighted={caps} labels={labels} words={words} />
           ) : (
             <div className={`${card} hidden p-6 text-center text-sm text-[var(--text-muted)] lg:block`}>Pick a commander to see its skills at max level.</div>
           )}
@@ -143,7 +148,8 @@ export function CommanderBrowser({ list, trees, target, onUse }: CommanderBrowse
 
 const TROOP_WORD: Record<TroopType, string> = { infantry: 'Infantry', cavalry: 'Cavalry', archer: 'Archers', siege: 'Siege', mixed: 'Mixed troops' };
 
-function CommanderDetail({ c, trees, target, onUse, onClose, highlighted }: { c: Commander; trees: TalentTrees; target: string; onUse: CommanderBrowserProps['onUse']; onClose(): void; highlighted: ReadonlySet<CapId> }) {
+function CommanderDetail({ c, trees, target, onUse, onClose, highlighted, labels, words }: { c: Commander; trees: TalentTrees; target: string; onUse: CommanderBrowserProps['onUse']; onClose(): void; highlighted: ReadonlySet<CapId>; labels: string[]; words: Record<string, string> }) {
+  const [simple, setSimple] = useState(false);
   return (
     <section className={`${card} max-h-[calc(100vh-2rem)] overflow-auto p-4`}>
       <div className="flex items-start gap-2">
@@ -178,38 +184,48 @@ function CommanderDetail({ c, trees, target, onUse, onClose, highlighted }: { c:
           </span>
         ))}
       </div>
-      <ul className="mt-4 space-y-4">
+      <div className="mb-2 mt-4 flex items-center justify-between">
+        <h3 className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Skills (max level)</h3>
+        <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-[var(--text-secondary)]">
+          Simplified
+          <button
+            type="button"
+            role="switch"
+            aria-checked={simple}
+            aria-label="Simplified"
+            onClick={() => setSimple(!simple)}
+            className={`relative h-4 w-7 rounded-full transition-colors ${simple ? 'bg-[#4318ff]' : 'bg-[var(--border)]'}`}
+          >
+            <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all ${simple ? 'left-3.5' : 'left-0.5'}`} />
+          </button>
+        </label>
+      </div>
+      <ul className="space-y-2.5">
         {c.skills.map((s) => {
           const effects = c.effects.filter((e) => e.skill === s.id);
           return (
             <li key={`${s.slot}-${s.id}`}>
-              <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                <span className="text-sm font-semibold text-[var(--foreground)]">{s.name}</span>
-                <span className={`${chip} ${s.active ? 'border-amber-500/40 text-amber-500' : 'border-[var(--border)] text-[var(--text-muted)]'}`}>{s.active ? `Active${s.rage ? ` · ${s.rage} Rage` : ''}` : 'Passive'}</span>
-                {s.awake && <span className={`${chip} border-violet-500/40 text-violet-400`}>Expertise</span>}
-              </div>
-              <div className="text-xs leading-5 text-[var(--text-secondary)]">
-                <SkillText skill={s} />
-              </div>
-              {effects.length > 0 && (
-                <details className="mt-1.5">
-                  <summary className="cursor-pointer select-none text-[11px] text-[var(--text-muted)]">What the tool reads from it ({effects.length})</summary>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {effects.map((e, i) => (
-                      <span key={i} title={e.text} className={`${chip} border-[var(--border)] text-[var(--text-secondary)]`}>
-                        {describeEffect(e)}
-                        {condLabels(e).length > 0 && <span className="text-[10px] text-[var(--text-muted)]">{condLabels(e).join(', ')}</span>}
-                      </span>
-                    ))}
-                  </div>
-                </details>
-              )}
+              <SkillCard skill={s} labels={labels} words={words} simple={simple}>
+                {effects.length > 0 && (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer select-none text-[11px] text-[var(--text-muted)]">What the tool reads from it ({effects.length})</summary>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {effects.map((e, i) => (
+                        <span key={i} title={e.text} className={`${chip} border-[var(--border)] text-[var(--text-secondary)]`}>
+                          {describeEffect(e)}
+                          {condLabels(e).length > 0 && <span className="text-[10px] text-[var(--text-muted)]">{condLabels(e).join(', ')}</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </SkillCard>
             </li>
           );
         })}
       </ul>
 
-      <h3 className="mb-1 mt-5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Talent trees (they count when it is the primary commander)</h3>
+      <h3 className="mb-1 mt-5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Talent trees</h3>
       <div className="space-y-1.5">
         {c.tags.map((tag) => {
           const steps = trees.get(tag) ?? [];

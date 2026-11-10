@@ -6,7 +6,7 @@ import { AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { Stat } from '@/lib/commanders/analyze';
 import { AXES, buildSummary, controlLabel, describeEffect } from '@/lib/commanders/model';
-import type { Commander, Evaluation, Note, Rating, Scenario, StatTable } from '@/lib/commanders/model';
+import type { Commander, Evaluation, Note, Rating, Scenario, StatTable, Synergy } from '@/lib/commanders/model';
 import { fillDesc } from '@/lib/commanders/types';
 import { card, chip } from './bits';
 
@@ -21,8 +21,10 @@ export interface PairView {
   ev: Evaluation;
   /** null while the pairings are being ranked. */
   rating: Rating | null;
-  /** How much more the pair's damage engine is worth than the two taken separately (0.25 = +25%). */
-  synergy: number;
+  /** How much more the pair's damage engine is worth than the two taken separately (0.25 = +25%): skills first, the primary's build second. */
+  synergy: Synergy;
+  /** Why it works, in a few lines. */
+  brief: Note[];
   notes: Note[];
   /** The overall rating in every scenario (null while that scenario is still being ranked). */
   scenarios: { id: Scenario; label: string; overall: number | null }[];
@@ -163,6 +165,7 @@ const SELF_ROWS: Row[] = [
   { label: 'All damage', stats: ['dmg'], sign: 1 },
   { label: 'Skill damage', stats: ['dmgSkill'], sign: 1 },
   { label: 'Normal damage', stats: ['dmgNormal'], sign: 1 },
+  { label: 'Ranged normal damage', stats: ['dmgRanged'], sign: 1 },
   { label: 'Counterattack', stats: ['dmgCounter'], sign: 1 },
   { label: 'Smite damage', stats: ['dmgSmite'], sign: 1 },
   { label: 'Combo damage', stats: ['dmgCombo'], sign: 1 },
@@ -262,12 +265,32 @@ const TONE = {
   info: { icon: Info, cls: 'text-[var(--text-muted)]' },
 } as const;
 
-function Tile({ label, value, hint }: { label: string; value: string; hint: string }) {
+function Tile({ label, value, hint, sub }: { label: string; value: string; hint: string; sub?: string }) {
   return (
     <div className="rounded-lg bg-[var(--background-secondary)] px-3 py-2" title={hint}>
       <div className="text-[10px] uppercase tracking-wide text-[var(--text-muted)]">{label}</div>
       <div className="text-lg font-semibold leading-6 text-[var(--foreground)]">{value}</div>
+      {sub && <div className="text-[10px] leading-4 text-[var(--text-muted)]">{sub}</div>}
     </div>
+  );
+}
+
+const signed = (v: number): string => `${v >= 0 ? '+' : ''}${Math.round(v * 100)}%`;
+
+/** A few lines on why a pairing works: the same in the lists and on the pairing's card. */
+export function BriefList({ notes, compact = false }: { notes: Note[]; compact?: boolean }) {
+  return (
+    <ul className={compact ? 'space-y-1' : 'space-y-1.5'}>
+      {notes.map((n, i) => {
+        const Icon = TONE[n.tone].icon;
+        return (
+          <li key={i} className={`flex gap-1.5 ${compact ? 'text-[11px] leading-4' : 'text-xs leading-5'} text-[var(--text-secondary)]`}>
+            <Icon className={`mt-0.5 ${compact ? 'h-3 w-3' : 'h-3.5 w-3.5'} flex-shrink-0 ${TONE[n.tone].cls}`} />
+            <span>{n.text}</span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -286,9 +309,20 @@ export function NotesCard({ row, scenario, onScenario }: { row: PairView; scenar
           {row.a.label} <span className="text-[var(--text-muted)]">+</span> {row.b.label}
         </h3>
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Tile label="Overall" value={pctile(row.rating?.overall)} hint="0-100: 60% damage, 40% durability, each as the share of all pairings it beats" />
-        <Tile label="Synergy" value={`${row.synergy >= 0 ? '+' : ''}${Math.round(row.synergy * 100)}%`} hint="How much more damage the pair's engine gives than the two commanders taken one at a time, each leading its own troop type" />
+      <div className={`grid grid-cols-2 gap-2 ${row.rating?.focus != null ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}`}>
+        {row.rating?.focus != null && <Tile label="Aim" value={pctile(row.rating.focus)} hint="0-100: the share of all pairings it beats on what you aim for (the filters of the Commanders tab)" />}
+        <Tile
+          label="Overall"
+          value={pctile(row.rating?.overall)}
+          sub={row.rating ? `skills only ${row.rating.skills} · full build ${row.rating.kit}` : undefined}
+          hint="0-100, the share of all pairings it beats on damage and durability: two thirds the mix of the two commanders' skills alone, one third with the primary's talents, equipment, formation and armaments"
+        />
+        <Tile
+          label="Synergy"
+          value={signed(row.synergy.skills)}
+          sub={`build ${signed(row.synergy.kit)}`}
+          hint={`How much more damage the two commanders' skills give together than each leading its own troop. Below it, second: how much more ${row.a.label}'s talents, equipment, formation and armaments lift this pair than ${row.a.label} alone`}
+        />
         <Tile label="Damage" value={pctile(row.rating?.offense)} hint="Share of all pairings its damage engine beats" />
         <Tile label="Durability" value={pctile(row.rating?.durability)} hint="Share of all pairings it outlasts" />
       </div>
@@ -305,6 +339,12 @@ export function NotesCard({ row, scenario, onScenario }: { row: PairView; scenar
           </button>
         ))}
       </div>
+      {row.brief.length > 0 && (
+        <div className="mt-3 rounded-lg border border-[var(--border)] px-3 py-2">
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Why it works</div>
+          <BriefList notes={row.brief} />
+        </div>
+      )}
       {build && build.taken.length > 0 && (
         <details className="mt-3 rounded-lg bg-[var(--background-secondary)] px-3 py-2">
           <summary className="cursor-pointer select-none text-xs text-[var(--text-secondary)]">

@@ -135,7 +135,7 @@ export function prepare(list: CommanderData[]): Commander[] {
     };
     add('nuke', has((e) => e.type === 'damage' && e.active && e.kind !== 'smite' && e.kind !== 'combo'));
     add('skillBonus', has(self(['dmgSkill'], 1)));
-    add('normalBonus', has(self(['dmgNormal'], 1)));
+    add('normalBonus', has(self(['dmgNormal', 'dmgRanged'], 1)));
     add('combo', has((e) => e.type === 'damage' && e.kind === 'combo') || has(self(['dmgCombo'], 1)));
     add('smite', has((e) => e.type === 'damage' && e.kind === 'smite') || has(self(['dmgSmite'], 1)));
     add('counter', has(self(['dmgCounter'], 1)));
@@ -230,6 +230,10 @@ export interface Indexes {
   offense: number;
   durability: number;
   metrics: Record<Axis, number>;
+  /** How much of what the filters ask for (0 without filters): see focusScore. */
+  focus: number;
+  /** The same pairing on its two commanders' skills alone (no talents, equipment, formation or armaments): the mix. */
+  skills: { offense: number; durability: number } | null;
 }
 
 export interface Evaluation extends Indexes {
@@ -251,13 +255,15 @@ export interface Evaluation extends Indexes {
   /** Effects that hold only in a narrow case: counted at half in the indexes, kept out of the percentages above. */
   situational: { effect: Effect; who: Role }[];
   lost: LostEffect[];
+  /** Every stat bonus as counted, with the effect it comes from. */
+  boosts: Boost[];
   /** The primary commander's talents that were counted, if any. */
   build: Build | null;
   /** Its equipment, formation and armaments that were counted, if any. */
   loadout: Loadout | null;
 }
 
-const STAT_KEYS: Stat[] = ['attack', 'defense', 'health', 'march', 'dmg', 'dmgSkill', 'dmgNormal', 'dmgCounter', 'dmgSmite', 'dmgCombo', 'taken', 'takenSkill', 'takenNormal', 'takenCounter', 'healing', 'rageSpeed', 'capacity', 'wounds', 'woundsDealt'];
+const STAT_KEYS: Stat[] = ['attack', 'defense', 'health', 'march', 'dmg', 'dmgSkill', 'dmgNormal', 'dmgRanged', 'dmgCounter', 'dmgSmite', 'dmgCombo', 'taken', 'takenSkill', 'takenNormal', 'takenCounter', 'healing', 'rageSpeed', 'capacity', 'wounds', 'woundsDealt'];
 const emptyTable = (): StatTable => Object.fromEntries(STAT_KEYS.map((k) => [k, { perm: 0, temp: 0 }])) as StatTable;
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
 
@@ -306,6 +312,8 @@ interface Ctx {
   combo: number;
   crowd: number;
   enemy: Enemy;
+  /** What the filters ask for: choices (talents, equipment, armaments, formation) go for it too. */
+  focus: readonly CapId[];
 }
 
 /** Does the effect hold for this role, scenario and troop, and how much of it. 0: it does not; the reason says why. */
@@ -314,8 +322,8 @@ function applies(e: Effect, role: Role, ctx: Ctx): { w: number; why?: LostEffect
   const c = e.conds;
   const has = (x: Cond): boolean => c.includes(x);
   if (has('gather')) return { w: 0 };
-  // made for fighting from range (V formation): siege troops
-  if (has('ranged') && troop !== 'siege') return { w: 0 };
+  // fighting from range (ranged mode, V formation): siege troops only
+  if (has('ranged') && troop !== 'siege') return { w: 0, why: 'unit' };
   // "- Infantry: ... - Cavalry: ... - Otherwise: ...": the version for the primary commander's talents
   if (e.only && (primaryTroop === 'mixed' || !e.only.includes(primaryTroop))) return { w: 0 };
   if (e.except && primaryTroop !== 'mixed' && e.except.includes(primaryTroop)) return { w: 0 };
@@ -418,6 +426,14 @@ interface Detail {
   controls: Evaluation['controls'];
   situational: Evaluation['situational'];
   lost: LostEffect[];
+  boosts: Boost[];
+}
+
+/** A stat bonus as counted (weighted by how often it holds): who brings what, for the reasons in words. */
+export interface Boost {
+  effect: Effect;
+  /** The percentage as counted: the effect's value times the share of the time it holds. */
+  value: number;
 }
 
 /**
@@ -447,7 +463,9 @@ function tally(sums: Sums, effects: readonly Effect[], role: Role, ctx: Ctx, det
         if (e.conds.includes('situational')) detail.situational.push({ effect: e, who: role });
         else (e.scope === 'enemy' ? detail.enemy : detail.self)[e.stat][!e.temp && e.chance === undefined ? 'perm' : 'temp'] += e.value * (e.stacks ?? 1) * (e.unit && ctx.troop === 'mixed' ? MIXED_SHARE : 1);
       }
-      sums[(e.scope === 'enemy' ? ENEMY : 0) + AT[e.stat]] += e.value * w * strength(e, ctx);
+      const counted = e.value * w * strength(e, ctx);
+      sums[(e.scope === 'enemy' ? ENEMY : 0) + AT[e.stat]] += counted;
+      if (detail && counted !== 0) detail.boosts.push({ effect: e, value: counted });
     } else if (ooc) continue;
     else if (e.type === 'damage') {
       const n = procs(e, ctx) * w;
@@ -484,9 +502,13 @@ function settle(sums: Sums, later: readonly Effect[], ctx: Ctx, detail?: Detail)
   if (later.length) tally(sums, later, 'primary', { ...ctx, smite: sums[SMITES], combo: sums[COMBOS] }, detail);
 }
 
-/** From a row to the indexes. */
+/** A percentage as a multiplier: 30 -> 1.3. */
+function pct(v: number): number {
+  return 1 + v / 100;
+}
+
+/** From a row to the indexes. (Called millions of times when every pairing is ranked: no functions made in it.) */
 function finish(s: Sums, scenario: Scenario): Indexes {
-  const pct = (v: number): number => 1 + v / 100;
   const crowd = CROWD[scenario];
   // More Rage means more casts of the active skills: 1000 Rage is one more cast per cycle. Every enemy on the troop
   // beyond the first is counterattacked, and each counterattack brings Rage too.
@@ -497,10 +519,12 @@ function finish(s: Sums, scenario: Scenario): Indexes {
   // Skill damage follows the skill-damage bonuses; smite and combo attacks follow the normal-damage ones (the game says so).
   const skillPart = s[DF_SKILL] * boost * pct(s[AT.dmgSkill]) * pct(taken + s[ENEMY + AT.takenSkill]);
   const normal = s[AT.dmgNormal];
+  // (ranged normal damage: a siege troop's own basic attacks and counterattacks from range, not combo or smite attacks)
+  const ranged = s[AT.dmgRanged];
   // basic attacks on one target; a counterattack on every enemy that attacks
-  const counters = ATTACKS * BASIC_DF * crowd * pct(normal + s[AT.dmgCounter]);
+  const counters = ATTACKS * BASIC_DF * crowd * pct(normal + ranged + s[AT.dmgCounter]);
   const normalPart =
-    (ATTACKS * BASIC_DF * pct(normal) + counters + s[DF_SMITE] * boost * pct(normal + s[AT.dmgSmite]) + s[DF_COMBO] * boost * pct(normal + s[AT.dmgCombo])) * pct(taken + s[ENEMY + AT.takenNormal]);
+    (ATTACKS * BASIC_DF * pct(normal + ranged) + counters + s[DF_SMITE] * boost * pct(normal + s[AT.dmgSmite]) + s[DF_COMBO] * boost * pct(normal + s[AT.dmgCombo])) * pct(taken + s[ENEMY + AT.takenNormal]);
   const common = pct(s[AT.attack]) * pct(s[AT.dmg]) * pct(-s[ENEMY + AT.defense]) * pct(-s[ENEMY + AT.health] * 0.5) * pct(s[AT.capacity]) * pct(s[AT.woundsDealt] * 0.5);
   // 1 is a troop with nobody leading it: its basic attacks and counterattacks
   const bare = ATTACKS * BASIC_DF * (1 + crowd);
@@ -517,8 +541,9 @@ function finish(s: Sums, scenario: Scenario): Indexes {
   const saved = 1 + clamp(-s[AT.wounds] / 100, -0.5, 0.5) * (0.5 + PERMANENT[scenario]);
   const durability = (pct(s[AT.defense]) * pct(s[AT.health]) * pct(s[AT.capacity]) * saved * (1 + sustain / 6000) * (1 + Math.min(0.3, s[DRAIN] / 2000 + s[QUIET] * 0.05))) / ((1 - reduction) * (1 - weak));
 
-  const E = (k: Stat): number => s[ENEMY + AT[k]];
-  const debuffs = -E('attack') - E('defense') - E('health') - E('dmg') - E('dmgSkill') - E('dmgNormal') + E('taken') + E('takenSkill') + E('takenNormal') - E('healing') * 0.5;
+  const E = ENEMY;
+  const debuffs =
+    -s[E + AT.attack] - s[E + AT.defense] - s[E + AT.health] - s[E + AT.dmg] - s[E + AT.dmgSkill] - s[E + AT.dmgNormal] + s[E + AT.taken] + s[E + AT.takenSkill] + s[E + AT.takenNormal] - s[E + AT.healing] * 0.5;
   const metrics: Record<Axis, number> = {
     skill: skillEngine,
     normal: normalEngine,
@@ -526,10 +551,10 @@ function finish(s: Sums, scenario: Scenario): Indexes {
     durability,
     sustain,
     rage: s[RAGE] + s[AT.rageSpeed] * 10 + s[DRAIN],
-    control: debuffs + s[CONTROLS] * 15 - E('march') * 0.3,
-    mobility: s[AT.march] + s[OOC_MARCH] * 0.5 - E('march') * 0.5,
+    control: debuffs + s[CONTROLS] * 15 - s[E + AT.march] * 0.3,
+    mobility: s[AT.march] + s[OOC_MARCH] * 0.5 - s[E + AT.march] * 0.5,
   };
-  return { skillEngine, normalEngine, offense: skillEngine + normalEngine, durability, metrics };
+  return { skillEngine, normalEngine, offense: skillEngine + normalEngine, durability, metrics, focus: 0, skills: null };
 }
 
 /** One number for "how good", used to choose talents, equipment and armaments: damage and durability, weighted as the scenario weighs them. */
@@ -537,18 +562,80 @@ function worth(ix: Indexes, scenario: Scenario): number {
   const w = damageShare(scenario);
   return w * Math.log(ix.offense) + (1 - w) * Math.log(ix.durability) + 1e-4 * ix.metrics.mobility;
 }
-const worthOf = (s: Sums, scenario: Scenario): number => worth(finish(s, scenario), scenario);
+const worthOf = (s: Sums, ctx: Ctx): number => {
+  const ix = finish(s, ctx.scenario);
+  return worth(ix, ctx.scenario) + (ctx.focus.length ? FOCUS_WEIGHT * focusScore(s, ix, ctx.focus) + 0.25 * Math.log(1 + Math.max(0, s[AT.march]) / 20) : 0);
+};
+
+// ---- what the filters ask for --------------------------------------------------------------------------------
+/**
+ * How much of each thing a filter names a troop has, from its row: the share of a debuff kept on the enemy, the
+ * factors of healing, the engines... and the size that counts as "a lot" of it. A score is the sum of ln(1 + v / k):
+ * more of one thing keeps helping, but less and less, so that two filters both count. With filters, the troop's own
+ * march speed counts a little too.
+ */
+const FOCUS: Partial<Record<CapId, { v(s: Sums, ix: Indexes): number; k: number }>> = {
+  nuke: { v: (_, ix) => ix.skillEngine, k: 1 },
+  skillBonus: { v: (s) => s[AT.dmgSkill], k: 20 },
+  normalBonus: { v: (s) => s[AT.dmgNormal] + s[AT.dmgRanged], k: 20 },
+  combo: { v: (s) => (s[DF_COMBO] / 1000) * (1 + (s[AT.dmgNormal] + s[AT.dmgCombo]) / 100), k: 1 },
+  smite: { v: (s) => (s[DF_SMITE] / 1000) * (1 + (s[AT.dmgNormal] + s[AT.dmgSmite]) / 100), k: 1 },
+  counter: { v: (s) => s[AT.dmgNormal] + s[AT.dmgRanged] + s[AT.dmgCounter], k: 20 },
+  dot: { v: (_, ix) => ix.skillEngine, k: 1 },
+  aoe: { v: (_, ix) => ix.metrics.swarm, k: 1 },
+  slow: { v: (s) => -s[ENEMY + AT.march], k: 15 },
+  silence: { v: (s) => s[QUIET], k: 1 },
+  disarm: { v: (s) => s[QUIET], k: 1 },
+  defDown: { v: (s) => -s[ENEMY + AT.defense], k: 15 },
+  atkDown: { v: (s) => -s[ENEMY + AT.attack], k: 15 },
+  hpDown: { v: (s) => -s[ENEMY + AT.health], k: 15 },
+  weaken: { v: (s) => -(s[ENEMY + AT.dmg] + 0.5 * s[ENEMY + AT.dmgSkill] + 0.5 * s[ENEMY + AT.dmgNormal]), k: 15 },
+  vulnerable: { v: (s) => s[ENEMY + AT.taken] + s[ENEMY + AT.takenSkill] + s[ENEMY + AT.takenNormal], k: 15 },
+  rageDrain: { v: (s) => s[DRAIN], k: 300 },
+  antiHeal: { v: (s) => -s[ENEMY + AT.healing], k: 15 },
+  heal: { v: (s) => s[HEAL], k: 3000 },
+  shield: { v: (s) => s[SHIELD], k: 3000 },
+  tank: { v: (s) => -(s[AT.taken] + 0.5 * s[AT.takenSkill] + 0.4 * s[AT.takenNormal] + 0.1 * s[AT.takenCounter]), k: 15 },
+  rage: { v: (s) => s[RAGE] + s[AT.rageSpeed] * 10, k: 300 },
+  speed: { v: (s) => s[AT.march] + 0.5 * s[OOC_MARCH], k: 20 },
+  capacity: { v: (s) => s[AT.capacity], k: 10 },
+};
+/** How strongly the choices go for what the filters ask, next to damage and durability. */
+const FOCUS_WEIGHT = 1.5;
+/** The filters that can be aimed at (the others, "garrison", "gathering"..., say where a commander shines, not how much). */
+export const FOCUSABLE: ReadonlySet<CapId> = new Set(Object.keys(FOCUS) as CapId[]);
+
+function focusScore(s: Sums, ix: Indexes, caps: readonly CapId[]): number {
+  let n = 0;
+  for (const c of caps) {
+    const f = FOCUS[c];
+    if (f) n += Math.log(1 + Math.max(0, f.v(s, ix)) / f.k);
+  }
+  return n;
+}
+const withFocus = (s: Sums, scenario: Scenario, caps: readonly CapId[]): Indexes => {
+  const ix = finish(s, scenario);
+  if (caps.length) ix.focus = focusScore(s, ix, caps);
+  return ix;
+};
 
 /** A list of effects as a row, per place it is counted in: worked out once. */
 interface Vec {
   sums: Sums;
   later: Effect[];
 }
-const vecs = new WeakMap<readonly Effect[], Map<string, Vec>>();
+const vecs: Record<Role, WeakMap<readonly Effect[], Map<string, Vec>>> = { primary: new WeakMap(), secondary: new WeakMap() };
+/** The key of a place to count effects in, made once per context (it is looked up hundreds of thousands of times). */
+const ctxKeys = new WeakMap<Ctx, string>();
+function keyOf(ctx: Ctx): string {
+  let k = ctxKeys.get(ctx);
+  if (k === undefined) ctxKeys.set(ctx, (k = `${ctx.scenario}|${ctx.troop}|${ctx.primaryTroop}|${ctx.actives}|${ctx.enemy}`));
+  return k;
+}
 function vecOf(effects: readonly Effect[], role: Role, ctx: Ctx): Vec {
-  let mine = vecs.get(effects);
-  if (!mine) vecs.set(effects, (mine = new Map()));
-  const key = `${role[0]}${ctx.scenario}|${ctx.troop}|${ctx.primaryTroop}|${ctx.actives}|${ctx.enemy}`;
+  let mine = vecs[role].get(effects);
+  if (!mine) vecs[role].set(effects, (mine = new Map()));
+  const key = keyOf(ctx);
   let v = mine.get(key);
   if (!v) {
     v = { sums: new Float64Array(SIZE), later: [] };
@@ -636,13 +723,13 @@ export const pickOf = (build: Build): Record<number, number> => ({ ...build.leve
 function spendTalents(a: Commander, trees: TalentTrees, base: Sums, ctx: Ctx): Build {
   const steps = a.tags.flatMap((t) => trees.get(t) ?? []);
   const byId = new Map(steps.map((s) => [s.id, s]));
-  const zero = worthOf(base, ctx.scenario);
+  const zero = worthOf(base, ctx);
   const value = new Map(
     steps.map((s) => {
       if (!s.effects.length) return [s.id, 0];
       const row = Float64Array.from(base);
       tally(row, s.effects, 'primary', ctx);
-      return [s.id, worthOf(row, ctx.scenario) - zero];
+      return [s.id, worthOf(row, ctx) - zero];
     }),
   );
 
@@ -810,7 +897,7 @@ function bonusEffects([buff, value]: BonusData, skill: number, skillName: string
     case 10008: case 20005: return [make('dmgCounter', value)];
     case 15063: case 20039: return [make('dmgSmite', value)];
     case 17400: case 20062: return [make('dmgCombo', value)];
-    case 15025: return [make('dmgNormal', value, { conds: ['ranged'] })];
+    case 15025: return [make('dmgRanged', value, { conds: ['ranged'] })];
     case 15033: return [make('dmgSkill', value, { conds: ['ranged'] })];
     case 15075: return [make('dmgSmite', value, { conds: ['ranged'] })];
     case 10016: return [make('dmg', value, { conds: ['pve'] })];
@@ -974,7 +1061,10 @@ function gearPick(kit: Kit, worn: (Worn | null)[]): GearPick {
  * what is already there, set bonuses included, until no swap helps; and since a whole set can beat the best single
  * pieces, the search also starts from each set worn in full.
  */
-function pickGear(kit: Kit, base: Sums, ctx: Ctx): GearPick {
+/** Set starts climbed in full (the others are only scored as they start): the sets that look best for the commander. */
+const SET_STARTS = 3;
+
+function pickGear(kit: Kit, base: Sums, ctx: Ctx, from?: readonly (GearItem | null)[]): GearPick {
   // legendary pieces, and epic ones where there is no legendary piece for that place
   const options = WORN.map((slot) => {
     const all = kit.gear[slot - 1];
@@ -983,18 +1073,25 @@ function pickGear(kit: Kit, base: Sums, ctx: Ctx): GearPick {
   });
   const row = new Float64Array(SIZE);
   const later: Effect[] = [];
+  // (called thousands of times per commander: no new arrays in it)
+  const count = new Map<number, number>();
   const score = (items: readonly (GearItem | null)[]): number => {
     row.set(base);
     later.length = 0;
+    count.clear();
     for (const it of items) {
       if (!it) continue;
       const v = vecOf(it.effects, 'primary', ctx);
       plus(row, v.sums);
-      if (v.later.length) later.push(...v.later);
+      for (const e of v.later) later.push(e);
+      if (it.set) count.set(it.set, (count.get(it.set) ?? 0) + 1);
     }
-    for (const p of setsOf(kit, items)) plus(row, vecOf(p.step.effects, 'primary', ctx).sums);
+    for (const [id, pieces] of count) {
+      const set = kit.sets.get(id);
+      if (set) for (const step of set.steps) if (pieces >= step.pieces) plus(row, vecOf(step.effects, 'primary', ctx).sums);
+    }
     settle(row, later, ctx);
-    return worthOf(row, ctx.scenario);
+    return worthOf(row, ctx);
   };
   const climb = (start: (GearItem | null)[]): { items: (GearItem | null)[]; value: number } => {
     const items = [...start];
@@ -1017,13 +1114,20 @@ function pickGear(kit: Kit, base: Sums, ctx: Ctx): GearPick {
     }
     return { items, value };
   };
-  let best = climb(WORN.map(() => null));
+  // from nothing, or from the equipment found for the commander alone (next to a secondary it changes a few pieces);
+  // then from each set worn whole: the sets are scored as they start, and the best few climbed from there
+  let best = climb(from ? [...from] : WORN.map(() => null));
+  const starts: { items: (GearItem | null)[]; value: number }[] = [];
   for (const set of kit.sets.values()) {
     if (!set.steps.some((s) => s.effects.length)) continue;          // a gathering set
     const start = [...best.items];
     for (let i = 0; i < 6; i++) start[i] = options[i].find((g) => g.set === set.id) ?? start[i];
     if (!start.some((g, i) => g !== best.items[i])) continue;
-    const tried = climb(start);
+    starts.push({ items: start, value: score(start) });
+  }
+  starts.sort((x, y) => y.value - x.value);
+  for (const s of starts.slice(0, SET_STARTS)) {
+    const tried = climb(s.items);
     if (tried.value > best.value + 1e-9) best = tried;
   }
   return gearPick(kit, best.items.map((item) => (item ? { item, talent: true, awake: item.awakeMax } : null)));
@@ -1054,7 +1158,7 @@ function pickArms(kit: Kit, base: Sums, ctx: Ctx): ArmsPick {
       plus(probe, v.sums);
       settle(probe, later, ctx);
       settle(probe, v.later, ctx);
-      const w = worthOf(probe, ctx.scenario);
+      const w = worthOf(probe, ctx);
       if (w > value) {
         value = w;
         top = o;
@@ -1121,10 +1225,13 @@ export interface Setup {
   kits?: ReadonlyMap<number, KitPick>;
   /** The enemy's troop type, when it is known. */
   enemy?: Enemy;
+  /** What the filters ask for (only those in FOCUSABLE count). */
+  focus?: readonly CapId[];
 }
 /** Skills only. */
 export const BARE: Setup = { trees: null, kit: null, gear: false, arms: false };
-const flagsOf = (s: Setup): string => `${s.trees ? 1 : 0}${s.kit && s.gear ? 1 : 0}${s.kit && s.arms ? 1 : 0}|${s.enemy ?? 'any'}`;
+const focusOf = (s: Setup): CapId[] => (s.focus ?? []).filter((c) => FOCUSABLE.has(c));
+const flagsOf = (s: Setup): string => `${s.trees ? 1 : 0}${s.kit && s.gear ? 1 : 0}${s.kit && s.arms ? 1 : 0}|${s.enemy ?? 'any'}|${focusOf(s).join('+')}`;
 const pickKey = (p: TalentPick): string =>
   Object.entries(p)
     .filter(([, v]) => v > 0)
@@ -1146,22 +1253,70 @@ interface Lead {
   forms: { formation: Formation; vec: [Vec, Vec] }[];
   formationByHand: boolean;
   enemy: Enemy;
+  focus: CapId[];
 }
 
 const leads = new Map<string, Lead>();
 
-function leadOf(a: Commander, scenario: Scenario, troop: TroopType, setup: Setup): Lead {
+/**
+ * What the secondary mostly adds to the troop's damage: skill damage, combo attacks, smite, or nothing to speak of.
+ * The primary's talents, equipment and armaments are chosen with it in mind, as a player would: next to a secondary
+ * that launches combo attacks, combo and normal damage (the Combo tree, combo-damage lines and inscriptions); next to
+ * one that nukes, skill damage. Four builds per primary at most, so that every pairing can still be ranked.
+ */
+export type Partner = 'none' | 'skill' | 'combo' | 'smite';
+/** A typical secondary of each kind, as a row: an active skill with about 3000 damage factor of it per cycle. */
+const PARTNER_DF = 3000;
+const partnerRows = new Map<Partner, Sums>();
+function partnerRow(p: Partner): Sums {
+  let r = partnerRows.get(p);
+  if (!r) {
+    r = new Float64Array(SIZE);
+    if (p === 'skill') r[DF_SKILL] = PARTNER_DF;
+    if (p === 'combo') {
+      r[DF_COMBO] = PARTNER_DF;
+      r[COMBOS] = 2;
+    }
+    if (p === 'smite') {
+      r[DF_SMITE] = PARTNER_DF;
+      r[SMITES] = 2;
+    }
+    if (p !== 'none') r[DF_ACTIVE] = PARTNER_DF;
+    partnerRows.set(p, r);
+  }
+  return r;
+}
+const partnerKinds = new Map<string, Partner>();
+/** The kind of a secondary next to a primary of that troop type (its own damage, as it counts in that troop). */
+export function partnerOf(b: Commander | null, scenario: Scenario, troop: TroopType, primaryTroop: TroopType, enemy: Enemy = 'any'): Partner {
+  if (!b) return 'none';
+  const key = `${b.id}|${scenario}|${troop}|${primaryTroop}|${enemy}`;
+  let p = partnerKinds.get(key);
+  if (p === undefined) {
+    const s = vecOf(b.effects, 'secondary', { scenario, troop, primaryTroop, actives: 2, smite: 0, combo: 0, crowd: CROWD[scenario], enemy, focus: [] }).sums;
+    const top = Math.max(s[DF_SKILL], s[DF_COMBO], s[DF_SMITE]);
+    p = top < 800 ? 'none' : top === s[DF_COMBO] ? 'combo' : top === s[DF_SMITE] ? 'smite' : 'skill';
+    partnerKinds.set(key, p);
+  }
+  return p;
+}
+
+function leadOf(a: Commander, scenario: Scenario, troop: TroopType, setup: Setup, partner: Partner = 'none'): Lead {
+  if (!hasKit(setup)) partner = 'none';
   const pick = setup.trees ? setup.custom?.get(a.id) : undefined;
   const kitPick = setup.kit ? setup.kits?.get(a.id) : undefined;
-  const key = `${a.id}|${scenario}|${troop}|${flagsOf(setup)}${pick ? `|${pickKey(pick)}` : ''}${kitPick ? `|${JSON.stringify(kitPick)}` : ''}`;
+  const key = `${a.id}|${scenario}|${troop}|${flagsOf(setup)}|${partner}${pick ? `|${pickKey(pick)}` : ''}${kitPick ? `|${JSON.stringify(kitPick)}` : ''}`;
   const known = leads.get(key);
   if (known) return known;
   const own = hasActive(a);
   const enemy = setup.enemy ?? 'any';
-  const at = (other: number): Ctx => ({ scenario, troop, primaryTroop: a.troop, actives: own + other, smite: 0, combo: 0, crowd: CROWD[scenario], enemy });
-  // chosen as the commander stands alone: first the equipment, then the talents on top of it, then the armaments on top of both
-  const alone = at(0);
+  const focus = focusOf(setup);
+  const at = (other: number): Ctx => ({ scenario, troop, primaryTroop: a.troop, actives: own + other, smite: 0, combo: 0, crowd: CROWD[scenario], enemy, focus });
+  // chosen for the commander with a typical secondary of that kind next to it (or alone): first the equipment, then
+  // the talents on top of it, then the armaments on top of both
+  const alone = at(partner === 'none' ? 0 : 1);
   const row = Float64Array.from(vecOf(a.effects, 'primary', alone).sums);
+  if (partner !== 'none') plus(row, partnerRow(partner));
   const add = (parts: readonly Effect[][]): void => {
     for (const p of parts) plus(row, vecOf(p, 'primary', alone).sums);
   };
@@ -1170,7 +1325,9 @@ function leadOf(a: Commander, scenario: Scenario, troop: TroopType, setup: Setup
     const item = w && kit?.gearById.get(w[0]);
     return item ? { item, talent: w[1], awake: w[2] } : null;
   };
-  const gear = kit && setup.gear ? (kitPick?.gear ? gearPick(kit, WORN.map((_, i) => byHand(kitPick.gear?.[i] ?? null))) : pickGear(kit, row, alone)) : null;
+  // (next to a secondary, the search starts from the equipment found for the commander alone)
+  const solo = partner !== 'none' && kit && setup.gear && !kitPick?.gear ? leadOf(a, scenario, troop, setup, 'none').gear : null;
+  const gear = kit && setup.gear ? (kitPick?.gear ? gearPick(kit, WORN.map((_, i) => byHand(kitPick.gear?.[i] ?? null))) : pickGear(kit, row, alone, solo?.worn.map((w) => w?.item ?? null))) : null;
   if (gear) add(gear.parts);
   const build = setup.trees ? (pick ? pickBuild(a, setup.trees, pick) : spendTalents(a, setup.trees, row, alone)) : null;
   if (build) add([build.effects]);
@@ -1195,7 +1352,7 @@ function leadOf(a: Commander, scenario: Scenario, troop: TroopType, setup: Setup
   const forms = (fixed ? [fixed] : kit && setup.arms ? kit.formations : [])
     .map((formation) => ({ formation, vec: [vecOf(effectsOf(formation), 'primary', at(0)), vecOf(effectsOf(formation), 'primary', at(1))] as [Vec, Vec] }))
     .filter((f) => !!fixed || f.vec[0].later.length > 0 || f.vec[0].sums.some((v) => v !== 0));
-  const lead: Lead = { build, gear, arms, parts, sums, later, forms, formationByHand: !!fixed, enemy };
+  const lead: Lead = { build, gear, arms, parts, sums, later, forms, formationByHand: !!fixed, enemy, focus };
   leads.set(key, lead);
   return lead;
 }
@@ -1215,7 +1372,7 @@ function counterEdge(sums: Sums, troop: TroopType, enemy: Enemy): void {
  */
 function solve(lead: Lead, a: Commander, b: Commander | null, scenario: Scenario, troop: TroopType): { sums: Sums; ctx: Ctx; formation: Formation | null } {
   const other = hasActive(b);
-  const ctx: Ctx = { scenario, troop, primaryTroop: a.troop, actives: hasActive(a) + other, smite: 0, combo: 0, crowd: CROWD[scenario], enemy: lead.enemy };
+  const ctx: Ctx = { scenario, troop, primaryTroop: a.troop, actives: hasActive(a) + other, smite: 0, combo: 0, crowd: CROWD[scenario], enemy: lead.enemy, focus: lead.focus };
   const sums = Float64Array.from(lead.sums[other]);
   if (b) plus(sums, vecOf(b.effects, 'secondary', ctx).sums);
   counterEdge(sums, troop, lead.enemy);
@@ -1228,7 +1385,7 @@ function solve(lead: Lead, a: Commander, b: Commander | null, scenario: Scenario
       plus(trial, v.sums);
       settle(trial, lead.later, ctx);
       settle(trial, v.later, ctx);
-      const w = worthOf(trial, scenario);
+      const w = worthOf(trial, ctx);
       if (w > value) {
         value = w;
         top = f;
@@ -1241,18 +1398,38 @@ function solve(lead: Lead, a: Commander, b: Commander | null, scenario: Scenario
   return { sums, ctx, formation: top?.formation ?? null };
 }
 
+/** Whether anything beyond the two commanders' skills is counted. */
+const hasKit = (s: Setup): boolean => !!s.trees || (!!s.kit && (s.gear || s.arms));
+const skillSetups = new WeakMap<Setup, Setup>();
+/** The same setup on skills alone: no talents, equipment, formation or armaments (the enemy's troop type is kept). */
+function skillsOf(setup: Setup): Setup {
+  let s = skillSetups.get(setup);
+  if (!s) skillSetups.set(setup, (s = { ...BARE, enemy: setup.enemy }));
+  return s;
+}
+/** The pairing on its two commanders' skills alone: what the mix of the two is worth. */
+function mixOf(a: Commander, b: Commander | null, scenario: Scenario, troop: TroopType, setup: Setup, ix: Indexes): Indexes['skills'] {
+  if (!hasKit(setup)) return { offense: ix.offense, durability: ix.durability };
+  const m = finish(solve(leadOf(a, scenario, troop, skillsOf(setup)), a, b, scenario, troop).sums, scenario);
+  return { offense: m.offense, durability: m.durability };
+}
+
 /** The indexes of a pairing (or of a commander alone), without the lists a page shows: fast enough to rank them all. */
 export function indexes(a: Commander, b: Commander | null, scenario: Scenario, troop: TroopType, setup: Setup = BARE): Indexes {
-  return finish(solve(leadOf(a, scenario, troop, setup), a, b, scenario, troop).sums, scenario);
+  const lead = leadOf(a, scenario, troop, setup, partnerOf(b, scenario, troop, a.troop, setup.enemy));
+  const ix = withFocus(solve(lead, a, b, scenario, troop).sums, scenario, lead.focus);
+  ix.skills = mixOf(a, b, scenario, troop, setup, ix);
+  return ix;
 }
 
 /** A pairing in full: the indexes, and what they are made of. */
 export function evaluate(a: Commander, b: Commander | null, scenario: Scenario, troop: TroopType, setup: Setup = BARE): Evaluation {
-  const lead = leadOf(a, scenario, troop, setup);
+  const partner = partnerOf(b, scenario, troop, a.troop, setup.enemy);
+  const lead = leadOf(a, scenario, troop, setup, partner);
   const { ctx, formation } = solve(lead, a, b, scenario, troop);
   // the same sum again, this time keeping what a page shows
   const sums = new Float64Array(SIZE);
-  const detail: Detail = { self: emptyTable(), enemy: emptyTable(), damage: [], controls: [], situational: [], lost: [] };
+  const detail: Detail = { self: emptyTable(), enemy: emptyTable(), damage: [], controls: [], situational: [], lost: [], boosts: [] };
   const later: Effect[] = [];
   tally(sums, a.effects, 'primary', ctx, detail, later);
   for (const p of lead.parts) tally(sums, p, 'primary', ctx, detail, later);
@@ -1273,15 +1450,21 @@ export function evaluate(a: Commander, b: Commander | null, scenario: Scenario, 
       manual: { gear: !!setup.kits?.get(a.id)?.gear, formation: lead.formationByHand, arms: !!lead.arms?.manual },
     };
   }
-  return { troop, scenario, enemyType: lead.enemy, ...detail, heal: sums[HEAL], shield: sums[SHIELD], rage: sums[RAGE], rageDrain: sums[DRAIN], ...finish(sums, scenario), build: lead.build, loadout };
+  const ix = withFocus(sums, scenario, lead.focus);
+  ix.skills = mixOf(a, b, scenario, troop, setup, ix);
+  return { troop, scenario, enemyType: lead.enemy, ...detail, heal: sums[HEAL], shield: sums[SHIELD], rage: sums[RAGE], rageDrain: sums[DRAIN], ...ix, build: lead.build, loadout };
 }
 
 // ---- all the pairings there are, to place one among them ---------------------------------------------------
 export interface Field {
   scenario: Scenario;
-  sorted: Record<Axis | 'offense', Float64Array>;
+  /** Ranked for what the filters ask for too. */
+  focus: boolean;
+  sorted: Record<Axis | 'offense' | 'focus', Float64Array>;
   /** Every pairing ranked: primary and secondary as places in the list, with its damage and durability indexes. */
-  pairs: { a: Uint16Array; b: Uint16Array; offense: Float64Array; durability: Float64Array; cols: Record<Axis | 'offense', Float64Array> };
+  pairs: { a: Uint16Array; b: Uint16Array; offense: Float64Array; durability: Float64Array; cols: Record<Axis | 'offense' | 'focus', Float64Array> };
+  /** The same pairings on their two commanders' skills alone (the mix), in the same order, and sorted. */
+  skills: { offense: Float64Array; durability: Float64Array; sorted: { offense: Float64Array; durability: Float64Array } };
 }
 
 /**
@@ -1292,10 +1475,13 @@ export interface Field {
 export function fieldBuilder(list: Commander[], setup: Setup, scenario: Scenario) {
   const n = list.length;
   const total = n * Math.max(0, n - 1);
-  const keys: (Axis | 'offense')[] = [...AXES.map((x) => x.id), 'offense'];
-  const cols = Object.fromEntries(keys.map((k) => [k, new Float64Array(total)])) as Record<Axis | 'offense', Float64Array>;
+  const keys: (Axis | 'offense' | 'focus')[] = [...AXES.map((x) => x.id), 'offense', 'focus'];
+  const cols = Object.fromEntries(keys.map((k) => [k, new Float64Array(total)])) as Record<Axis | 'offense' | 'focus', Float64Array>;
   const pa = new Uint16Array(total);
   const pb = new Uint16Array(total);
+  const so = new Float64Array(total);
+  const sd = new Float64Array(total);
+  const kitted = hasKit(setup);
   let i = 0;
   let k = 0;
   return {
@@ -1304,12 +1490,21 @@ export function fieldBuilder(list: Commander[], setup: Setup, scenario: Scenario
       const until = performance.now() + ms;
       while (i < n && performance.now() < until) {
         const a = list[i];
-        const lead = leadOf(a, scenario, a.troop, setup);
+        // one build per kind of secondary (see Partner)
+        const byKind = new Map<Partner, Lead>();
+        const bare = kitted ? leadOf(a, scenario, a.troop, skillsOf(setup)) : null;
         for (let j = 0; j < n; j++) {
           if (j === i) continue;
-          const ix = finish(solve(lead, a, list[j], scenario, a.troop).sums, scenario);
+          const kind = partnerOf(list[j], scenario, a.troop, a.troop, setup.enemy);
+          let lead = byKind.get(kind);
+          if (!lead) byKind.set(kind, (lead = leadOf(a, scenario, a.troop, setup, kind)));
+          const ix = withFocus(solve(lead, a, list[j], scenario, a.troop).sums, scenario, lead.focus);
           for (const x of AXES) cols[x.id][k] = ix.metrics[x.id];
           cols.offense[k] = ix.offense;
+          cols.focus[k] = ix.focus;
+          const mix = bare ? finish(solve(bare, a, list[j], scenario, a.troop).sums, scenario) : ix;
+          so[k] = mix.offense;
+          sd[k] = mix.durability;
           pa[k] = i;
           pb[k] = j;
           k++;
@@ -1321,7 +1516,13 @@ export function fieldBuilder(list: Commander[], setup: Setup, scenario: Scenario
     progress: (): number => (n ? i / n : 1),
     field(): Field {
       const sorted = Object.fromEntries(keys.map((key) => [key, Float64Array.from(cols[key]).sort()])) as Field['sorted'];
-      return { scenario, sorted, pairs: { a: pa, b: pb, offense: cols.offense, durability: cols.durability, cols } };
+      return {
+        scenario,
+        focus: focusOf(setup).length > 0,
+        sorted,
+        pairs: { a: pa, b: pb, offense: cols.offense, durability: cols.durability, cols },
+        skills: { offense: so, durability: sd, sorted: { offense: Float64Array.from(so).sort(), durability: Float64Array.from(sd).sort() } },
+      };
     },
   };
 }
@@ -1332,9 +1533,8 @@ export function buildField(list: Commander[], setup: Setup, scenario: Scenario):
   return b.field();
 }
 
-/** 0-100: the share of all pairings this value beats on that axis. */
-export function percentile(field: Field, key: Axis | 'offense', value: number): number {
-  const arr = field.sorted[key];
+/** 0-100, unrounded: the share of a sorted list that this value beats. */
+function share(arr: Float64Array, value: number): number {
   if (arr.length === 0) return 0;
   let lo = 0;
   let hi = arr.length;
@@ -1343,7 +1543,12 @@ export function percentile(field: Field, key: Axis | 'offense', value: number): 
     if (arr[mid] < value) lo = mid + 1;
     else hi = mid;
   }
-  return Math.round((100 * lo) / arr.length);
+  return (100 * lo) / arr.length;
+}
+
+/** 0-100: the share of all pairings this value beats on that axis. */
+export function percentile(field: Field, key: Axis | 'offense' | 'focus', value: number): number {
+  return Math.round(share(field.sorted[key], value));
 }
 
 export interface Rating {
@@ -1351,19 +1556,43 @@ export interface Rating {
   axes: Record<Axis, number>;
   offense: number;
   durability: number;
-  /** 0-100: damage and durability, weighted as the scenario weighs them. */
+  /** 0-100: the mix of the two commanders' skills first, what the primary's talents, equipment and armaments add second. */
   overall: number;
+  /** 0-100: damage and durability of the two commanders' skills alone, among all pairings on their skills alone. */
+  skills: number;
+  /** 0-100: damage and durability with the primary's talents, equipment, formation and armaments too. */
+  kit: number;
+  /** 0-100: the share of all pairings beaten on what the filters ask for (null without filters). */
+  focus: number | null;
 }
+
+/**
+ * How much of the overall rating is the mix of the two commanders' skills; the rest is the pairing with the primary's
+ * talents, equipment, formation and armaments. Skills first: a kit makes any secondary look better (normal-damage
+ * bonuses lift anybody's combo attacks), the skills are what makes two commanders a pairing.
+ */
+export const SKILLS_FIRST = 2 / 3;
 
 const overallOf = (scenario: Scenario, offense: number, durability: number): number => {
   const w = damageShare(scenario);
-  return Math.round(w * offense + (1 - w) * durability);
+  return w * offense + (1 - w) * durability;
 };
+const blend = (skills: number, kit: number): number => SKILLS_FIRST * skills + (1 - SKILLS_FIRST) * kit;
 
 export function rate(field: Field, ix: Indexes): Rating {
   const axes = Object.fromEntries(AXES.map((x) => [x.id, percentile(field, x.id, ix.metrics[x.id])])) as Record<Axis, number>;
-  const offense = percentile(field, 'offense', ix.offense);
-  return { axes, offense, durability: axes.durability, overall: overallOf(field.scenario, offense, axes.durability) };
+  const offense = share(field.sorted.offense, ix.offense);
+  const kit = overallOf(field.scenario, offense, share(field.sorted.durability, ix.durability));
+  const skills = ix.skills ? overallOf(field.scenario, share(field.skills.sorted.offense, ix.skills.offense), share(field.skills.sorted.durability, ix.skills.durability)) : kit;
+  return {
+    axes,
+    offense: Math.round(offense),
+    durability: axes.durability,
+    overall: Math.round(blend(skills, kit)),
+    skills: Math.round(skills),
+    kit: Math.round(kit),
+    focus: field.focus ? percentile(field, 'focus', ix.focus) : null,
+  };
 }
 
 export interface TopPair {
@@ -1377,10 +1606,29 @@ export interface TopPair {
 
 /** The pairings that rate highest in the field: one per primary commander, the best first. */
 /** What a list of pairings is ranked by: the overall rating, or one of its parts. */
-export type RankBy = 'overall' | 'offense' | Axis;
+export type RankBy = 'overall' | 'offense' | 'focus' | Axis;
 
-export function topPairs(field: Field, list: Commander[], opts: { troop?: TroopType | null; legendaryOnly?: boolean; limit?: number; by?: RankBy } = {}): TopPair[] {
+/** The rating of the k-th pairing of a field (as `rate` gives it), from what the field keeps: no need to work it out again. */
+export function rateAt(field: Field, k: number): Rating {
+  const { cols } = field.pairs;
+  const axes = Object.fromEntries(AXES.map((x) => [x.id, percentile(field, x.id, cols[x.id][k])])) as Record<Axis, number>;
+  const offense = share(field.sorted.offense, cols.offense[k]);
+  const kit = overallOf(field.scenario, offense, share(field.sorted.durability, cols.durability[k]));
+  const skills = overallOf(field.scenario, share(field.skills.sorted.offense, field.skills.offense[k]), share(field.skills.sorted.durability, field.skills.durability[k]));
+  return {
+    axes,
+    offense: Math.round(offense),
+    durability: axes.durability,
+    overall: Math.round(blend(skills, kit)),
+    skills: Math.round(skills),
+    kit: Math.round(kit),
+    focus: field.focus ? percentile(field, 'focus', cols.focus[k]) : null,
+  };
+}
+
+export function topPairs(field: Field, list: Commander[], opts: { troop?: TroopType | null; legendaryOnly?: boolean; limit?: number; by?: RankBy; everyPairing?: boolean } = {}): TopPair[] {
   const { a, b, offense, durability } = field.pairs;
+  const mix = field.skills;
   const rows: TopPair[] = [];
   for (let k = 0; k < a.length; k++) {
     const ca = list[a[k]];
@@ -1390,15 +1638,18 @@ export function topPairs(field: Field, list: Commander[], opts: { troop?: TroopT
     if (opts.legendaryOnly && (ca.rarity !== 5 || cb.rarity !== 5)) continue;
     const by = opts.by ?? 'overall';
     if (by === 'overall') {
-      const overall = overallOf(field.scenario, percentile(field, 'offense', offense[k]), percentile(field, 'durability', durability[k]));
-      rows.push({ a: ca, b: cb, overall, key: overall });
+      const kit = overallOf(field.scenario, share(field.sorted.offense, offense[k]), share(field.sorted.durability, durability[k]));
+      const skills = overallOf(field.scenario, share(mix.sorted.offense, mix.offense[k]), share(mix.sorted.durability, mix.durability[k]));
+      const overall = blend(skills, kit);
+      rows.push({ a: ca, b: cb, overall: Math.round(overall), key: overall });
     } else rows.push({ a: ca, b: cb, overall: percentile(field, by, field.pairs.cols[by][k]), key: field.pairs.cols[by][k] });
   }
   rows.sort((x, y) => y.key - x.key);
   const seen = new Set<number>();
   const out: TopPair[] = [];
   for (const r of rows) {
-    if (seen.has(r.a.id)) continue;
+    // one per primary commander, unless every pairing is asked for
+    if (!opts.everyPairing && seen.has(r.a.id)) continue;
     seen.add(r.a.id);
     out.push(r);
     if (out.length >= (opts.limit ?? 10)) break;
@@ -1407,39 +1658,56 @@ export function topPairs(field: Field, list: Commander[], opts: { troop?: TroopT
 }
 
 /**
- * How much more the pair is worth than its two commanders taken one at a time, each leading its own troop type:
- * the bonuses of one (the primary's talents, equipment, formation and armaments too) multiply the damage of the other,
- * and a mismatch (other units, a skill that needs the first seat) loses them. So a Delta formation on the primary
- * raises the synergy with a secondary that launches combo attacks. The secondary alone counts its skills only, as it
- * would bring nothing else to a troop.
+ * How much more the pair is worth than its two commanders taken one at a time, each leading its own troop type. First
+ * on skills alone: the bonuses of one multiply the damage of the other, and a mismatch (other units, a skill that needs
+ * the first seat) loses them. Then, second, what the primary's talents, equipment, formation and armaments add to the
+ * pair beyond what they add to the primary alone (see Synergy).
  */
-export function synergy(a: Commander, b: Commander, scenario: Scenario, troop: TroopType, setup: Setup = BARE): number {
-  const pair = indexes(a, b, scenario, troop, setup);
-  const one = indexes(a, null, scenario, a.troop, setup);
-  const two = indexes(b, null, scenario, b.troop, { ...BARE, enemy: setup.enemy });
+export function synergy(a: Commander, b: Commander, scenario: Scenario, troop: TroopType, setup: Setup = BARE): Synergy {
+  const bare = skillsOf(setup);
+  const pair = indexes(a, b, scenario, troop, bare);
+  const one = indexes(a, null, scenario, a.troop, bare);
+  const two = indexes(b, null, scenario, b.troop, bare);
   // 1 is a troop with nobody leading it (its basic attacks and counterattacks): counted once, not twice
-  return pair.offense / Math.max(0.01, one.offense + two.offense - 1) - 1;
+  const skills = pair.offense / Math.max(0.01, one.offense + two.offense - 1) - 1;
+  if (!hasKit(setup)) return { skills, kit: 0 };
+  const lift = indexes(a, b, scenario, troop, setup).offense / Math.max(0.01, pair.offense);
+  const own = indexes(a, null, scenario, a.troop, setup).offense / Math.max(0.01, one.offense);
+  return { skills, kit: lift / Math.max(0.01, own) - 1 };
+}
+
+/**
+ * `skills`: how much more damage the two commanders' skills give together than each of them leading its own troop,
+ * on skills alone: the mix, what makes two commanders a pairing. `kit`, second: how much more the primary's talents,
+ * equipment, formation and armaments lift this pair than they lift the primary alone (a Delta formation with a
+ * secondary that launches combo attacks, a Wedge one with a secondary that deals skill damage).
+ */
+export interface Synergy {
+  skills: number;
+  kit: number;
 }
 
 export interface Suggestion {
   commander: Commander;
   rating: Rating;
-  synergy: number;
+  synergy: Synergy;
 }
 
 /** The secondaries that go best with a primary, the best first. */
 export function bestPartners(list: Commander[], field: Field, a: Commander, scenario: Scenario, troop: TroopType, setup: Setup = BARE, limit = 10): Suggestion[] {
+  // (with filters, mostly by what they ask for)
+  const score = (r: Rating): number => (r.focus === null ? r.overall : 0.6 * r.focus + 0.4 * r.overall);
   return list
     .filter((b) => b.id !== a.id && b.name !== a.name)
     .map((b) => ({ commander: b, rating: rate(field, indexes(a, b, scenario, troop, setup)), synergy: synergy(a, b, scenario, troop, setup) }))
-    .sort((x, y) => y.rating.overall - x.rating.overall || y.synergy - x.synergy)
+    .sort((x, y) => score(y.rating) - score(x.rating) || y.synergy.skills - x.synergy.skills)
     .slice(0, limit);
 }
 
 // ---- words -------------------------------------------------------------------------------------------------
 export const STAT_LABEL: Record<Stat, string> = {
   attack: 'Attack', defense: 'Defense', health: 'Health', march: 'March speed',
-  dmg: 'All damage', dmgSkill: 'Skill damage', dmgNormal: 'Normal damage', dmgCounter: 'Counterattack', dmgSmite: 'Smite damage', dmgCombo: 'Combo damage',
+  dmg: 'All damage', dmgSkill: 'Skill damage', dmgNormal: 'Normal damage', dmgRanged: 'Ranged normal damage', dmgCounter: 'Counterattack', dmgSmite: 'Smite damage', dmgCombo: 'Combo damage',
   taken: 'Damage taken', takenSkill: 'Skill damage taken', takenNormal: 'Normal damage taken', takenCounter: 'Counter damage taken',
   healing: 'Healing received', rageSpeed: 'Rage speed', capacity: 'Troop capacity', wounds: 'Severe wounds', woundsDealt: 'Severe wounds inflicted',
 };
@@ -1489,6 +1757,199 @@ export interface Note {
 const sum = (list: number[]): number => list.reduce((n, v) => n + v, 0);
 const round = (v: number): number => Math.round(v);
 
+const BUCKET_WORD: Record<DamageBucket, string> = { skill: 'skill damage', smite: 'smite', combo: 'combo attacks' };
+
+/**
+ * Why a pairing works, in a few lines, layer by layer: where its damage comes from and how the two commanders' skills
+ * feed each other; then what the primary's talents, equipment, formation and armaments add to that kind of damage; then
+ * what the troop type or the seat loses.
+ */
+export function briefOf(a: Commander, b: Commander, ev: Evaluation, setup: Setup = BARE): Note[] {
+  const out: Note[] = [];
+  const name = (r: Role): string => (r === 'primary' ? a.label : b.label);
+  const their = (r: Role): string => `${name(r)}${/s$/.test(name(r)) ? "'" : "'s"}`;
+  const owner = (skill: number): Role | null => (skill >= TALENT_ID ? null : a.skills.some((s) => s.id === skill) ? 'primary' : b.skills.some((s) => s.id === skill) ? 'secondary' : null);
+
+  // where the damage comes from (the skills of the two; equipment skills apart)
+  const parts = new Map<string, { who: Role; skill: string; bucket: DamageBucket; value: number }>();
+  let total = 0;
+  for (const d of ev.damage) {
+    total += d.value;
+    if (d.who === 'primary' && !a.skills.some((s) => s.name === d.skillName)) continue;
+    const key = `${d.who}|${d.skillName}|${d.bucket}`;
+    const cur = parts.get(key) ?? { who: d.who, skill: d.skillName, bucket: d.bucket, value: 0 };
+    cur.value += d.value;
+    parts.set(key, cur);
+  }
+  const main = [...parts.values()]
+    .sort((x, y) => y.value - x.value)
+    .filter((x, i) => i === 0 || x.value >= 0.08 * total)
+    .slice(0, 3);
+  const shareOf = (r: Role): number => (total > 0 ? sum([...parts.values()].filter((x) => x.who === r).map((x) => x.value)) / total : 0);
+  // (a pairing whose skills deal little damage of their own lives on the troop's basic attacks and counterattacks)
+  const attacks = !(main.length && total >= 800);
+  /** The top few of a list of counted bonuses, once each: "+40% All damage (Power of the King)". */
+  const listOf = (list: Boost[], n: number): string[] => {
+    const seen = new Set<string>();
+    return list
+      .sort((x, y) => Math.abs(y.value) - Math.abs(x.value))
+      .filter((x) => {
+        const k = x.effect.type === 'stat' ? `${x.effect.skillName}|${x.effect.stat}|${x.effect.scope}` : x.effect.skillName;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      })
+      .slice(0, n)
+      .map((x) => `${describeEffect(x.effect)} (${x.effect.skillName})`);
+  };
+  if (!attacks) {
+    const both = shareOf('primary') >= 0.2 && shareOf('secondary') >= 0.2;
+    const lead: Role = shareOf('primary') >= shareOf('secondary') ? 'primary' : 'secondary';
+    out.push({
+      tone: 'good',
+      text: `Damage ${both ? 'from both' : `mostly from ${name(lead)}`}: ${main.map((x) => `${x.skill} (${name(x.who)}, ${BUCKET_WORD[x.bucket]}, ${round((100 * x.value) / total)}%)`).join(', ')}.`,
+    });
+  } else {
+    out.push({ tone: 'info', text: 'No damage skill to speak of: the damage is the troop’s basic attacks and counterattacks, and the skills are there to make them hit harder.' });
+    for (const r of ['primary', 'secondary'] as Role[]) {
+      const mine = ev.boosts.filter((x) => {
+        const e = x.effect;
+        if (e.type !== 'stat' || owner(e.skill) !== r) return false;
+        if (e.scope === 'enemy') return (e.stat === 'defense' && e.value < 0) || ((e.stat === 'taken' || e.stat === 'takenNormal') && e.value > 0);
+        return x.value > 0 && (e.stat === 'dmg' || e.stat === 'dmgNormal' || e.stat === 'dmgRanged' || e.stat === 'dmgCounter' || e.stat === 'attack');
+      });
+      const said = listOf(mine, 3);
+      if (said.length) out.push({ tone: 'good', text: `${name(r)} lifts the basic attacks and counterattacks: ${said.join('; ')}.` });
+      const against = listOf(ev.boosts.filter((x) => x.effect.type === 'stat' && x.effect.scope !== 'enemy' && x.value < 0 && owner(x.effect.skill) === r && ['dmg', 'dmgNormal', 'dmgRanged', 'dmgCounter', 'attack'].includes(x.effect.stat)), 2);
+      if (against.length) out.push({ tone: 'warn', text: `${their(r)} ${against.join(', ')} works against them.` });
+    }
+  }
+
+  // how each one's skills lift the other's damage
+  const dfOf = (r: Role, buckets: DamageBucket[]): number => sum(ev.damage.filter((d) => d.who === r && buckets.includes(d.bucket)).map((d) => d.value));
+  for (const r of ['primary', 'secondary'] as Role[]) {
+    const o: Role = r === 'primary' ? 'secondary' : 'primary';
+    const skill = dfOf(o, ['skill']);
+    const normal = dfOf(o, ['combo', 'smite']);
+    if (attacks || skill + normal < 0.15 * total) continue;
+    const helps = (x: Boost): boolean => {
+      const e = x.effect;
+      if (e.type !== 'stat' || owner(e.skill) !== r) return false;
+      if (e.scope === 'enemy') return (e.stat === 'taken' && e.value > 0) || (e.stat === 'defense' && e.value < 0) || (e.stat === 'takenSkill' && e.value > 0 && skill > 0) || (e.stat === 'takenNormal' && e.value > 0 && normal > 0);
+      if (e.value <= 0) return false;
+      return e.stat === 'dmg' || (e.stat === 'dmgSkill' && skill > 0) || ((e.stat === 'dmgNormal' || e.stat === 'dmgCombo' || e.stat === 'dmgSmite') && normal > 0);
+    };
+    const lifts = ev.boosts.filter(helps).sort((x, y) => Math.abs(y.value) - Math.abs(x.value));
+    const seen = new Set<string>();
+    const said = lifts
+      .filter((x) => {
+        const k = x.effect.type === 'stat' ? `${x.effect.skillName}|${x.effect.stat}|${x.effect.scope}` : x.effect.skillName;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      })
+      .slice(0, 2)
+      .map((x) => `${describeEffect(x.effect)} (${x.effect.skillName})`);
+    const rage = r === 'primary' ? a : b;
+    const rageSkill = ev.rage >= 100 && hasActive(o === 'primary' ? a : b) ? rage.effects.find((e) => e.type === 'rage' && e.scope === 'self' && e.value > 0 && !ev.lost.some((l) => l.effect === e))?.skillName : undefined;
+    if (rageSkill) said.push(`extra Rage (${rageSkill}): more casts`);
+    const combo = dfOf(o, ['combo']);
+    const what = skill >= normal ? 'skill damage' : combo >= normal * 0.9 ? 'combo attacks' : combo > 0 ? 'smite and combo attacks' : 'smite attacks';
+    if (said.length) out.push({ tone: 'good', text: `${name(r)} lifts ${their(o)} ${what}: ${said.join('; ')}.` });
+    // and what works against it (Attila's Honoria: 30% less skill damage, next to a commander who nukes)
+    const hurts = ev.boosts.filter((x) => {
+      const e = x.effect;
+      if (e.type !== 'stat' || e.scope === 'enemy' || x.value >= 0 || owner(e.skill) !== r) return false;
+      return e.stat === 'dmg' || (e.stat === 'dmgSkill' && skill > 0) || ((e.stat === 'dmgNormal' || e.stat === 'dmgCombo' || e.stat === 'dmgSmite') && normal > 0);
+    });
+    const against = [...new Set(hurts.map((x) => `${x.effect.skillName} (${describeEffect(x.effect)})`))].slice(0, 2);
+    if (against.length) out.push({ tone: 'warn', text: `${their(r)} ${against.join(', ')} works against ${their(o)} ${what}.` });
+  }
+
+  // what keeps the troop alive (it weighs more in a rally and a garrison): the skills of the two
+  const lasting = listOf(
+    ev.boosts.filter((x) => {
+      const e = x.effect;
+      if (e.type !== 'stat' || !owner(e.skill)) return false;
+      if (e.scope === 'enemy') return x.value < 0 && (e.stat === 'attack' || e.stat === 'dmg' || e.stat === 'dmgSkill' || e.stat === 'dmgNormal');
+      return (x.value < 0 && (e.stat === 'taken' || e.stat === 'takenSkill' || e.stat === 'takenNormal' || e.stat === 'wounds')) || (x.value > 0 && (e.stat === 'defense' || e.stat === 'health'));
+    }),
+    3,
+  );
+  if (lasting.length) out.push({ tone: 'good', text: `Lasting: ${lasting.join('; ')}.` });
+
+  // the primary's talents, equipment, formation and armaments: what each adds to the pair's kind of damage
+  const kinds: [DamageBucket | 'normal', number][] = [
+    ['skill', dfOf('primary', ['skill']) + dfOf('secondary', ['skill'])],
+    ['combo', dfOf('primary', ['combo']) + dfOf('secondary', ['combo'])],
+    ['smite', dfOf('primary', ['smite']) + dfOf('secondary', ['smite'])],
+  ];
+  const [kind] = kinds.reduce((x, y) => (y[1] > x[1] ? y : x), ['normal', 800] as [DamageBucket | 'normal', number]);
+  const kindWord = kind === 'skill' ? 'skill damage' : kind === 'combo' ? 'combo attacks' : kind === 'smite' ? 'smite' : 'basic attacks and counterattacks';
+  const SELF: Stat[] = kind === 'skill' ? ['dmgSkill', 'dmg'] : kind === 'combo' ? ['dmgCombo', 'dmgNormal', 'dmg'] : kind === 'smite' ? ['dmgSmite', 'dmgNormal', 'dmg'] : ['dmgNormal', 'dmgRanged', 'dmgCounter', 'dmg'];
+  const FOE: Stat[] = kind === 'skill' ? ['taken', 'takenSkill'] : ['taken', 'takenNormal'];
+  const WORD: Partial<Record<Stat, string>> = { dmgSkill: 'skill damage', dmgCombo: 'combo damage', dmgSmite: 'smite damage', dmgNormal: 'normal damage', dmgRanged: 'ranged normal damage', dmgCounter: 'counterattack damage', dmg: 'all damage', taken: 'damage taken by the enemy', takenSkill: 'skill damage taken by the enemy', takenNormal: 'normal damage taken by the enemy' };
+  type Layer = 'talents' | 'gear' | 'arms';
+  const layerOf = (skill: number): Layer | null => (skill < TALENT_ID ? null : skill < KIT_ID ? 'talents' : skill - KIT_ID >= 900_000 ? 'gear' : skill - KIT_ID >= 100_000 ? 'arms' : 'gear');
+  /** "+18% combo damage, +9% normal damage" from one layer, as counted (bonuses that hold part of the time count for that part). */
+  const gainOf = (layer: Layer): { text: string; from: string[] } => {
+    const by = new Map<string, number>();
+    const from = new Map<string, number>();
+    for (const x of ev.boosts) {
+      const e = x.effect;
+      if (e.type !== 'stat' || x.value <= 0 || layerOf(e.skill) !== layer) continue;
+      if (!(e.scope === 'enemy' ? FOE : SELF).includes(e.stat)) continue;
+      const w = WORD[e.stat] ?? e.stat;
+      by.set(w, (by.get(w) ?? 0) + x.value);
+      from.set(e.skillName, (from.get(e.skillName) ?? 0) + x.value);
+    }
+    return {
+      text: [...by].sort((x, y) => y[1] - x[1]).slice(0, 3).map(([w, v]) => `+${round(v)}% ${w}`).join(', '),
+      from: [...from].sort((x, y) => y[1] - x[1]).map(([n]) => n),
+    };
+  };
+  const build = ev.build;
+  if (build && build.spent > 0) {
+    const g = gainOf('talents');
+    const named = [...new Set([...g.from.filter((n) => build.taken.some((t) => t.core && t.name === n)), ...build.taken.filter((t) => t.core).map((t) => t.name)])].slice(0, 3);
+    out.push({ tone: g.text ? 'good' : 'info', text: `Talents of ${a.label} (${buildSummary(build)})${named.length ? `: ${named.join(', ')}` : ''}${g.text ? `; for the ${kindWord} ${g.text}` : ''}.` });
+  }
+  const kit = ev.loadout;
+  if (kit && hasKit(setup)) {
+    if (kit.gear.some(Boolean)) {
+      const g = gainOf('gear');
+      const sets = [...new Set(kit.sets.map((s) => s.name))];
+      const pieces = g.from.filter((n) => !sets.includes(n)).slice(0, 2);
+      out.push({ tone: g.text ? 'good' : 'info', text: `Equipment${sets.length ? `: ${sets.join(' + ')}` : ''}${pieces.length ? `${sets.length ? ', with' : ':'} ${pieces.join(', ')}` : ''}${g.text ? `; for the ${kindWord} ${g.text}` : ''}.` });
+    }
+    // the formation is chosen for the two together, which may not be the primary's own
+    const form = kit.formation;
+    if (form) {
+      const alone = solve(leadOf(a, ev.scenario, ev.troop, setup), a, null, ev.scenario, ev.troop).formation;
+      const top = form.own.filter((e) => e.type === 'stat' && e.value > 0).sort((x, y) => (y.type === 'stat' ? y.value : 0) - (x.type === 'stat' ? x.value : 0))[0];
+      const special = [...new Set(kit.arms.flatMap((s) => s.inscriptions.filter((i) => i.kind !== 'common').map((i) => i.name)))];
+      const g = gainOf('arms');
+      const differs = !!alone && alone.id !== form.id;
+      out.push({
+        tone: differs ? 'warn' : g.text ? 'good' : 'info',
+        text: `${form.name}${top ? ` (${describeEffect(top)})` : ''}${special.length ? ` with ${special.slice(0, 4).join(', ')}` : ''}${g.text ? `; formation and armaments give the ${kindWord} ${g.text}` : ''}.${differs ? ` ${a.label} alone would take ${alone?.name}: this one is for the two together.` : ''}`,
+      });
+    }
+  }
+
+  // what the troop type and the seats lose
+  for (const r of ['primary', 'secondary'] as Role[]) {
+    const lost = ev.lost.filter((l) => l.who === r && l.why === 'unit' && l.effect.skill < TALENT_ID && ((l.effect.type === 'stat' && l.effect.value > 0) || l.effect.type === 'damage'));
+    if (!lost.length) continue;
+    const units = [...new Set(lost.map((l) => l.effect.unit ?? (l.effect.conds.includes('ranged') ? 'ranged-mode (siege)' : 'mixed-troop')))].join(' / ');
+    const said = [...new Set(lost.map((l) => (l.effect.type === 'damage' ? `${l.effect.skillName} damage` : describeEffect(l.effect))))];
+    out.push({ tone: 'warn', text: `${their(r)} ${units} effects do nothing on ${/^[aeiou]/.test(ev.troop) ? 'an' : 'a'} ${ev.troop} troop: ${said.slice(0, 3).join(', ')}${said.length > 3 ? '…' : ''}.` });
+  }
+  const seat = [...new Set(ev.lost.filter((l) => l.why === 'role' && l.who === 'secondary' && !b.effects.some((e) => e.skill === l.effect.skill && e.conds.includes('secondary'))).map((l) => l.effect.skillName))];
+  if (seat.length) out.push({ tone: 'warn', text: `As secondary, ${b.label} loses the primary-only part of ${seat.join(', ')}.` });
+  return out;
+}
+
 /** The reasons behind the numbers, in sentences. */
 export function notesFor(a: Commander, b: Commander, ev: Evaluation, swapped: { overall: number } | null, here: { overall: number }): Note[] {
   const out: Note[] = [];
@@ -1501,8 +1962,8 @@ export function notesFor(a: Commander, b: Commander, ev: Evaluation, swapped: { 
     const by = (r: Role): string => {
       const mine = unitLost.filter((l) => l.who === r);
       if (!mine.length) return '';
-      const units = [...new Set(mine.map((l) => l.effect.unit).filter(Boolean))].join(' / ');
-      return `${name(r)} (${mine.length} ${units || 'mixed-troop'} buff${mine.length === 1 ? '' : 's'})`;
+      const units = [...new Set(mine.map((l) => l.effect.unit ?? (l.effect.conds.includes('ranged') ? 'ranged-mode (siege)' : 'mixed-troop')))].join(' / ');
+      return `${name(r)} (${mine.length} ${units} buff${mine.length === 1 ? '' : 's'})`;
     };
     out.push({ tone: 'warn', text: `On ${/^[aeiou]/.test(ev.troop) ? 'an' : 'a'} ${ev.troop} troop these are lost: ${[by('primary'), by('secondary')].filter(Boolean).join(' and ')}.` });
   } else if (a.troop !== 'mixed' && a.troop === b.troop && ev.troop === a.troop) out.push({ tone: 'good', text: `Both lead ${a.troop === 'archer' ? 'archers' : a.troop}: every unit buff of the two applies.` });
@@ -1535,8 +1996,7 @@ export function notesFor(a: Commander, b: Commander, ev: Evaluation, swapped: { 
   if (swapped && swapped.overall >= here.overall + 3) out.push({ tone: 'info', text: `Swapped (${b.label} first) this pairing rates ${swapped.overall} instead of ${here.overall}.` });
 
   // talents: the primary's only
-  if (build) out.push({ tone: 'info', text: `Talents counted for ${a.label} (${build.custom ? 'your build' : 'worked out for this scenario'}, ${build.spent} of ${TALENT_POINTS} points): ${buildSummary(build) || 'none'}. ${b.label}, as secondary, brings skills only: its own talents do nothing.` });
-  else out.push({ tone: 'info', text: `Talents are not counted. Only ${a.label}'s would be: the secondary commander brings skills, not talents.` });
+  if (build) out.push({ tone: 'info', text: `Talents of ${a.label} (${build.custom ? 'your build' : 'worked out for this scenario'}, ${build.spent} of ${TALENT_POINTS} points): ${buildSummary(build) || 'none'}.` });
 
   // equipment and armaments: the primary's only, too
   const kit = ev.loadout;
@@ -1546,7 +2006,7 @@ export function notesFor(a: Commander, b: Commander, ev: Evaluation, swapped: { 
     if (kit.arms.length) said.push(`armaments ${kit.manual.arms ? 'as you set them' : 'at their best rolls, with the special inscriptions of the formation'}`);
     const pieces = kit.gear.filter(Boolean).length;
     if (pieces) said.push(`${pieces} pieces of equipment${kit.manual.gear ? ' as you set them' : ''}${kit.sets.length ? `, ${[...new Set(kit.sets.map((s) => s.name))].join(' and ')} among them` : ''}`);
-    if (said.length) out.push({ tone: 'info', text: `Counted on ${a.label}: ${said.join('; ')}. ${b.label}'s own equipment and armaments have no effect, as in the game.` });
+    if (said.length) out.push({ tone: 'info', text: `On ${a.label}: ${said.join('; ')}.` });
   }
 
   // the enemy's troop type, and how many enemies at once

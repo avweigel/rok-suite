@@ -77,7 +77,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
           ? [{ labelKey: 'dkp', href: '/dkp', icon: <Trophy size={20} />, hoverColor: 'group-hover:text-yellow-500', hoverBg: 'hover:bg-yellow-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-yellow-500 to-amber-500' }]
           : []),
         { labelKey: 'alliances', href: '/alliances', icon: <Users size={20} />, hoverColor: 'group-hover:text-sky-400', hoverBg: 'hover:bg-sky-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-sky-500 to-blue-500' },
-        { labelKey: 'commanders', href: '/commanders', icon: <Swords size={20} />, hoverColor: 'group-hover:text-violet-400', hoverBg: 'hover:bg-violet-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-violet-500 to-indigo-500' },
+        { labelKey: 'commanders', href: '/commanders', icon: <Swords size={20} />, badgeKey: 'alphaBadge', badgeColor: 'bg-amber-400/15 text-amber-500 ring-1 ring-amber-400/40', hoverColor: 'group-hover:text-violet-400', hoverBg: 'hover:bg-violet-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-violet-500 to-indigo-500' },
         { labelKey: 'scanUpload', login: true, href: '/upload', icon: <Upload size={20} />, hoverColor: 'group-hover:text-cyan-400', hoverBg: 'hover:bg-cyan-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-cyan-500 to-sky-500' },
         { labelKey: 'migration', href: '/migration', icon: <ClipboardList size={20} />, hoverColor: 'group-hover:text-orange-500', hoverBg: 'hover:bg-orange-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-orange-500 to-rose-500' },
         { labelKey: 'kingdomPlanner', login: true, href: '/kingdom-planner', icon: <Castle size={20} />, hoverColor: 'group-hover:text-emerald-500', hoverBg: 'hover:bg-emerald-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-emerald-500 to-teal-500' },
@@ -88,10 +88,12 @@ export function AppSidebar({ children }: AppSidebarProps) {
     },
   ];
 
-  // Close mobile menu on route change
-  useEffect(() => {
+  // Close mobile menu on route change (state adjusted while rendering, not in an effect)
+  const [shownPath, setShownPath] = useState(pathname);
+  if (shownPath !== pathname) {
+    setShownPath(pathname);
     setIsMobileOpen(false);
-  }, [pathname]);
+  }
 
   // Close mobile menu on escape key
   useEffect(() => {
@@ -109,7 +111,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
     return pathname.startsWith(href);
   };
 
-  const SidebarContent = () => (
+  // plain JSX (not a component made during render), shown in both sidebars
+  const sidebarContent = (
     <>
       {/* Logo — links to home */}
       <Link href="/" className={`flex items-center gap-3 px-4 py-5 border-b border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors ${isCollapsed ? 'justify-center' : ''}`}>
@@ -153,18 +156,21 @@ export function AppSidebar({ children }: AppSidebarProps) {
                     } ${isCollapsed ? 'justify-center' : ''}`}
                     title={isCollapsed ? t(item.labelKey) : undefined}
                   >
-                    <span className={`flex-shrink-0 ${active ? (item.activeColor || 'text-white') : `text-[var(--text-muted)] ${item.hoverColor || 'group-hover:text-[var(--foreground)]'}`}`}>
+                    <span className={`relative flex-shrink-0 ${active ? (item.activeColor || 'text-white') : `text-[var(--text-muted)] ${item.hoverColor || 'group-hover:text-[var(--foreground)]'}`}`}>
                       {item.icon}
+                      {/* the badge, folded to a dot while the menu is collapsed */}
+                      {item.badgeKey && isCollapsed && <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-amber-400 ring-2 ring-[var(--background-card)]" aria-hidden />}
                     </span>
                     {!isCollapsed && (
-                      <>
-                        <span className={`flex-1 truncate ${!active && item.hoverColor ? item.hoverColor : ''}`}>{t(item.labelKey)}</span>
+                      // (a long badge goes under the name, so the name keeps its room)
+                      <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
+                        <span className={`max-w-full truncate ${!active && item.hoverColor ? item.hoverColor : ''}`}>{t(item.labelKey)}</span>
                         {item.badgeKey && (
-                          <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${item.badgeColor}`}>
+                          <span className={`max-w-full truncate text-[9px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wider leading-none ${active ? 'bg-white/20 text-white ring-1 ring-white/40' : item.badgeColor}`}>
                             {t(item.badgeKey)}
                           </span>
                         )}
-                      </>
+                      </span>
                     )}
                   </Link>
                 );
@@ -206,7 +212,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
           isCollapsed ? 'w-[72px]' : 'w-64'
         }`}
       >
-        <SidebarContent />
+        {sidebarContent}
 
         {/* Collapse toggle */}
         <button
@@ -260,7 +266,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
         >
           <X size={20} />
         </button>
-        <SidebarContent />
+        {sidebarContent}
       </aside>
 
       {/* Main Content */}

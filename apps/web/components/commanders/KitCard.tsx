@@ -18,8 +18,6 @@ export interface KitCardProps {
   /** What is counted now for the focused pairing (worked out, or as chosen). */
   loadout: Loadout | null;
   pick: KitPick | undefined;
-  /** Whether equipment, and formation with armaments, are counted at all. */
-  counted: { gear: boolean; arms: boolean };
   name: string;
   color: string;
   /** null: everything back to what this tool works out. */
@@ -64,7 +62,7 @@ const ARMS: { icon: LucideIcon; x: number; y: number }[] = [
 ];
 const KIND_COLOR: Record<string, string> = { special: '#f5a524', rare: '#a855f7', common: '#3b82f6' };
 
-export function KitCard({ commander, kit, loadout, pick, counted, name, color, onChange }: KitCardProps) {
+export function KitCard({ commander, kit, loadout, pick, name, color, onChange }: KitCardProps) {
   const [gearAt, setGearAt] = useState(0);
   const [armAt, setArmAt] = useState<number | 'formation'>('formation');
 
@@ -131,7 +129,6 @@ export function KitCard({ commander, kit, loadout, pick, counted, name, color, o
         <div className="min-w-0">
           <div className="mb-2 flex items-center gap-2">
             <span className={head}>Equipment</span>
-            {!counted.gear && <span className="text-[10px] text-amber-500">not counted: changing a piece switches it on</span>}
             {pick?.gear && (
               <button type="button" className={`${small} ml-auto`} onClick={() => set({ gear: undefined })}>
                 <RotateCcw className="h-3 w-3" /> Auto
@@ -198,7 +195,6 @@ export function KitCard({ commander, kit, loadout, pick, counted, name, color, o
         <div className="min-w-0">
           <div className="mb-2 flex items-center gap-2">
             <span className={head}>Formation &amp; armaments</span>
-            {!counted.arms && <span className="text-[10px] text-amber-500">not counted: changing one switches them on</span>}
             {(pick?.arms || pick?.formation !== undefined) && (
               <button type="button" className={`${small} ml-auto`} onClick={() => set({ formation: undefined, arms: undefined })}>
                 <RotateCcw className="h-3 w-3" /> Auto
@@ -278,7 +274,7 @@ export function KitCard({ commander, kit, loadout, pick, counted, name, color, o
         </div>
       </div>
       <p className="mt-3 text-[10px] leading-4 text-[var(--text-muted)]">
-        Only the primary commander&apos;s equipment, formation and armaments count: the troop uses the primary&apos;s, and putting them on the secondary does nothing. Numbers, names and texts are the game&apos;s; attribute values go up to the highest roll of each line. A legendary armament holds two inscriptions, one of them special or rare at most.
+        Numbers, names and texts are the game&apos;s; attribute values go up to the highest roll of each line. A legendary armament holds two inscriptions, one of them special or rare at most.
       </p>
     </section>
   );

@@ -232,6 +232,11 @@ function main() {
   const codex = JSON.parse(readFileSync(CODEX, 'utf8'));
   const notes = [];
   const note = (m) => notes.push(m);
+  const lc = lcReader(botDir, note);
+  const T = (key) => {
+    const t = lc(key);
+    return t == null ? null : clean(t);
+  };
 
   const skillText = (key, what) => {
     // an awakened skill may take its name from the expertise names (LC_HERO_EXSKILL_NAME_<n>)
@@ -254,8 +259,28 @@ function main() {
     }
     return best;
   };
-  const actives = top(table(excel, 'skill_Skill', ['Id', 'Class', 'Level', 'MaxLevel', 'LC_N', 'LC_D', 'LC_D_REFINE', 'Param1', 'Param10']), 'Class');
-  const passives = top(table(excel, 'skill_Passive', ['Id', 'Level', 'MaxLevel', 'LC_N', 'LC_D', 'LC_D_REFINE', 'Param1', 'Param10']), 'Id');
+  const activeRows = table(excel, 'skill_Skill', ['Id', 'Class', 'Level', 'MaxLevel', 'LC_N', 'LC_D', 'LC_D_REFINE', 'Param1', 'Param10', 'ShowEffect', 'TargetTag']);
+  const passiveRows = table(excel, 'skill_Passive', ['Id', 'Level', 'MaxLevel', 'LC_N', 'LC_D', 'LC_D_REFINE', 'Param1', 'Param10', 'ShowEffect']);
+  const actives = top(activeRows, 'Class');
+  const passives = top(passiveRows, 'Id');
+  /** Every level of a skill, lowest first. */
+  const byLevel = (rows, key) => {
+    const all = new Map();
+    for (const r of rows) all.set(r[key], [...(all.get(r[key]) ?? []), r]);
+    for (const list of all.values()) list.sort((x, y) => x.Level - y.Level);
+    return all;
+  };
+  const activeLevels = byLevel(activeRows, 'Class');
+  const passiveLevels = byLevel(passiveRows, 'Id');
+  // The game's own words for a skill card: the names of the numbers in "Upgrade Preview" (one list for the file, the
+  // skills point into it) and the underlined keywords with what they mean.
+  const labels = [];
+  const labelAt = new Map();
+  const labelOf = (text) => {
+    if (!labelAt.has(text)) labelAt.set(text, labels.push(text) - 1);
+    return labelAt.get(text);
+  };
+  const words = {};
 
   const kinds = new Map();
   const skillOf = (id, slot) => {
@@ -285,6 +310,29 @@ function main() {
     // Param1 of an active skill is the Rage it costs, when the text does not use it for something else.
     if (active && !('p1' in vals) && !('s1' in vals) && row.Param1 >= 100 && row.Param1 <= 3000) out.rage = num(row.Param1);
     if (brief && brief !== desc) out.brief = brief;
+    // "Target Type" of an active skill: 1 single, 2 area, 3 both (the game's TargetTag)
+    if (active && row.TargetTag >= 1 && row.TargetTag <= 3) out.target = row.TargetTag;
+    // "Upgrade Preview": ShowEffect is "<param>,<1 number | 2 percent>,<name key>;..." and each level has its row
+    const levels = (active ? activeLevels.get(id) : passiveLevels.get(id)) ?? [row];
+    const up = [];
+    for (const part of String(row.ShowEffect ?? '').split(';')) {
+      const m = /^(\d+),(\d),?(LC_[A-Z0-9_]+)$/.exec(part.trim());
+      const label = m && T(m[3]);
+      if (!m || !label) continue;
+      const v = levels.map((r) => r[`Param${m[1]}`]).filter((x) => typeof x === 'number').map((x) => num(m[2] === '2' ? x * 100 : x));
+      if (v.length > 1) up.push({ l: labelOf(label), v, ...(m[2] === '2' ? { p: 1 } : {}) });
+    }
+    if (up.length) out.up = up;
+    // the underlined words: <href=LC_HERO_KEYWORD_EXP_<n>:1><color=color1>word</color></href>
+    const kw = [];
+    for (const m of raw.matchAll(/<href=LC_HERO_KEYWORD_EXP_(\d+)[^>]*>([\s\S]*?)<\/href>/g)) {
+      const word = clean(m[2]);
+      const meaning = T(`LC_HERO_KEYWORD_EXP_${m[1]}`);
+      if (!word || !meaning || kw.some(([w]) => w === word)) continue;
+      words[m[1]] = meaning;
+      kw.push([word, Number(m[1])]);
+    }
+    if (kw.length) out.kw = kw;
     return out;
   };
 
@@ -389,11 +437,6 @@ function main() {
   // ---- what the primary commander wears and carries -------------------------------------------------------
   // A bonus is a pair [buff id, value]: the id is the game's (3002 cavalry Attack, 10007 skill damage...), the value a
   // percentage. `buffs` keeps the game's name of every id used. Flat bonuses (base stats, a number of units) are left out.
-  const lc = lcReader(botDir, note);
-  const T = (key) => {
-    const t = lc(key);
-    return t == null ? null : clean(t);
-  };
   const buffRows = new Map(table(excel, 'buffcount_BuffCount', ['BuffId', 'Key', 'LC_N', 'Op']).map((b) => [b.BuffId, b]));
   const buffs = {};
   const bonus = (id, value) => {
@@ -554,6 +597,8 @@ function main() {
     commanders,
     talents,
     kit,
+    labels,
+    words,
   };
   mkdirSync(dirname(OUT), { recursive: true });
   writeFileSync(OUT, JSON.stringify(out));

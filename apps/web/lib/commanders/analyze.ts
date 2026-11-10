@@ -14,6 +14,8 @@ export type Cond = 'primary' | 'secondary' | 'garrison' | 'rally' | 'pve' | 'vsF
 export type Stat =
   | 'attack' | 'defense' | 'health' | 'march'
   | 'dmg' | 'dmgSkill' | 'dmgNormal' | 'dmgCounter' | 'dmgSmite' | 'dmgCombo'
+  /** "Ranged normal damage": a siege troop's basic attacks and counterattacks from range only, not combo or smite attacks. */
+  | 'dmgRanged'
   | 'taken' | 'takenSkill' | 'takenNormal' | 'takenCounter'
   | 'healing' | 'rageSpeed' | 'capacity'
   /** Severe wounds the troop suffers (negative: fewer), and those it inflicts. */
@@ -266,8 +268,12 @@ function extract(sentence: Sentence, ctx: Ctx): Effect[] {
   const out: Effect[] = [];
   // "(Damage Factor 2000; reduced to 1000 if serving as a secondary commander)" is about that number only, not the sentence
   const conds = condsOf(t.replace(new RegExp(SECONDARY_DF, 'g'), ''));
-  // equipment and armaments made for fighting from range ("ranged normal damage", "while in V formation") do nothing for the others
-  if (ctx.kit && /\branged\b|\bin v formation\b/.test(t) && !/\bnot in v formation\b/.test(t)) conds.push('ranged');
+  // Fighting from range is a siege troop's: "ranged mode", "ranged basic attack", "ranged normal damage" are siege
+  // commanders' words (every skill that says "ranged" is one), and equipment and armaments made for it ("while in V
+  // formation") do nothing for the others either. ("Melee range" is about distance, for everybody; "combo attack/ranged
+  // combo attack" is either one, for everybody too.)
+  const alone = t.replace(/\/ranged [a-z]+(?: [a-z]+)?/g, '');
+  if ((/\branged\b/.test(alone) || (ctx.kit && /\bin v formation\b/.test(alone))) && !/\bnot in v formation\b/.test(alone)) conds.push('ranged');
   // the chance named last before the number, in the sentence itself; else the one its lead gives
   const chances = [...t.matchAll(new RegExp(`${N}% chance`, 'g'))].map((m) => ({ at: m.index ?? 0, value: Number(m[1]) / 100 }));
   const chanceAt = (pos: number): number | undefined => (chances.filter((c) => c.at >= from && c.at < pos).pop() ?? chances.find((c) => c.at < from))?.value;
@@ -302,6 +308,8 @@ function extract(sentence: Sentence, ctx: Ctx): Effect[] {
   const stat = (pos: number, s: Stat, value: number, end: number, forced?: Scope): Effect | null => {
     const who = forced ?? scope(pos);
     if (who === 'tower') return null;
+    // "deals 10% more ranged normal damage": the troop's own attacks from range, not anybody's combo or smite attacks
+    if (s === 'dmgNormal' && who !== 'enemy' && /\branged (?:normal|basic attack)/.test(t.slice(pos, end))) s = 'dmgRanged';
     const tail = tailOf(t, end);
     const b = base(pos, tail.conds);
     // "the target takes more damage from infantry units": it is our troop that has to be infantry; "takes less damage

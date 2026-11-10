@@ -18,7 +18,15 @@ export interface SkillData {
   slot: number;
   /** Comes from the expertise (awakening): it replaces a skill or is the fifth one. */
   awake?: boolean;
+  /** "Target Type" of an active skill, as the game shows it: 1 single, 2 AoE, 3 single & AoE. */
+  target?: 1 | 2 | 3;
+  /** "Upgrade Preview": a number of the skill at every level, lowest first (`l`: its name in `labels`; `p`: a percentage). */
+  up?: { l: number; v: number[]; p?: 1 }[];
+  /** The underlined words of the text: [the word as written, its number in `words`]. */
+  kw?: [string, number][];
 }
+
+export const TARGET_TYPE: Record<1 | 2 | 3, string> = { 1: 'Single', 2: 'AoE', 3: 'Single & AoE' };
 
 export interface CommanderData {
   id: number;
@@ -129,6 +137,10 @@ export interface CommandersFile {
   /** Tree id (a talent tag) -> its steps. */
   talents: Record<string, TalentData[]>;
   kit?: KitData;
+  /** The names of the numbers in the skills' "Upgrade Preview" (SkillData.up points here). */
+  labels?: string[];
+  /** What an underlined word of a skill means (SkillData.kw points here). */
+  words?: Record<string, string>;
 }
 
 /** The talent trees, as the game numbers them (TAG_NAME_<n>). */
