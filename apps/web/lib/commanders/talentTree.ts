@@ -89,10 +89,10 @@ export interface Link {
 /** The direction of each tree from the centre, in degrees (0 = right, -90 = up). */
 const DIRECTION = [-90, 150, 30];
 /** Distance from the centre of a tree's first talent, and between two rows. */
-const R0 = 24;
-const ROW = 11.2;
+const R0 = 23;
+const ROW = 12;
 /** Space between two talents of a row, along the arc. */
-const GAP = 11.5;
+const GAP = 12.5;
 /** How far from its direction a tree may spread, in degrees. */
 const SPREAD = 56;
 
