@@ -274,3 +274,27 @@
 }
 .filters label { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--text-secondary); flex: 1 1 160px; max-width: 260px; }
 .filters .clear { align-self: flex-end; font-size: 12px; color: var(--acc); font-weight: 600; padding: 6px 4px; }
+
+/* Sort out MGE */
+.mge {
+  border: 1px solid var(--border);
+  background: var(--background-card);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 14px;
+  color: var(--foreground);
+}
+.mge .rc td { vertical-align: top; }
+.seg, .segOn {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+  background: transparent;
+}
+.seg:hover { background: var(--background-hover); }
+.segOn { background: var(--acc); border-color: var(--acc); color: #fff; }
+.done { color: var(--newb); font-weight: 700; font-size: 11px; }
+.mgeBtn { align-self: flex-end; }

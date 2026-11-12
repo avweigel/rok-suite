@@ -23,6 +23,7 @@ import {
 } from '@/lib/commander-shares/data';
 import { loadTroops, rankAll, type TroopMap } from '@/lib/commander-shares/rating';
 import { CommanderCard } from './CommanderCard';
+import { MgePanel } from './MgePanel';
 import { PopoverHost } from './Popover';
 import s from './SharedCommanders.module.css';
 
@@ -209,6 +210,7 @@ function Board({
   const [query, setQuery] = useState(readSearch);
   const [filters, setFilters] = useState<Filters>(readFilters);
   const [troops, setTroops] = useState<TroopMap | null>(null);
+  const [mgeOpen, setMgeOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
   // The commander's unit for the rating comes from the game data the Commanders tool already ships; without it, from the record.
@@ -338,6 +340,9 @@ function Board({
               <option value="rating">Rally / garrison rating</option>
             </select>
           </label>
+          <button type="button" className={`${s.segOn} ${s.mgeBtn}`} aria-expanded={mgeOpen} onClick={() => setMgeOpen((o) => !o)}>
+            Sort out MGE
+          </button>
           {filtered && (
             <button
               type="button"
@@ -352,6 +357,7 @@ function Board({
           )}
         </div>
       )}
+      {mgeOpen && rows.length > 0 && <MgePanel rows={rows} ratings={ranks} onClose={() => setMgeOpen(false)} />}
       {rows.length === 0 ? (
         <p className="text-sm text-[var(--text-secondary)]">
           Nothing shared yet. A card shows up here a few seconds after somebody shares a commander in the game&apos;s chat and the tool reads it.
