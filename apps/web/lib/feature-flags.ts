@@ -8,7 +8,11 @@
 //   kingdomStatsLegacy → the old Kingdom Stats (multi-KD tables, charts,
 //                       comparisons). Off: /kingdom/kingdom-stats shows the
 //                       KD 23 player list from the /upload scans instead.
+//   discordLogin      → "Sign in with Discord / Google" buttons. Off since
+//                       2026-11-12 (Davide): accounts are email + password,
+//                       created by an admin in Supabase → Authentication → Users.
 export const FEATURES = {
+  discordLogin: false,
   dkp: false,
   emigrationCycle: false,
   emigrationScans: false,

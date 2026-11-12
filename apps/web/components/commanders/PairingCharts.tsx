@@ -306,7 +306,7 @@ export function NotesCard({ row, scenario, onScenario }: { row: PairView; scenar
           {row.a.label} <span className="text-[var(--text-muted)]">+</span> {row.b.label}
         </h3>
       </div>
-      <div className={`grid grid-cols-2 gap-2 ${row.rating?.focus != null ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}`}>
+      <div className={`grid grid-cols-2 gap-2 ${row.rating?.focus != null ? 'sm:grid-cols-6' : 'sm:grid-cols-5'}`}>
         {row.rating?.focus != null && <Tile label="Aim" value={pctile(row.rating.focus)} hint="0-100: the share of all pairings it beats on what you aim for (the filters of the Commanders tab)" />}
         <Tile
           label="Overall"
@@ -322,6 +322,12 @@ export function NotesCard({ row, scenario, onScenario }: { row: PairView; scenar
         />
         <Tile label="Damage" value={pctile(row.rating?.offense)} hint="Share of all pairings its damage engine beats" />
         <Tile label="Durability" value={pctile(row.rating?.durability)} hint="Share of all pairings it outlasts" />
+        <Tile
+          label="Rage cycle"
+          value={`${(10 / row.ev.casts).toFixed(1)} s`}
+          sub={row.rating ? `beats ${row.rating.axes.rage}%` : undefined}
+          hint="How often the active skills go off: every 10 s for a troop with no Rage bonus, faster with Rage from skills, talents, equipment, counterattacks and Rage speed. Their buffs, healing and shields come round that much more often too."
+        />
       </div>
       <div className="mt-2 flex flex-wrap gap-1">
         {row.scenarios.map((s) => (
@@ -416,7 +422,7 @@ export function CompareCard({ rows }: { rows: PairView[] }) {
     { label: 'Damage engine', a: `×${one(x.ev.offense)}`, b: `×${one(y.ev.offense)}` },
     { label: 'Skill damage factor / cycle', a: String(df(x, ['skill'])), b: String(df(y, ['skill'])) },
     { label: 'Combo & smite factor / cycle', a: String(df(x, ['combo', 'smite'])), b: String(df(y, ['combo', 'smite'])) },
-    { label: 'Extra Rage / cycle', a: String(Math.round(x.ev.rage)), b: String(Math.round(y.ev.rage)) },
+    { label: 'Active skills every', a: `${(10 / x.ev.casts).toFixed(1)} s`, b: `${(10 / y.ev.casts).toFixed(1)} s` },
     { label: 'Troop', a: x.ev.troop, b: y.ev.troop },
     { label: 'Talents', a: x.ev.build ? buildSummary(x.ev.build) : '-', b: y.ev.build ? buildSummary(y.ev.build) : '-' },
     { label: 'Formation', a: x.ev.loadout?.formation?.name ?? '-', b: y.ev.loadout?.formation?.name ?? '-' },

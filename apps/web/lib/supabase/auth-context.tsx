@@ -10,6 +10,8 @@ interface AuthContextType {
   loading: boolean;
   signInWithDiscord: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  /** Email + password account (made by an admin in Supabase). Resolves to an error message, or null when signed in. */
+  signInWithPassword: (email: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
 }
 
@@ -61,6 +63,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const signInWithPassword = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (!error) return null;
+    return /invalid login credentials/i.test(error.message) ? 'Wrong email or password.' : error.message;
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
@@ -73,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         signInWithDiscord,
         signInWithGoogle,
+        signInWithPassword,
         signOut,
       }}
     >

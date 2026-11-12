@@ -55,6 +55,12 @@ interface Base {
   below?: number;
   /** Goes off only against a target with a status put on it for a few seconds ("against an Exposed troop"): those seconds per cycle. */
   window?: number;
+  /** A bonus that is that share of the troop's damage dealt again to up to this many OTHER troops: counted on those around. */
+  splash?: number;
+  /** Damage that goes to the OTHER troops around the target (its `targets` is how many at most). */
+  others?: boolean;
+  /** A basic attack turned into this damage ("converts the damage into direct damage"): the basic attack itself is not counted again. */
+  replacesBasic?: boolean;
   /** Holds only when the primary commander's talents are of one of these troop types ("- Infantry: ..."), or of none of them ("- Otherwise: ..."). */
   only?: Unit[];
   except?: Unit[];
@@ -396,6 +402,25 @@ function extract(sentence: Sentence, ctx: Ctx): Effect[] {
     if (m[3]) out.push({ ...b, type: 'damage', kind, factor: Number(m[3]), hits, ticks, targets });
   });
 
+  // A basic attack turned into another kind of damage: "converts the damage into direct damage. The direct damage is
+  // equal to 100% of their troop's basic attack Damage Factor" (a basic attack is Damage Factor 100)
+  if (!ctx.kit) {
+    each(`the (direct|smite|combo attack) damage is equal to ${N}% of (?:their|its|the|this commander's) troop's basic attack damage factor`, (m) => {
+      const kind: DamageKind = m[1] === 'smite' ? 'smite' : m[1] === 'combo attack' ? 'combo' : 'direct';
+      out.push({ ...base(m.index), unit: undefined, trigger: 'attack', temp: true, type: 'damage', kind, factor: Number(m[2]), hits: 1, ticks: 1, targets: 1, replacesBasic: true });
+    });
+    // "whenever their troop deals direct damage with a basic attack via ..., it also deals 60% of the damage to up to 5 other nearby enemy troops"
+    each(`deals? direct damage with a basic attack[^,]*, it also deals ${N}% of the damage to up to (\\d+) other`, (m) => {
+      out.push({ ...base(m.index), unit: undefined, trigger: 'attack', temp: true, type: 'damage', kind: 'direct', factor: Number(m[1]), hits: 1, ticks: 1, targets: Number(m[2]), others: true });
+    });
+  }
+  // "also deals 30% of this smite damage as fixed true damage to up to 2 enemy troops": that much more of it, on the troops around
+  each(`deals? ${N}% of this (smite|skill|direct|combo attack) damage as (?:fixed )?true damage to up to (\\d+)`, (m) => {
+    const s: Stat = m[2] === 'smite' ? 'dmgSmite' : m[2] === 'combo attack' ? 'dmgCombo' : 'dmgSkill';
+    const e = stat(m.index, s, Number(m[1]), m.index + m[0].length, 'self');
+    if (e) e.splash = Number(m[3]);
+  });
+
   // healing
   each(`healing factor ${N}`, (m) => {
     const tick = new RegExp(`every second for (?:the next )?${N} seconds?`).exec(t);
@@ -671,7 +696,14 @@ export function analyzeKit(id: number, name: string, text: Pick<SkillData, 'desc
 function read(text: string, given: Omit<Ctx, 'cooldown'>): Effect[] {
   // "(if Diaochan is in this commander's troop, it instead gains 120% Attack)": for one partner only, not counted
   text = text.replace(/\s*\((?:if|when) [^()]*?(?:is in this commander's troop|is the (?:other|primary|secondary) commander)[^()]*\)/gi, '');
-  const ctx: Ctx = { ...given, cooldown: cooldownOf(text.toLowerCase()), whole: text.toLowerCase() };
+  // the skill's own cooldown ("Cooldown: 5 seconds", a sentence of its own) holds for every sentence of it; "can trigger
+  // once every 60 seconds" inside a sentence is for that sentence only (read there)
+  // (and so does a line of its own that only says how often: "This effect can trigger once every 7 seconds.")
+  const own =
+    /cooldown(?::| of) ?(\d+(?:\.\d+)?)? ?(second|minute|hour)s?/i.exec(text) ??
+    /^(?:this (?:skill|effect) )?can (?:only )?(?:be )?trigger(?:ed)? (?:up to )?once (?:every|per) ?(\d+(?:\.\d+)?)? ?(second|minute|hour)s?\.?$/im.exec(text);
+  const skillCooldown = own ? Number(own[1] ?? 1) * (own[2].toLowerCase() === 'hour' ? 3600 : own[2].toLowerCase() === 'minute' ? 60 : 1) : undefined;
+  const ctx: Ctx = { ...given, cooldown: skillCooldown, whole: text.toLowerCase() };
   const list = statements(text);
   // the troop types that have a version of their own in this skill: "- Otherwise:" is for the rest
   const named = [...new Set(list.flatMap((s) => (Array.isArray(s.variant) ? s.variant : [])))];

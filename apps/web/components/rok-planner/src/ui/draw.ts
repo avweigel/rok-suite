@@ -10,6 +10,7 @@ import type { JumpView } from '../core/walljump';
 import { gateRadius } from '../core/world';
 import type { World } from '../core/world';
 import { RESOURCE_ICONS } from './resourceIcons';
+import { FORTRESS_ICON } from './fortressIcon';
 import { DEFAULT_MASK_OPACITY, resColor } from './model';
 import type { ExtraLayer, Filters, Ghost, Layers, Picks, RoutePreview, Tool } from './model';
 import { toScreen } from './view';
@@ -62,6 +63,8 @@ export function landEdges(cells: Iterable<number>, has: (k: number) => boolean):
 }
 
 const ICON_PX = 96;
+/** The fortress is drawn up to 64 px tall: a sharper bitmap for high-density screens. */
+const FORTRESS_PX = 160;
 
 // These do not change with what the plan assumes gone, and a new Assets is made for each such change: kept apart.
 const MASKS = new WeakMap<object, Map<string, HTMLCanvasElement | null>>();
@@ -125,11 +128,15 @@ export class Assets {
     iconLoaded = onLoad;
     if (!iconsStarted && typeof Image !== 'undefined') {
       iconsStarted = true;
-      for (const [name, svg] of Object.entries(RESOURCE_ICONS)) {
+      const sources: [string, string, number][] = [
+        ...Object.entries(RESOURCE_ICONS).map(([name, svg]): [string, string, number] => [name, svg, ICON_PX]),
+        ['fortress', FORTRESS_ICON, FORTRESS_PX],
+      ];
+      for (const [name, svg, px] of sources) {
         const im = new Image();
         im.onload = () => {
-          const c = makeCanvas(ICON_PX, ICON_PX);
-          c.getContext('2d')?.drawImage(im, 0, 0, ICON_PX, ICON_PX);
+          const c = makeCanvas(px, px);
+          c.getContext('2d')?.drawImage(im, 0, 0, px, px);
           ICONS[name] = c;
           iconLoaded();
         };
@@ -312,6 +319,55 @@ function objectiveGlyph(ctx: CanvasRenderingContext2D, glyph: Glyph, x: number, 
 }
 
 export const MAX_DRAWN_LABELS = 400;
+
+/** How tall a fortress picture is at zoom z (px per tile); below FORT_MIN_PX the plain square is drawn instead. */
+const fortressPx = (z: number, size: number): number => Math.min(64, size * z * 1.5);
+const FORT_MIN_PX = 16;
+/** From this height up, the alliance's name tag goes above the fortress. */
+const FORT_TAG_PX = 24;
+
+/** A fortress as in the game: a plate in the alliance's colour and the stone tower on it. Returns where its top is (for the tag). */
+function fortressPicture(ctx: CanvasRenderingContext2D, icon: HTMLCanvasElement, X: number, Y: number, h: number, color: string, mine: boolean): number {
+  ctx.beginPath();
+  ctx.ellipse(X, Y + h * 0.16, h * 0.4, h * 0.11, 0, 0, 6.2832);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.lineWidth = mine ? 2.5 : 1.2;
+  ctx.strokeStyle = mine ? '#fff' : 'rgba(5,8,12,.9)';
+  ctx.stroke();
+  const top = Y - h * 0.7;
+  ctx.drawImage(icon, X - h / 2, top, h, h);
+  return top + h * 0.05;
+}
+
+/** The name above a fortress, like the game's: a white tag with a square in the alliance's colour. */
+function nameTag(ctx: CanvasRenderingContext2D, text: string, color: string, X: number, bottom: number): void {
+  if (!text) return;
+  ctx.font = '700 11px system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  const sq = 8;
+  const w = 5 + sq + 4 + ctx.measureText(text).width + 6;
+  const h = 16;
+  const x0 = Math.round(X - w / 2);
+  const y0 = Math.round(bottom - h - 2);
+  ctx.beginPath();
+  ctx.roundRect(x0, y0, w, h, 4);
+  ctx.fillStyle = 'rgba(255,255,255,.95)';
+  ctx.fill();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(0,0,0,.35)';
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.fillRect(x0 + 5, y0 + (h - sq) / 2, sq, sq);
+  ctx.strokeStyle = 'rgba(0,0,0,.45)';
+  ctx.strokeRect(x0 + 5, y0 + (h - sq) / 2, sq, sq);
+  ctx.fillStyle = '#111';
+  ctx.fillText(text, x0 + 5 + sq + 4, y0 + h / 2 + 0.5);
+}
+
+/** A name short enough for a tag. */
+const tagText = (s: string): string => (s.length > 16 ? `${s.slice(0, 15)}…` : s);
 
 function drawExtra(ctx: CanvasRenderingContext2D, s: Scene, over: boolean): void {
   for (const layer of s.extra) {
@@ -529,6 +585,7 @@ function drawBuildings(ctx: CanvasRenderingContext2D, s: Scene): void {
   const { view: v, W, H, filters } = s;
   const z = v.z;
   const flagR = Math.max(1.5, 0.7 * z);
+  const tags: { text: string; color: string; x: number; bottom: number }[] = [];
   for (const g of s.assets.groups) {
     if (filters.hiddenExisting.has(g.ai)) continue;
     const col = s.assets.colors[g.ai];
@@ -559,6 +616,16 @@ function drawBuildings(ctx: CanvasRenderingContext2D, s: Scene): void {
           ctx.stroke();
         }
       } else {
+        const fh = fortressPx(z, b.kind === 2 ? 3.75 : SIZE.cf);
+        const icon = s.assets.icons.fortress;
+        if (icon && fh >= FORT_MIN_PX) {
+          const top = fortressPicture(ctx, icon, X, Y, fh, col, false);
+          if (fh >= FORT_TAG_PX && tags.length < MAX_DRAWN_LABELS) {
+            const a = s.world.alliances[g.ai];
+            tags.push({ text: tagText(a?.tag || a?.name || ''), color: col, x: X, bottom: top });
+          }
+          continue;
+        }
         const r = Math.max(3.2, 1.5 * z);
         ctx.fillRect(X - r, Y - r, 2 * r, 2 * r);
         ctx.lineWidth = 1.6;
@@ -573,6 +640,7 @@ function drawBuildings(ctx: CanvasRenderingContext2D, s: Scene): void {
       }
     }
   }
+  for (const t of tags) nameTag(ctx, t.text, t.color, t.x, t.bottom);                 // names last: no tower covers them
 }
 
 function drawObjectives(ctx: CanvasRenderingContext2D, s: Scene): void {
@@ -753,6 +821,14 @@ function drawPlanItems(ctx: CanvasRenderingContext2D, s: Scene): void {
   const { view: v, W, H, plan, state, filters } = s;
   const z = v.z;
   const colors = new Map(plan.alliances.map((a) => [a.id, a.color] as const));
+  // A plan alliance's tag: the tag of the alliance it continues, else its own name.
+  const names = new Map(
+    plan.alliances.map((a) => {
+      const base = a.baseId === null ? undefined : s.world.alliances.find((w) => w.id === a.baseId);
+      return [a.id, tagText(base?.tag || a.name || '')] as const;
+    }),
+  );
+  const tags: { text: string; color: string; x: number; bottom: number }[] = [];
   for (const it of plan.items) {
     if (filters.hiddenPlan.has(it.a)) continue;
     const [X, Y] = toScreen(v, it.x, it.y);
@@ -761,7 +837,11 @@ function drawPlanItems(ctx: CanvasRenderingContext2D, s: Scene): void {
     const as = state.byAlliance.get(it.a);
     const on = as?.active.get(it.id) !== false;
     const mine = it.a === s.activeAllianceId;
-    if (it.k === 'cf') {
+    const fh = fortressPx(z, SIZE.cf);
+    if (it.k === 'cf' && s.assets.icons.fortress && fh >= FORT_MIN_PX) {
+      const top = fortressPicture(ctx, s.assets.icons.fortress, X, Y, fh, col, mine);
+      if (fh >= FORT_TAG_PX && tags.length < MAX_DRAWN_LABELS) tags.push({ text: names.get(it.a) ?? '', color: col, x: X, bottom: top });
+    } else if (it.k === 'cf') {
       const r = Math.min(26, Math.max(7, (SIZE.cf * z) / 2));
       ctx.fillStyle = col;
       ctx.fillRect(X - r, Y - r, 2 * r, 2 * r);
@@ -801,6 +881,7 @@ function drawPlanItems(ctx: CanvasRenderingContext2D, s: Scene): void {
       }
     }
   }
+  for (const t of tags) nameTag(ctx, t.text, t.color, t.x, t.bottom);
 }
 
 function drawRoute(ctx: CanvasRenderingContext2D, s: Scene): void {

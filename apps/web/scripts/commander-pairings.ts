@@ -37,7 +37,7 @@ const HELP = `Ranks commander pairings with the model of the /commanders page.
 
 Numbers are 0-100: the share of all pairings beaten. Overall: ${Math.round(SKILLS_FIRST * 100)}% the two commanders' skills alone,
 the rest with the primary's full build; damage and durability weighed per scenario (open field 60% damage, rally 50%,
-garrison 40%, barbarians 70%). Synergy: how much more damage the two give together than one at a time.`;
+garrison 50%, barbarians 70%). Synergy: how much more damage the two give together than one at a time.`;
 
 // ---- options --------------------------------------------------------------------------------------------------
 const args = process.argv.slice(2).filter((a) => a !== '--');

@@ -17,7 +17,7 @@ export type Role = 'primary' | 'secondary';
 export const SCENARIOS: { id: Scenario; label: string; hint: string; damage: number }[] = [
   { id: 'field', label: 'Open field', hint: 'Fights on the map, ball fights included: hit and run, a few enemy troops on you at once, so area damage, counterattacks and a fast skill cycle count', damage: 0.6 },
   { id: 'rally', label: 'Conquest (rally)', hint: 'Rallying and attacking structures (cities, flags, fortresses, strongholds) while the defenders swarm the rally with their field troops', damage: 0.5 },
-  { id: 'garrison', label: 'Garrison', hint: 'Defending a city or a structure', damage: 0.4 },
+  { id: 'garrison', label: 'Garrison', hint: 'Defending a city or a structure: holding, and hurting the attackers', damage: 0.5 },
   { id: 'pve', label: 'Barbarians', hint: 'Barbarians, forts and other neutral units', damage: 0.7 },
 ];
 const damageShare = (s: Scenario): number => SCENARIOS.find((x) => x.id === s)?.damage ?? 0.6;
@@ -251,7 +251,7 @@ export const AXES: { id: Axis; label: string; hint: string }[] = [
   { id: 'swarm', label: 'Vs many troops', hint: 'Area damage on several troops and counterattacks on every attacker: what counts when the troop is swarmed' },
   { id: 'durability', label: 'Durability', hint: 'Defense, Health, damage reduction and what weakens the enemy' },
   { id: 'sustain', label: 'Healing & shields', hint: 'Healing and shield factors per Rage cycle' },
-  { id: 'rage', label: 'Rage', hint: 'Rage gained, Rage speed, and Rage taken from the enemy' },
+  { id: 'rage', label: 'Rage cycle', hint: 'How often the active skills go off (Rage from attacks, counterattacks, skills, talents, equipment, Rage speed), and Rage taken from the enemy' },
   { id: 'control', label: 'Debuffs & control', hint: 'Everything put on the enemy: stat reductions, silence, disarm' },
   { id: 'mobility', label: 'Mobility', hint: 'March speed of the troop and slows on the enemy' },
 ];
@@ -273,6 +273,8 @@ export interface Indexes {
   focus: number;
   /** The same pairing on its two commanders' skills alone (no talents, equipment, formation or armaments): the mix. */
   skills: { offense: number; durability: number } | null;
+  /** Casts of the active skills per 10 seconds: 1 with no Rage bonus, more with a faster Rage cycle (2 at most). */
+  casts: number;
 }
 
 export interface Evaluation extends Indexes {
@@ -348,7 +350,19 @@ const SEQ: readonly { stat: Stat; enemy: boolean }[] = [
 const SEQ_AT = new Map(SEQ.map((x, i) => [`${x.enemy ? 'e' : 's'}:${x.stat}`, i]));
 const UP = DF_SKILL + 21;
 const FIRST = UP + SEQ.length;
-const SIZE = FIRST + SEQ.length;
+/** Damage factor of the basic attacks turned into another kind of damage (counted there, not again as basic attacks). */
+const BASIC_OFF = FIRST + SEQ.length;
+/**
+ * What the active skills give besides their damage (buffs and debuffs that last a while, what is set off by using a
+ * skill, healing, shields), for every stat of the troop and of the enemy: once per cast, so more of it with a faster
+ * Rage cycle (see finish).
+ */
+const ACT = BASIC_OFF + 1;
+const ACT_HEAL = ACT + 2 * NS;
+const ACT_SHIELD = ACT_HEAL + 1;
+const SIZE = ACT_SHIELD + 1;
+/** A row to work on in finish (one, reused: finish is called millions of times). */
+const SCRATCH = new Float64Array(SIZE);
 const plus = (into: Sums, more: Sums): Sums => {
   for (let i = 0; i < SIZE; i++) into[i] += more[i];
   return into;
@@ -399,6 +413,8 @@ function applies(e: Effect, role: Role, ctx: Ctx): { w: number; why?: LostEffect
   if (has('situational')) w *= SITUATIONAL;
   // only with few units left: for about that share of a fight
   if (e.below !== undefined) w *= Math.min(1, e.below / 100);
+  // that much of the damage dealt again to the other troops around: as many as there are, up to the most named
+  if (e.splash !== undefined) w *= Math.max(0, Math.min(e.splash, ctx.crowd - 1));
   return { w };
 }
 
@@ -537,6 +553,8 @@ function tally(sums: Sums, effects: readonly Effect[], role: Role, ctx: Ctx, det
       const counted = e.value * w * strength(e, ctx);
       sums[(e.scope === 'enemy' ? ENEMY : 0) + AT[e.stat]] += counted;
       if (detail && counted !== 0) detail.boosts.push({ effect: e, value: counted });
+      // given by an active skill, or by using one: once per cast
+      if ((e.trigger === 'active' || e.trigger === 'skill') && e.temp && counted !== 0) sums[ACT + (e.scope === 'enemy' ? ENEMY : 0) + AT[e.stat]] += counted;
       // started by an active skill going off (its own, or "whenever the troop uses an active skill") and over before
       // the next one: the order of the two skills decides what it meets (see burst)
       if ((e.trigger === 'active' || e.trigger === 'skill') && e.duration !== undefined && e.duration < CYCLE && counted !== 0) {
@@ -550,22 +568,32 @@ function tally(sums: Sums, effects: readonly Effect[], role: Role, ctx: Ctx, det
     } else if (ooc) continue;
     else if (e.type === 'damage') {
       const n = procs(e, ctx) * w;
-      // over several troops when there are several around
-      const wide = e.targets > 1 ? spread(e.targets, ctx.crowd) : 1;
+      // over several troops when there are several around (the OTHER troops around the target, for a splash)
+      const others = Math.min(e.targets, ctx.crowd - 1);
+      const wide = e.others ? (others > 0 ? others * (1 - 0.15 * (others - 1)) : 0) : e.targets > 1 ? spread(e.targets, ctx.crowd) : 1;
       const value = e.factor * e.hits * e.ticks * n * wide;
       const bucket: DamageBucket = e.kind === 'smite' ? 'smite' : e.kind === 'combo' ? 'combo' : 'skill';
       sums[bucket === 'skill' ? DF_SKILL : bucket === 'smite' ? DF_SMITE : DF_COMBO] += value;
       sums[bucket === 'skill' ? AOE_SKILL : AOE_NORMAL] += value - value / wide;
       if (e.active) sums[DF_ACTIVE] += value;
+      if (e.replacesBasic) sums[BASIC_OFF] += value;
       // the skill's own hit when it goes off: the primary's first, the secondary's right after
       if (e.active && e.trigger === 'active') sums[(role === 'primary' ? CAST_P : CAST_S) + (bucket === 'skill' ? 0 : bucket === 'smite' ? 1 : 2)] += value;
       if (e.kind === 'smite') sums[SMITES] += n;
       else if (e.kind === 'combo') sums[COMBOS] += n * e.hits;
       detail?.damage.push({ who: role, active: e.active, bucket, value, skillName: e.skillName });
     } else if (e.type === 'heal') {
-      if (e.scope !== 'allies') sums[HEAL] += e.factor * e.ticks * procs(e, ctx) * w;
+      if (e.scope !== 'allies') {
+        const v = e.factor * e.ticks * procs(e, ctx) * w;
+        sums[HEAL] += v;
+        if (e.trigger === 'active' || e.trigger === 'skill') sums[ACT_HEAL] += v;
+      }
     } else if (e.type === 'shield') {
-      if (e.scope !== 'allies') sums[SHIELD] += e.factor * procs(e, ctx) * w;
+      if (e.scope !== 'allies') {
+        const v = e.factor * procs(e, ctx) * w;
+        sums[SHIELD] += v;
+        if (e.trigger === 'active' || e.trigger === 'skill') sums[ACT_SHIELD] += v;
+      }
     } else if (e.type === 'rage') {
       // "per second": all the cycle long when it is simply there, for as long as it lasts each time when something sets it off
       const steady = e.trigger === 'always' || e.trigger === 'second' || e.trigger === 'active';
@@ -625,12 +653,28 @@ function burst(s: Sums, at: 0 | 1 | 2, skill: number, smite: number, combo: numb
   }
 }
 
-/** From a row to the indexes. (Called millions of times when every pairing is ranked: no functions made in it.) */
-function finish(s: Sums, scenario: Scenario): Indexes {
-  const crowd = CROWD[scenario];
+/** The active skills' casts per cycle: 1 for a troop with no Rage bonus, more with a faster Rage cycle. */
+function castsOf(s: Sums, scenario: Scenario): number {
   // More Rage means more casts of the active skills: 1000 Rage is one more cast per cycle. Every enemy on the troop
   // beyond the first is counterattacked, and each counterattack brings Rage too.
-  const casts = 1 + clamp((s[RAGE] + (crowd - 1) * COUNTER_RAGE * CYCLE) / 1000 + s[AT.rageSpeed] / 100, -0.5, 1);
+  return 1 + clamp((s[RAGE] + (CROWD[scenario] - 1) * COUNTER_RAGE * CYCLE) / 1000 + s[AT.rageSpeed] / 100, -0.5, 1);
+}
+
+/** From a row to the indexes. (Called millions of times when every pairing is ranked: no functions made in it.) */
+function finish(row: Sums, scenario: Scenario): Indexes {
+  const crowd = CROWD[scenario];
+  const casts = castsOf(row, scenario);
+  // A faster Rage cycle is more of everything the active skills give, not only their damage: their buffs and debuffs
+  // (up that much more of the time), their healing and their shields
+  const s = SCRATCH;
+  s.set(row);
+  const more = casts - 1;
+  if (more !== 0) {
+    for (let i = 0; i < 2 * NS; i++) s[i] += more * row[ACT + i];
+    s[HEAL] += more * row[ACT_HEAL];
+    s[SHIELD] += more * row[ACT_SHIELD];
+    for (let i = 0; i < SEQ.length; i++) s[UP + i] *= casts;
+  }
   const total = s[DF_SKILL] + s[DF_SMITE] + s[DF_COMBO];
   const boost = total > 0 ? 1 + ((casts - 1) * s[DF_ACTIVE]) / total : 1;
   const taken = s[ENEMY + AT.taken];
@@ -656,7 +700,8 @@ function finish(s: Sums, scenario: Scenario): Indexes {
   // basic attacks on one target; a counterattack on every enemy that attacks
   const counters = ATTACKS * BASIC_DF * crowd * pct(normal + ranged + s[AT.dmgCounter]);
   const common = pct(s[AT.attack]) * pct(s[AT.dmg]) * pct(-s[ENEMY + AT.defense]) * pct(-s[ENEMY + AT.health] * 0.5) * pct(s[AT.capacity]) * pct(s[AT.woundsDealt] * 0.5);
-  const basics = (ATTACKS * BASIC_DF * pct(normal + ranged) + counters) * pct(taken + s[ENEMY + AT.takenNormal]) * common;
+  // (basic attacks turned into skill damage are counted there)
+  const basics = (Math.max(0, ATTACKS * BASIC_DF - s[BASIC_OFF]) * pct(normal + ranged) + counters) * pct(taken + s[ENEMY + AT.takenNormal]) * common;
   // 1 is a troop with nobody leading it: its basic attacks and counterattacks
   const bare = ATTACKS * BASIC_DF * (1 + crowd);
   const skillEngine = skillDamage / bare;
@@ -684,11 +729,12 @@ function finish(s: Sums, scenario: Scenario): Indexes {
     swarm,
     durability,
     sustain,
-    rage: s[RAGE] + s[AT.rageSpeed] * 10 + s[DRAIN],
+    // how fast the Rage cycle goes (casts per cycle), and how much the enemy's is slowed
+    rage: casts + (0.5 * s[DRAIN]) / 1000,
     control: debuffs + s[CONTROLS] * 15 - s[E + AT.march] * 0.3,
     mobility: s[AT.march] + s[OOC_MARCH] * 0.5 - s[E + AT.march] * 0.5,
   };
-  return { skillEngine, normalEngine, offense: skillEngine + normalEngine, durability, metrics, focus: 0, skills: null };
+  return { skillEngine, normalEngine, offense: skillEngine + normalEngine, durability, metrics, focus: 0, skills: null, casts };
 }
 
 /** One number for "how good", used to choose talents, equipment and armaments: damage and durability, weighted as the scenario weighs them. */
@@ -1608,6 +1654,33 @@ function solve(lead: Lead, a: Commander, b: Commander | null, scenario: Scenario
   return { sums, ctx, formation: top?.formation ?? null };
 }
 
+/**
+ * The formation that gives the most damage, against the one taken for the pairing (same talents, equipment and
+ * armaments): how much more damage it gives and how much durability it costs. Null when the one taken is that one.
+ */
+function damageFormation(a: Commander, b: Commander, scenario: Scenario, troop: TroopType, setup: Setup): { formation: Formation; damage: number; durability: number } | null {
+  const lead = leadOf(a, scenario, troop, setup, partnerOf(b, scenario, troop, a.troop, setup.enemy));
+  if (lead.forms.length < 2) return null;
+  const chosen = solve(lead, a, b, scenario, troop);
+  const base = finish(chosen.sums, scenario);
+  const other = hasActive(b);
+  const ctx: Ctx = { ...chosen.ctx, smite: 0, combo: 0 };
+  let best: { formation: Formation; damage: number; durability: number } | null = null;
+  for (const f of lead.forms) {
+    if (f.formation === chosen.formation) continue;
+    const sums = Float64Array.from(lead.sums[other]);
+    plus(sums, vecOf(b.effects, 'secondary', ctx).sums);
+    counterEdge(sums, troop, lead.enemy);
+    plus(sums, f.vec[other].sums);
+    settle(sums, lead.later, ctx);
+    settle(sums, f.vec[other].later, ctx);
+    const ix = finish(sums, scenario);
+    const damage = ix.offense / base.offense - 1;
+    if (!best || damage > best.damage) best = { formation: f.formation, damage, durability: ix.durability / base.durability - 1 };
+  }
+  return best && best.damage > 0.03 ? best : null;
+}
+
 /** Whether anything beyond the two commanders' skills is counted. */
 const hasKit = (s: Setup): boolean => !!s.trees || (!!s.kit && (s.gear || s.arms));
 const skillSetups = new WeakMap<Setup, Setup>();
@@ -2137,10 +2210,11 @@ export interface Note {
   /** What part of the pairing a line of its "why" is about (to put two pairings side by side). */
   layer?: BriefLayer;
 }
-export type BriefLayer = 'damage' | 'lifts' | 'order' | 'lasting' | 'talents' | 'gear' | 'formation' | 'lost' | 'uncounted';
+export type BriefLayer = 'damage' | 'rage' | 'lifts' | 'order' | 'lasting' | 'talents' | 'gear' | 'formation' | 'lost' | 'uncounted';
 /** The parts of a "why", in order, as a comparison lists them. */
 export const BRIEF_LAYERS: { id: BriefLayer; label: string }[] = [
   { id: 'damage', label: 'Damage' },
+  { id: 'rage', label: 'Rage cycle' },
   { id: 'lifts', label: 'Skills together' },
   { id: 'order', label: 'Order of the skills' },
   { id: 'lasting', label: 'Lasting' },
@@ -2287,6 +2361,19 @@ export function briefOf(a: Commander, b: Commander, ev: Evaluation, setup: Setup
     if (firstHit && later.length) say('order', { tone: 'info', text: `Order: ${later.join(' and ')} ${later.length === 1 ? 'starts' : 'start'} after ${firstHit} (${name('primary')}) has hit, so ${later.length === 1 ? 'it lifts' : 'they lift'} what follows, not that hit. With the seats swapped ${later.length === 1 ? 'it' : 'they'} would.` });
   }
 
+  // the Rage cycle: how often the active skills go off, and what makes it faster
+  {
+    const every = CYCLE / ev.casts;
+    const own = (c: Commander): string[] => c.effects.filter((e) => e.type === 'rage' && e.scope === 'self' && e.value > 0 && !ev.lost.some((l) => l.effect === e)).map((e) => e.skillName);
+    const speed = ev.boosts.filter((x) => x.effect.type === 'stat' && x.effect.stat === 'rageSpeed' && x.value > 0).map((x) => x.effect.skillName);
+    const from = [...new Set([...own(a), ...own(b), ...speed])].slice(0, 4);
+    const quick = ev.casts > 1.05;
+    say('rage', {
+      tone: quick ? 'good' : ev.casts < 0.95 ? 'warn' : 'info',
+      text: `Rage cycle: the active skills go off about every ${every.toFixed(1)} s (${quick ? `${Math.round((ev.casts - 1) * 100)}% more often than` : ev.casts < 0.95 ? `${Math.round((1 - ev.casts) * 100)}% less often than` : 'as often as'} a troop with no Rage bonus: every ${CYCLE} s)${from.length ? `, thanks to ${from.join(', ')}` : ''}. Their buffs, debuffs, healing and shields come round that much more often too.${ev.rageDrain >= 100 ? ` It also takes about ${Math.round(ev.rageDrain)} Rage per cycle from the enemy.` : ''}`,
+    });
+  }
+
   // what keeps the troop alive (it weighs more in a rally and a garrison): the skills of the two
   const lasting = listOf(
     ev.boosts.filter((x) => {
@@ -2355,6 +2442,16 @@ export function briefOf(a: Commander, b: Commander, ev: Evaluation, setup: Setup
         tone: differs ? 'warn' : g.text ? 'good' : 'info',
         text: `${form.name}${top ? ` (${describeEffect(top)})` : ''}${special.length ? ` with ${special.slice(0, 4).join(', ')}` : ''}${g.text ? `; formation and armaments give the ${kindWord} ${g.text}` : ''}.${differs ? ` ${a.label} alone would take ${alone?.name}: this one is for the two together.` : ''}`,
       });
+      // the trade-off against the formation that would give the most damage
+      const trade = damageFormation(a, b, ev.scenario, ev.troop, setup);
+      if (trade) {
+        const pc = (v: number): string => `${v >= 0 ? '+' : ''}${Math.round(v * 100)}%`;
+        const where = SCENARIOS.find((s) => s.id === ev.scenario);
+        say('formation', {
+          tone: 'info',
+          text: `${trade.formation.name} would give ${pc(trade.damage)} damage${trade.durability < -0.005 ? ` but ${pc(trade.durability)} durability` : ''}: ${form.name} is taken because ${trade.durability < -0.005 ? `in ${where?.label.toLowerCase() ?? 'this scenario'} durability counts ${Math.round(100 * (1 - (where?.damage ?? 0.6)))}% of the rating` : 'it does more for the rest (Rage, what you aim for)'}. The two are close: see "Every formation".`,
+        });
+      }
     }
   }
 

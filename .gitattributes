@@ -1,2 +1,4 @@
 packages/**/data/** filter=lfs diff=lfs merge=lfs -text
 *.png filter=lfs diff=lfs merge=lfs -text
+# Files served by the site stay in plain git: Vercel does not fetch LFS objects (the live favicon was an LFS pointer, 2026-11-12).
+apps/web/public/**/*.png -filter -diff -merge -text

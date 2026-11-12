@@ -3,7 +3,7 @@
 // A map section of the Kingdom Planner: the alliance land planner
 // (components/rok-planner) on one map, home kingdom or KvK.
 // Plans are saved in Supabase (map_plans, one list per map) by whoever signed
-// in with Discord. The open plan is kept in the address, with parameters of
+// in with an account (email + password; Discord sign-in is on standby, FEATURES.discordLogin). The open plan is kept in the address, with parameters of
 // its own per map so the two sections never pick up each other's plan:
 // ?mplan= / ?mpid= for the home map, ?kplan= / ?kpid= for the KvK map.
 
@@ -12,6 +12,8 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { MapPlanner, createSupabaseStore, sanitizePlan, type ExtraLayer, type PlanDoc, type ZoneOf } from '@/components/rok-planner/src';
 import { useAuth } from '@/lib/supabase/auth-context';
 import { createClient } from '@/lib/supabase/client';
+import { FEATURES } from '@/lib/feature-flags';
+import { AccountSignInDialog } from '@/components/auth/AccountSignIn';
 
 export type MapSectionId = 'home-map' | 'kvk-map';
 
@@ -61,8 +63,16 @@ export function MapPlannerSection({ section, dataUrl, backgroundUrl, extraLayers
     } catch { /* sessionStorage may be unavailable */ }
   }, [draftKey]);
 
+  const [askSignIn, setAskSignIn] = useState(false);
+  const closeSignIn = useCallback(() => setAskSignIn(false), []);
+
   const onRequireSignIn = useCallback(
     (plan: PlanDoc) => {
+      // Account sign-in happens on the page: the plan stays where it is.
+      if (!FEATURES.discordLogin) {
+        setAskSignIn(true);
+        return;
+      }
       try {
         if (plan.items.length > 0 || plan.blank) window.sessionStorage.setItem(draftKey, JSON.stringify(plan));
       } catch { /* the plan just won't survive the trip */ }
@@ -104,12 +114,13 @@ export function MapPlannerSection({ section, dataUrl, backgroundUrl, extraLayers
         extraLayers={extraLayers}
         zoneOf={zoneOf}
         noFort={noFort}
-        providerName="Discord"
+        providerName={FEATURES.discordLogin ? 'Discord' : undefined}
         authKey={authUser?.id ?? null}
         onSignOut={() => void signOut()}
         onImportLiveMap={onImportLiveMap}
         style={{ height: 'calc(100vh - 150px)', minHeight: 560 }}
       />
+      <AccountSignInDialog open={askSignIn} onClose={closeSignIn} title="Sign in to save plans" />
     </div>
   );
 }

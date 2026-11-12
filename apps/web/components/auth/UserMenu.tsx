@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { LogIn, LogOut, User, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/lib/supabase/auth-context';
+import { FEATURES } from '@/lib/feature-flags';
+import { AccountSignInForm } from './AccountSignIn';
 
 export function UserMenu() {
   const { user, loading, signInWithDiscord, signInWithGoogle, signOut } = useAuth();
@@ -32,11 +34,15 @@ export function UserMenu() {
               className="fixed inset-0 z-40"
               onClick={() => setShowLoginOptions(false)}
             />
-            <div className="absolute right-0 mt-2 w-56 rounded-xl bg-stone-800 border border-stone-700 shadow-xl z-50 overflow-hidden">
+            <div className="absolute right-0 mt-2 w-72 rounded-xl bg-stone-800 border border-stone-700 shadow-xl z-50 overflow-hidden">
               <div className="p-3 border-b border-stone-700">
                 <p className="text-sm text-stone-400">Sign in to save your commanders</p>
               </div>
-              <div className="p-2">
+              <div className="p-3">
+                <AccountSignInForm onDone={() => setShowLoginOptions(false)} autoFocus />
+              </div>
+              {FEATURES.discordLogin && (
+              <div className="p-2 border-t border-stone-700">
                 <button
                   onClick={() => {
                     signInWithDiscord();
@@ -65,6 +71,7 @@ export function UserMenu() {
                   <span className="text-stone-200">Continue with Google</span>
                 </button>
               </div>
+              )}
             </div>
           </>
         )}
