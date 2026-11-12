@@ -21,12 +21,42 @@ import {
   type ShareRow,
   type Version,
 } from '@/lib/commander-shares/data';
+import { loadTroops, rankAll, type TroopMap } from '@/lib/commander-shares/rating';
 import { CommanderCard } from './CommanderCard';
 import { PopoverHost } from './Popover';
 import s from './SharedCommanders.module.css';
 
 const NEW_FOR_MS = 10 * 60 * 1000;
 const SEARCH_KEY = 'rok-shared-commanders-q';
+const FILTER_KEY = 'rok-shared-commanders-f';
+
+type Filters = { player: string; pid: string; hero: string; sort: 'newest' | 'rating' };
+const NO_FILTERS: Filters = { player: '', pid: '', hero: '', sort: 'newest' };
+
+function readFilters(): Filters {
+  try {
+    const raw = JSON.parse(window.sessionStorage.getItem(FILTER_KEY) ?? 'null') as Partial<Filters> | null;
+    if (!raw || typeof raw !== 'object') return NO_FILTERS;
+    const str = (v: unknown) => (typeof v === 'string' ? v : '');
+    return { player: str(raw.player), pid: str(raw.pid), hero: str(raw.hero), sort: raw.sort === 'rating' ? 'rating' : 'newest' };
+  } catch {
+    return NO_FILTERS;
+  }
+}
+
+const playerOf = (r: ShareRow) => r.record.player ?? r.player ?? '';
+const heroOf = (r: ShareRow) => r.record.hero.name ?? r.hero_name ?? `Commander ${r.hero_id}`;
+
+/** Does a card pass the filters (leaving one out, to list that filter's own choices)? */
+function passes(r: ShareRow, f: Filters, skip?: 'player' | 'pid' | 'hero') {
+  return (
+    (skip === 'player' || !f.player || playerOf(r) === f.player) &&
+    (skip === 'pid' || !f.pid || String(r.pid) === f.pid) &&
+    (skip === 'hero' || !f.hero || heroOf(r) === f.hero)
+  );
+}
+
+const byText = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'base' });
 const DEV = process.env.NODE_ENV !== 'production';
 
 function readSearch() {
@@ -177,7 +207,24 @@ function Board({
   sample?: boolean;
 }) {
   const [query, setQuery] = useState(readSearch);
+  const [filters, setFilters] = useState<Filters>(readFilters);
+  const [troops, setTroops] = useState<TroopMap | null>(null);
   const [now, setNow] = useState(() => Date.now());
+
+  // The commander's unit for the rating comes from the game data the Commanders tool already ships; without it, from the record.
+  useEffect(() => {
+    let cancelled = false;
+    loadTroops()
+      .then((m) => !cancelled && setTroops(m))
+      .catch(() => {
+        /* the rating falls back on the gear's special talent and the build */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const ranks = useMemo(() => rankAll(rows, troops), [rows, troops]);
 
   // Keep the NEW marks honest: re-check every 30 s while one is showing.
   const anyFresh = [...fresh.values()].some((until) => until > now);
@@ -193,12 +240,33 @@ function Board({
   }, [anyFresh]);
 
   const q = query.trim().toLowerCase();
-  const shown = q
-    ? rows.filter((r) =>
-        [r.record.player ?? r.player ?? '', r.record.hero.name ?? r.hero_name ?? '', String(r.pid)].some((t) => t.toLowerCase().includes(q)),
-      )
-    : rows;
+  const shown = rows
+    .filter((r) => passes(r, filters))
+    .filter((r) => !q || [playerOf(r), heroOf(r), String(r.pid)].some((t) => t.toLowerCase().includes(q)));
+  if (filters.sort === 'rating') shown.sort((a, b) => (ranks.get(a.key)?.rank ?? Infinity) - (ranks.get(b.key)?.rank ?? Infinity));
   const versions = rows.reduce((n, r) => n + r.versions, 0);
+
+  // The choices of each filter, given the other two (a chosen value stays listed).
+  const choices = (skip: 'player' | 'pid' | 'hero', pick: (r: ShareRow) => string, chosen: string) => {
+    const set = new Set(rows.filter((r) => passes(r, filters, skip)).map(pick));
+    if (chosen) set.add(chosen);
+    return [...set].sort(byText);
+  };
+  const players = choices('player', playerOf, filters.player);
+  const heroes = choices('hero', heroOf, filters.hero);
+  const pidName = new Map(rows.map((r) => [String(r.pid), playerOf(r)]));
+  const pids = choices('pid', (r) => String(r.pid), filters.pid).sort((a, b) => Number(a) - Number(b));
+  const filtered = !!(filters.player || filters.pid || filters.hero || q);
+
+  const setFilter = (patch: Partial<Filters>) => {
+    const next = { ...filters, ...patch };
+    setFilters(next);
+    try {
+      window.sessionStorage.setItem(FILTER_KEY, JSON.stringify(next));
+    } catch {
+      /* the filters just won't be remembered */
+    }
+  };
 
   const onSearch = (v: string) => {
     setQuery(v);
@@ -228,16 +296,78 @@ function Board({
           />
         </label>
       </div>
+      {rows.length > 0 && (
+        <div className={s.filters}>
+          <label>
+            Player
+            <select value={filters.player} onChange={(e) => setFilter({ player: e.target.value })}>
+              <option value="">All players</option>
+              {players.map((p) => (
+                <option key={p} value={p}>
+                  {p || '—'}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Governor ID
+            <select value={filters.pid} onChange={(e) => setFilter({ pid: e.target.value })}>
+              <option value="">All IDs</option>
+              {pids.map((id) => (
+                <option key={id} value={id}>
+                  {id} · {pidName.get(id) || '—'}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Commander
+            <select value={filters.hero} onChange={(e) => setFilter({ hero: e.target.value })}>
+              <option value="">All commanders</option>
+              {heroes.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Sort by
+            <select value={filters.sort} onChange={(e) => setFilter({ sort: e.target.value === 'rating' ? 'rating' : 'newest' })}>
+              <option value="newest">Newest share</option>
+              <option value="rating">Rally / garrison rating</option>
+            </select>
+          </label>
+          {filtered && (
+            <button
+              type="button"
+              className={s.clear}
+              onClick={() => {
+                setFilter({ player: '', pid: '', hero: '' });
+                onSearch('');
+              }}
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
       {rows.length === 0 ? (
         <p className="text-sm text-[var(--text-secondary)]">
           Nothing shared yet. A card shows up here a few seconds after somebody shares a commander in the game&apos;s chat and the tool reads it.
         </p>
       ) : shown.length === 0 ? (
-        <p className="text-sm text-[var(--text-secondary)]">No player or commander matches “{query}”.</p>
+        <p className="text-sm text-[var(--text-secondary)]">No card matches the filters.</p>
       ) : (
         <div className={s.grid}>
           {shown.map((r) => (
-            <CommanderCard key={`${r.pid}-${r.hero_id}`} row={r} isNew={(fresh.get(r.key) ?? 0) > now} loadHistory={() => history(r)} />
+            <CommanderCard
+              key={`${r.pid}-${r.hero_id}`}
+              row={r}
+              isNew={(fresh.get(r.key) ?? 0) > now}
+              loadHistory={() => history(r)}
+              rated={ranks.has(r.key) ? { ...ranks.get(r.key)!, of: rows.length } : undefined}
+            />
           ))}
         </div>
       )}

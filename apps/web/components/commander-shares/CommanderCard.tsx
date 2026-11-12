@@ -6,6 +6,7 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import type { Armament, CommanderRecord, Gear, StatLine } from '@/lib/commander-shares/types';
 import type { ShareRow, Version } from '@/lib/commander-shares/data';
+import { CATEGORIES, CATEGORY_NAME, ICONIC_SLOTS, UNIT_NAME, type Category, type Rating } from '@/lib/commander-shares/rating';
 import { ARMAMENT_KINDS, TILE_UNIT, UI, iconUrl, qualityColor, roman, signed } from '@/lib/commander-shares/ui';
 import { usePopover } from './Popover';
 import s from './SharedCommanders.module.css';
@@ -393,9 +394,88 @@ function History({
   );
 }
 
+// ——— Rally / garrison rating ———
+
+const UNIT_FROM: Record<Rating['unitFrom'], string> = {
+  game: "the game's data",
+  gear: "the special talent on the commander's gear",
+  build: 'the build (this commander leads mixed troops: the unit its attributes favour)',
+};
+
+const SHORT: Record<Category, string> = { attack: 'ATK', defense: 'DEF', health: 'HP', allDamage: 'All Dmg' };
+
+function RatingStrip({ rank, of, rating }: { rank: number; of: number; rating: Rating }) {
+  return (
+    <div className={s.rate} aria-label={`Rally and garrison rating: ${rank} of ${of}`}>
+      <span className={s.rank} title="Rally / garrison rating among the shared commanders">
+        #{rank}
+        <small> / {of}</small>
+      </span>
+      <span className={s.chip} title={rating.iconicPieces.join(', ') || 'none'}>
+        Iconic V <b>{rating.iconic}</b>/{ICONIC_SLOTS.length}
+      </span>
+      <span className={s.chip}>
+        <i className={cx(s.dot, s.special)} />
+        {rating.special} <i className={cx(s.dot, s.rare)} />
+        {rating.rare} <i className={cx(s.dot, s.common)} />
+        {rating.common}
+      </span>
+      <span className={s.chip} title={`${UNIT_NAME[rating.unit]} + every unit`}>
+        {CATEGORIES.map((c, i) => (
+          <span key={c}>
+            {i > 0 && ' · '}
+            {SHORT[c]} <b>{signed(rating.cats[c], true)}</b>
+          </span>
+        ))}
+      </span>
+    </div>
+  );
+}
+
+function RatingDetails({ rating }: { rating: Rating }) {
+  return (
+    <details className={s.details}>
+      <summary>Rally / garrison rating</summary>
+      <ol className={s.rci}>
+        <li>
+          <b>Iconic V</b> on weapon, helm, chest, legs and accessories: {rating.iconic}/{ICONIC_SLOTS.length}
+          {rating.iconicPieces.length > 0 && ` (${rating.iconicPieces.join(', ')})`}
+        </li>
+        <li>
+          <b>Inscriptions</b>: {rating.special} gold, {rating.rare} blue, {rating.common} other
+        </li>
+        {CATEGORIES.map((c) => (
+          <li key={c}>
+            <b>{CATEGORY_NAME[c]}</b>
+            {c !== 'allDamage' && ` (${UNIT_NAME[rating.unit]} + every unit)`}: {signed(rating.cats[c], true)}
+            {rating.lines[c].length > 0 && (
+              <span className={s.lines}> ({rating.lines[c].map((l) => `${l.name} ${signed(l.total, true)}`).join(', ')})</span>
+            )}
+          </li>
+        ))}
+      </ol>
+      <div className={s.note2}>
+        Ranked in this order, each step only between commanders equal on the ones before: Iconic V, gold, blue and other inscriptions, then attack,
+        defense, health, All Damage (each category on its own, never added together). Unit from {UNIT_FROM[rating.unitFrom]}.
+      </div>
+    </details>
+  );
+}
+
 // ——— Card ———
 
-export function CommanderCard({ row, isNew, loadHistory }: { row: ShareRow; isNew: boolean; loadHistory: () => Promise<Version[]> }) {
+export function CommanderCard({
+  row,
+  isNew,
+  loadHistory,
+  rated,
+}: {
+  row: ShareRow;
+  isNew: boolean;
+  loadHistory: () => Promise<Version[]>;
+  /** Rally / garrison rank of the latest version among all the cards. */
+  rated?: { rank: number; of: number; rating: Rating };
+}) {
   const [older, setOlder] = useState<Version | null>(null);
   // A newer share replaces the card: an older version picked before stays only while it is still older than the card.
   const shown = older && older.key !== row.key ? older : null;
@@ -431,6 +511,8 @@ export function CommanderCard({ row, isNew, loadHistory }: { row: ShareRow; isNe
         </div>
       </header>
 
+      {rated && !shown && <RatingStrip rank={rated.rank} of={rated.of} rating={rated.rating} />}
+
       {shown && (
         <div className={s.older}>
           <span>Older version: {when(shown.shared_at)}</span>
@@ -457,6 +539,7 @@ export function CommanderCard({ row, isNew, loadHistory }: { row: ShareRow; isNe
         </div>
       </div>
 
+      {rated && !shown && <RatingDetails rating={rated.rating} />}
       <Recap r={r} />
       {row.versions > 1 && (
         <History versions={row.versions} load={loadHistory} shownKey={shown?.key ?? row.key} latestKey={row.key} onShow={setOlder} />
